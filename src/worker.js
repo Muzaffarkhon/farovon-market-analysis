@@ -1,9 +1,8 @@
 /**
- * Cloudflare Pages Full-Stack Worker
+ * Cloudflare Full-Stack Worker
  * Обеспечивает работу REST API на Cloudflare Edge Network (0ms cold start, глобальный CDN, HTTPS)
  */
 
-// ─── Встроенные справочники и сид-данные ───
 const JWT_SECRET = 'farovon_cf_worker_jwt_secret_2026';
 
 // Простая реализация SHA-256 через Web Crypto API
@@ -67,7 +66,7 @@ export default {
       });
     }
 
-    // Если запрос не к /api/* — отдаём статический файл из Pages
+    // Если запрос не к /api/* — отдаём статический файл из Assets
     if (!url.pathname.startsWith('/api/')) {
       return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
@@ -81,18 +80,15 @@ export default {
         const { login, password } = await request.json();
         if (!login || !password) return jsonResponse({ ok: false, error: 'Введите логин и пароль' }, 400);
 
-        // Хэш пароля
         const hash = await sha256(password);
         const normLog = login.trim().toLowerCase();
 
-        // Проверяем пользователя через D1 или дефолтного админа
         let user = null;
         if (env.DB) {
           user = await env.DB.prepare('SELECT * FROM users WHERE LOWER(login) = ?').bind(normLog).first();
         }
 
         if (!user) {
-          // Дефолтный админ и тестовые роли, если D1 еще не привязан
           if (normLog === 'admin' && (password === 'admin123' || hash === '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9')) {
             user = { id: 1, login: 'admin', fio: 'Главный Администратор', role: 'admin', units: '', active: 1 };
           } else if (normLog === 'cb' && password === 'cb123') {
@@ -202,7 +198,7 @@ export default {
         return jsonResponse({ ok: true, users });
       }
 
-      // 7. Панель Администратора: Оргструктура (326 отделов)
+      // 7. Панель Администратора: Оргструктура
       if (path === '/admin/divisions' && request.method === 'GET') {
         let divisions = [];
         if (env.DB) {
@@ -222,7 +218,7 @@ export default {
         return jsonResponse({
           ok: true,
           logs: [
-            { dt: new Date().toLocaleString('ru-RU'), login: decoded.login, action: 'деплой Cloudflare', detail: 'Cloudflare Pages Worker активен' }
+            { dt: new Date().toLocaleString('ru-RU'), login: decoded.login, action: 'деплой Cloudflare', detail: 'Cloudflare Worker активен' }
           ]
         });
       }
@@ -244,7 +240,6 @@ export default {
   }
 };
 
-// Вспомогательные функции аналитики
 async function getUserPayload(user, env) {
   let divisions = [];
   if (env.DB) {

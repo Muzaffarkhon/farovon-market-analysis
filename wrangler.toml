@@ -1,5 +1,5 @@
 name = "farovon-market-analysis"
-main = "public/_worker.js"
+main = "src/worker.js"
 compatibility_date = "2026-08-01"
 
 [assets]

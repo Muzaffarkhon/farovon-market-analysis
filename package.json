@@ -4,7 +4,7 @@
   "description": "Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон",
   "main": "src/server.js",
   "scripts": {
-    "build": "echo \"Ready for Cloudflare deployment\"",
+    "build": "echo \"Build complete\"",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
@@ -24,7 +24,6 @@
   "private": true,
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.8.1",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "csv-parse": "^5.6.0",
@@ -34,5 +33,8 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "node-telegram-bot-api": "^0.66.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.8.1"
   }
 }
