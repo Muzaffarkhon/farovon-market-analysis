@@ -13,11 +13,30 @@ async function sha256(str) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Безопасное кодирование UTF-8 (поддержка кириллицы)
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin);
+}
+
+function fromBase64(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 // Генерация и проверка токенов
 async function createToken(payload) {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const header = toBase64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const exp = Math.floor(Date.now() / 1000) + (30 * 24 * 3600); // 30 дней
-  const body = btoa(JSON.stringify({ ...payload, exp }));
+  const body = toBase64(JSON.stringify({ ...payload, exp }));
   const sig = await sha256(`${header}.${body}.${JWT_SECRET}`);
   return `${header}.${body}.${sig}`;
 }
@@ -30,7 +49,7 @@ async function verifyToken(token) {
   const expectedSig = await sha256(`${header}.${body}.${JWT_SECRET}`);
   if (sig !== expectedSig) return null;
   try {
-    const payload = JSON.parse(atob(body));
+    const payload = JSON.parse(fromBase64(body));
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
     return payload;
   } catch (e) {
