@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: farovon-market-analysis
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - JWT_SECRET=farovon_super_secret_jwt_prod_key
+      - DATABASE_PATH=/app/data/market.db
+      - TELEGRAM_BOT_TOKEN=
+      - WEBAPP_URL=http://localhost:3000
+    volumes:
+      - ./data:/app/data

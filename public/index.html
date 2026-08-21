@@ -1,0 +1,2957 @@
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --text:#0f172a; --muted:#64748b;
+  --accent:#2563eb; --accent-soft:#eff6ff;
+  --ok:#059669; --ok-soft:#ecfdf5;
+  --no:#dc2626; --no-soft:#fef2f2;
+  --warn:#d97706; --warn-soft:#fffbeb;
+  --radius:14px; --tap:46px;
+  font-size:16px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0b0f19; --card:#151d2e; --line:#1e293b; --text:#f1f5f9; --muted:#94a3b8;
+    --accent:#3b82f6; --accent-soft:#1e293b;
+    --ok:#10b981; --ok-soft:#064e3b;
+    --no:#ef4444; --no-soft:#450a0a;
+    --warn:#f59e0b; --warn-soft:#451a03;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;padding:0;overflow:hidden;background:var(--bg);color:var(--text);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.hidden{display:none !important}
+
+/* ─── Каркас ─── */
+.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);
+  padding:10px 14px;display:flex;align-items:center;gap:10px;min-height:56px}
+.top h1{font-size:16px;margin:0;font-weight:600;flex:1;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .sub{font-size:12px;color:var(--muted);font-weight:400}
+.wrap{max-width:860px;margin:0 auto;padding:14px 14px 120px}
+
+/* ─── Кнопки ─── */
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);min-height:var(--tap);padding:0 16px}
+button:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;width:100%}
+.btn-ghost{background:transparent;border:none;color:var(--accent);min-height:38px;padding:0 8px;font-weight:600}
+.btn-line{width:100%;font-weight:600}
+.btn-danger{color:var(--no);border-color:var(--no)}
+button:disabled{opacity:.5;cursor:default}
+
+/* ─── Поля ─── */
+input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);
+  border-radius:10px;background:var(--card);color:var(--text);min-height:var(--tap)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+textarea{min-height:70px;resize:vertical}
+label.lbl{display:block;font-size:13px;color:var(--muted);margin:14px 0 5px;font-weight:600}
+.two{display:flex;gap:10px}
+.two>div{flex:1;min-width:0}
+
+/* ─── Поле-выбор из справочника ───
+   На телефоне выпадающий <datalist> почти не работает: подсказки прячутся
+   за клавиатурой и не листаются. Поэтому поле открывает отдельный экран
+   со строкой поиска — там список видно целиком и пальцем попадать легко. */
+.pick{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  min-height:var(--tap);padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card)}
+.pick span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick span.ph{color:var(--muted)}
+.pick i{font-style:normal;color:var(--muted);flex:none;font-size:13px}
+.pick.need{border-color:var(--warn);background:var(--warn-soft)}
+
+.pk-search{position:sticky;top:34px;background:var(--card);padding:8px 0 10px;z-index:2}
+.pk-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
+.pk-list button{width:100%;text-align:left;border:none;border-bottom:1px solid var(--line);
+  border-radius:0;min-height:52px;font-size:15px;padding:10px 14px;background:transparent}
+.pk-list button:last-child{border-bottom:none}
+.pk-list button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.pk-empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
+.pk-add{margin-top:10px}
+.pk-add b{word-break:break-word}
+
+/* ─── Вход ─── */
+.login{max-width:380px;margin:8vh auto;padding:0 18px}
+.login .logo{text-align:center;margin-bottom:26px}
+.login .logo b{display:block;font-size:21px;letter-spacing:-.3px}
+.login .logo span{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+
+/* ─── Подразделения ─── */
+.unit{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center}
+.unit:active{border-color:var(--accent)}
+.unit .u-body{flex:1;min-width:0}
+.unit .u-name{font-weight:600;line-height:1.3}
+.unit .u-dir{font-size:12.5px;color:var(--muted);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit .u-ask{font-size:12.5px;color:var(--warn);margin-top:3px;font-weight:600}
+.unit .u-chev{color:var(--muted);font-size:22px;flex:none}
+.ring{flex:none;width:46px;height:46px;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700}
+
+/* ─── Вкладки-шаги ─── */
+.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:4px;margin-bottom:10px;position:sticky;top:56px;z-index:15}
+.tabs button{flex:1;min-height:52px;border:none;background:transparent;color:var(--muted);
+  font-weight:600;font-size:14px;padding:4px 6px;line-height:1.25;border-radius:9px}
+.tabs button.on{background:var(--accent-soft);color:var(--accent)}
+.tabs button small{display:block;font-size:11px;font-weight:600;opacity:.75;margin-bottom:2px}
+.tabs button.done small::after{content:" ✓"}
+.step-hint{font-size:13.5px;color:var(--muted);margin:0 2px 14px;line-height:1.4}
+
+/* ─── Меню и подсказка ─── */
+.menu{display:flex;flex-direction:column;gap:8px}
+.menu button{width:100%;text-align:left;font-weight:600;font-size:15px}
+ol.howto{margin:6px 0 0;padding-left:24px;font-size:14.5px;line-height:1.5}
+ol.howto li{margin-bottom:14px}
+ol.howto li::marker{font-weight:700;color:var(--accent)}
+.callout-h{background:var(--accent-soft);color:var(--accent);padding:12px 14px;
+  border-radius:10px;font-size:13.5px;margin-top:6px}
+
+/* ─── Приветственная плашка ─── */
+.onboard{background:var(--card);border:1px solid var(--accent);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px}
+.onboard h2{font-size:16px;margin:0 0 10px;font-weight:700}
+.onboard ol{margin:0 0 14px;padding-left:22px;font-size:14px;line-height:1.5;color:var(--muted)}
+.onboard ol li{margin-bottom:6px}
+.onboard ol b{color:var(--text)}
+.onboard .ob-act{display:flex;gap:8px;flex-wrap:wrap}
+.onboard .ob-act button{flex:1;min-width:130px;font-weight:600;font-size:14px}
+
+/* ─── Переход к следующему шагу ─── */
+.next-step{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.next-step p{font-size:13.5px;color:var(--muted);margin:0 0 10px}
+
+/* ─── Карточка конкурента ─── */
+.row{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  margin-bottom:10px;overflow:hidden}
+.row.st-yes{border-left:4px solid var(--ok)}
+.row.st-no{border-left:4px solid var(--no)}
+.row.st-ask{border-left:4px solid var(--warn)}
+.row-head{padding:12px 14px}
+.row-name{font-weight:600;line-height:1.3;word-break:break-word}
+.row-meta{font-size:12.5px;color:var(--muted);margin-top:3px}
+.row-note-preview{font-size:12.5px;color:var(--muted);margin-top:6px;font-style:italic}
+.row-ask{font-size:12.5px;color:var(--warn);font-weight:600;margin-top:6px}
+
+.seg{display:flex;gap:6px;padding:0 14px 12px}
+.seg button{flex:1;min-height:42px;padding:0 6px;font-size:13.5px;font-weight:600;
+  border:1px solid var(--line);background:transparent;color:var(--muted)}
+.seg button.on[data-v="актуально"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.seg button.on[data-v="не актуально"]{background:var(--no-soft);border-color:var(--no);color:var(--no)}
+.seg button.on[data-v="уточнить"]{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+
+.more{border-top:1px solid var(--line);padding:6px 14px 14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{min-height:38px;padding:0 12px;font-size:13.5px;color:var(--muted)}
+.chips button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.toggle-more{width:100%;border:none;border-top:1px solid var(--line);background:transparent;
+  color:var(--accent);min-height:42px;font-size:13.5px;font-weight:600;border-radius:0}
+
+/* ─── Карточка данных по должности ─── */
+/* ─── Должность как строка чек-листа ─── */
+.pos{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  margin-bottom:10px;overflow:hidden}
+.pos-done{border-left:4px solid var(--ok)}
+.pos-head{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer}
+.pos-body{flex:1;min-width:0}
+.pos-name{font-weight:600;line-height:1.3;word-break:break-word}
+.pos-sub{font-size:12.5px;color:var(--muted);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pos-cnt{flex:none;min-width:30px;height:30px;border-radius:15px;background:var(--card-2, var(--bg));
+  color:var(--muted);font-size:13px;font-weight:700;display:flex;align-items:center;
+  justify-content:center;padding:0 9px}
+.pos-done .pos-cnt{background:var(--ok-soft);color:var(--ok)}
+.pos-chev{flex:none;color:var(--muted);font-size:13px}
+.pos-items{padding:0 12px 12px;display:flex;flex-direction:column;gap:0}
+.pos-go{border:none;border-top:1px solid var(--line);border-radius:0;
+  color:var(--accent);font-size:14px;min-height:44px}
+
+.sv{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:var(--radius);margin-bottom:10px;padding:13px 14px}
+.sv .sv-pos{font-weight:600;line-height:1.3;word-break:break-word}
+.sv .sv-co{font-size:13px;color:var(--muted);margin-top:2px}
+.sv .sv-pay{margin-top:8px;font-size:14.5px;font-weight:600}
+.sv .sv-line{font-size:13px;color:var(--muted);margin-top:4px}
+.sv .sv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.sv .sv-tags span{background:var(--accent-soft);color:var(--accent);border-radius:20px;
+  padding:3px 10px;font-size:11.5px;font-weight:600}
+.sv .sv-act{display:flex;gap:8px;margin-top:12px}
+.sv .sv-act button{flex:1;min-height:40px;font-size:13.5px;font-weight:600}
+.sv .sv-by{font-size:11.5px;color:var(--muted);margin-top:9px}
+
+/* ─── Нижняя панель ─── */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
+  border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+.bar-in{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.bar .prog{flex:1;min-width:0}
+.bar .prog b{font-size:14px;display:block}
+.bar .prog i{font-style:normal;font-size:12px;color:var(--muted)}
+.bar .prog i.ask{color:var(--warn);font-weight:600}
+.bar button{flex:none;min-width:150px}
+@media(max-width:420px){
+  .bar button{min-width:118px;padding:0 10px}
+  .bar .prog b{font-size:13px}
+}
+
+/* ─── Прочее ─── */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:86px;z-index:70;
+  background:#16202a;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;
+  max-width:88vw;text-align:center;box-shadow:0 6px 22px rgba(0,0,0,.28)}
+@media (prefers-color-scheme:dark){.toast{background:#f0f3f6;color:#12171d}}
+.err{background:var(--no-soft);color:var(--no);padding:10px 12px;border-radius:10px;
+  font-size:14px;margin-bottom:12px}
+.note{background:var(--warn-soft);color:var(--warn);padding:10px 12px;border-radius:10px;
+  font-size:13.5px;margin-bottom:12px}
+.info{background:var(--accent-soft);color:var(--accent);padding:10px 12px;border-radius:10px;
+  font-size:13.5px;margin-bottom:12px}
+.sec-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+  font-weight:700;margin:20px 0 8px}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:26px 10px;
+  border:1px dashed var(--line);border-radius:var(--radius);margin-bottom:10px}
+.sp{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--muted)}
+.sp i{width:22px;height:22px;border:2.5px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;display:inline-block;margin-right:10px;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+.sheet-in{background:var(--card);width:100%;max-height:92vh;overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:640px){.sheet{align-items:center;justify-content:center}
+  .sheet-in{max-width:560px;border-radius:16px}}
+.sheet-hd{display:flex;align-items:center;margin-bottom:6px;position:sticky;top:-18px;
+  background:var(--card);padding:4px 0;z-index:3}
+.sheet-hd b{flex:1;font-size:17px}
+.sug{border:1px solid var(--line);border-radius:10px;margin-top:6px;max-height:210px;overflow:auto}
+.sug div{padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14.5px}
+.sug div:last-child{border-bottom:none}
+.sug div:active{background:var(--accent-soft)}
+.sug small{color:var(--muted);display:block;font-size:12px}
+table.dash{width:100%;border-collapse:collapse;font-size:14px}
+table.dash th,table.dash td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);
+  vertical-align:top}
+table.dash th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.pill.p-ok{background:var(--ok-soft);color:var(--ok)}
+.pill.p-mid{background:var(--warn-soft);color:var(--warn)}
+.pill.p-no{background:var(--no-soft);color:var(--no)}
+.pill.p-ask{background:var(--warn-soft);color:var(--warn)}
+/* ─── Диалог подтверждения ───
+   Браузерный confirm() показывает адрес googleusercontent.com и выглядит
+   как предупреждение постороннего сайта — люди пугаются и жмут «Отмена». */
+.dlg{max-width:440px}
+.dlg-t{display:block;font-size:17px;font-weight:700;line-height:1.3}
+.dlg-x{font-size:14.5px;color:var(--muted);line-height:1.5;margin:10px 0 18px;white-space:pre-line}
+.dlg-x b{color:var(--text)}
+.dlg-a{display:flex;gap:10px}
+.dlg-a button{flex:1;width:auto;font-weight:600;padding:0 10px}
+.dlg-in{margin-bottom:18px}
+
+.pickrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line)}
+.pickrow input{width:22px;height:22px;min-height:22px;flex:none}
+.pickrow span{font-size:14.5px;line-height:1.3}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* ─── Верхняя ролевая навигация ─── */
+.nav-tabs{display:flex;gap:6px;background:var(--card);border-bottom:1px solid var(--line);
+  padding:6px 14px;position:sticky;top:56px;z-index:18;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-btn{flex:1;min-height:40px;border:none;border-radius:10px;background:transparent;
+  color:var(--muted);font-weight:600;font-size:13.5px;padding:0 12px;white-space:nowrap;
+  display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.nav-btn.on{background:var(--accent-soft);color:var(--accent)}
+.nav-btn:active{transform:scale(.98)}
+
+/* ─── KPI Карточки Дашборда ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.kpi-t{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi-v{font-size:24px;font-weight:800;color:var(--text);margin:6px 0 2px;line-height:1.1}
+.kpi-s{font-size:12px;color:var(--muted)}
+
+/* ─── Фильтры Дашборда ─── */
+.dash-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.dash-filters select,.dash-filters input{flex:1;min-width:130px;min-height:42px;padding:8px 10px;font-size:13.5px}
+.dash-actions{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.dash-actions button{font-size:13.5px;min-height:38px;padding:0 14px}
+
+/* ─── Визуализатор зарплатной вилки (Box-Plot / Fork) ─── */
+.fork-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.fork-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;cursor:pointer}
+.fork-pos{font-weight:700;font-size:15px;flex:1;word-break:break-word}
+.fork-cnt{font-size:12px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:12px;font-weight:600}
+.fork-nums{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap;gap:4px}
+.fork-nums b{color:var(--text);font-weight:700}
+.fork-nums .f-med{color:var(--accent)}
+.fork-track-wrap{position:relative;height:18px;background:var(--line);border-radius:9px;margin:8px 0;overflow:hidden}
+.fork-track-p25-p75{position:absolute;top:0;bottom:0;background:var(--accent);opacity:.35;border-radius:4px}
+.fork-track-med{position:absolute;top:0;bottom:0;width:4px;background:var(--accent);border-radius:2px;transform:translateX(-50%)}
+.fork-body{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+
+/* ─── Таблица компаний по должности ─── */
+.co-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.co-tbl th,.co-tbl td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.co-tbl th{font-size:11.5px;color:var(--muted);font-weight:600}
+
+/* ─── Прогресс-бары HR BP и Направлений ─── */
+.prog-row{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
+.prog-hd{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;margin-bottom:6px}
+.prog-bar-bg{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:4px}
+.prog-bar-fill{height:100%;background:var(--ok);border-radius:4px;transition:width .3s ease}
+.prog-sub{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+
+/* ─── Вкладки Админки ─── */
+.sub-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:8px;overflow-x:auto}
+.sub-tab{background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 14px;
+  font-size:13px;font-weight:600;color:var(--muted);min-height:36px;cursor:pointer;white-space:nowrap}
+.sub-tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ─── Карточки пользователей в админке ─── */
+.u-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.u-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.u-fio{font-weight:700;font-size:15px;line-height:1.25}
+.u-meta{font-size:12.5px;color:var(--muted);margin:4px 0}
+.u-acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.u-acts button{min-height:34px;padding:0 10px;font-size:12.5px;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase}
+.b-admin{background:#fee2e2;color:#991b1b}
+.b-cb{background:#ede9fe;color:#5b21b6}
+.b-hrbp{background:#e0e7ff;color:#3730a3}
+.b-head{background:#e0f2fe;color:#0369a1}
+.b-user{background:#f1f5f9;color:#475569}
+.b-active{background:var(--ok-soft);color:var(--ok)}
+.b-blocked{background:var(--no-soft);color:var(--no)}
+.b-tg{background:#e0f2fe;color:#0284c7}
+</style>
+
+<!-- ══════════ ВХОД ══════════ -->
+<div id="scrLogin" class="login hidden">
+  <div class="logo">
+    <b>Анализ рынка</b>
+    <span>Конкурентная карта · Фаровон</span>
+  </div>
+
+  <div id="loginCard" class="card">
+    <div id="loginErr" class="err hidden"></div>
+    <label class="lbl" style="margin-top:0">Логин</label>
+    <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email">
+    <label class="lbl">Пароль</label>
+    <input id="inPass" type="password" autocomplete="current-password">
+    <div style="height:16px"></div>
+    <button id="btnLogin" class="btn-primary">Войти</button>
+  </div>
+  <div id="loginHelp"></div>
+</div>
+
+<!-- ══════════ ЗАГРУЗКА ══════════ -->
+<div id="scrLoad" class="sp"><i></i> Загрузка…</div>
+
+<!-- ══════════ ПРИЛОЖЕНИЕ ══════════ -->
+<div id="app" class="hidden">
+  <div class="top">
+    <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 4px">‹ Назад</button>
+    <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
+    <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
+    <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:20px;padding:0 10px"
+            aria-label="Меню">⋮</button>
+  </div>
+  <div id="topNav" class="nav-tabs hidden"></div>
+  <div class="wrap" id="body"></div>
+  <div class="bar hidden" id="bar">
+    <div class="bar-in">
+      <div class="prog"><b id="progT"></b><i id="progS"></i></div>
+      <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// СОСТОЯНИЕ
+// ═══════════════════════════════════════════════════════════
+var S = {
+  token:null, data:null, unit:null, tab:'comp',
+  appView:'units', // 'units' | 'dashboard' | 'admin'
+  dashTab:'salaries', // 'salaries' | 'progress' | 'benefits'
+  adminTab:'users', // 'users' | 'divisions' | 'period' | 'tools'
+  dashFilters:{ dir:'', hrbp:'', search:'' },
+  dashData:null, adminUsers:null, adminDivs:null,
+  rows:[], added:[],                 // конкуренты
+  surveys:[], removed:[],            // данные по должностям
+  note:'', dirty:false, saving:false, ro:false
+};
+var LS_TOKEN = 'фаровон_токен', LS_DRAFT = 'фаровон_черновик_', LS_OB = 'фаровон_подсказка';
+
+/** Хранилище с запасным вариантом: в некоторых браузерах localStorage запрещён. */
+var mem = {};
+var store = {
+  get: function(k){ try{ return localStorage.getItem(k); }catch(e){ return k in mem ? mem[k] : null; } },
+  set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k] = v; } },
+  del: function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
+
+/** Клиент для работы с REST API сервера */
+var API_ROUTES = {
+  apiLogin: function(args){ return fetchJson('/api/auth/login', { method:'POST', body:{ login:args[0], password:args[1] } }); },
+  apiResume: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
+  apiRefresh: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
+  apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
+  apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
+  apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
+  apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
+  apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
+  apiCBDashboardExtended: function(args){ return fetchJson('/api/dashboard/extended', { method:'POST', token:args[0], body:args[1] }); },
+  apiDashboard: function(args){ return fetchJson('/api/dashboard/hrbp', { method:'POST', token:args[0] }); },
+  apiAdminGetUsers: function(args){ return fetchJson('/api/admin/users', { method:'GET', token:args[0] }); },
+  apiAdminSaveUser: function(args){ return fetchJson('/api/admin/users', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminToggleUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/toggle', { method:'POST', token:args[0], body:{ active:args[2] } }); },
+  apiAdminResetPassword: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/reset-password', { method:'POST', token:args[0] }); },
+  apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
+  apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
+  apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
+  apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
+  apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); }
+};
+
+function fetchJson(url, opts){
+  opts = opts || {};
+  var headers = { 'Content-Type': 'application/json' };
+  if(opts.token) headers['Authorization'] = 'Bearer ' + opts.token;
+  var conf = {
+    method: opts.method || 'GET',
+    headers: headers
+  };
+  if(opts.body && (conf.method === 'POST' || conf.method === 'PUT')) {
+    conf.body = JSON.stringify(opts.body);
+  }
+  return fetch(url, conf).then(function(res){
+    return res.json().catch(function(){ return { ok: false, error: 'Ошибка ответа сервера' }; });
+  });
+}
+
+function call(fn){
+  var args = [].slice.call(arguments, 1);
+  if(API_ROUTES[fn]) return API_ROUTES[fn](args);
+  return Promise.reject(new Error('Неизвестный метод: ' + fn));
+}
+
+var toastTimer;
+function toast(msg){
+  var t = document.querySelector('.toast');
+  if(!t){ t = document.createElement('div'); t.className='toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.remove(); }, 2800);
+}
+
+/**
+ * Внутреннее окно подтверждения вместо confirm().
+ * Браузерное показывает домен googleusercontent.com и читается как
+ * предупреждение чужого сайта — половина людей на нём останавливается.
+ * Возвращает промис: true — согласились, false — отменили.
+ *
+ * opts = { title, html, ok, cancel, danger }
+ */
+function ask(opts){
+  return new Promise(function(resolve){
+    var el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = '<div class="sheet-in dlg">'+
+      '<b class="dlg-t">'+esc(opts.title || 'Подтвердите')+'</b>'+
+      '<p class="dlg-x">'+(opts.html || '')+'</p>'+
+      '<div class="dlg-a">'+
+        '<button type="button" data-v="0">'+esc(opts.cancel || 'Отмена')+'</button>'+
+        '<button type="button" data-v="1" class="dlg-go '+
+          (opts.danger ? 'btn-danger' : 'btn-primary')+'">'+
+          esc(opts.ok || 'Продолжить')+'</button>'+
+      '</div></div>';
+    document.body.appendChild(el);
+
+    var done = function(v){
+      if(!el.parentNode) return;
+      document.removeEventListener('keydown', onKey, true);
+      el.remove();
+      resolve(v);
+    };
+    var onKey = function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); done(false); }
+      else if(e.key === 'Enter'){ e.preventDefault(); done(true); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    el.addEventListener('click', function(e){
+      if(e.target === el){ done(false); return; }
+      var b = e.target.closest('button[data-v]');
+      if(b) done(b.dataset.v === '1');
+    });
+    // на телефоне фокус не ставим: он вызывает подсветку и подпрыгивание экрана
+    if(window.innerWidth >= 640){
+      setTimeout(function(){ try{ el.querySelector('.dlg-go').focus(); }catch(e){} }, 40);
+    }
+  });
+}
+
+/**
+ * То же вместо prompt(). Возвращает строку либо null, если отменили.
+ * opts = { title, html, value, placeholder, ok }
+ */
+function askText(opts){
+  return new Promise(function(resolve){
+    var el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = '<div class="sheet-in dlg">'+
+      '<b class="dlg-t">'+esc(opts.title || '')+'</b>'+
+      (opts.html ? '<p class="dlg-x">'+opts.html+'</p>' : '<div style="height:12px"></div>')+
+      '<input class="dlg-in" id="dlgIn" value="'+esc(opts.value || '')+'" '+
+        'placeholder="'+esc(opts.placeholder || '')+'">'+
+      '<div class="dlg-a">'+
+        '<button type="button" data-v="0">Отмена</button>'+
+        '<button type="button" data-v="1" class="btn-primary">'+esc(opts.ok || 'Готово')+'</button>'+
+      '</div></div>';
+    document.body.appendChild(el);
+
+    var inp = el.querySelector('#dlgIn');
+    var done = function(v){
+      if(!el.parentNode) return;
+      document.removeEventListener('keydown', onKey, true);
+      el.remove();
+      resolve(v);
+    };
+    var onKey = function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); done(null); }
+      else if(e.key === 'Enter'){ e.preventDefault(); done(inp.value.trim()); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    el.addEventListener('click', function(e){
+      if(e.target === el){ done(null); return; }
+      var b = e.target.closest('button[data-v]');
+      if(b) done(b.dataset.v === '1' ? inp.value.trim() : null);
+    });
+    setTimeout(function(){ try{ inp.focus(); inp.select(); }catch(e){} }, 60);
+  });
+}
+
+/** Короткая обёртка: «есть несохранённые правки — продолжить?». */
+function askDirty(action){
+  return ask({
+    title: 'Есть несохранённые правки',
+    html: 'Изменения по этому подразделению ещё не отправлены в таблицу. ' +
+          'Если продолжить, они пропадут.',
+    ok: action,
+    cancel: 'Остаться',
+    danger: true
+  });
+}
+
+function show(scr){
+  $('scrLogin').classList.toggle('hidden', scr!=='login');
+  $('scrLoad').classList.toggle('hidden', scr!=='load');
+  $('app').classList.toggle('hidden', scr!=='app');
+}
+
+/**
+ * Набор кнопок-переключателей.
+ * multi=true — можно выбрать несколько; req=true — снять выбор нельзя (обязательное поле).
+ */
+function chips(act, list, value, multi, req){
+  var sel = multi ? (value||[]) : [value];
+  return '<div class="chips" data-chips="'+act+'"'+(multi?' data-multi="1"':'')+
+         (req?' data-req="1"':'')+'>' +
+    list.map(function(v){
+      var on = sel.indexOf(v) >= 0;
+      return '<button type="button" data-act="'+act+'" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+esc(v)+'</button>';
+    }).join('') + '</div>';
+}
+
+/** Поле, которое открывает экран выбора из справочника. */
+function pickField(id, value, placeholder, need){
+  return '<button type="button" class="pick'+(need&&!value?' need':'')+'" id="'+id+'">'+
+    '<span class="'+(value?'':'ph')+'">'+esc(value || placeholder)+'</span><i>выбрать ▾</i></button>';
+}
+
+/**
+ * Экран выбора значения из справочника: поиск + строгий список.
+ * Свободного ввода нет — иначе одна и та же должность попадает в таблицу
+ * в пяти написаниях. Если нужного значения нет, его добавляют кнопкой внизу,
+ * и оно сразу появляется у всех остальных.
+ *
+ * opts = { title, block, list, value, placeholder, onPick,
+ *          wide: [полный список], wideLabel, addUnit }
+ * wide — второй список «по всему холдингу». Нужен должностям: у руководителя
+ * показывается штатка его подразделения, но иногда должность лежит шире.
+ */
+function openPicker(opts){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+esc(opts.title)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="pk-search">'+
+      '<input id="pkQ" placeholder="Поиск…" autocomplete="off" autocapitalize="off" '+
+        'autocorrect="off" spellcheck="false"></div>'+
+    '<div id="pkBody"></div>'+
+    '<div style="height:10px"></div></div>';
+  document.body.appendChild(el);
+
+  var q = el.querySelector('#pkQ');
+  var body = el.querySelector('#pkBody');
+  var wideOn = false;                      // показан ли полный список холдинга
+
+  function current(){ return (wideOn ? opts.wide : opts.list) || []; }
+
+  function draw(){
+    var s = q.value.trim().toLowerCase();
+    var src = current();
+    var list = src.filter(function(v){
+      return !s || String(v).toLowerCase().indexOf(s) >= 0;
+    });
+    var exact = src.some(function(v){ return String(v).toLowerCase() === s; });
+
+    var h = '';
+    if(list.length){
+      h += '<div class="pk-list">'+ list.slice(0,300).map(function(v){
+        return '<button type="button" data-v="'+esc(v)+'"'+
+          (v===opts.value?' class="on"':'')+'>'+esc(v)+'</button>';
+      }).join('') +'</div>';
+      if(list.length > 300) h += '<div class="pk-empty">Показаны первые 300 — уточните поиск</div>';
+    } else {
+      h += '<div class="pk-empty">'+
+        (s ? 'Совпадений нет'
+           : (wideOn ? 'Справочник пока пуст'
+                     : 'Для вашего подразделения должности ещё не заведены')) +'</div>';
+    }
+
+    // Переключатель на полный список холдинга
+    if(opts.wide && opts.wide.length){
+      h += '<div class="pk-add"><button type="button" class="btn-line" id="pkWide">'+
+        (wideOn ? '← Только должности моего подразделения'
+                : (opts.wideLabel || 'Показать все должности холдинга')+
+                  ' ('+opts.wide.length+')')+'</button></div>';
+    }
+
+    // Нет точного совпадения — предлагаем добавить своё значение
+    if((opts.block || opts.addUnit) && s.length >= 2 && !exact){
+      h += '<div class="pk-add"><button type="button" class="btn-line" id="pkAdd" '+
+        'style="color:var(--accent);border-color:var(--accent)">'+
+        '+ Добавить: <b>'+esc(q.value.trim())+'</b></button>'+
+        '<p style="font-size:12.5px;color:var(--muted);margin:8px 2px 0">'+
+        (opts.addUnit
+          ? 'Должность добавится в штатку подразделения «'+esc(opts.addUnit)+'».'
+          : 'Значение попадёт в «Справочник» и станет доступно всем.')+'</p></div>';
+    }
+    body.innerHTML = h;
+  }
+  draw();
+  q.oninput = draw;
+
+  function done(v){ el.remove(); opts.onPick(v); }
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+
+    if(e.target.closest('#pkWide')){
+      wideOn = !wideOn;
+      draw();
+      return;
+    }
+
+    var add = e.target.closest('#pkAdd');
+    if(add){
+      var name = q.value.trim();
+      add.disabled = true; add.textContent = 'Добавляем…';
+
+      var req = opts.addUnit
+        ? call('apiAddPosition', S.token, opts.addUnit, name)
+        : call('apiAddRefValue', S.token, opts.block, name);
+
+      req.then(function(r){
+        if(!r || !r.ok){
+          add.disabled = false;
+          toast((r && r.error) || 'Не удалось добавить');
+          draw();
+          return;
+        }
+        // Обновляем списки у себя, чтобы не перезагружать всю форму
+        if(opts.addUnit){
+          S.data.positions = r.list;
+          S.data.positionsAll = r.all;
+          // штатка текущего подразделения тоже пополняется — иначе новая должность
+          // не появится в чек-листе шага 2 до перезагрузки формы
+          if(S.data.positionsByUnit && S.unit){
+            var pu = S.data.positionsByUnit[S.unit] || (S.data.positionsByUnit[S.unit] = []);
+            if(pu.indexOf(r.name) === -1) pu.push(r.name);
+          }
+          opts.list = r.list;
+          opts.wide = r.all;
+        } else {
+          if(opts.block === 'segments') S.data.segments = r.list;
+          if(opts.block === 'regions') S.data.regions = r.list;
+          opts.list = r.list;
+        }
+        toast('Добавлено в справочник');
+        done(r.name);
+      }).catch(function(){
+        add.disabled = false;
+        toast('Нет связи с сервером');
+        draw();
+      });
+      return;
+    }
+
+    var b = e.target.closest('.pk-list button[data-v]');
+    if(b) done(b.dataset.v);
+  });
+
+  // На телефоне клавиатура закрывает половину экрана — фокус даём не сразу,
+  // чтобы человек сначала увидел список целиком
+  if((opts.list || []).length > 12){
+    setTimeout(function(){ try{ q.focus(); }catch(e){} }, 120);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// СТАРТ
+// ═══════════════════════════════════════════════════════════
+/**
+ * Экран входа. Ссылку на форму и доступ человек получает в боте,
+ * поэтому здесь только логин и пароль — без кнопки «получить доступ».
+ */
+(function loginScreen(){
+  $('loginHelp').innerHTML =
+    '<p style="text-align:center;color:var(--muted);font-size:13px;margin-top:16px">'+
+    'Логин и пароль присылает бот. Не приходил — обратитесь к своему HR BP.</p>';
+})();
+
+(function start(){
+  var t = store.get(LS_TOKEN);
+  if(!t){
+    show('login');
+    try{ $('inLogin').focus(); }catch(e){}
+    return;
+  }
+  show('load');
+  call('apiResume', t).then(function(r){
+    if(r && r.ok){ S.token = r.token; onLoaded(r.data); }
+    else { store.del(LS_TOKEN); show('login'); }
+  }).catch(function(){ store.del(LS_TOKEN); show('login'); });
+})();
+
+$('btnLogin').onclick = doLogin;
+$('inPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+$('inLogin').addEventListener('keydown', function(e){ if(e.key==='Enter') $('inPass').focus(); });
+
+function doLogin(){
+  var l = $('inLogin').value.trim(), p = $('inPass').value;
+  if(!l || !p){ loginErr('Введите логин и пароль'); return; }
+  $('btnLogin').disabled = true; $('btnLogin').textContent = 'Проверяем…';
+  call('apiLogin', l, p).then(function(r){
+    $('btnLogin').disabled = false; $('btnLogin').textContent = 'Войти';
+    if(!r || !r.ok){ loginErr((r&&r.error)||'Ошибка входа'); return; }
+    S.token = r.token;
+    store.set(LS_TOKEN, r.token);
+    $('inPass').value = '';
+    onLoaded(r.data);
+  }).catch(function(){
+    $('btnLogin').disabled = false; $('btnLogin').textContent = 'Войти';
+    loginErr('Нет связи с сервером. Проверьте интернет.');
+  });
+}
+function loginErr(m){ var e=$('loginErr'); e.textContent=m; e.classList.remove('hidden'); }
+
+function doLogout(){
+  var go = function(){ store.del(LS_TOKEN); location.reload(); };
+  if(!S.dirty){ go(); return; }
+  askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+}
+
+function doRefresh(){
+  if(!S.dirty){ doRefresh_(); return; }
+  askDirty('Перечитать из таблицы').then(function(yes){ if(yes) doRefresh_(); });
+}
+
+function doRefresh_(){
+  toast('Обновляем…');
+  call('apiRefresh', S.token).then(function(r){
+    if(!r || !r.ok){ toast((r&&r.error)||'Не удалось обновить'); return; }
+    S.dirty = false;
+    onLoaded(r.data);
+    toast('Данные перечитаны из таблицы');
+  }).catch(function(){ toast('Нет связи'); });
+}
+
+/** Меню в шапке */
+$('btnMenu').onclick = function(){
+  var r = S.data && S.data.user && S.data.user.role;
+  var items = [];
+  if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head') {
+    items.push(['dash_analytics', '📊 Аналитический дашборд']);
+  }
+  if(r === 'admin' || r === 'cb') {
+    items.push(['admin_panel', '⚙️ Панель администратора']);
+  }
+  if(r === 'hrbp') {
+    items.push(['dash_hrbp', '📋 Сводка по HR BP']);
+  }
+  items.push(['units_view', '🏢 Мои подразделения']);
+  items.push(['refresh', '🔄 Обновить данные из таблицы']);
+  items.push(['help', '❓ Как заполнять']);
+  items.push(['pwd', '🔑 Сменить пароль']);
+  items.push(['out', '🚪 Выйти']);
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+esc(userLabel())+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="menu">'+ items.map(function(it){
+      return '<button data-go="'+it[0]+'"'+(it[0]==='out'?' class="btn-danger"':'')+'>'+esc(it[1])+'</button>';
+    }).join('') +'</div></div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    var b = e.target.closest('button[data-go]');
+    if(!b) return;
+    el.remove();
+    var g = b.dataset.go;
+    if(g === 'dash_analytics') switchView('dashboard');
+    else if(g === 'admin_panel') switchView('admin');
+    else if(g === 'dash_hrbp') openDash();
+    else if(g === 'units_view') switchView('units');
+    else if(g === 'refresh') doRefresh();
+    else if(g === 'help') openHelp();
+    else if(g === 'pwd') openPassword();
+    else if(g === 'out') doLogout();
+  });
+};
+
+function renderTopNav(){
+  var r = S.data && S.data.user && S.data.user.role;
+  var isSpecial = (r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head');
+  var topNav = $('topNav');
+  if(!isSpecial || S.unit !== null){
+    topNav.classList.add('hidden');
+    return;
+  }
+  topNav.classList.remove('hidden');
+  var btns = [];
+  btns.push({ id:'units', label:'🏢 Подразделения' });
+  btns.push({ id:'dashboard', label:'📊 Дашборд' });
+  if(r === 'admin' || r === 'cb'){
+    btns.push({ id:'admin', label:'⚙️ Админка' });
+  }
+
+  topNav.innerHTML = btns.map(function(b){
+    var on = S.appView === b.id ? ' on' : '';
+    return '<button class="nav-btn'+on+'" data-view="'+b.id+'">'+esc(b.label)+'</button>';
+  }).join('');
+
+  topNav.onclick = function(e){
+    var b = e.target.closest('button[data-view]');
+    if(!b) return;
+    var v = b.dataset.view;
+    if(v === S.appView && S.unit === null) return;
+    if(S.dirty){
+      askDirty('Переключить раздел').then(function(yes){
+        if(yes){ S.dirty = false; switchView(v); }
+      });
+    } else {
+      switchView(v);
+    }
+  };
+}
+
+function switchView(v){
+  S.appView = v;
+  S.unit = null;
+  renderTopNav();
+  if(v === 'units') renderUnits();
+  else if(v === 'dashboard') openDashboard();
+  else if(v === 'admin') openAdminPanel();
+}
+
+/** Смена собственного пароля. */
+function openPassword(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Сменить пароль</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="pwErr" class="err hidden"></div>'+
+    '<label class="lbl" style="margin-top:6px">Текущий пароль</label>'+
+    '<input id="pwOld" type="password" autocomplete="current-password">'+
+    '<label class="lbl">Новый пароль</label>'+
+    '<input id="pwNew" type="password" autocomplete="new-password" placeholder="минимум 6 символов">'+
+    '<label class="lbl">Повторите новый</label>'+
+    '<input id="pwNew2" type="password" autocomplete="new-password">'+
+    '<div style="height:16px"></div>'+
+    '<button id="pwGo" class="btn-primary">Сменить пароль</button>'+
+    '<p style="font-size:13px;color:var(--muted);margin:14px 0 0;text-align:center">'+
+      'Запишите новый пароль — восстановить его нельзя,<br>только выдать новый через HR BP.</p>'+
+    '</div>';
+  document.body.appendChild(el);
+
+  var err = function(m){
+    var e = el.querySelector('#pwErr');
+    e.textContent = m; e.classList.remove('hidden');
+  };
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  el.querySelector('#pwGo').onclick = function(){
+    var o = el.querySelector('#pwOld').value;
+    var n = el.querySelector('#pwNew').value;
+    var n2 = el.querySelector('#pwNew2').value;
+    if(!o || !n){ err('Заполните все поля'); return; }
+    if(n.length < 6){ err('Новый пароль — минимум 6 символов'); return; }
+    if(n !== n2){ err('Новые пароли не совпадают'); return; }
+
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Меняем…';
+    call('apiChangePassword', S.token, o, n).then(function(r){
+      btn.disabled = false; btn.textContent = 'Сменить пароль';
+      if(!r || !r.ok){ err((r && r.error) || 'Не удалось сменить пароль'); return; }
+      el.remove();
+      toast('Пароль изменён. В следующий раз входите с новым.');
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сменить пароль';
+      err('Нет связи с сервером');
+    });
+  };
+
+  setTimeout(function(){ el.querySelector('#pwOld').focus(); }, 60);
+}
+
+/** Подпись пользователя. Если ФИО в таблице не заполнено — показываем логин. */
+function userLabel(){
+  if(!S.data) return '';
+  var f = String(S.data.user.fio || '').trim();
+  if(f.length > 1 && !/^\d+$/.test(f)) return f;
+  return S.data.user.login;
+}
+
+$('btnHelp').onclick = function(){ openHelp(); };
+
+function openHelp(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Как заполнять</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<ol class="howto">'+
+      '<li><b>Откройте своё подразделение</b><br>Если их несколько — по очереди каждое.</li>'+
+      '<li><b>Шаг 1. Конкуренты</b><br>По каждой компании нажмите одну из трёх кнопок: '+
+        '«Актуально» — это наш конкурент, «Не актуально» — нет, «Уточнить» — не уверены. '+
+        'Чего не хватает — добавьте кнопкой «+ Добавить компанию».</li>'+
+      '<li><b>«Уточнить» — это не «проверено»</b><br>Такие компании остаются в работе '+
+        'и отдельно видны и вам, и HR BP. Вернитесь к ним, когда выясните.</li>'+
+      '<li><b>Шаг 2. Данные по рынку</b><br>Здесь главное. По должностям, которые знаете, '+
+        'внесите оклад, бонусы и льготы у конкурента. Неполные данные тоже нужны — '+
+        'знаете только оклад, впишите оклад.</li>'+
+      '<li><b>Должность выбирается из списка</b><br>Нажмите на поле, найдите нужную через поиск. '+
+        'Если такой нет — внизу появится кнопка «Добавить», и должность попадёт в общий справочник.</li>'+
+      '<li><b>Нажмите «Сохранить»</b><br>Одна кнопка сохраняет оба шага сразу. '+
+        'Данные попадают в таблицу немедленно.</li>'+
+    '</ol>'+
+    '<div class="callout-h">Можно заполнять в несколько заходов — просто сохраняйте по ходу. '+
+      'Когда всё готово, нажмите «Сохранить и отправить как готовое» на шаге 1.</div>'+
+    '<div style="height:14px"></div>'+
+    '<button class="btn-primary" data-x="1">Понятно</button></div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+}
+
+function onLoaded(data){
+  S.data = data;
+  var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
+  S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
+  show('app');
+  renderTopNav();
+  if(data.needsUnitPick) renderUnitPicker();
+  else if(S.appView === 'dashboard') openDashboard();
+  else if(S.appView === 'admin') openAdminPanel();
+  else renderUnits();
+}
+
+/** Плашка о состоянии периода. */
+function periodBanner(){
+  var p = S.data.period || {};
+  if(p.state === 'закрыт'){
+    return '<div class="note"><b>Период заполнения закрыт</b>' +
+      (p.name ? ' — ' + esc(p.name) : '') + (p.to ? ', ' + esc(p.to) : '') + '.<br>' +
+      (S.data.user.role === 'hrbp'
+        ? 'Вы HR BP — правка доступна. Открыть период можно в разделе «Сводка».'
+        : 'Данные доступны только для просмотра.') + '</div>';
+  }
+  return p.name ? '<div class="info">Идёт: <b>' + esc(p.name) + '</b>' +
+    (p.to ? ' · до ' + esc(p.to) : '') + '</div>' : '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// ЭКРАН: выбор подразделения
+// ═══════════════════════════════════════════════════════════
+function renderUnitPicker(){
+  setTop('Выберите подразделение', userLabel(), false);
+  $('body').onclick = null;
+  $('body').innerHTML =
+    '<div class="note">За вами пока не закреплено подразделение. ' +
+    'Отметьте те, по которым вы отвечаете за обзор рынка.</div>' +
+    '<input id="pickFind" placeholder="Поиск по названию…"><div id="pickList"></div>' +
+    '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>';
+  var chosen = {};
+  function draw(){
+    var q = ($('pickFind').value||'').toLowerCase();
+    $('pickList').innerHTML = S.data.allUnits.filter(function(u){
+      return !q || u.unit.toLowerCase().indexOf(q) >= 0 || u.dir.toLowerCase().indexOf(q) >= 0;
+    }).slice(0,80).map(function(u){
+      return '<label class="pickrow"><input type="checkbox" data-u="'+esc(u.unit)+'"'+
+        (chosen[u.unit]?' checked':'')+'><span>'+esc(u.unit)+
+        '<br><small style="color:var(--muted)">'+esc(u.dir)+'</small></span></label>';
+    }).join('') || '<p style="color:var(--muted)">Ничего не найдено</p>';
+  }
+  draw();
+  $('pickFind').oninput = draw;
+  $('pickList').onchange = function(e){
+    if(e.target.dataset.u) chosen[e.target.dataset.u] = e.target.checked;
+  };
+  $('pickGo').onclick = function(){
+    var list = Object.keys(chosen).filter(function(k){ return chosen[k]; });
+    if(!list.length){ toast('Отметьте хотя бы одно подразделение'); return; }
+    this.disabled = true; this.textContent = 'Сохраняем…';
+    call('apiSetUnits', S.token, list).then(function(r){
+      if(r && r.ok){ S.data = r.data; renderUnits(); }
+      else { toast((r&&r.error)||'Ошибка'); $('pickGo').disabled=false; $('pickGo').textContent='Продолжить'; }
+    });
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// ЭКРАН: список подразделений
+// ═══════════════════════════════════════════════════════════
+function renderUnits(){
+  S.unit = null; S.dirty = false;
+  setTop('Мои подразделения', userLabel(), false);
+  $('bar').classList.add('hidden');
+
+  var u = S.data.units;
+  if(!u.length){
+    $('body').innerHTML = periodBanner() + '<div class="note">Подразделения не назначены. Обратитесь к HR BP.</div>';
+    return;
+  }
+  var totalAll = 0, doneAll = 0, askAll = 0, svAll = 0;
+  u.forEach(function(x){
+    totalAll += x.total; doneAll += x.done; askAll += (x.ask||0); svAll += (x.surveys||0);
+  });
+
+  var h = periodBanner();
+
+  // Пока человек ничего не заполнил — объясняем, что вообще нужно сделать
+  if(store.get(LS_OB) !== '1'){
+    h += '<div class="onboard"><h2>Что нужно сделать</h2><ol>'+
+      '<li>Открыть <b>своё подразделение</b> в списке ниже.</li>'+
+      '<li><b>Шаг 1</b> — отметить, какие компании вам конкуренты.</li>'+
+      '<li><b>Шаг 2</b> — внести зарплаты, бонусы и льготы у этих компаний.</li>'+
+      '<li>Нажать <b>«Сохранить»</b>.</li>'+
+      '</ol><div class="ob-act">'+
+      '<button id="obMore">Подробнее</button>'+
+      '<button id="obHide" class="btn-primary" style="width:auto">Понятно, скрыть</button>'+
+      '</div></div>';
+  }
+
+  h += '<div class="sec-title">Компаний к проверке: '+totalAll+' · проверено '+doneAll+
+       (askAll ? ' · требует уточнения '+askAll : '') +
+       ' · записей по должностям: '+svAll+'</div>';
+  h += u.map(function(x,i){
+    var pct = x.total ? Math.round(x.done/x.total*100) : 0;
+    var askPct = x.total ? Math.round((x.ask||0)/x.total*100) : 0;
+    return '<div class="unit" data-i="'+i+'">'+ring(pct, askPct)+
+      '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
+      '<div class="u-dir">'+esc(x.dir)+' · '+x.done+' из '+x.total+
+      ' · данных: '+(x.surveys||0)+'</div>'+
+      ((x.ask||0) ? '<div class="u-ask">требует уточнения: '+x.ask+'</div>' : '')+
+      '</div>'+
+      '<div class="u-chev">›</div></div>';
+  }).join('');
+  $('body').innerHTML = h;
+  if($('obMore')) $('obMore').onclick = openHelp;
+  if($('obHide')) $('obHide').onclick = function(){ store.set(LS_OB, '1'); renderUnits(); };
+  $('body').onclick = function(e){
+    var el = e.target.closest('.unit');
+    if(el) openUnit(S.data.units[+el.dataset.i].unit);
+  };
+}
+
+/**
+ * Кольцо прогресса: зелёная дуга — проверено, жёлтая — «уточнить».
+ * «Уточнить» намеренно не входит в процент: вопрос ещё не закрыт.
+ */
+function ring(pct, askPct){
+  var r = 19, c = 2*Math.PI*r;
+  var donePart = c * (pct/100);
+  var askPart = c * ((askPct||0)/100);
+  var col = pct>=100 ? 'var(--ok)' : (pct>0 ? 'var(--warn)' : 'var(--line)');
+  var h = '<div class="ring"><svg width="46" height="46">'+
+    '<circle cx="23" cy="23" r="'+r+'" fill="none" stroke="var(--line)" stroke-width="4"/>';
+  if(askPart > 0){
+    // жёлтую дугу рисуем сразу за зелёной
+    h += '<circle cx="23" cy="23" r="'+r+'" fill="none" stroke="var(--warn)" stroke-width="4"'+
+      ' stroke-dasharray="'+askPart.toFixed(1)+' '+(c-askPart).toFixed(1)+'"'+
+      ' stroke-dashoffset="'+(-donePart).toFixed(1)+'"/>';
+  }
+  if(donePart > 0){
+    h += '<circle cx="23" cy="23" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="4"'+
+      ' stroke-dasharray="'+donePart.toFixed(1)+' '+(c-donePart).toFixed(1)+'"'+
+      ' stroke-dashoffset="0" stroke-linecap="round"/>';
+  }
+  return h + '</svg><b>'+pct+'%</b></div>';
+}
+
+function setTop(title, sub, back){
+  $('ttl').innerHTML = esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
+  $('btnBack').classList.toggle('hidden', !back);
+  window.scrollTo(0,0);
+}
+$('btnBack').onclick = function(){
+  var go = function(){ S.dirty = false; renderUnits(); };
+  if(!S.dirty){ go(); return; }
+  askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+};
+
+// ═══════════════════════════════════════════════════════════
+// ЭКРАН: подразделение (две вкладки)
+// ═══════════════════════════════════════════════════════════
+function openUnit(unit){
+  S.unit = unit;
+  S.tab = 'comp';
+  S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
+                      .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+  S.surveys = S.data.surveys.filter(function(r){ return r.unit === unit; })
+                            .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+  S.added = []; S.removed = []; S.note = ''; S.dirty = false;
+
+  var d = null;
+  if(!S.ro){
+    try{ d = JSON.parse(store.get(LS_DRAFT+unit) || 'null'); }catch(e){ d = null; }
+  }
+  if(!d){ renderUnit(); return; }
+
+  ask({
+    title: 'Найден черновик',
+    html: 'По подразделению <b>'+esc(unit)+'</b> остались правки, которые не были ' +
+          'отправлены в таблицу — например, вкладку закрыли до сохранения.',
+    ok: 'Восстановить',
+    cancel: 'Начать заново'
+  }).then(function(yes){
+    if(yes){
+      S.rows = d.rows || S.rows; S.added = d.added || [];
+      S.surveys = d.surveys || S.surveys; S.removed = d.removed || [];
+      S.note = d.note || ''; S.dirty = true;
+    } else {
+      store.del(LS_DRAFT+unit);
+    }
+    renderUnit();
+  });
+}
+
+/** Сколько компаний проверено, сколько отложено на уточнение. */
+function counts(){
+  var all = S.rows.length + S.added.length;
+  var done = 0, ask = 0;
+  S.rows.forEach(function(r){
+    if(r.actual === 'уточнить') ask++;
+    else if(r.actual && r.actual !== 'не проверено') done++;
+  });
+  S.added.forEach(function(r){
+    if(r.actual === 'уточнить') ask++;
+    else if(r.actual && r.actual !== 'не проверено') done++;
+  });
+  return { all: all, done: done, ask: ask, left: all - done - ask };
+}
+
+function renderUnit(){
+  setTop(S.unit, '', true);
+  $('body').onclick = null;
+
+  var c = counts();
+  var step1done = c.all > 0 && c.done === c.all;
+
+  var cls = function(tab, done){
+    return (S.tab===tab ? 'on' : '') + (done ? ' done' : '');
+  };
+
+  var h = periodBanner();
+  h += '<div class="tabs">'+
+    '<button data-tab="comp" class="'+cls('comp', step1done)+'">'+
+      '<small>Шаг 1</small>Конкуренты · '+c.done+'/'+c.all+
+      (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '')+'</button>'+
+    '<button data-tab="survey" class="'+cls('survey', S.surveys.length>0)+'">'+
+      '<small>Шаг 2</small>Данные по рынку · '+svLabel()+'</button>'+
+    '</div>';
+  h += '<p class="step-hint">'+ (S.tab==='comp'
+      ? 'Отметьте по каждой компании, конкурент она вам или нет. Не уверены — «Уточнить»: такие останутся в работе.'
+      : 'Внесите оклады, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.'
+    ) +'</p>';
+  h += '<div id="tabBody"></div>';
+  $('body').innerHTML = h;
+
+  $('body').querySelector('.tabs').onclick = function(e){
+    var b = e.target.closest('button[data-tab]');
+    if(!b || b.dataset.tab === S.tab) return;
+    S.tab = b.dataset.tab;
+    renderUnit();
+  };
+
+  if(S.tab === 'comp') renderTabComp();
+  else renderTabSurvey();
+
+  $('bar').classList.remove('hidden');
+  updateProgress();
+}
+
+// ─────────── Вкладка 1: конкуренты ───────────
+function renderTabComp(){
+  var c = counts();
+  var h = '';
+
+  // Отложенные на уточнение показываем отдельно — иначе они теряются в общем списке
+  if(c.ask){
+    h += '<div class="note">Требует уточнения: <b>'+c.ask+'</b>. '+
+      'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
+  }
+
+  h += '<div class="sec-title">Компании в вашей карте</div><div id="rows">';
+  h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
+       '<div class="empty">Список пуст</div>';
+  h += '</div>';
+
+  if(S.added.length){
+    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds">';
+    h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
+    h += '</div>';
+  } else { h += '<div id="adds"></div>'; }
+
+  if(!S.ro) h += '<button id="btnAdd" class="btn-line" style="margin-top:6px">+ Добавить компанию</button>';
+
+  h += '<label class="lbl" style="margin-top:22px">Комментарий по подразделению</label>';
+  h += '<textarea id="unitNote" placeholder="Что важно знать о рынке труда вашего подразделения"'+
+       (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
+
+  if(!S.ro){
+    h += '<div class="next-step">';
+    h += '<p>'+ (c.left
+        ? 'Осталось отметить компаний: '+c.left+
+          (c.ask ? ', плюс '+c.ask+' на уточнении' : '')+
+          '. Можно перейти к шагу 2 и вернуться позже.'
+        : (c.ask
+            ? 'Все компании отмечены, но '+c.ask+' ждут уточнения. Дальше — зарплаты и льготы.'
+            : 'Шаг 1 пройден. Дальше — самое важное: зарплаты и льготы.')) +'</p>';
+    h += '<button id="btnNext" class="btn-primary">Перейти к шагу 2 · Данные по рынку →</button>';
+    h += '<div style="height:10px"></div>';
+    h += '<button id="btnSubmit" class="btn-line" style="color:var(--ok);border-color:var(--ok)">'+
+         'Всё готово — отправить</button>';
+    h += '</div>';
+  }
+
+  $('tabBody').innerHTML = h;
+  bindRows();
+  $('unitNote').oninput = function(){ S.note = this.value; markDirty(); };
+  if($('btnAdd')) $('btnAdd').onclick = openAddSheet;
+  if($('btnNext')) $('btnNext').onclick = function(){ S.tab = 'survey'; renderUnit(); };
+  if($('btnSubmit')) $('btnSubmit').onclick = function(){ save(true); };
+}
+
+function rowCard(r, i, isNew){
+  var st = r.actual === 'актуально' ? 'st-yes'
+         : r.actual === 'не актуально' ? 'st-no'
+         : r.actual === 'уточнить' ? 'st-ask' : '';
+  var meta = [r.seg, r.region].filter(String).join(' · ');
+  var name = r.company || '(название не заполнено в таблице)';
+  var h = '<div class="row '+st+'" data-i="'+i+'">';
+  h += '<div class="row-head"><div class="row-name"'+
+       (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
+       esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
+  if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
+  if(r.actual === 'уточнить') h += '<div class="row-ask">не считается проверенной</div>';
+  if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
+  h += '</div>';
+
+  h += '<div class="seg">'+
+    ['актуально','не актуально','уточнить'].map(function(v){
+      return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
+        (S.ro?' disabled':'')+'>'+
+        (v==='актуально'?'Актуально':v==='не актуально'?'Не актуально':'Уточнить')+'</button>';
+    }).join('')+'</div>';
+
+  h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
+  h += '<div class="more hidden">';
+  h += '<div style="font-size:12.5px;color:var(--muted);margin:8px 0 5px;font-weight:600">Тип конкурента</div>';
+  h += chips('type', S.data.ref.types, r.type, false);
+  h += '<div style="font-size:12.5px;color:var(--muted);margin:12px 0 5px;font-weight:600">Приоритет</div>';
+  h += chips('prio', S.data.ref.priorities, r.prio, false);
+  h += '<label class="lbl">Комментарий'+
+       (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
+  h += '<textarea data-act="note" placeholder="'+
+       (r.actual === 'уточнить' ? 'Что нужно выяснить и у кого' : 'Почему важен / что учесть')+
+       '"'+(S.ro?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
+  h += '</div></div>';
+  return h;
+}
+
+function bindRows(){
+  ['rows','adds'].forEach(function(zone){
+    var box = $(zone);
+    if(!box) return;
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b) return;
+      var card = b.closest('.row');
+      var arr = zone === 'rows' ? S.rows : S.added;
+      var r = arr[+card.dataset.i];
+      var act = b.dataset.act;
+
+      if(act === 'more'){
+        var m = card.querySelector('.more');
+        var closed = m.classList.toggle('hidden');
+        b.textContent = closed ? 'Подробнее ▾' : 'Свернуть ▴';
+        return;
+      }
+      if(S.ro) return;
+      if(act === 'actual'){
+        r.actual = (r.actual === b.dataset.v) ? 'не проверено' : b.dataset.v;
+        card.className = 'row ' + (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':
+                                   r.actual==='уточнить'?'st-ask':'');
+        card.querySelectorAll('.seg button').forEach(function(x){
+          x.classList.toggle('on', x.dataset.v === r.actual); });
+        // подпись «не считается проверенной» появляется и исчезает сразу
+        var head = card.querySelector('.row-head');
+        var mark = head.querySelector('.row-ask');
+        if(r.actual === 'уточнить' && !mark){
+          var d = document.createElement('div');
+          d.className = 'row-ask';
+          d.textContent = 'не считается проверенной';
+          var prev = head.querySelector('.row-note-preview');
+          if(prev) head.insertBefore(d, prev); else head.appendChild(d);
+        } else if(r.actual !== 'уточнить' && mark){ mark.remove(); }
+        markDirty(); updateProgress(); return;
+      }
+      if(act === 'type' || act === 'prio'){
+        r[act] = (r[act] === b.dataset.v) ? '' : b.dataset.v;
+        b.parentNode.querySelectorAll('button').forEach(function(x){
+          x.classList.toggle('on', x.dataset.v === r[act]); });
+        markDirty(); return;
+      }
+    });
+    box.addEventListener('input', function(e){
+      if(e.target.dataset.act !== 'note') return;
+      var card = e.target.closest('.row');
+      var arr = zone === 'rows' ? S.rows : S.added;
+      arr[+card.dataset.i].note = e.target.value;
+      markDirty();
+    });
+  });
+}
+
+// ─────────── Вкладка 2: данные по рынку ───────────
+/**
+ * Штатка подразделения и записи, разложенные по должностям.
+ * Должности, которых нет в штатке, идут отдельной группой в конце —
+ * их вносили вручную, и терять их нельзя.
+ */
+function survGroups(){
+  var штатка = (S.data.positionsByUnit && S.data.positionsByUnit[S.unit]) || [];
+  var groups = [], byPos = {};
+
+  штатка.forEach(function(p){
+    var g = { pos: p, items: [], extra: false };
+    byPos[norm(p)] = g;
+    groups.push(g);
+  });
+
+  var tail = [];
+  S.surveys.forEach(function(r, i){
+    var g = byPos[norm(r.posOur)];
+    if(g){ g.items.push(i); return; }
+    var t = tail.filter(function(x){ return norm(x.pos) === norm(r.posOur); })[0];
+    if(!t){ t = { pos: r.posOur || '(должность не указана)', items: [], extra: true }; tail.push(t); }
+    t.items.push(i);
+  });
+
+  return { groups: groups.concat(tail), штатка: штатка };
+}
+
+function norm(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim(); }
+
+/** Подпись на вкладке шага 2: «закрыто/всего» по штатке, иначе просто число записей. */
+function svLabel(){
+  var g = survGroups();
+  if(!g.groups.length) return String(S.surveys.length);
+  var closed = g.groups.filter(function(x){ return x.items.length; }).length;
+  return closed + '/' + g.groups.length;
+}
+
+function renderTabSurvey(){
+  var G = survGroups();
+  var h = '';
+
+  if(!G.штатка.length && !S.surveys.length){
+    h += '<div class="empty"><b>Здесь пока пусто</b><br><br>' +
+         'Для этого подразделения штатка не заведена.<br>' +
+         'Добавьте должность кнопкой ниже — она попадёт и в справочник.<br><br>' +
+         'Одна запись = одна должность в одной компании.</div>';
+  } else {
+    var closed = G.groups.filter(function(g){ return g.items.length; }).length;
+    h += '<div class="sec-title">Должности подразделения · закрыто ' + closed +
+         ' из ' + G.groups.length + '</div>';
+
+    h += G.groups.map(function(g, gi){
+      var n = g.items.length;
+      var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
+      var cls = 'pos' + (n ? ' pos-done' : '');
+
+      var x = '<div class="'+cls+'">';
+      x += '<div class="pos-head" data-toggle="'+gi+'">';
+      x += '<div class="pos-body"><div class="pos-name">'+esc(g.pos)+
+           (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
+      x += '<div class="pos-sub">'+ (n
+            ? esc(cos.slice(0,3).join(', ')) + (cos.length > 3 ? ' и ещё ' + (cos.length-3) : '')
+            : 'данных нет') +'</div></div>';
+      x += '<div class="pos-cnt">'+(n ? n : '—')+'</div>';
+      if(n) x += '<div class="pos-chev">▾</div>';
+      x += '</div>';
+
+      // записи по должности — скрыты, пока не раскроют
+      x += '<div class="pos-items hidden" data-items="'+gi+'">';
+      x += g.items.map(function(i){ return svCard(S.surveys[i], i); }).join('');
+      if(!S.ro){
+        x += '<button class="btn-line" data-add="'+gi+'" style="margin-top:2px">'+
+             '+ Ещё компания по этой должности</button>';
+      }
+      x += '</div>';
+
+      if(!n && !S.ro){
+        x += '<button class="btn-line pos-go" data-add="'+gi+'">Внести данные</button>';
+      }
+      x += '</div>';
+      return x;
+    }).join('');
+  }
+
+  if(!S.ro){
+    h += '<button id="btnAddSv" class="btn-line" style="margin-top:14px">'+
+         '+ Должность, которой нет в списке</button>';
+  }
+  $('tabBody').innerHTML = h;
+
+  $('tabBody').onclick = function(e){
+    // раскрыть или свернуть должность
+    var head = e.target.closest('.pos-head');
+    if(head && !e.target.closest('button')){
+      var box = $('tabBody').querySelector('[data-items="'+head.dataset.toggle+'"]');
+      if(box && box.children.length){
+        var closedNow = box.classList.toggle('hidden');
+        var chev = head.querySelector('.pos-chev');
+        if(chev) chev.textContent = closedNow ? '▾' : '▴';
+      }
+      return;
+    }
+    // внести данные по конкретной должности — она подставится в форму
+    var add = e.target.closest('button[data-add]');
+    if(add){
+      openSurveySheet(-1, G.groups[+add.dataset.add].pos);
+      return;
+    }
+    var b = e.target.closest('button[data-sv]');
+    if(!b) return;
+    var i = +b.dataset.i;
+    if(b.dataset.sv === 'edit') openSurveySheet(i);
+    if(b.dataset.sv === 'del'){
+      var r = S.surveys[i];
+      ask({
+        title: 'Удалить запись?',
+        html: '<b>'+esc(r.posOur || '(должность не указана)')+'</b>'+
+              (r.company ? ' · '+esc(r.company) : ''),
+        ok: 'Удалить',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        if(r.id && r.id.indexOf('tmp') !== 0) S.removed.push(r.id);
+        S.surveys.splice(i,1);
+        markDirty();
+        renderUnit();
+        toast('Запись удалена. Нажмите «Сохранить», чтобы применить в таблице.');
+      });
+    }
+  };
+  if($('btnAddSv')) $('btnAddSv').onclick = function(){ openSurveySheet(-1); };
+}
+
+function money(r){
+  // значения приходят и как «5 500», и как «5500.5» — сначала приводим к числу
+  var num = function(x){
+    var s = String(x == null ? '' : x).replace(/[\s ]/g,'').replace(',','.');
+    if(!s) return '';
+    var n = Number(s);
+    if(isNaN(n)) return String(x).trim();
+    return n.toLocaleString('ru-RU');
+  };
+  var f = num(r.payFrom), t = num(r.payTo);
+  if(!f && !t) return '';
+  var s = (f && t) ? (f + ' – ' + t) : (f || t);
+  return s + (r.cur ? ' ' + r.cur : '') + (r.payPer ? ' ' + r.payPer : '');
+}
+
+function svCard(r, i){
+  var h = '<div class="sv">';
+  h += '<div class="sv-pos">'+esc(r.posOur || '(должность не указана)')+
+       (r.posTheir ? ' <span style="color:var(--muted);font-weight:400">→ '+esc(r.posTheir)+'</span>' : '')+'</div>';
+  h += '<div class="sv-co">'+esc(r.company || '(компания не указана)')+
+       (r.grade ? ' · '+esc(r.grade) : '')+'</div>';
+  var m = money(r);
+  if(m) h += '<div class="sv-pay">'+esc(m)+'</div>';
+  if(r.bonHas === 'да'){
+    h += '<div class="sv-line">Бонус: '+esc([r.bonSize, r.bonType, r.bonPer].filter(String).join(' · ') || 'есть')+'</div>';
+  } else if(r.bonHas === 'нет'){
+    h += '<div class="sv-line">Бонусов нет</div>';
+  }
+  if(r.extra) h += '<div class="sv-line">Прочее: '+esc(r.extra)+'</div>';
+  if(r.benefits && r.benefits.length){
+    var vis = r.benefits.slice(0,3), rest = r.benefits.length - vis.length;
+    h += '<div class="sv-tags">'+vis.map(function(b){ return '<span>'+esc(b)+'</span>'; }).join('')+
+         (rest>0 ? '<span>+'+rest+'</span>' : '')+'</div>';
+  }
+  if(r.note) h += '<div class="sv-line" style="font-style:italic">'+esc(r.note)+'</div>';
+  var meta = [r.source, r.trust ? 'достоверность: '+r.trust : ''].filter(String).join(' · ');
+  if(meta) h += '<div class="sv-by">'+esc(meta)+'</div>';
+  if(r.by) h += '<div class="sv-by">'+esc(r.by)+(r.at ? ' · '+esc(r.at) : '')+'</div>';
+  if(!S.ro){
+    h += '<div class="sv-act">'+
+      '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
+      '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/** Форма добавления/правки записи. i = -1 — новая. */
+function openSurveySheet(i, presetPos){
+  var isNew = i < 0;
+  var r = isNew
+    ? { id:'', unit:S.unit, company:'', posOur: presetPos || '', posTheir:'', grade:'',
+        payFrom:'', payTo:'', cur:'сомони', payPer:'в месяц',
+        bonHas:'', bonSize:'', bonType:'', bonPer:'',
+        benefits:[], extra:'', source:'', trust:'', note:'' }
+    : JSON.parse(JSON.stringify(S.surveys[i]));
+
+  var ref = S.data.ref;
+  var coList = S.rows.map(function(x){ return x.company; })
+    .concat(S.added.map(function(x){ return x.company; }))
+    .filter(function(v,k,a){ return v && a.indexOf(v) === k; });
+  if(r.company && coList.indexOf(r.company) < 0) coList.unshift(r.company);
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+(isNew?'Новая запись':'Изменить запись')+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+
+    '<label class="lbl" style="margin-top:6px">Компания-конкурент</label>'+
+    '<select id="fCo">'+
+      '<option value="">— выберите —</option>'+
+      coList.map(function(c){ return '<option'+(c===r.company?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+
+      '<option value="__other__">Другая компания…</option>'+
+    '</select>'+
+    '<input id="fCoOther" class="hidden" placeholder="Название компании" style="margin-top:8px">'+
+
+    '<label class="lbl">Должность у нас</label>'+
+    pickField('fPosOur', r.posOur, 'Выберите должность', true)+
+
+    '<label class="lbl">Как эта должность называется у них</label>'+
+    pickField('fPosTheir', r.posTheir, 'Выберите или добавьте', false)+
+
+    '<label class="lbl">Уровень / грейд (необязательно)</label>'+
+    '<input id="fGrade" value="'+esc(r.grade)+'">'+
+
+    '<label class="lbl">Оклад</label>'+
+    '<div class="two"><div><input id="fFrom" inputmode="decimal" placeholder="от" value="'+esc(r.payFrom)+'"></div>'+
+      '<div><input id="fTo" inputmode="decimal" placeholder="до" value="'+esc(r.payTo)+'"></div></div>'+
+    '<div style="height:8px"></div>'+ chips('cur', ref.currencies, r.cur, false, true) +
+    '<div style="height:6px"></div>'+ chips('payPer', ref.payPeriods, r.payPer, false, true) +
+
+    '<label class="lbl">Бонусы и премии</label>'+
+    chips('bonHas', ['да','нет','не знаю'], r.bonHas, false) +
+    '<div id="bonBox" class="'+(r.bonHas==='да'?'':'hidden')+'">'+
+      '<label class="lbl">Размер бонуса</label>'+
+      '<input id="fBonSize" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(r.bonSize)+'">'+
+      '<div style="height:8px"></div>'+ chips('bonType', ref.bonusTypes, r.bonType, false) +
+      '<div style="height:6px"></div>'+ chips('bonPer', ref.bonusPeriods, r.bonPer, false) +
+    '</div>'+
+
+    '<label class="lbl">Льготы и соцпакет</label>'+
+    chips('benefits', S.data.benefits || [], r.benefits, true) +
+
+    '<label class="lbl">Прочие выплаты (необязательно)</label>'+
+    '<input id="fExtra" placeholder="13-я зарплата, доплата за стаж…" value="'+esc(r.extra)+'">'+
+
+    '<label class="lbl">Откуда данные</label>'+ chips('source', ref.sources, r.source, false) +
+    '<label class="lbl">Насколько данные надёжны</label>'+ chips('trust', ref.trust, r.trust, false) +
+
+    '<label class="lbl">Комментарий</label>'+
+    '<textarea id="fNote">'+esc(r.note)+'</textarea>'+
+
+    '<div style="height:16px"></div>'+
+    '<button id="fGo" class="btn-primary">'+(isNew?'Добавить':'Сохранить изменения')+'</button>'+
+    '<div style="height:10px"></div></div>';
+
+  document.body.appendChild(el);
+
+  var coSel = el.querySelector('#fCo'), coOther = el.querySelector('#fCoOther');
+  coSel.onchange = function(){
+    var other = this.value === '__other__';
+    coOther.classList.toggle('hidden', !other);
+    if(other) coOther.focus();
+  };
+
+  // Должности — строгий выбор из штатки, с поиском.
+  // «У нас» — только должности своего подразделения, добавление пишется туда же.
+  // «У конкурента» — весь холдинг: у них своя штатка, нашей её ограничивать нельзя.
+  var bindPick = function(id, field, opt){
+    var btn = el.querySelector('#'+id);
+    btn.onclick = function(){
+      openPicker({
+        title: opt.title,
+        list: opt.list(),
+        wide: opt.wide ? opt.wide() : null,
+        wideLabel: opt.wideLabel,
+        addUnit: opt.addUnit ? S.unit : null,
+        value: r[field],
+        onPick: function(v){
+          r[field] = v;
+          btn.querySelector('span').textContent = v;
+          btn.querySelector('span').className = '';
+          btn.classList.remove('need');
+        }
+      });
+    };
+  };
+  bindPick('fPosOur', 'posOur', {
+    title: 'Должность у нас',
+    list: function(){ return S.data.positions || []; },
+    wide: function(){ return S.data.positionsAll || []; },
+    wideLabel: 'Показать все должности холдинга',
+    addUnit: true
+  });
+  bindPick('fPosTheir', 'posTheir', {
+    title: 'Должность у конкурента',
+    list: function(){ return S.data.positionsAll || []; }
+  });
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    var b = e.target.closest('.chips button');
+    if(!b) return;
+    var box = b.parentNode, act = b.dataset.act, v = b.dataset.v;
+    if(box.dataset.multi){
+      var k = r.benefits.indexOf(v);
+      if(k >= 0) r.benefits.splice(k,1); else r.benefits.push(v);
+      b.classList.toggle('on', k < 0);
+    } else {
+      // обязательные группы (валюта, период оклада) снять нельзя — только переключить
+      r[act] = (r[act] === v && !box.dataset.req) ? '' : v;
+      box.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x.dataset.v === r[act]); });
+      if(act === 'bonHas') el.querySelector('#bonBox').classList.toggle('hidden', r.bonHas !== 'да');
+    }
+  });
+
+  el.querySelector('#fGo').onclick = function(){
+    var co = coSel.value === '__other__' ? coOther.value.trim() : coSel.value;
+    if(!co){ toast('Выберите или впишите компанию'); return; }
+    if(!r.posOur){
+      toast('Выберите должность у нас');
+      el.querySelector('#fPosOur').classList.add('need');
+      el.querySelector('#fPosOur').scrollIntoView({block:'center'});
+      return;
+    }
+
+    r.company   = co;
+    r.grade     = el.querySelector('#fGrade').value.trim();
+    r.payFrom   = el.querySelector('#fFrom').value.trim();
+    r.payTo     = el.querySelector('#fTo').value.trim();
+    r.bonSize   = el.querySelector('#fBonSize').value.trim();
+    r.extra     = el.querySelector('#fExtra').value.trim();
+    r.note      = el.querySelector('#fNote').value.trim();
+    if(r.bonHas !== 'да'){ r.bonSize=''; r.bonType=''; r.bonPer=''; }
+
+    if(isNew){ r.id = uid(); S.surveys.push(r); }
+    else { S.surveys[i] = r; }
+
+    el.remove();
+    markDirty();
+    renderUnit();
+    toast(isNew ? 'Запись добавлена. Не забудьте «Сохранить».' : 'Изменено. Не забудьте «Сохранить».');
+  };
+
+  setTimeout(function(){ el.querySelector('.sheet-in').scrollTop = 0; }, 30);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ОБЩЕЕ: черновик, прогресс
+// ═══════════════════════════════════════════════════════════
+function markDirty(){
+  if(S.ro) return;
+  S.dirty = true;
+  store.set(LS_DRAFT+S.unit, JSON.stringify({
+    rows:S.rows, added:S.added, surveys:S.surveys, removed:S.removed, note:S.note }));
+}
+
+function updateProgress(){
+  var c = counts();
+
+  if(S.tab === 'comp'){
+    $('progT').textContent = c.done + ' из ' + c.all;
+    if(c.ask){
+      $('progS').className = 'ask';
+      $('progS').textContent = 'уточнить: ' + c.ask;
+    } else {
+      $('progS').className = '';
+      $('progS').textContent = (c.all && c.done === c.all) ? 'всё проверено' : 'проверено компаний';
+    }
+  } else {
+    // Ориентир — закрытые должности штатки, а не число записей:
+    // так у человека виден финиш, а не бесконечный список.
+    var g = survGroups();
+    if(g.groups.length){
+      var closed = g.groups.filter(function(x){ return x.items.length; }).length;
+      $('progT').textContent = closed + ' из ' + g.groups.length;
+      $('progS').className = '';
+      $('progS').textContent = (closed === g.groups.length) ? 'все должности закрыты' : 'должностей закрыто';
+    } else {
+      $('progT').textContent = S.surveys.length + (S.removed.length ? ' (−'+S.removed.length+')' : '');
+      $('progS').className = '';
+      $('progS').textContent = 'записей по должностям';
+    }
+  }
+
+  // счётчики на вкладках должны меняться сразу, а не после сохранения
+  var t1 = document.querySelector('.tabs button[data-tab="comp"]');
+  var t2 = document.querySelector('.tabs button[data-tab="survey"]');
+  if(t1){
+    t1.innerHTML = '<small>Шаг 1</small>Конкуренты · ' + c.done + '/' + c.all +
+      (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '');
+    t1.classList.toggle('done', c.all > 0 && c.done === c.all);
+  }
+  if(t2){
+    t2.innerHTML = '<small>Шаг 2</small>Данные по рынку · ' + svLabel();
+    t2.classList.toggle('done', S.surveys.length > 0);
+  }
+
+  $('btnSave').classList.toggle('hidden', S.ro);
+  $('btnSave').textContent = 'Сохранить';
+}
+
+// ═══════════════════════════════════════════════════════════
+// ДОБАВЛЕНИЕ КОМПАНИИ-КОНКУРЕНТА
+// ═══════════════════════════════════════════════════════════
+function openAddSheet(){
+  var picked = { type:'', prio:'', seg:'', region:'' };
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Добавить компанию</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="addWarn"></div>'+
+    '<label class="lbl">Название компании</label>'+
+    '<input id="addName" placeholder="Начните вводить…" autocomplete="off">'+
+    '<div id="addSug"></div>'+
+    '<label class="lbl">Тип конкурента</label>'+ chips('type', S.data.ref.types, '', false) +
+    '<label class="lbl">Приоритет</label>'+ chips('prio', S.data.ref.priorities, '', false) +
+    '<label class="lbl">Сегмент</label>'+ pickField('addSeg', '', 'Выберите сегмент', false) +
+    '<label class="lbl">Регион</label>'+ pickField('addReg', '', 'Выберите регион', false) +
+    '<label class="lbl">Комментарий</label><textarea id="addNote"></textarea>'+
+    '<div style="height:14px"></div>'+
+    '<button id="addGo" class="btn-primary">Добавить в список</button></div>';
+  document.body.appendChild(el);
+
+  // Сегмент и регион — из справочника, чтобы «Худжанд», «Худжанд (ГО)» и «худжанд»
+  // не расползались по таблице тремя разными значениями
+  var bindRef = function(id, field, title, block, list){
+    var btn = el.querySelector('#'+id);
+    btn.onclick = function(){
+      openPicker({
+        title: title, block: block, list: list(), value: picked[field],
+        onPick: function(v){
+          picked[field] = v;
+          btn.querySelector('span').textContent = v;
+          btn.querySelector('span').className = '';
+        }
+      });
+    };
+  };
+  bindRef('addSeg', 'seg', 'Сегмент', 'segments', function(){ return S.data.segments || []; });
+  bindRef('addReg', 'region', 'Регион присутствия', 'regions', function(){ return S.data.regions || []; });
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    var b = e.target.closest('.chips button');
+    if(!b) return;
+    var act = b.dataset.act;
+    picked[act] = (picked[act] === b.dataset.v) ? '' : b.dataset.v;
+    b.parentNode.querySelectorAll('button').forEach(function(x){
+      x.classList.toggle('on', x.dataset.v === picked[act]); });
+  });
+
+  var nameEl = el.querySelector('#addName');
+  nameEl.oninput = function(){
+    var q = this.value.trim().toLowerCase();
+    var w = el.querySelector('#addWarn'); w.innerHTML = '';
+    if(q.length >= 2){
+      var bad = S.data.banned.filter(function(b){ return b.name.toLowerCase().indexOf(q) >= 0; });
+      if(bad.length) w.innerHTML = '<div class="note">«'+esc(bad[0].name)+'» — '+esc(bad[0].reason)+
+        '. Эту компанию включать в обзор нельзя.</div>';
+    }
+    var box = el.querySelector('#addSug');
+    if(q.length < 2){ box.innerHTML = ''; return; }
+    var hit = S.data.companies.filter(function(c){ return c.name.toLowerCase().indexOf(q) >= 0; }).slice(0,7);
+    box.innerHTML = hit.length ? '<div class="sug">'+hit.map(function(c){
+      return '<div data-n="'+esc(c.name)+'" data-s="'+esc(c.seg)+'" data-r="'+esc(c.region)+'">'+
+        esc(c.name)+'<small>'+esc([c.seg,c.region].filter(String).join(' · '))+'</small></div>'; }).join('')+'</div>' : '';
+    box.querySelectorAll('[data-n]').forEach(function(d){
+      d.onclick = function(){
+        nameEl.value = d.dataset.n;
+        if(d.dataset.s){
+          picked.seg = d.dataset.s;
+          var s = el.querySelector('#addSeg span');
+          s.textContent = d.dataset.s; s.className = '';
+        }
+        if(d.dataset.r){
+          picked.region = d.dataset.r;
+          var g = el.querySelector('#addReg span');
+          g.textContent = d.dataset.r; g.className = '';
+        }
+        box.innerHTML = '';
+      };
+    });
+  };
+
+  el.querySelector('#addGo').onclick = function(){
+    var name = nameEl.value.trim();
+    if(!name){ toast('Введите название компании'); return; }
+    var dup = S.rows.concat(S.added).some(function(r){
+      return r.company.toLowerCase() === name.toLowerCase(); });
+    if(dup){ toast('Такая компания уже есть в списке'); return; }
+    S.added.push({
+      id:'', unit:S.unit, company:name, type:picked.type, prio:picked.prio,
+      seg: picked.seg,
+      region: picked.region,
+      note: el.querySelector('#addNote').value.trim(),
+      status:'', src:'', actual:'актуально'
+    });
+    el.remove();
+    markDirty();
+    renderUnit();
+    toast('Компания добавлена. Не забудьте сохранить.');
+  };
+  setTimeout(function(){ nameEl.focus(); }, 60);
+}
+
+// ═══════════════════════════════════════════════════════════
+// СОХРАНЕНИЕ
+// ═══════════════════════════════════════════════════════════
+$('btnSave').onclick = function(){ save(false); };
+
+function save(submit){
+  if(S.saving || S.ro) return;
+  if(!submit){ doSave(false); return; }
+
+  var c = counts();
+  var q = null;
+  if(c.left){
+    q = { html: 'Не отмечено компаний: <b>'+c.left+'</b>.' +
+                (c.ask ? '\nЕщё <b>'+c.ask+'</b> отложено на уточнение — они тоже не считаются проверенными.' : '') };
+  } else if(c.ask){
+    q = { html: 'Компаний на уточнении: <b>'+c.ask+'</b>.\n' +
+                'Они не считаются проверенными — вопрос по ним ещё открыт.' };
+  }
+  if(!q){ doSave(true); return; }
+
+  ask({
+    title: 'Отправить как готовое?',
+    html: q.html,
+    ok: 'Всё равно отправить',
+    cancel: 'Вернуться'
+  }).then(function(yes){ if(yes) doSave(true); });
+}
+
+function doSave(submit){
+  if(S.saving || S.ro) return;
+  S.saving = true;
+  $('btnSave').disabled = true;
+  $('btnSave').textContent = 'Сохраняем…';
+
+  var unitAtSave = S.unit;
+
+  // Обе вкладки сохраняются вместе — человек не должен думать, где он находится
+  var p1 = call('apiSave', S.token, {
+    unit: unitAtSave, rows: S.rows, added: S.added, note: S.note, submit: !!submit });
+
+  var needSurvey = S.surveys.length > 0 || S.removed.length > 0;
+  var p2 = needSurvey
+    ? call('apiSaveSurvey', S.token, { unit: unitAtSave, upsert: S.surveys, remove: S.removed })
+    : Promise.resolve({ ok:true, newIds:[], added:0, updated:0, removed:0 });
+
+  Promise.all([p1, p2]).then(function(res){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+
+    var a = res[0], b = res[1];
+    if(!a || !a.ok || !b || !b.ok){
+      var msg = (a && !a.ok && a.error) || (b && !b.ok && b.error) || 'Не удалось сохранить';
+      toast(msg);
+      if(msg.indexOf('Сессия') === 0){
+        store.del(LS_TOKEN);
+        setTimeout(function(){ location.reload(); }, 1600);
+      }
+      return;
+    }
+
+    S.dirty = false;
+    store.del(LS_DRAFT + unitAtSave);
+
+    // Конкуренты: добавленные получили ID — переносим в основной список
+    S.added.forEach(function(x, k){
+      x.id = (a.newIds && a.newIds[k]) || x.id;
+      if(x.id){ S.rows.push(x); S.data.rows.push(x); }
+    });
+    S.added = [];
+    syncCache(S.rows, S.data.rows);
+
+    // Обзор: newIds идёт в том же порядке, что и отправленный upsert
+    (b.newIds || []).forEach(function(id, k){
+      if(id && S.surveys[k]) S.surveys[k].id = id;
+    });
+    S.removed = [];
+    S.data.surveys = S.data.surveys.filter(function(x){ return x.unit !== unitAtSave; })
+      .concat(S.surveys.map(function(x){ return JSON.parse(JSON.stringify(x)); }));
+
+    var u = S.data.units.filter(function(x){ return x.unit === unitAtSave; })[0];
+    if(u){
+      var after = counts();
+      u.total = after.all;
+      u.done = after.done;
+      u.ask = after.ask;
+      u.surveys = S.surveys.length;
+    }
+
+    toast(submit ? 'Отправлено. Спасибо!' : 'Сохранено в ' + a.at);
+    if(submit) setTimeout(renderUnits, 900);
+    else renderUnit();
+  }).catch(function(){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+    toast('Нет связи. Черновик сохранён на устройстве — попробуйте позже.');
+  });
+}
+
+function syncCache(local, cache){
+  var byId = {};
+  local.forEach(function(x){ if(x.id) byId[x.id] = x; });
+  cache.forEach(function(x){ if(byId[x.id] && byId[x.id] !== x) Object.assign(x, byId[x.id]); });
+}
+
+window.addEventListener('beforeunload', function(e){
+  if(S.dirty){ e.preventDefault(); e.returnValue = ''; }
+});
+
+// ═══════════════════════════════════════════════════════════
+// АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
+// ═══════════════════════════════════════════════════════════
+function openDashboard(){
+  S.appView = 'dashboard';
+  S.unit = null;
+  renderTopNav();
+  setTop('📊 Аналитический Дашборд', userLabel(), false);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="sp"><i></i> Загрузка аналитики рынка…</div>';
+
+  call('apiCBDashboardExtended', S.token, S.dashFilters).then(function(r){
+    if(!r || !r.ok){
+      $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить данные дашборда')+'</div>';
+      return;
+    }
+    S.dashData = r;
+    renderDashboard();
+  }).catch(function(){
+    $('body').innerHTML = '<div class="err">Нет связи с сервером. Попробуйте обновить.</div>';
+  });
+}
+
+function renderDashboard(){
+  if(!S.dashData) return;
+  var d = S.dashData;
+  var sm = d.summary || {};
+
+  // 1. KPI Карточки
+  var h = '<div class="kpi-grid">'+
+    '<div class="kpi-card">'+
+      '<div class="kpi-t">Охват отделов</div>'+
+      '<div class="kpi-v">'+sm.completedDivisions+' <span style="font-size:15px;color:var(--muted)">/ '+sm.totalDivisions+'</span></div>'+
+      '<div class="kpi-s">Завершено <b>'+sm.divCompletionPct+'%</b></div>'+
+    '</div>'+
+    '<div class="kpi-card">'+
+      '<div class="kpi-t">Проверено связей</div>'+
+      '<div class="kpi-v">'+sm.checkedCompetitorLinks+' <span style="font-size:15px;color:var(--muted)">/ '+sm.totalCompetitorLinks+'</span></div>'+
+      '<div class="kpi-s">Актуализировано <b>'+sm.compCompletionPct+'%</b></div>'+
+    '</div>'+
+    '<div class="kpi-card">'+
+      '<div class="kpi-t">Записей по рынку</div>'+
+      '<div class="kpi-v">'+sm.totalSurveyRecords+'</div>'+
+      '<div class="kpi-s">С окладом: <b>'+sm.recordsWithSalary+'</b></div>'+
+    '</div>'+
+    '<div class="kpi-card">'+
+      '<div class="kpi-t">Должностей с вилкой</div>'+
+      '<div class="kpi-v">'+sm.positionsCount+'</div>'+
+      '<div class="kpi-s">Сформировано перцентилей</div>'+
+    '</div>'+
+  '</div>';
+
+  // 2. Вкладки Дашборда
+  var tabs = [
+    { id:'salaries', label:'💰 Зарплатные вилки' },
+    { id:'progress', label:'🎯 Прогресс по HR BP' },
+    { id:'benefits', label:'🎁 Льготы и Бонусы' }
+  ];
+  h += '<div class="sub-tabs">'+ tabs.map(function(t){
+    var on = S.dashTab === t.id ? ' on' : '';
+    return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+esc(t.label)+'</button>';
+  }).join('') +'</div>';
+
+  // 3. Панель фильтров
+  var allDirs = (d.dirProgress || []).map(function(x){ return x.dir; }).filter(function(x){ return x && x !== 'Без направления'; });
+  var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
+
+  h += '<div class="dash-filters">'+
+    '<input id="dashSearch" placeholder="🔍 Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'">'+
+    '<select id="dashDir">'+
+      '<option value="">Все направления</option>'+
+      allDirs.map(function(dir){
+        return '<option value="'+esc(dir)+'"'+(S.dashFilters.dir===dir?' selected':'')+'>'+esc(dir)+'</option>';
+      }).join('')+
+    '</select>'+
+    '<select id="dashHrbp">'+
+      '<option value="">Все HR BP</option>'+
+      allHrbps.map(function(h){
+        return '<option value="'+esc(h)+'"'+(S.dashFilters.hrbp===h?' selected':'')+'>'+esc(h)+'</option>';
+      }).join('')+
+    '</select>'+
+  '</div>';
+
+  h += '<div class="dash-actions">'+
+    '<button id="btnDashReset" class="btn-ghost" style="border:1px solid var(--line);min-height:36px">Сбросить фильтры</button>'+
+    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)">📥 Экспорт в CSV</button>'+
+  '</div>';
+
+  // 4. Контент выбранной вкладки
+  if(S.dashTab === 'salaries'){
+    h += renderSalariesTab(d.positions || []);
+  } else if(S.dashTab === 'progress'){
+    h += renderProgressTab(d.hrbpProgress || [], d.dirProgress || []);
+  } else if(S.dashTab === 'benefits'){
+    h += renderBenefitsTab(d.topBenefits || [], d.bonuses || {}, d.topCompetitors || []);
+  }
+
+  $('body').innerHTML = h;
+
+  // Слушатели событий дашборда
+  $('body').querySelectorAll('button[data-dtab]').forEach(function(btn){
+    btn.onclick = function(){
+      S.dashTab = this.dataset.dtab;
+      renderDashboard();
+    };
+  });
+
+  var searchIn = $('dashSearch');
+  var timer = null;
+  searchIn.oninput = function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      S.dashFilters.search = searchIn.value.trim();
+      openDashboard();
+    }, 400);
+  };
+
+  $('dashDir').onchange = function(){
+    S.dashFilters.dir = this.value;
+    openDashboard();
+  };
+
+  $('dashHrbp').onchange = function(){
+    S.dashFilters.hrbp = this.value;
+    openDashboard();
+  };
+
+  $('btnDashReset').onclick = function(){
+    S.dashFilters = { dir:'', hrbp:'', search:'' };
+    openDashboard();
+  };
+
+  $('btnDashExport').onclick = exportDashboardCSV;
+}
+
+function renderSalariesTab(positions){
+  if(!positions.length){
+    return '<div class="empty">По заданным условиям должностей не найдено</div>';
+  }
+
+  var h = '<div class="sec-title">Зарплатные вилки по должностям ('+positions.length+')</div>';
+
+  h += positions.map(function(pos, idx){
+    var maxVal = Math.max(pos.max, 1);
+    var p25Pct = pos.min > 0 ? Math.round((pos.p25 / maxVal) * 100) : 0;
+    var p75Pct = pos.min > 0 ? Math.round((pos.p75 / maxVal) * 100) : 0;
+    var medPct = pos.min > 0 ? Math.round((pos.median / maxVal) * 100) : 0;
+    var wPct = Math.max(p75Pct - p25Pct, 4);
+
+    var cardId = 'posCard_' + idx;
+    var bodyId = 'posBody_' + idx;
+
+    var forkVisual = pos.min > 0
+      ? '<div class="fork-nums">'+
+          '<span>Мин: <b>'+pos.min.toLocaleString('ru-RU')+'</b></span>'+
+          '<span>P25: <b>'+pos.p25.toLocaleString('ru-RU')+'</b></span>'+
+          '<span class="f-med">Медиана: <b>'+pos.median.toLocaleString('ru-RU')+'</b></span>'+
+          '<span>P75: <b>'+pos.p75.toLocaleString('ru-RU')+'</b></span>'+
+          '<span>Макс: <b>'+pos.max.toLocaleString('ru-RU')+'</b></span>'+
+        '</div>'+
+        '<div class="fork-track-wrap">'+
+          '<div class="fork-track-p25-p75" style="left:'+p25Pct+'%;width:'+wPct+'%"></div>'+
+          '<div class="fork-track-med" style="left:'+medPct+'%"></div>'+
+        '</div>'
+      : '<div style="font-size:12.5px;color:var(--muted);margin:6px 0">Нет числовых данных по окладу</div>';
+
+    var coList = (pos.companies || []).map(function(c){
+      var payStr = (c.pFrom || c.pTo)
+        ? (c.pFrom ? c.pFrom.toLocaleString('ru-RU') : '—') + ' … ' + (c.pTo ? c.pTo.toLocaleString('ru-RU') : '—') + ' ' + esc(c.cur)
+        : 'не указан';
+      var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
+      var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:10.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
+
+      return '<tr>'+
+        '<td><b>'+esc(c.company)+'</b><br><small style="color:var(--muted)">'+esc(c.unit)+'</small></td>'+
+        '<td>'+payStr+'</td>'+
+        '<td>'+bonStr+'</td>'+
+        '<td>'+(bList || '<span style="color:var(--muted)">—</span>')+'</td>'+
+        '<td><small style="color:var(--muted)">'+esc(c.note || '—')+'</small></td>'+
+      '</tr>';
+    }).join('');
+
+    return '<div class="fork-box" id="'+cardId+'">'+
+      '<div class="fork-hd" onclick="togglePosBody(\''+bodyId+'\')">'+
+        '<div class="fork-pos">'+esc(pos.pos)+'</div>'+
+        '<div class="fork-cnt">'+pos.count+' '+declOfNum(pos.count, ['запись','записи','записей'])+'</div>'+
+        (pos.forkSpreadPct ? '<div class="pill p-mid">размах +'+pos.forkSpreadPct+'%</div>' : '')+
+        '<div style="font-size:18px;color:var(--muted)">▾</div>'+
+      '</div>'+
+      forkVisual +
+      '<div id="'+bodyId+'" class="fork-body hidden">'+
+        '<div class="tblwrap">'+
+          '<table class="co-tbl">'+
+            '<tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr>'+
+            coList +
+          '</table>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  return h;
+}
+
+function togglePosBody(id){
+  var el = $(id);
+  if(el) el.classList.toggle('hidden');
+}
+
+function renderProgressTab(hrbpList, dirList){
+  var h = '<div class="sec-title">Прогресс сбора по HR BP</div>';
+
+  if(S.data && (S.data.user.role === 'admin' || S.data.user.role === 'cb')){
+    h += '<div style="margin-bottom:14px">'+
+      '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:13.5px;min-height:38px">'+
+        '📢 Напомнить всем должникам в Telegram'+
+      '</button>'+
+    '</div>';
+  }
+
+  h += hrbpList.map(function(hItem){
+    var isDone = hItem.pct >= 100;
+    var cls = isDone ? 'p-ok' : (hItem.pct > 0 ? 'p-mid' : 'p-no');
+    return '<div class="prog-row">'+
+      '<div class="prog-hd">'+
+        '<span>'+esc(hItem.hrbp)+'</span>'+
+        '<span class="pill '+cls+'">'+hItem.pct+'%</span>'+
+      '</div>'+
+      '<div class="prog-bar-bg">'+
+        '<div class="prog-bar-fill" style="width:'+hItem.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
+      '</div>'+
+      '<div class="prog-sub">'+
+        '<span>Подразделений: <b>'+hItem.unitsDone+' / '+hItem.unitsTotal+'</b></span>'+
+        '<span>Связей: <b>'+hItem.compDone+' / '+hItem.compTotal+'</b> · Анкет: <b>'+hItem.surveysTotal+'</b></span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  h += '<div class="sec-title" style="margin-top:24px">Прогресс сбора по Дирекциям</div>';
+  h += dirList.map(function(dItem){
+    var isDone = dItem.pct >= 100;
+    var cls = isDone ? 'p-ok' : (dItem.pct > 0 ? 'p-mid' : 'p-no');
+    return '<div class="prog-row">'+
+      '<div class="prog-hd">'+
+        '<span>'+esc(dItem.dir)+'</span>'+
+        '<span class="pill '+cls+'">'+dItem.pct+'%</span>'+
+      '</div>'+
+      '<div class="prog-bar-bg">'+
+        '<div class="prog-bar-fill" style="width:'+dItem.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
+      '</div>'+
+      '<div class="prog-sub">'+
+        '<span>Отделов: <b>'+dItem.unitsDone+' / '+dItem.unitsTotal+'</b></span>'+
+        '<span>Связей: <b>'+dItem.compDone+' / '+dItem.compTotal+'</b></span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  setTimeout(function(){
+    var b = $('btnMassReminder');
+    if(b){
+      b.onclick = function(){
+        ask({
+          title: 'Массовое напоминание в Telegram',
+          html: 'Бот отправит персональные уведомления всем ответственным и руководителям, у которых остались незаполненные подразделения.',
+          ok: 'Отправить напоминания'
+        }).then(function(yes){
+          if(!yes) return;
+          b.disabled = true; b.textContent = 'Отправляем…';
+          call('apiSendMassReminder', S.token).then(function(res){
+            b.disabled = false; b.textContent = '📢 Напомнить всем должникам в Telegram';
+            if(res && res.ok){
+              toast('Успешно отправлено напоминаний: ' + res.sent);
+            } else {
+              toast((res && res.error) || 'Ошибка отправки');
+            }
+          }).catch(function(){
+            b.disabled = false; b.textContent = '📢 Напомнить всем должникам в Telegram';
+            toast('Нет связи');
+          });
+        });
+      };
+    }
+  }, 100);
+
+  return h;
+}
+
+function renderBenefitsTab(benefits, bonuses, topComps){
+  var h = '<div class="sec-title">Рейтинг популярности льгот и бенефитов</div>';
+
+  if(!benefits.length){
+    h += '<div class="empty">Нет данных о льготах</div>';
+  } else {
+    h += benefits.map(function(b){
+      return '<div class="prog-row">'+
+        '<div class="prog-hd">'+
+          '<span>'+esc(b.name)+'</span>'+
+          '<span class="pill p-ok">'+b.pct+'%</span>'+
+        '</div>'+
+        '<div class="prog-bar-bg">'+
+          '<div class="prog-bar-fill" style="width:'+b.pct+'%"></div>'+
+        '</div>'+
+        '<div class="prog-sub">'+
+          '<span>Упоминаний: <b>'+b.count+'</b></span>'+
+          '<span>Охват рынка: <b>'+b.pct+'%</b></span>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // Бонусы
+  h += '<div class="sec-title" style="margin-top:24px">Структура премирования и бонусов</div>';
+  var bTotal = (bonuses.hasBonus || 0) + (bonuses.noBonus || 0) + (bonuses.unknown || 0);
+  var hasPct = bTotal ? Math.round((bonuses.hasBonus / bTotal) * 100) : 0;
+  var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
+
+  h += '<div class="card" style="margin-bottom:16px">'+
+    '<div style="font-weight:700;font-size:15px;margin-bottom:8px">Наличие премий в компаниях</div>'+
+    '<div class="fork-nums">'+
+      '<span style="color:var(--ok)">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
+      '<span style="color:var(--no)">Без премий: <b>'+(bonuses.noBonus||0)+' ('+noPct+'%)</b></span>'+
+    '</div>'+
+    '<div class="prog-bar-bg" style="height:12px;margin:8px 0">'+
+      '<div class="prog-bar-fill" style="width:'+hasPct+'%;background:var(--ok)"></div>'+
+    '</div>'+
+  '</div>';
+
+  // Топ конкурентов
+  h += '<div class="sec-title" style="margin-top:24px">Топ упоминаемых компаний-конкурентов ('+topComps.length+')</div>';
+  h += '<div class="tblwrap"><table class="co-tbl">'+
+    '<tr><th>Компания</th><th>Количество записей в анкетах</th></tr>'+
+    topComps.map(function(c){
+      return '<tr><td><b>'+esc(c.company)+'</b></td><td>'+c.count+'</td></tr>';
+    }).join('')+
+  '</table></div>';
+
+  return h;
+}
+
+function exportDashboardCSV(){
+  if(!S.dashData || !S.dashData.positions || !S.dashData.positions.length){
+    toast('Нет данных для экспорта');
+    return;
+  }
+  var headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
+  var rows = S.dashData.positions.map(function(p){
+    return [
+      '"' + (p.pos || '').replace(/"/g, '""') + '"',
+      p.count,
+      p.withSalaryCount,
+      p.min,
+      p.p25,
+      p.median,
+      p.p75,
+      p.max,
+      p.avg,
+      p.forkSpreadPct + '%'
+    ].join(';');
+  });
+
+  var csvContent = '\uFEFF' + headers.join(';') + '\n' + rows.join('\n');
+  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'Обзор_рынка_зарплатные_вилки_C&B.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Файл отчёта CSV сформирован и скачан');
+}
+
+function declOfNum(n, titles){
+  return titles[(n%10===1 && n%100!==11) ? 0 : (n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20)) ? 1 : 2];
+}
+
+// ═══════════════════════════════════════════════════════════
+// ПАНЕЛЬ АДМИНИСТРАТОРА
+// ═══════════════════════════════════════════════════════════
+function openAdminPanel(){
+  S.appView = 'admin';
+  S.unit = null;
+  renderTopNav();
+  setTop('⚙️ Панель Администратора', userLabel(), false);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  renderAdminPanel();
+}
+
+function renderAdminPanel(){
+  var tabs = [
+    { id:'users', label:'👥 Пользователи' },
+    { id:'divisions', label:'🏢 Оргструктура (326)' },
+    { id:'period', label:'⏱️ Период сбора' },
+    { id:'tools', label:'🛠️ Сервис и Журнал' }
+  ];
+
+  var h = '<div class="sub-tabs">'+ tabs.map(function(t){
+    var on = S.adminTab === t.id ? ' on' : '';
+    return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+esc(t.label)+'</button>';
+  }).join('') +'</div>';
+
+  h += '<div id="adminContent"><div class="sp"><i></i> Загрузка…</div></div>';
+  $('body').innerHTML = h;
+
+  $('body').querySelectorAll('button[data-atab]').forEach(function(btn){
+    btn.onclick = function(){
+      S.adminTab = this.dataset.atab;
+      renderAdminPanel();
+    };
+  });
+
+  if(S.adminTab === 'users') loadAdminUsers();
+  else if(S.adminTab === 'divisions') loadAdminDivisions();
+  else if(S.adminTab === 'period') renderAdminPeriod();
+  else if(S.adminTab === 'tools') renderAdminTools();
+}
+
+// ─── Вкладка: Пользователи ───
+function loadAdminUsers(){
+  call('apiAdminGetUsers', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки пользователей')+'</div>';
+      return;
+    }
+    S.adminUsers = r.users || [];
+    renderAdminUsers();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminUsers(){
+  var users = S.adminUsers || [];
+  var search = ($('uSearch') ? $('uSearch').value : '').toLowerCase();
+  var roleFilter = $('uRole') ? $('uRole').value : '';
+
+  var filtered = users.filter(function(u){
+    var matchSearch = !search || u.fio.toLowerCase().indexOf(search) >= 0 || u.login.toLowerCase().indexOf(search) >= 0;
+    var matchRole = !roleFilter || u.role === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  var h = '<div class="dash-filters">'+
+    '<input id="uSearch" placeholder="🔍 Поиск по ФИО или логину…" value="'+esc(search)+'">'+
+    '<select id="uRole">'+
+      '<option value="">Все роли ('+users.length+')</option>'+
+      '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
+      '<option value="cb"'+(roleFilter==='cb'?' selected':'')+'>C&B Аналитики (cb)</option>'+
+      '<option value="hrbp"'+(roleFilter==='hrbp'?' selected':'')+'>HR BP (hrbp)</option>'+
+      '<option value="dir_head"'+(roleFilter==='dir_head'?' selected':'')+'>Руководители направлений</option>'+
+      '<option value="head"'+(roleFilter==='head'?' selected':'')+'>Руководители отделов</option>'+
+      '<option value="user"'+(roleFilter==='user'?' selected':'')+'>Сотрудники (user)</option>'+
+    '</select>'+
+  '</div>';
+
+  h += '<div style="margin-bottom:14px">'+
+    '<button id="btnAddUser" class="btn-primary" style="width:auto;min-height:38px;font-size:13.5px">+ Добавить пользователя</button>'+
+  '</div>';
+
+  h += '<div class="sec-title">Список пользователей ('+filtered.length+')</div>';
+
+  h += filtered.map(function(u){
+    var rBadge = 'b-user';
+    if(u.role === 'admin') rBadge = 'b-admin';
+    else if(u.role === 'cb') rBadge = 'b-cb';
+    else if(u.role === 'hrbp') rBadge = 'b-hrbp';
+    else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
+
+    return '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
+      '<div class="u-hd">'+
+        '<div class="u-fio">'+esc(u.fio)+'</div>'+
+        '<div>'+
+          '<span class="badge '+rBadge+'">'+esc(u.role)+'</span> '+
+          '<span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="u-meta">'+
+        'Логин: <b>'+esc(u.login)+'</b>'+
+        (u.phone ? ' · Тел: '+esc(u.phone) : '') +
+        (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
+        '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
+        (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
+      '</div>'+
+      '<div class="u-acts">'+
+        '<button class="btn-line" onclick="openUserModal(\''+esc(u.login)+'\')">✏️ Изменить</button>'+
+        '<button class="btn-line" onclick="adminResetPwd(\''+esc(u.login)+'\')">🔑 Сбросить пароль</button>'+
+        '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+esc(u.login)+'\','+(!u.active)+')">'+
+          (u.active ? '🚫 Заблокировать' : '✅ Активировать')+
+        '</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  $('adminContent').innerHTML = h;
+
+  $('uSearch').oninput = renderAdminUsers;
+  $('uRole').onchange = renderAdminUsers;
+  $('btnAddUser').onclick = function(){ openUserModal(null); };
+}
+
+function openUserModal(login){
+  var u = login ? (S.adminUsers || []).filter(function(x){ return x.login === login; })[0] : null;
+  var isEdit = !!u;
+
+  var userUnits = {};
+  if(u && u.units) u.units.forEach(function(un){ userUnits[un] = true; });
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+(isEdit ? 'Редактирование: ' + esc(u.fio) : 'Новый пользователь')+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="uModalErr" class="err hidden"></div>'+
+    '<label class="lbl" style="margin-top:4px">ФИО *</label>'+
+    '<input id="umFio" value="'+esc(u?u.fio:'')+'" placeholder="Иванов Иван Иванович">'+
+    '<label class="lbl">Логин (оставьте пустым для автогенерации)</label>'+
+    '<input id="umLogin" value="'+esc(u?u.login:'')+'" placeholder="ivanov" '+(isEdit?'readonly style="opacity:.7"':'')+'>'+
+    '<label class="lbl">Роль</label>'+
+    '<select id="umRole">'+
+      '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>user — Сотрудник</option>'+
+      '<option value="head"'+(u&&u.role==='head'?' selected':'')+'>head — Руководитель отдела</option>'+
+      '<option value="dir_head"'+(u&&u.role==='dir_head'?' selected':'')+'>dir_head — Руководитель направления</option>'+
+      '<option value="hrbp"'+(u&&u.role==='hrbp'?' selected':'')+'>hrbp — HR BP</option>'+
+      '<option value="cb"'+(u&&u.role==='cb'?' selected':'')+'>cb — C&B Аналитик</option>'+
+      '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>admin — Администратор</option>'+
+    '</select>'+
+    '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
+    '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+    '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
+    '<input id="umPwd" type="text" placeholder="пароль">'+
+    '<div style="margin:14px 0 10px">'+
+      '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
+    '</div>'+
+    '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
+    '<input id="umUnitSearch" placeholder="🔍 Фильтр подразделений…">'+
+    '<div id="umUnitList" style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
+    '<div style="height:16px"></div>'+
+    '<button id="umSave" class="btn-primary">Сохранить</button>'+
+  '</div>';
+
+  document.body.appendChild(el);
+
+  function drawUnits(){
+    var q = (el.querySelector('#umUnitSearch').value || '').toLowerCase();
+    var all = S.data.allUnits || [];
+    el.querySelector('#umUnitList').innerHTML = all.filter(function(x){
+      return !q || x.unit.toLowerCase().indexOf(q) >= 0 || x.dir.toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 100).map(function(x){
+      return '<label class="pickrow"><input type="checkbox" data-u="'+esc(x.unit)+'"'+
+        (userUnits[x.unit]?' checked':'')+'><span>'+esc(x.unit)+
+        '<br><small style="color:var(--muted)">'+esc(x.dir)+'</small></span></label>';
+    }).join('') || '<p style="color:var(--muted);padding:8px">Ничего не найдено</p>';
+  }
+  drawUnits();
+
+  el.querySelector('#umUnitSearch').oninput = drawUnits;
+  el.querySelector('#umUnitList').onchange = function(e){
+    if(e.target.dataset.u) userUnits[e.target.dataset.u] = e.target.checked;
+  };
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  el.querySelector('#umSave').onclick = function(){
+    var fio = el.querySelector('#umFio').value.trim();
+    if(!fio){
+      var err = el.querySelector('#uModalErr');
+      err.textContent = 'Укажите ФИО'; err.classList.remove('hidden'); return;
+    }
+    var assignedUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; });
+    var payload = {
+      fio: fio,
+      login: el.querySelector('#umLogin').value.trim(),
+      role: el.querySelector('#umRole').value,
+      phone: el.querySelector('#umPhone').value.trim(),
+      password: el.querySelector('#umPwd').value.trim(),
+      active: el.querySelector('#umActive').checked,
+      units: assignedUnits
+    };
+
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    call('apiAdminSaveUser', S.token, payload).then(function(res){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      if(res && res.ok){
+        el.remove();
+        toast('Пользователь сохранён');
+        loadAdminUsers();
+      } else {
+        var err = el.querySelector('#uModalErr');
+        err.textContent = (res && res.error) || 'Ошибка сохранения';
+        err.classList.remove('hidden');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      toast('Нет связи');
+    });
+  };
+}
+
+function adminToggleUser(login, active){
+  ask({
+    title: (active ? 'Активировать' : 'Заблокировать') + ' пользователя?',
+    html: 'Пользователь: <b>' + esc(login) + '</b>',
+    ok: active ? 'Активировать' : 'Заблокировать',
+    danger: !active
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminToggleUser', S.token, login, active).then(function(res){
+      if(res && res.ok){
+        toast('Статус обновлён');
+        loadAdminUsers();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    });
+  });
+}
+
+function adminResetPwd(login){
+  ask({
+    title: 'Сбросить пароль пользователя?',
+    html: 'Для логина <b>'+esc(login)+'</b> будет сгенерирован новый пароль.',
+    ok: 'Сгенерировать пароль'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminResetPassword', S.token, login).then(function(res){
+      if(res && res.ok){
+        ask({
+          title: 'Новый пароль выдан',
+          html: 'Логин: <b>'+esc(res.login)+'</b><br>Новый пароль: <b style="font-size:18px;color:var(--accent)">'+esc(res.newPassword)+'</b><br><br>Передайте эти данные сотруднику.',
+          ok: 'Скопировано / Понятно'
+        });
+      } else {
+        toast((res && res.error) || 'Ошибка сброса');
+      }
+    });
+  });
+}
+
+// ─── Вкладка: Оргструктура ───
+function loadAdminDivisions(){
+  call('apiAdminGetDivisions', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки оргструктуры')+'</div>';
+      return;
+    }
+    S.adminDivs = r.divisions || [];
+    renderAdminDivisions();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminDivisions(){
+  var divs = S.adminDivs || [];
+  var search = ($('divSearch') ? $('divSearch').value : '').toLowerCase();
+
+  var filtered = divs.filter(function(d){
+    return !search || d.unit.toLowerCase().indexOf(search) >= 0 || d.dir.toLowerCase().indexOf(search) >= 0 ||
+      d.resp.toLowerCase().indexOf(search) >= 0 || d.hrbp.toLowerCase().indexOf(search) >= 0;
+  });
+
+  var h = '<div class="dash-filters">'+
+    '<input id="divSearch" placeholder="🔍 Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'">'+
+  '</div>';
+
+  h += '<div class="sec-title">Оргструктура подразделений ('+filtered.length+')</div>';
+
+  h += '<div class="tblwrap"><table class="dash">'+
+    '<tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr>'+
+    filtered.map(function(d, idx){
+      return '<tr>'+
+        '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
+        '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
+        '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
+        '<td><button class="btn-ghost" style="border:1px solid var(--line);min-height:32px;font-size:12px" onclick="openDivisionModal('+idx+')">✏️ Назначить</button></td>'+
+      '</tr>';
+    }).join('')+
+  '</table></div>';
+
+  $('adminContent').innerHTML = h;
+  $('divSearch').oninput = renderAdminDivisions;
+}
+
+function openDivisionModal(idx){
+  var d = (S.adminDivs || [])[idx];
+  if(!d) return;
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+esc(d.unit)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<label class="lbl" style="margin-top:4px">Направление</label>'+
+    '<input id="dmDir" value="'+esc(d.dir)+'">'+
+    '<label class="lbl">Руководитель отдела</label>'+
+    '<input id="dmHead" value="'+esc(d.head)+'">'+
+    '<label class="lbl">Ответственный за обзор</label>'+
+    '<input id="dmResp" value="'+esc(d.resp)+'">'+
+    '<label class="lbl">HR BP</label>'+
+    '<input id="dmHrbp" value="'+esc(d.hrbp)+'">'+
+    '<label class="lbl">Примечание</label>'+
+    '<input id="dmNote" value="'+esc(d.note)+'">'+
+    '<div style="height:16px"></div>'+
+    '<button id="dmSave" class="btn-primary">Сохранить</button>'+
+  '</div>';
+
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  el.querySelector('#dmSave').onclick = function(){
+    var payload = {
+      unit: d.unit,
+      dir: el.querySelector('#dmDir').value.trim(),
+      head: el.querySelector('#dmHead').value.trim(),
+      resp: el.querySelector('#dmResp').value.trim(),
+      hrbp: el.querySelector('#dmHrbp').value.trim(),
+      note: el.querySelector('#dmNote').value.trim()
+    };
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    call('apiAdminSaveDivision', S.token, payload).then(function(res){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      if(res && res.ok){
+        el.remove();
+        toast('Подразделение обновлено');
+        loadAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      toast('Нет связи');
+    });
+  };
+}
+
+// ─── Вкладка: Период сбора ───
+function renderAdminPeriod(){
+  var p = S.data.period || {};
+  var closed = p.state === 'закрыт';
+
+  var h = '<div class="card" style="margin-bottom:16px">'+
+    '<div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Текущий период сбора</div>'+
+    '<div style="font-weight:700;font-size:18px">'+esc(p.name || 'Обзор рынка')+'</div>'+
+    '<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+
+      'Статус: <b style="color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b>'+
+      (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
+      (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(p.at)+')':'') : '') +
+    '</div>'+
+    '<div style="height:16px"></div>'+
+    (closed
+      ? '<button id="btnAdminPeriodOpen" class="btn-line" style="color:var(--ok);border-color:var(--ok);font-weight:700">Открыть новый период</button>'
+      : '<button id="btnAdminPeriodClose" class="btn-line btn-danger">Закрыть период сбора</button>')+
+  '</div>';
+
+  $('adminContent').innerHTML = h;
+
+  if($('btnAdminPeriodOpen')){
+    $('btnAdminPeriodOpen').onclick = function(){
+      askText({
+        title: 'Открыть новый период сбора',
+        html: 'Все сотрудники получат доступ к редактированию и внесению данных.',
+        value: 'Обзор рынка — ' + new Date().toLocaleDateString('ru-RU', {month:'long', year:'numeric'}),
+        ok: 'Открыть период'
+      }).then(function(name){
+        if(!name) return;
+        call('apiSetPeriod', S.token, { state:'открыт', name:name }).then(function(res){
+          if(res && res.ok){
+            S.data.period = res.period;
+            toast('Период открыт');
+            renderAdminPeriod();
+          } else {
+            toast((res&&res.error)||'Ошибка');
+          }
+        });
+      });
+    };
+  }
+
+  if($('btnAdminPeriodClose')){
+    $('btnAdminPeriodClose').onclick = function(){
+      ask({
+        title: 'Закрыть период сбора данных?',
+        html: 'Руководители и сотрудники больше не смогут изменять данные (только просмотр).',
+        ok: 'Закрыть период',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiSetPeriod', S.token, { state:'закрыт' }).then(function(res){
+          if(res && res.ok){
+            S.data.period = res.period;
+            toast('Период закрыт');
+            renderAdminPeriod();
+          } else {
+            toast((res&&res.error)||'Ошибка');
+          }
+        });
+      });
+    };
+  }
+}
+
+// ─── Вкладка: Сервис и Журнал ───
+function renderAdminTools(){
+  var h = '<div class="sec-title">Сервисные утилиты обслуживания</div>'+
+    '<div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:20px">'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">🧹 Нормализация сегментов и дублей компаний</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Сверяет лист «Конкуренты» со справочником компаний, удаляет скрытые пробелы, проставляет правильные сегменты и обновляет справочник.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация сегментов\')">Запустить нормализацию</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">🔗 Устранение расхождений в связях</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Находит и восстанавливает потерянные связи между подразделениями и конкурентами.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Починка связей\')">Устранить расхождения</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">⚡ Полный пересчёт статусов заполнения</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Синхронизирует лист «Статус заполнения» по всем 326 подразделениям.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'sync_status\', \'Пересчёт статусов\')">Пересчитать статусы</button>'+
+      '</div>'+
+    '</div>';
+
+  h += '<div class="sec-title">Журнал последних действий (Audit Log)</div>'+
+    '<div id="auditLogBox"><div class="sp"><i></i> Загрузка журнала…</div></div>';
+
+  $('adminContent').innerHTML = h;
+
+  call('apiAdminGetAuditLog', S.token, 60).then(function(r){
+    if(!r || !r.ok){
+      $('auditLogBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить журнал')+'</div>';
+      return;
+    }
+    var logs = r.logs || [];
+    if(!logs.length){
+      $('auditLogBox').innerHTML = '<div class="empty">Журнал пуст</div>';
+      return;
+    }
+    var logH = '<div class="tblwrap"><table class="dash">'+
+      '<tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr>'+
+      logs.map(function(l){
+        return '<tr>'+
+          '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(l.dt)+'</td>'+
+          '<td><b>'+esc(l.login)+'</b></td>'+
+          '<td>'+esc(l.action)+'</td>'+
+          '<td style="font-size:12.5px;color:var(--muted)">'+esc(l.detail)+'</td>'+
+        '</tr>';
+      }).join('')+
+      '</table></div>';
+    $('auditLogBox').innerHTML = logH;
+  });
+}
+
+function runMaintenanceTool(type, title){
+  ask({
+    title: 'Запустить процедуру: ' + title + '?',
+    html: 'Операция выполнится на сервере Google Apps Script и зафиксируется в журнале.',
+    ok: 'Запустить'
+  }).then(function(yes){
+    if(!yes) return;
+    toast('Выполняется: ' + title + '…');
+    call('apiAdminRunMaintenance', S.token, type).then(function(res){
+      if(res && res.ok){
+        ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
+        renderAdminTools();
+      } else {
+        toast((res && res.error) || 'Ошибка выполнения');
+      }
+    }).catch(function(){
+      toast('Нет связи');
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// СВОДКА ПО HR BP (быстрый вид)
+// ═══════════════════════════════════════════════════════════
+function openDash(){
+  setTop('Сводка по подразделениям', userLabel(), true);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
+  call('apiDashboard', S.token).then(function(r){
+    if(!r || !r.ok){ $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка')+'</div>'; return; }
+    if(r.period) S.data.period = r.period;
+    var p = S.data.period || {};
+    var closed = p.state === 'закрыт';
+
+    var h = '<div class="card" style="margin-bottom:16px">'+
+      '<div style="font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;'+
+        'letter-spacing:.6px;margin-bottom:6px">Период заполнения</div>'+
+      '<div style="font-weight:600;font-size:16px">'+esc(p.name || 'без названия')+'</div>'+
+      '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+
+        'Состояние: <b style="color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state||'открыт')+'</b>'+
+        (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
+        (p.by ? '<br>изменил: '+esc(p.by)+(p.at?' ('+esc(p.at)+')':'') : '') + '</div>'+
+      '<div style="height:12px"></div>'+
+      (closed
+        ? '<button id="btnPeriod" class="btn-line" style="color:var(--ok);border-color:var(--ok)">Открыть новый период</button>'
+        : '<button id="btnPeriod" class="btn-line btn-danger">Закрыть период заполнения</button>')+
+      '</div>';
+
+    var done = r.rows.filter(function(x){ return x.total && x.done === x.total; }).length;
+    var svTotal = r.rows.reduce(function(s,x){ return s + (x.surveys||0); }, 0);
+    var askTotal = r.rows.reduce(function(s,x){ return s + (x.ask||0); }, 0);
+    h += '<div class="sec-title">Заполнено полностью: '+done+' из '+r.rows.length+
+         ' · записей по должностям: '+svTotal+'</div>';
+    if(askTotal){
+      h += '<div class="note">На уточнении по всем подразделениям: <b>'+askTotal+'</b> компаний. '+
+           'Они не входят в «проверено».</div>';
+    }
+    h += '<div class="tblwrap"><table class="dash">'+
+      '<tr><th>Подразделение</th><th>Ответственный</th><th>Компании</th><th>Уточнить</th>'+
+      '<th>Данные</th><th>Обновлено</th></tr>';
+    h += r.rows.map(function(x){
+      var pct = x.total ? Math.round(x.done/x.total*100) : 0;
+      var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
+      var scls = x.surveys>0 ? 'p-ok' : 'p-no';
+      return '<tr><td>'+esc(x.unit)+'</td><td>'+esc(x.resp)+'</td>'+
+        '<td><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
+        '<td>'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
+        '<td><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
+        '<td style="font-size:12px;color:var(--muted)">'+esc(x.at||'—')+'</td></tr>';
+    }).join('');
+    h += '</table></div>';
+    $('body').innerHTML = h;
+
+    $('btnPeriod').onclick = function(){
+      var btn = this;
+      if(closed){
+        askText({
+          title: 'Открыть новый период',
+          html: 'Руководители снова смогут вносить и удалять данные.',
+          value: 'Обзор рынка — ' +
+            new Date().toLocaleDateString('ru-RU', {month:'long', year:'numeric'}),
+          placeholder: 'Название периода',
+          ok: 'Открыть период'
+        }).then(function(name){
+          if(name === null) return;
+          btn.disabled = true; btn.textContent = 'Открываем…';
+          call('apiSetPeriod', S.token, { state:'открыт', name:name })
+            .then(afterPeriod).catch(periodFail);
+        });
+      } else {
+        ask({
+          title: 'Закрыть период заполнения?',
+          html: 'Руководители перейдут в режим просмотра — вносить и удалять данные ' +
+                'они больше не смогут.\nВы как HR BP сможете править и после закрытия.',
+          ok: 'Закрыть период',
+          danger: true
+        }).then(function(yes){
+          if(!yes) return;
+          btn.disabled = true; btn.textContent = 'Закрываем…';
+          call('apiSetPeriod', S.token, { state:'закрыт' }).then(afterPeriod).catch(periodFail);
+        });
+      }
+    };
+    function afterPeriod(res){
+      if(!res || !res.ok){ toast((res&&res.error)||'Не удалось изменить период'); openDash(); return; }
+      S.data.period = res.period;
+      var isElevated = (S.data.user.role === 'admin' || S.data.user.role === 'cb');
+      S.ro = !!(res.period.state === 'закрыт' && S.data.user.role !== 'hrbp' && !isElevated);
+      toast('Период ' + res.period.state);
+      openDash();
+    }
+    function periodFail(){ toast('Нет связи'); openDash(); }
+  });
+}
+</script>
