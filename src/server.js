@@ -41,9 +41,25 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API роуты
 app.use('/api', apiRoutes);
 
+let lastUptimeRobotPing = null;
+
+app.use((req, res, next) => {
+  const ua = req.get('user-agent');
+  if (ua && ua.includes('UptimeRobot')) {
+    lastUptimeRobotPing = new Date().toISOString();
+  }
+  next();
+});
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ ok: true, version: '2.1.3', timestamp: new Date().toISOString(), env: config.nodeEnv });
+  res.json({ 
+    ok: true, 
+    version: '2.1.4', 
+    timestamp: new Date().toISOString(), 
+    env: config.nodeEnv,
+    lastUptimeRobotPing
+  });
 });
 
 // SPA fallback для роутинга
