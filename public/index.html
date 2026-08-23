@@ -4,339 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Анализ рынка — Конкурентная карта Фаровон</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-:root{
-  --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --text:#0f172a; --muted:#64748b;
-  --accent:#2563eb; --accent-soft:#eff6ff;
-  --ok:#059669; --ok-soft:#ecfdf5;
-  --no:#dc2626; --no-soft:#fef2f2;
-  --warn:#d97706; --warn-soft:#fffbeb;
-  --radius:14px; --tap:46px;
-  font-size:16px;
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    --bg:#0b0f19; --card:#151d2e; --line:#1e293b; --text:#f1f5f9; --muted:#94a3b8;
-    --accent:#3b82f6; --accent-soft:#1e293b;
-    --ok:#10b981; --ok-soft:#064e3b;
-    --no:#ef4444; --no-soft:#450a0a;
-    --warn:#f59e0b; --warn-soft:#451a03;
-  }
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;margin:0;padding:0;overflow:hidden;background:var(--bg);color:var(--text);
-  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-.hidden{display:none !important}
-
-/* ─── Каркас ─── */
-.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);
-  padding:10px 14px;display:flex;align-items:center;gap:10px;min-height:56px}
-.top h1{font-size:16px;margin:0;font-weight:600;flex:1;line-height:1.25;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.top .sub{font-size:12px;color:var(--muted);font-weight:400}
-.wrap{max-width:860px;margin:0 auto;padding:14px 14px 120px}
-
-/* ─── Кнопки ─── */
-button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
-  background:var(--card);color:var(--text);min-height:var(--tap);padding:0 16px}
-button:active{transform:scale(.98)}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;width:100%}
-.btn-ghost{background:transparent;border:none;color:var(--accent);min-height:38px;padding:0 8px;font-weight:600}
-.btn-line{width:100%;font-weight:600}
-.btn-danger{color:var(--no);border-color:var(--no)}
-button:disabled{opacity:.5;cursor:default}
-
-/* ─── Поля ─── */
-input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);
-  border-radius:10px;background:var(--card);color:var(--text);min-height:var(--tap)}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-textarea{min-height:70px;resize:vertical}
-label.lbl{display:block;font-size:13px;color:var(--muted);margin:14px 0 5px;font-weight:600}
-.two{display:flex;gap:10px}
-.two>div{flex:1;min-width:0}
-
-/* ─── Поле-выбор из справочника ───
-   На телефоне выпадающий <datalist> почти не работает: подсказки прячутся
-   за клавиатурой и не листаются. Поэтому поле открывает отдельный экран
-   со строкой поиска — там список видно целиком и пальцем попадать легко. */
-.pick{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-  min-height:var(--tap);padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-  background:var(--card)}
-.pick span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pick span.ph{color:var(--muted)}
-.pick i{font-style:normal;color:var(--muted);flex:none;font-size:13px}
-.pick.need{border-color:var(--warn);background:var(--warn-soft)}
-
-.pk-search{position:sticky;top:34px;background:var(--card);padding:8px 0 10px;z-index:2}
-.pk-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
-.pk-list button{width:100%;text-align:left;border:none;border-bottom:1px solid var(--line);
-  border-radius:0;min-height:52px;font-size:15px;padding:10px 14px;background:transparent}
-.pk-list button:last-child{border-bottom:none}
-.pk-list button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.pk-empty{color:var(--muted);font-size:14px;padding:18px 4px;text-align:center}
-.pk-add{margin-top:10px}
-.pk-add b{word-break:break-word}
-
-/* ─── Вход ─── */
-.login{max-width:380px;margin:8vh auto;padding:0 18px}
-.login .logo{text-align:center;margin-bottom:26px}
-.login .logo b{display:block;font-size:21px;letter-spacing:-.3px}
-.login .logo span{color:var(--muted);font-size:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
-
-/* ─── Подразделения ─── */
-.unit{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  padding:14px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center}
-.unit:active{border-color:var(--accent)}
-.unit .u-body{flex:1;min-width:0}
-.unit .u-name{font-weight:600;line-height:1.3}
-.unit .u-dir{font-size:12.5px;color:var(--muted);margin-top:3px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.unit .u-ask{font-size:12.5px;color:var(--warn);margin-top:3px;font-weight:600}
-.unit .u-chev{color:var(--muted);font-size:22px;flex:none}
-.ring{flex:none;width:46px;height:46px;position:relative}
-.ring svg{transform:rotate(-90deg)}
-.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:700}
-
-/* ─── Вкладки-шаги ─── */
-.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);
-  border-radius:12px;padding:4px;margin-bottom:10px;position:sticky;top:56px;z-index:15}
-.tabs button{flex:1;min-height:52px;border:none;background:transparent;color:var(--muted);
-  font-weight:600;font-size:14px;padding:4px 6px;line-height:1.25;border-radius:9px}
-.tabs button.on{background:var(--accent-soft);color:var(--accent)}
-.tabs button small{display:block;font-size:11px;font-weight:600;opacity:.75;margin-bottom:2px}
-.tabs button.done small::after{content:" ✓"}
-.step-hint{font-size:13.5px;color:var(--muted);margin:0 2px 14px;line-height:1.4}
-
-/* ─── Меню и подсказка ─── */
-.menu{display:flex;flex-direction:column;gap:8px}
-.menu button{width:100%;text-align:left;font-weight:600;font-size:15px}
-ol.howto{margin:6px 0 0;padding-left:24px;font-size:14.5px;line-height:1.5}
-ol.howto li{margin-bottom:14px}
-ol.howto li::marker{font-weight:700;color:var(--accent)}
-.callout-h{background:var(--accent-soft);color:var(--accent);padding:12px 14px;
-  border-radius:10px;font-size:13.5px;margin-top:6px}
-
-/* ─── Приветственная плашка ─── */
-.onboard{background:var(--card);border:1px solid var(--accent);border-radius:var(--radius);
-  padding:16px;margin-bottom:14px}
-.onboard h2{font-size:16px;margin:0 0 10px;font-weight:700}
-.onboard ol{margin:0 0 14px;padding-left:22px;font-size:14px;line-height:1.5;color:var(--muted)}
-.onboard ol li{margin-bottom:6px}
-.onboard ol b{color:var(--text)}
-.onboard .ob-act{display:flex;gap:8px;flex-wrap:wrap}
-.onboard .ob-act button{flex:1;min-width:130px;font-weight:600;font-size:14px}
-
-/* ─── Переход к следующему шагу ─── */
-.next-step{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-.next-step p{font-size:13.5px;color:var(--muted);margin:0 0 10px}
-
-/* ─── Карточка конкурента ─── */
-.row{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  margin-bottom:10px;overflow:hidden}
-.row.st-yes{border-left:4px solid var(--ok)}
-.row.st-no{border-left:4px solid var(--no)}
-.row.st-ask{border-left:4px solid var(--warn)}
-.row-head{padding:12px 14px}
-.row-name{font-weight:600;line-height:1.3;word-break:break-word}
-.row-meta{font-size:12.5px;color:var(--muted);margin-top:3px}
-.row-note-preview{font-size:12.5px;color:var(--muted);margin-top:6px;font-style:italic}
-.row-ask{font-size:12.5px;color:var(--warn);font-weight:600;margin-top:6px}
-
-.seg{display:flex;gap:6px;padding:0 14px 12px}
-.seg button{flex:1;min-height:42px;padding:0 6px;font-size:13.5px;font-weight:600;
-  border:1px solid var(--line);background:transparent;color:var(--muted)}
-.seg button.on[data-v="актуально"]{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
-.seg button.on[data-v="не актуально"]{background:var(--no-soft);border-color:var(--no);color:var(--no)}
-.seg button.on[data-v="уточнить"]{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
-
-.more{border-top:1px solid var(--line);padding:6px 14px 14px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{min-height:38px;padding:0 12px;font-size:13.5px;color:var(--muted)}
-.chips button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
-.toggle-more{width:100%;border:none;border-top:1px solid var(--line);background:transparent;
-  color:var(--accent);min-height:42px;font-size:13.5px;font-weight:600;border-radius:0}
-
-/* ─── Карточка данных по должности ─── */
-/* ─── Должность как строка чек-листа ─── */
-.pos{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  margin-bottom:10px;overflow:hidden}
-.pos-done{border-left:4px solid var(--ok)}
-.pos-head{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer}
-.pos-body{flex:1;min-width:0}
-.pos-name{font-weight:600;line-height:1.3;word-break:break-word}
-.pos-sub{font-size:12.5px;color:var(--muted);margin-top:3px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pos-cnt{flex:none;min-width:30px;height:30px;border-radius:15px;background:var(--card-2, var(--bg));
-  color:var(--muted);font-size:13px;font-weight:700;display:flex;align-items:center;
-  justify-content:center;padding:0 9px}
-.pos-done .pos-cnt{background:var(--ok-soft);color:var(--ok)}
-.pos-chev{flex:none;color:var(--muted);font-size:13px}
-.pos-items{padding:0 12px 12px;display:flex;flex-direction:column;gap:0}
-.pos-go{border:none;border-top:1px solid var(--line);border-radius:0;
-  color:var(--accent);font-size:14px;min-height:44px}
-
-.sv{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);
-  border-radius:var(--radius);margin-bottom:10px;padding:13px 14px}
-.sv .sv-pos{font-weight:600;line-height:1.3;word-break:break-word}
-.sv .sv-co{font-size:13px;color:var(--muted);margin-top:2px}
-.sv .sv-pay{margin-top:8px;font-size:14.5px;font-weight:600}
-.sv .sv-line{font-size:13px;color:var(--muted);margin-top:4px}
-.sv .sv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.sv .sv-tags span{background:var(--accent-soft);color:var(--accent);border-radius:20px;
-  padding:3px 10px;font-size:11.5px;font-weight:600}
-.sv .sv-act{display:flex;gap:8px;margin-top:12px}
-.sv .sv-act button{flex:1;min-height:40px;font-size:13.5px;font-weight:600}
-.sv .sv-by{font-size:11.5px;color:var(--muted);margin-top:9px}
-
-/* ─── Нижняя панель ─── */
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
-  border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
-.bar-in{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:center}
-.bar .prog{flex:1;min-width:0}
-.bar .prog b{font-size:14px;display:block}
-.bar .prog i{font-style:normal;font-size:12px;color:var(--muted)}
-.bar .prog i.ask{color:var(--warn);font-weight:600}
-.bar button{flex:none;min-width:150px}
-@media(max-width:420px){
-  .bar button{min-width:118px;padding:0 10px}
-  .bar .prog b{font-size:13px}
-}
-
-/* ─── Прочее ─── */
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:86px;z-index:70;
-  background:#16202a;color:#fff;padding:11px 18px;border-radius:24px;font-size:14px;
-  max-width:88vw;text-align:center;box-shadow:0 6px 22px rgba(0,0,0,.28)}
-@media (prefers-color-scheme:dark){.toast{background:#f0f3f6;color:#12171d}}
-.err{background:var(--no-soft);color:var(--no);padding:10px 12px;border-radius:10px;
-  font-size:14px;margin-bottom:12px}
-.note{background:var(--warn-soft);color:var(--warn);padding:10px 12px;border-radius:10px;
-  font-size:13.5px;margin-bottom:12px}
-.info{background:var(--accent-soft);color:var(--accent);padding:10px 12px;border-radius:10px;
-  font-size:13.5px;margin-bottom:12px}
-.sec-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
-  font-weight:700;margin:20px 0 8px}
-.empty{color:var(--muted);font-size:14px;text-align:center;padding:26px 10px;
-  border:1px dashed var(--line);border-radius:var(--radius);margin-bottom:10px}
-.sp{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--muted)}
-.sp i{width:22px;height:22px;border:2.5px solid var(--line);border-top-color:var(--accent);
-  border-radius:50%;display:inline-block;margin-right:10px;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
-.sheet-in{background:var(--card);width:100%;max-height:92vh;overflow:auto;
-  -webkit-overflow-scrolling:touch;
-  border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
-@media(min-width:640px){.sheet{align-items:center;justify-content:center}
-  .sheet-in{max-width:560px;border-radius:16px}}
-.sheet-hd{display:flex;align-items:center;margin-bottom:6px;position:sticky;top:-18px;
-  background:var(--card);padding:4px 0;z-index:3}
-.sheet-hd b{flex:1;font-size:17px}
-.sug{border:1px solid var(--line);border-radius:10px;margin-top:6px;max-height:210px;overflow:auto}
-.sug div{padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14.5px}
-.sug div:last-child{border-bottom:none}
-.sug div:active{background:var(--accent-soft)}
-.sug small{color:var(--muted);display:block;font-size:12px}
-table.dash{width:100%;border-collapse:collapse;font-size:14px}
-table.dash th,table.dash td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);
-  vertical-align:top}
-table.dash th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
-.pill.p-ok{background:var(--ok-soft);color:var(--ok)}
-.pill.p-mid{background:var(--warn-soft);color:var(--warn)}
-.pill.p-no{background:var(--no-soft);color:var(--no)}
-.pill.p-ask{background:var(--warn-soft);color:var(--warn)}
-/* ─── Диалог подтверждения ───
-   Браузерный confirm() показывает адрес googleusercontent.com и выглядит
-   как предупреждение постороннего сайта — люди пугаются и жмут «Отмена». */
-.dlg{max-width:440px}
-.dlg-t{display:block;font-size:17px;font-weight:700;line-height:1.3}
-.dlg-x{font-size:14.5px;color:var(--muted);line-height:1.5;margin:10px 0 18px;white-space:pre-line}
-.dlg-x b{color:var(--text)}
-.dlg-a{display:flex;gap:10px}
-.dlg-a button{flex:1;width:auto;font-weight:600;padding:0 10px}
-.dlg-in{margin-bottom:18px}
-
-.pickrow{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line)}
-.pickrow input{width:22px;height:22px;min-height:22px;flex:none}
-.pickrow span{font-size:14.5px;line-height:1.3}
-.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-
-/* ─── Верхняя ролевая навигация ─── */
-.nav-tabs{display:flex;gap:6px;background:var(--card);border-bottom:1px solid var(--line);
-  padding:6px 14px;position:sticky;top:56px;z-index:18;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.nav-btn{flex:1;min-height:40px;border:none;border-radius:10px;background:transparent;
-  color:var(--muted);font-weight:600;font-size:13.5px;padding:0 12px;white-space:nowrap;
-  display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
-.nav-btn.on{background:var(--accent-soft);color:var(--accent)}
-.nav-btn:active{transform:scale(.98)}
-
-/* ─── KPI Карточки Дашборда ─── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
-.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
-.kpi-t{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.kpi-v{font-size:24px;font-weight:800;color:var(--text);margin:6px 0 2px;line-height:1.1}
-.kpi-s{font-size:12px;color:var(--muted)}
-
-/* ─── Фильтры Дашборда ─── */
-.dash-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.dash-filters select,.dash-filters input{flex:1;min-width:130px;min-height:42px;padding:8px 10px;font-size:13.5px}
-.dash-actions{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.dash-actions button{font-size:13.5px;min-height:38px;padding:0 14px}
-
-/* ─── Визуализатор зарплатной вилки (Box-Plot / Fork) ─── */
-.fork-box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
-.fork-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;cursor:pointer}
-.fork-pos{font-weight:700;font-size:15px;flex:1;word-break:break-word}
-.fork-cnt{font-size:12px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:12px;font-weight:600}
-.fork-nums{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;flex-wrap:wrap;gap:4px}
-.fork-nums b{color:var(--text);font-weight:700}
-.fork-nums .f-med{color:var(--accent)}
-.fork-track-wrap{position:relative;height:18px;background:var(--line);border-radius:9px;margin:8px 0;overflow:hidden}
-.fork-track-p25-p75{position:absolute;top:0;bottom:0;background:var(--accent);opacity:.35;border-radius:4px}
-.fork-track-med{position:absolute;top:0;bottom:0;width:4px;background:var(--accent);border-radius:2px;transform:translateX(-50%)}
-.fork-body{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
-
-/* ─── Таблица компаний по должности ─── */
-.co-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
-.co-tbl th,.co-tbl td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-.co-tbl th{font-size:11.5px;color:var(--muted);font-weight:600}
-
-/* ─── Прогресс-бары HR BP и Направлений ─── */
-.prog-row{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px}
-.prog-hd{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;margin-bottom:6px}
-.prog-bar-bg{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:4px}
-.prog-bar-fill{height:100%;background:var(--ok);border-radius:4px;transition:width .3s ease}
-.prog-sub{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
-
-/* ─── Вкладки Админки ─── */
-.sub-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:8px;overflow-x:auto}
-.sub-tab{background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 14px;
-  font-size:13px;font-weight:600;color:var(--muted);min-height:36px;cursor:pointer;white-space:nowrap}
-.sub-tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-
-/* ─── Карточки пользователей в админке ─── */
-.u-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
-.u-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.u-fio{font-weight:700;font-size:15px;line-height:1.25}
-.u-meta{font-size:12.5px;color:var(--muted);margin:4px 0}
-.u-acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-.u-acts button{min-height:34px;padding:0 10px;font-size:12.5px;font-weight:600}
-.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase}
-.b-admin{background:#fee2e2;color:#991b1b}
-.b-cb{background:#ede9fe;color:#5b21b6}
-.b-hrbp{background:#e0e7ff;color:#3730a3}
-.b-head{background:#e0f2fe;color:#0369a1}
-.b-user{background:#f1f5f9;color:#475569}
-.b-active{background:var(--ok-soft);color:var(--ok)}
-.b-blocked{background:var(--no-soft);color:var(--no)}
-.b-tg{background:#e0f2fe;color:#0284c7}
-</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
 
 <!-- ══════════ ВХОД ══════════ -->
 <div id="scrLogin" class="login hidden">
   <div class="logo">
+    <div class="logo-icon">📊</div>
     <b>Анализ рынка</b>
     <span>Конкурентная карта · Фаровон</span>
   </div>
@@ -344,25 +23,25 @@ table.dash th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-
   <div id="loginCard" class="card">
     <div id="loginErr" class="err hidden"></div>
     <label class="lbl" style="margin-top:0">Логин</label>
-    <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email">
+    <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
     <label class="lbl">Пароль</label>
-    <input id="inPass" type="password" autocomplete="current-password">
-    <div style="height:16px"></div>
-    <button id="btnLogin" class="btn-primary">Войти</button>
+    <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div style="height:18px"></div>
+    <button id="btnLogin" class="btn-primary">Войти в систему</button>
   </div>
   <div id="loginHelp"></div>
 </div>
 
 <!-- ══════════ ЗАГРУЗКА ══════════ -->
-<div id="scrLoad" class="sp"><i></i> Загрузка…</div>
+<div id="scrLoad" class="sp"><i></i> Загрузка данных…</div>
 
 <!-- ══════════ ПРИЛОЖЕНИЕ ══════════ -->
 <div id="app" class="hidden">
   <div class="top">
-    <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 4px">‹ Назад</button>
+    <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
     <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
     <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
-    <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:20px;padding:0 10px"
+    <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
             aria-label="Меню">⋮</button>
   </div>
   <div id="topNav" class="nav-tabs hidden"></div>
@@ -1064,40 +743,60 @@ function renderUnits(){
 
   var h = periodBanner();
 
-  // Пока человек ничего не заполнил — объясняем, что вообще нужно сделать
   if(store.get(LS_OB) !== '1'){
-    h += '<div class="onboard"><h2>Что нужно сделать</h2><ol>'+
-      '<li>Открыть <b>своё подразделение</b> в списке ниже.</li>'+
-      '<li><b>Шаг 1</b> — отметить, какие компании вам конкуренты.</li>'+
-      '<li><b>Шаг 2</b> — внести зарплаты, бонусы и льготы у этих компаний.</li>'+
-      '<li>Нажать <b>«Сохранить»</b>.</li>'+
+    h += '<div class="onboard"><h2>👋 Добро пожаловать в систему анализа рынка</h2><ol>'+
+      '<li>Выберите <b>своё подразделение</b> в списке ниже.</li>'+
+      '<li><b>Шаг 1. Конкуренты</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
+      '<li><b>Шаг 2. Данные по рынку</b> — внесите зарплаты и льготы по должностям.</li>'+
+      '<li>Нажмите <b>«Сохранить»</b> внизу экрана.</li>'+
       '</ol><div class="ob-act">'+
-      '<button id="obMore">Подробнее</button>'+
+      '<button id="obMore">📖 Инструкция</button>'+
       '<button id="obHide" class="btn-primary" style="width:auto">Понятно, скрыть</button>'+
       '</div></div>';
   }
 
-  h += '<div class="sec-title">Компаний к проверке: '+totalAll+' · проверено '+doneAll+
-       (askAll ? ' · требует уточнения '+askAll : '') +
-       ' · записей по должностям: '+svAll+'</div>';
-  h += u.map(function(x,i){
+  if(u.length > 2){
+    h += '<div style="margin-bottom:12px"><input id="unitFilter" placeholder="🔍 Быстрый поиск подразделения..." autocomplete="off"></div>';
+  }
+
+  h += '<div class="sec-title">Подразделений: '+u.length+' · компаний: '+totalAll+' · проверено '+doneAll+
+       (askAll ? ' · на уточнении '+askAll : '') +
+       ' · записей: '+svAll+'</div>';
+  h += '<div id="unitsContainer">' + renderUnitCards(u) + '</div>';
+  $('body').innerHTML = h;
+
+  if($('obMore')) $('obMore').onclick = openHelp;
+  if($('obHide')) $('obHide').onclick = function(){ store.set(LS_OB, '1'); renderUnits(); };
+
+  if($('unitFilter')){
+    $('unitFilter').oninput = function(){
+      var q = this.value.trim().toLowerCase();
+      var filtered = u.filter(function(x){
+        return !q || x.unit.toLowerCase().indexOf(q) >= 0 || x.dir.toLowerCase().indexOf(q) >= 0;
+      });
+      $('unitsContainer').innerHTML = renderUnitCards(filtered);
+    };
+  }
+
+  $('body').onclick = function(e){
+    var el = e.target.closest('.unit');
+    if(el && el.dataset.u) openUnit(el.dataset.u);
+  };
+}
+
+function renderUnitCards(list){
+  if(!list.length) return '<div class="empty">Подразделения не найдены</div>';
+  return list.map(function(x){
     var pct = x.total ? Math.round(x.done/x.total*100) : 0;
     var askPct = x.total ? Math.round((x.ask||0)/x.total*100) : 0;
-    return '<div class="unit" data-i="'+i+'">'+ring(pct, askPct)+
+    return '<div class="unit" data-u="'+esc(x.unit)+'">'+ring(pct, askPct)+
       '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
       '<div class="u-dir">'+esc(x.dir)+' · '+x.done+' из '+x.total+
       ' · данных: '+(x.surveys||0)+'</div>'+
-      ((x.ask||0) ? '<div class="u-ask">требует уточнения: '+x.ask+'</div>' : '')+
+      ((x.ask||0) ? '<div class="u-ask">⚠️ требует уточнения: '+x.ask+'</div>' : '')+
       '</div>'+
       '<div class="u-chev">›</div></div>';
   }).join('');
-  $('body').innerHTML = h;
-  if($('obMore')) $('obMore').onclick = openHelp;
-  if($('obHide')) $('obHide').onclick = function(){ store.set(LS_OB, '1'); renderUnits(); };
-  $('body').onclick = function(e){
-    var el = e.target.closest('.unit');
-    if(el) openUnit(S.data.units[+el.dataset.i].unit);
-  };
 }
 
 /**
@@ -1290,22 +989,22 @@ function rowCard(r, i, isNew){
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(r.actual === 'уточнить') h += '<div class="row-ask">не считается проверенной</div>';
+  if(r.actual === 'уточнить') h += '<div class="row-ask">⚠️ требует уточнения</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
 
   h += '<div class="seg">'+
-    ['актуально','не актуально','уточнить'].map(function(v){
+    [['актуально','✓ Актуально'],['не актуально','✕ Не актуально'],['уточнить','? Уточнить']].map(function(pair){
+      var v = pair[0], lbl = pair[1];
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
-        (S.ro?' disabled':'')+'>'+
-        (v==='актуально'?'Актуально':v==='не актуально'?'Не актуально':'Уточнить')+'</button>';
+        (S.ro?' disabled':'')+'>'+lbl+'</button>';
     }).join('')+'</div>';
 
   h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
   h += '<div class="more hidden">';
-  h += '<div style="font-size:12.5px;color:var(--muted);margin:8px 0 5px;font-weight:600">Тип конкурента</div>';
+  h += '<div style="font-size:12px;color:var(--muted);margin:8px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип конкурента</div>';
   h += chips('type', S.data.ref.types, r.type, false);
-  h += '<div style="font-size:12.5px;color:var(--muted);margin:12px 0 5px;font-weight:600">Приоритет</div>';
+  h += '<div style="font-size:12px;color:var(--muted);margin:12px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
   h += chips('prio', S.data.ref.priorities, r.prio, false);
   h += '<label class="lbl">Комментарий'+
        (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
