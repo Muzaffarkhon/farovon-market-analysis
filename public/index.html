@@ -15,7 +15,7 @@
 <!-- ══════════ ВХОД ══════════ -->
 <div id="scrLogin" class="login hidden">
   <div class="logo">
-    <div class="logo-icon">📊</div>
+    <div class="logo-icon"></div>
     <b>Анализ рынка</b>
     <span>Конкурентная карта · Фаровон</span>
   </div>
@@ -478,19 +478,19 @@ $('btnMenu').onclick = function(){
   var r = S.data && S.data.user && S.data.user.role;
   var items = [];
   if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head') {
-    items.push(['dash_analytics', '📊 Аналитический дашборд']);
+    items.push(['dash_analytics', ' Аналитический дашборд']);
   }
   if(r === 'admin' || r === 'cb') {
-    items.push(['admin_panel', '⚙️ Панель администратора']);
+    items.push(['admin_panel', '️ Панель администратора']);
   }
   if(r === 'hrbp') {
-    items.push(['dash_hrbp', '📋 Сводка по HR BP']);
+    items.push(['dash_hrbp', ' Сводка по HR BP']);
   }
-  items.push(['units_view', '🏢 Мои подразделения']);
-  items.push(['refresh', '🔄 Обновить данные из таблицы']);
-  items.push(['help', '❓ Как заполнять']);
-  items.push(['pwd', '🔑 Сменить пароль']);
-  items.push(['out', '🚪 Выйти']);
+  items.push(['units_view', ' Мои подразделения']);
+  items.push(['refresh', ' Обновить данные из таблицы']);
+  items.push(['help', ' Как заполнять']);
+  items.push(['pwd', ' Сменить пароль']);
+  items.push(['out', ' Выйти']);
 
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -529,10 +529,10 @@ function renderTopNav(){
   }
   topNav.classList.remove('hidden');
   var btns = [];
-  btns.push({ id:'units', label:'🏢 Подразделения' });
-  btns.push({ id:'dashboard', label:'📊 Дашборд' });
+  btns.push({ id:'units', label:' Подразделения' });
+  btns.push({ id:'dashboard', label:' Дашборд' });
   if(r === 'admin' || r === 'cb'){
-    btns.push({ id:'admin', label:'⚙️ Админка' });
+    btns.push({ id:'admin', label:'️ Админка' });
   }
 
   topNav.innerHTML = btns.map(function(b){
@@ -744,19 +744,19 @@ function renderUnits(){
   var h = periodBanner();
 
   if(store.get(LS_OB) !== '1'){
-    h += '<div class="onboard"><h2>👋 Добро пожаловать в систему анализа рынка</h2><ol>'+
+    h += '<div class="onboard"><h2> Добро пожаловать в систему анализа рынка</h2><ol>'+
       '<li>Выберите <b>своё подразделение</b> в списке ниже.</li>'+
       '<li><b>Шаг 1. Конкуренты</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
       '<li><b>Шаг 2. Данные по рынку</b> — внесите зарплаты и льготы по должностям.</li>'+
       '<li>Нажмите <b>«Сохранить»</b> внизу экрана.</li>'+
       '</ol><div class="ob-act">'+
-      '<button id="obMore">📖 Инструкция</button>'+
+      '<button id="obMore"> Инструкция</button>'+
       '<button id="obHide" class="btn-primary" style="width:auto">Понятно, скрыть</button>'+
       '</div></div>';
   }
 
   if(u.length > 2){
-    h += '<div style="margin-bottom:12px"><input id="unitFilter" placeholder="🔍 Быстрый поиск подразделения..." autocomplete="off"></div>';
+    h += '<div style="margin-bottom:12px"><input id="unitFilter" placeholder=" Быстрый поиск подразделения..." autocomplete="off"></div>';
   }
 
   h += '<div class="sec-title">Подразделений: '+u.length+' · компаний: '+totalAll+' · проверено '+doneAll+
@@ -793,7 +793,7 @@ function renderUnitCards(list){
       '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
       '<div class="u-dir">'+esc(x.dir)+' · '+x.done+' из '+x.total+
       ' · данных: '+(x.surveys||0)+'</div>'+
-      ((x.ask||0) ? '<div class="u-ask">⚠️ требует уточнения: '+x.ask+'</div>' : '')+
+      ((x.ask||0) ? '<div class="u-ask">️ требует уточнения: '+x.ask+'</div>' : '')+
       '</div>'+
       '<div class="u-chev">›</div></div>';
   }).join('');
@@ -989,12 +989,12 @@ function rowCard(r, i, isNew){
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(r.actual === 'уточнить') h += '<div class="row-ask">⚠️ требует уточнения</div>';
+  if(r.actual === 'уточнить') h += '<div class="row-ask">️ требует уточнения</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
 
   h += '<div class="seg">'+
-    [['актуально','✓ Актуально'],['не актуально','✕ Не актуально'],['уточнить','? Уточнить']].map(function(pair){
+    [['актуально',' Актуально'],['не актуально',' Не актуально'],['уточнить','? Уточнить']].map(function(pair){
       var v = pair[0], lbl = pair[1];
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
         (S.ro?' disabled':'')+'>'+lbl+'</button>';
@@ -1689,7 +1689,7 @@ function openDashboard(){
   S.appView = 'dashboard';
   S.unit = null;
   renderTopNav();
-  setTop('📊 Аналитический Дашборд', userLabel(), false);
+  setTop(' Аналитический Дашборд', userLabel(), false);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Загрузка аналитики рынка…</div>';
@@ -1737,9 +1737,9 @@ function renderDashboard(){
 
   // 2. Вкладки Дашборда
   var tabs = [
-    { id:'salaries', label:'💰 Зарплатные вилки' },
-    { id:'progress', label:'🎯 Прогресс по HR BP' },
-    { id:'benefits', label:'🎁 Льготы и Бонусы' }
+    { id:'salaries', label:' Зарплатные вилки' },
+    { id:'progress', label:' Прогресс по HR BP' },
+    { id:'benefits', label:' Льготы и Бонусы' }
   ];
   h += '<div class="sub-tabs">'+ tabs.map(function(t){
     var on = S.dashTab === t.id ? ' on' : '';
@@ -1751,7 +1751,7 @@ function renderDashboard(){
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
 
   h += '<div class="dash-filters">'+
-    '<input id="dashSearch" placeholder="🔍 Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'">'+
+    '<input id="dashSearch" placeholder=" Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'">'+
     '<select id="dashDir">'+
       '<option value="">Все направления</option>'+
       allDirs.map(function(dir){
@@ -1768,7 +1768,7 @@ function renderDashboard(){
 
   h += '<div class="dash-actions">'+
     '<button id="btnDashReset" class="btn-ghost" style="border:1px solid var(--line);min-height:36px">Сбросить фильтры</button>'+
-    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)">📥 Экспорт в CSV</button>'+
+    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)"> Экспорт в CSV</button>'+
   '</div>';
 
   // 4. Контент выбранной вкладки
@@ -1898,7 +1898,7 @@ function renderProgressTab(hrbpList, dirList){
   if(S.data && (S.data.user.role === 'admin' || S.data.user.role === 'cb')){
     h += '<div style="margin-bottom:14px">'+
       '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:13.5px;min-height:38px">'+
-        '📢 Напомнить всем должникам в Telegram'+
+        ' Напомнить всем должникам в Telegram'+
       '</button>'+
     '</div>';
   }
@@ -1952,14 +1952,14 @@ function renderProgressTab(hrbpList, dirList){
           if(!yes) return;
           b.disabled = true; b.textContent = 'Отправляем…';
           call('apiSendMassReminder', S.token).then(function(res){
-            b.disabled = false; b.textContent = '📢 Напомнить всем должникам в Telegram';
+            b.disabled = false; b.textContent = ' Напомнить всем должникам в Telegram';
             if(res && res.ok){
               toast('Успешно отправлено напоминаний: ' + res.sent);
             } else {
               toast((res && res.error) || 'Ошибка отправки');
             }
           }).catch(function(){
-            b.disabled = false; b.textContent = '📢 Напомнить всем должникам в Telegram';
+            b.disabled = false; b.textContent = ' Напомнить всем должникам в Telegram';
             toast('Нет связи');
           });
         });
@@ -2067,7 +2067,7 @@ function openAdminPanel(){
   S.appView = 'admin';
   S.unit = null;
   renderTopNav();
-  setTop('⚙️ Панель Администратора', userLabel(), false);
+  setTop('️ Панель Администратора', userLabel(), false);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   renderAdminPanel();
@@ -2075,10 +2075,10 @@ function openAdminPanel(){
 
 function renderAdminPanel(){
   var tabs = [
-    { id:'users', label:'👥 Пользователи' },
-    { id:'divisions', label:'🏢 Оргструктура (326)' },
+    { id:'users', label:' Пользователи' },
+    { id:'divisions', label:' Оргструктура (326)' },
     { id:'period', label:'⏱️ Период сбора' },
-    { id:'tools', label:'🛠️ Сервис и Журнал' }
+    { id:'tools', label:'️ Сервис и Журнал' }
   ];
 
   var h = '<div class="sub-tabs">'+ tabs.map(function(t){
@@ -2128,7 +2128,7 @@ function renderAdminUsers(){
   });
 
   var h = '<div class="dash-filters">'+
-    '<input id="uSearch" placeholder="🔍 Поиск по ФИО или логину…" value="'+esc(search)+'">'+
+    '<input id="uSearch" placeholder=" Поиск по ФИО или логину…" value="'+esc(search)+'">'+
     '<select id="uRole">'+
       '<option value="">Все роли ('+users.length+')</option>'+
       '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
@@ -2169,10 +2169,10 @@ function renderAdminUsers(){
         (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
       '</div>'+
       '<div class="u-acts">'+
-        '<button class="btn-line" onclick="openUserModal(\''+esc(u.login)+'\')">✏️ Изменить</button>'+
-        '<button class="btn-line" onclick="adminResetPwd(\''+esc(u.login)+'\')">🔑 Сбросить пароль</button>'+
+        '<button class="btn-line" onclick="openUserModal(\''+esc(u.login)+'\')">️ Изменить</button>'+
+        '<button class="btn-line" onclick="adminResetPwd(\''+esc(u.login)+'\')"> Сбросить пароль</button>'+
         '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+esc(u.login)+'\','+(!u.active)+')">'+
-          (u.active ? '🚫 Заблокировать' : '✅ Активировать')+
+          (u.active ? ' Заблокировать' : ' Активировать')+
         '</button>'+
       '</div>'+
     '</div>';
@@ -2219,7 +2219,7 @@ function openUserModal(login){
       '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
     '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
-    '<input id="umUnitSearch" placeholder="🔍 Фильтр подразделений…">'+
+    '<input id="umUnitSearch" placeholder=" Фильтр подразделений…">'+
     '<div id="umUnitList" style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
     '<div style="height:16px"></div>'+
     '<button id="umSave" class="btn-primary">Сохранить</button>'+
@@ -2350,7 +2350,7 @@ function renderAdminDivisions(){
   });
 
   var h = '<div class="dash-filters">'+
-    '<input id="divSearch" placeholder="🔍 Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'">'+
+    '<input id="divSearch" placeholder=" Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'">'+
   '</div>';
 
   h += '<div class="sec-title">Оргструктура подразделений ('+filtered.length+')</div>';
@@ -2362,7 +2362,7 @@ function renderAdminDivisions(){
         '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
         '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
         '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-        '<td><button class="btn-ghost" style="border:1px solid var(--line);min-height:32px;font-size:12px" onclick="openDivisionModal('+idx+')">✏️ Назначить</button></td>'+
+        '<td><button class="btn-ghost" style="border:1px solid var(--line);min-height:32px;font-size:12px" onclick="openDivisionModal('+idx+')">️ Назначить</button></td>'+
       '</tr>';
     }).join('')+
   '</table></div>';
@@ -2498,17 +2498,17 @@ function renderAdminTools(){
   var h = '<div class="sec-title">Сервисные утилиты обслуживания</div>'+
     '<div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:20px">'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">🧹 Нормализация сегментов и дублей компаний</div>'+
+        '<div style="font-weight:700;font-size:15px"> Нормализация сегментов и дублей компаний</div>'+
         '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Сверяет лист «Конкуренты» со справочником компаний, удаляет скрытые пробелы, проставляет правильные сегменты и обновляет справочник.</div>'+
         '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация сегментов\')">Запустить нормализацию</button>'+
       '</div>'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">🔗 Устранение расхождений в связях</div>'+
+        '<div style="font-weight:700;font-size:15px"> Устранение расхождений в связях</div>'+
         '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Находит и восстанавливает потерянные связи между подразделениями и конкурентами.</div>'+
         '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Починка связей\')">Устранить расхождения</button>'+
       '</div>'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">⚡ Полный пересчёт статусов заполнения</div>'+
+        '<div style="font-weight:700;font-size:15px"> Полный пересчёт статусов заполнения</div>'+
         '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Синхронизирует лист «Статус заполнения» по всем 326 подразделениям.</div>'+
         '<button class="btn-line" onclick="runMaintenanceTool(\'sync_status\', \'Пересчёт статусов\')">Пересчитать статусы</button>'+
       '</div>'+

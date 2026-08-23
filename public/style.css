@@ -415,10 +415,11 @@ label.lbl {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
+  border: none;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  margin-bottom: 16px;
 }
 
 /* ─── Карточки Подразделений ─── */
@@ -552,7 +553,7 @@ label.lbl {
 }
 
 .tabs button.done small::after {
-  content: " ✓";
+  content: " ";
   color: var(--ok);
 }
 
@@ -1531,4 +1532,66 @@ label.lbl {
 
 .co-tbl tr:hover td {
   background: var(--card-hover);
+}
+
+/* ─── HR BP Progress Bars ─── */
+.prog-row {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.02);
+}
+.prog-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.prog-bar-bg {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.prog-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.prog-sub {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+.prog-sub b {
+  color: var(--text);
+  font-weight: 600;
+}
+.pill {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.p-ok { background: var(--ok-soft); color: var(--ok-hover); }
+.p-mid { background: var(--warn-soft); color: var(--warn-hover); }
+.p-no { background: var(--no-soft); color: var(--no-hover); }
+
+/* Overriding sec-title */
+.sec-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--subtle);
+  margin: 24px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
