@@ -1,10 +1,26 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { getDb } = require('../db/database');
 
 function hashPassword(pwd) {
-  return crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
+  return bcrypt.hashSync(String(pwd || ''), 10);
+}
+
+function verifyPassword(pwd, user) {
+  if (!user) return false;
+  if (user.password_hash) {
+    if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$') || user.password_hash.startsWith('$2y$')) {
+      try {
+        if (bcrypt.compareSync(pwd, user.password_hash)) return true;
+      } catch (e) {}
+    }
+    const sha = crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
+    if (user.password_hash === sha) return true;
+  }
+  if (user.raw_password && user.raw_password === pwd) return true;
+  return false;
 }
 
 function makeToken(user) {
@@ -156,8 +172,7 @@ exports.login = (req, res) => {
     return res.status(403).json({ ok: false, error: 'Учетная запись заблокирована' });
   }
 
-  const hash = hashPassword(password);
-  if (user.password_hash !== hash && user.raw_password !== password) {
+  if (!verifyPassword(password, user)) {
     return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
   }
 
@@ -199,14 +214,17 @@ exports.changePassword = (req, res) => {
 
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const oldHash = hashPassword(oldPassword);
 
-  if (user.password_hash !== oldHash && user.raw_password !== oldPassword) {
-    return res.status(400).json({ ok: false, error: 'Текущий пароль указан неверно' });
+  if (!verifyPassword(oldPassword, user)) {
+    return res.status(400).json({ ok: false, error: 'Неверный текущий пароль' });
   }
 
   const newHash = hashPassword(newPassword);
-  db.prepare('UPDATE users SET password_hash = ?, raw_password = ? WHERE id = ?').run(newHash, newPassword, user.id);
+  db.prepare('UPDATE users SET password_hash = ?, raw_password = NULL, updated_at = ? WHERE id = ?').run(
+    newHash,
+    new Date().toISOString(),
+    user.id
+  );
   db.prepare('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)').run(user.login, 'смена пароля', 'Пользователь изменил свой пароль');
 
   res.json({ ok: true, message: 'Пароль успешно изменён' });

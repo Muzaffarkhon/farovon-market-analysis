@@ -1,9 +1,10 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { getDb } = require('../db/database');
 const { sendMassReminder } = require('../services/telegramService');
 
 function hashPassword(pwd) {
-  return crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
+  return bcrypt.hashSync(String(pwd || ''), 10);
 }
 
 function makeLogin(fio, existingLogins) {
