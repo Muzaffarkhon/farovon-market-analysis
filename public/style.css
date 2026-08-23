@@ -147,7 +147,8 @@ html, body {
   max-width: 880px;
   margin: 0 auto;
   padding: 16px 16px 130px;
-  height: calc(100% - 58px);
+  flex: 1;
+  width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1594,4 +1595,11 @@ label.lbl {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
