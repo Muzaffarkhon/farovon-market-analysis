@@ -46,7 +46,7 @@ function makePassword() {
 // ─── Пользователи ───
 exports.getUsers = async (req, res) => {
   try {
-    const users = await queryAll('SELECT id, login, raw_password, fio, role, phone, telegram_chat_id, units, active, last_login_at FROM users ORDER BY fio ASC');
+    const users = await queryAll('SELECT id, login, fio, role, phone, telegram_chat_id, units, active, last_login_at FROM users ORDER BY fio ASC');
 
     res.json({
       ok: true,
@@ -60,7 +60,7 @@ exports.getUsers = async (req, res) => {
         active: !!u.active,
         lastIn: u.last_login_at || '',
         hasTelegram: !!u.telegram_chat_id,
-        hasPassword: !!u.raw_password
+        hasPassword: true
       }))
     });
   } catch (err) {
@@ -85,14 +85,13 @@ exports.saveUser = async (req, res) => {
 
     if (existing) {
       // Редактирование
-      const hash = password ? hashPassword(password) : existing.password_hash;
-      const raw = password ? password : existing.raw_password;
+      const hash = password ? hashPassword(password) : null;
 
       await run(`
         UPDATE users
-        SET fio = ?, role = ?, phone = ?, password_hash = ?, raw_password = ?, active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
+        SET fio = ?, role = ?, phone = ?, password_hash = COALESCE(?, password_hash), active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [fio.trim(), role || 'user', cleanPhone || null, hash, raw, active !== false ? 1 : 0, unitsStr, existing.id]);
+      `, [fio.trim(), role || 'user', cleanPhone || null, hash, active !== false ? 1 : 0, unitsStr, existing.id]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -116,9 +115,9 @@ exports.saveUser = async (req, res) => {
       const hash = hashPassword(rawPwd);
 
       await run(`
-        INSERT INTO users (login, password_hash, raw_password, fio, role, phone, units, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [login, hash, rawPwd, fio.trim(), role || 'user', cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
+        INSERT INTO users (login, password_hash, fio, role, phone, units, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [login, hash, fio.trim(), role || 'user', cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -166,7 +165,7 @@ exports.resetPassword = async (req, res) => {
     const newPwd = makePassword();
     const hash = hashPassword(newPwd);
 
-    await run('UPDATE users SET password_hash = ?, raw_password = ? WHERE id = ?', [hash, newPwd, user.id]);
+    await run('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hash, user.id]);
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'сброс пароля',

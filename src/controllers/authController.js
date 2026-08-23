@@ -19,7 +19,6 @@ function verifyPassword(pwd, user) {
     const sha = crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
     if (user.password_hash === sha) return true;
   }
-  if (user.raw_password && user.raw_password === pwd) return true;
   return false;
 }
 
@@ -234,7 +233,7 @@ exports.changePassword = async (req, res) => {
 
     const newHash = hashPassword(newPassword);
     const now = new Date().toISOString();
-    await run('UPDATE users SET password_hash = ?, raw_password = NULL, updated_at = ? WHERE id = ?', [
+    await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
       newHash,
       now,
       user.id
