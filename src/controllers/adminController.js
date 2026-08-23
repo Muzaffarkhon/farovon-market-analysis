@@ -65,7 +65,7 @@ exports.getUsers = async (req, res) => {
     });
   } catch (err) {
     console.error('getUsers error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка загрузки пользователей' });
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки пользователей: ' + err.message });
   }
 };
 

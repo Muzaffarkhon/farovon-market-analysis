@@ -43,7 +43,7 @@ app.use('/api', apiRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString(), env: config.nodeEnv });
+  res.json({ ok: true, version: '2.1.3', timestamp: new Date().toISOString(), env: config.nodeEnv });
 });
 
 // SPA fallback для роутинга
