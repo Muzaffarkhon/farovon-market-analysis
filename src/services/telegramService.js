@@ -1,5 +1,5 @@
 const config = require('../config');
-const { getDb } = require('../db/database');
+const { queryAll } = require('../db/database');
 
 let bot = null;
 
@@ -30,9 +30,8 @@ async function sendTelegramMessage(chatId, text, options = {}) {
 }
 
 async function sendMassReminder(senderFio = 'Администрация C&B') {
-  const db = getDb();
-  const divisions = db.prepare('SELECT unit, resp, head, hrbp FROM divisions').all();
-  const competitors = db.prepare('SELECT unit, actual FROM competitors').all();
+  const divisions = await queryAll('SELECT unit, resp, head, hrbp FROM divisions');
+  const competitors = await queryAll('SELECT unit, actual FROM competitors');
 
   const unitCounts = {};
   competitors.forEach(c => {
@@ -51,7 +50,7 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
   });
 
   // Ищем пользователей с telegram_chat_id или телефонами
-  const users = db.prepare('SELECT login, fio, phone, telegram_chat_id, units FROM users WHERE active = 1').all();
+  const users = await queryAll('SELECT login, fio, phone, telegram_chat_id, units FROM users WHERE active = 1');
   let sentCount = 0;
 
   for (const u of users) {

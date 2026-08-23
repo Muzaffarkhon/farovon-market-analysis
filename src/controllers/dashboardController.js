@@ -1,22 +1,21 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
-const { getDb } = require('../db/database');
+const { queryAll, queryOne } = require('../db/database');
 
-exports.getCBDashboard = (req, res) => {
+exports.getCBDashboard = async (req, res) => {
   try {
     const filters = req.body || req.query || {};
-    const analytics = getExtendedAnalytics(filters);
+    const analytics = await getExtendedAnalytics(filters);
     res.json(analytics);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 };
 
-exports.getHRBPDashboard = (req, res) => {
+exports.getHRBPDashboard = async (req, res) => {
   try {
-    const db = getDb();
-    const divisions = db.prepare('SELECT num, dir, unit, head, resp, hrbp FROM divisions').all();
-    const competitors = db.prepare('SELECT unit, actual FROM competitors').all();
-    const surveys = db.prepare('SELECT unit FROM surveys WHERE state != "удалена"').all();
+    const divisions = await queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions');
+    const competitors = await queryAll('SELECT unit, actual FROM competitors');
+    const surveys = await queryAll("SELECT unit FROM surveys WHERE state != 'удалена'");
 
     const compMap = {};
     competitors.forEach(c => {
@@ -58,7 +57,7 @@ exports.getHRBPDashboard = (req, res) => {
 
     out.sort((a, b) => (a.done / (a.total || 1)) - (b.done / (b.total || 1)));
 
-    const period = db.prepare('SELECT * FROM periods ORDER BY id DESC LIMIT 1').get() || { name: 'Обзор рынка', state: 'открыт' };
+    const period = (await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')) || { name: 'Обзор рынка', state: 'открыт' };
 
     res.json({
       ok: true,
@@ -77,9 +76,9 @@ exports.getHRBPDashboard = (req, res) => {
   }
 };
 
-exports.exportCSV = (req, res) => {
+exports.exportCSV = async (req, res) => {
   try {
-    const analytics = getExtendedAnalytics(req.query || {});
+    const analytics = await getExtendedAnalytics(req.query || {});
     const positions = analytics.positions || [];
 
     const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
@@ -99,7 +98,7 @@ exports.exportCSV = (req, res) => {
     const csvContent = '\uFEFF' + headers.join(';') + '\n' + rows.join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="salary_benchmarking_farovon.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="farovon_salary_analytics_${Date.now()}.csv"`);
     res.send(csvContent);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

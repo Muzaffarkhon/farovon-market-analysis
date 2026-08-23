@@ -6,24 +6,21 @@ const compression = require('compression');
 const morgan = require('morgan');
 
 const config = require('./config');
-const { getDb } = require('./db/database');
-const { runSeed } = require('./db/seed');
+const { queryOne } = require('./db/database');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Инициализация базы данных и сидирование при первом запуске
-try {
-  const db = getDb();
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (userCount === 0) {
-    console.log('📦 База данных пуста. Запускаем автоматическое сидирование...');
-    runSeed();
+// Проверка подключения к базе данных
+(async () => {
+  try {
+    const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
+    console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
+  } catch (err) {
+    console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
-} catch (err) {
-  console.warn('⚠️ Ошибка при автоматической проверке сидов:', err.message);
-}
+})();
 
 // Middleware
 app.use(cors());

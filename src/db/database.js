@@ -1,37 +1,48 @@
-const fs = require('fs');
-const path = require('path');
+const { createClient } = require('@libsql/client');
 const config = require('../config');
 
-let db = null;
+let client = null;
 
 function getDb() {
-  if (db) return db;
+  if (client) return client;
 
-  const dbDir = path.dirname(config.dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
+  const url = process.env.TURSO_DATABASE_URL || config.tursoUrl || 'libsql://farovon-market-analysis-muzaffarkhon.aws-eu-west-1.turso.io';
+  const authToken = process.env.TURSO_AUTH_TOKEN || config.tursoAuthToken || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc1MDIzMzYsImlkIjoiMDFhMDJlOGUtMjAwMS03MjVjLWEwNGItMGE1ZDA5MGY2NDk4Iiwia2lkIjoiTy1IeVlYU1FJYjhhV01pSk5rTUtudGpzVHpnUlBLYUdRSGFrOWlwYjZDTSIsInJpZCI6IjAyMmRjNGE0LWNhOTYtNGFhMi1hNmQ0LWFiOWM1OThhOTIwMSJ9.7tqWfPL2AuJ6WmFL3d5hhfrLYooTWE1zrCBbYfopYTkiILQ2PpSIj-8AKuxnLe-hF2fuu854zRQi-QpaIkpuDQ';
 
-  try {
-    const Database = require('better-sqlite3');
-    db = new Database(config.dbPath);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+  client = createClient({
+    url,
+    authToken
+  });
 
-    // Run schema
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-      db.exec(schemaSql);
-    }
-  } catch (err) {
-    console.error('Failed to initialize better-sqlite3 database:', err.message);
-    throw err;
-  }
+  return client;
+}
 
-  return db;
+async function queryAll(sql, args = []) {
+  const db = getDb();
+  const res = await db.execute({ sql, args });
+  return res.rows;
+}
+
+async function queryOne(sql, args = []) {
+  const db = getDb();
+  const res = await db.execute({ sql, args });
+  return res.rows[0] || null;
+}
+
+async function run(sql, args = []) {
+  const db = getDb();
+  return await db.execute({ sql, args });
+}
+
+async function batch(stmts) {
+  const db = getDb();
+  return await db.batch(stmts, 'write');
 }
 
 module.exports = {
-  getDb
+  getDb,
+  queryAll,
+  queryOne,
+  run,
+  batch
 };

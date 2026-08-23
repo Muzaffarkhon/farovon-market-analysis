@@ -1,4 +1,4 @@
-const { getDb } = require('../db/database');
+const { queryAll, queryOne } = require('../db/database');
 
 function calculatePercentiles(samples) {
   const s = [...samples].sort((a, b) => a - b);
@@ -26,14 +26,13 @@ function calculatePercentiles(samples) {
   return { min, p25, median, p75, max, avg, spread };
 }
 
-function getExtendedAnalytics(filters = {}) {
-  const db = getDb();
+async function getExtendedAnalytics(filters = {}) {
   const filterDir = (filters.dir || '').trim();
   const filterHrbp = (filters.hrbp || '').trim();
   const searchPos = (filters.search || '').trim().toLowerCase();
 
   // 1. Оргструктура
-  const divisions = db.prepare('SELECT num, dir, unit, head, resp, hrbp FROM divisions').all();
+  const divisions = await queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions');
   const unitMap = {};
   divisions.forEach(d => {
     unitMap[d.unit] = {
@@ -49,7 +48,7 @@ function getExtendedAnalytics(filters = {}) {
   });
 
   // 2. Конкуренты
-  const competitors = db.prepare('SELECT unit, actual FROM competitors').all();
+  const competitors = await queryAll('SELECT unit, actual FROM competitors');
   competitors.forEach(c => {
     if (unitMap[c.unit]) {
       unitMap[c.unit].totalComp++;
@@ -63,7 +62,7 @@ function getExtendedAnalytics(filters = {}) {
   });
 
   // 3. Данные по рынку (Анкеты)
-  const surveys = db.prepare('SELECT * FROM surveys WHERE state != "удалена"').all();
+  const surveys = await queryAll("SELECT * FROM surveys WHERE state != 'удалена'");
 
   let totalRecords = 0;
   let recordsWithSalary = 0;
@@ -233,7 +232,7 @@ function getExtendedAnalytics(filters = {}) {
   const totalComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].totalComp, 0);
   const checkedComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].doneComp, 0);
 
-  const periodRow = db.prepare('SELECT * FROM periods ORDER BY id DESC LIMIT 1').get() || { name: 'Обзор рынка', state: 'открыт' };
+  const periodRow = (await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')) || { name: 'Обзор рынка', state: 'открыт' };
 
   return {
     ok: true,

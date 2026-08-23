@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const { getDb } = require('../db/database');
+const { queryOne } = require('../db/database');
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['x-token'];
   let token = null;
 
@@ -22,8 +22,10 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
-    const db = getDb();
-    const user = db.prepare('SELECT id, login, fio, role, phone, units, active, last_login_at FROM users WHERE login = ?').get(decoded.login);
+    const user = await queryOne(
+      'SELECT id, login, fio, role, phone, units, active, last_login_at FROM users WHERE LOWER(login) = LOWER(?)',
+      [decoded.login]
+    );
 
     if (!user) {
       return res.status(401).json({ ok: false, error: 'USER_NOT_FOUND', message: 'Пользователь не найден' });

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
-const { getDb } = require('../db/database');
+const { queryAll, queryOne, run } = require('../db/database');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
@@ -31,8 +31,8 @@ function makeToken(user) {
   );
 }
 
-function getPeriodInfo(db) {
-  const p = db.prepare('SELECT * FROM periods ORDER BY id DESC LIMIT 1').get();
+async function getPeriodInfo() {
+  const p = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
   return p ? {
     name: p.name,
     state: p.state,
@@ -43,13 +43,16 @@ function getPeriodInfo(db) {
   } : { name: 'Обзор рынка', state: 'открыт' };
 }
 
-function getUserPayload(user, db) {
-  const unitsList = user.units ? user.units.split(';').map(s => s.trim()).filter(Boolean) : [];
-  const allUnits = db.prepare('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC').all();
+async function getUserPayload(user) {
+  const unitsList = user.units
+    ? (Array.isArray(user.units) ? user.units : user.units.split(';').map(s => s.trim()).filter(Boolean))
+    : [];
+
+  const allUnits = await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC');
 
   // Подсчёт прогресса по доступным подразделениям
-  const compRows = db.prepare('SELECT unit, actual FROM competitors').all();
-  const survRows = db.prepare('SELECT unit FROM surveys WHERE state != "удалена"').all();
+  const compRows = await queryAll('SELECT unit, actual FROM competitors');
+  const survRows = await queryAll("SELECT unit FROM surveys WHERE state != 'удалена'");
 
   const compMap = {};
   compRows.forEach(c => {
@@ -88,8 +91,9 @@ function getUserPayload(user, db) {
   }
 
   // Справочники
-  const dictCompanies = db.prepare('SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC').all();
-  const dictPositions = db.prepare('SELECT name FROM dictionary_positions ORDER BY name ASC').all().map(x => x.name);
+  const dictCompanies = await queryAll('SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC');
+  const dictPositionsRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
+  const dictPositions = dictPositionsRows.map(x => x.name);
 
   // Конкуренты для пользователя
   const userUnitNames = visibleUnits.map(x => x.unit);
@@ -98,9 +102,11 @@ function getUserPayload(user, db) {
 
   if (userUnitNames.length > 0) {
     const placeholders = userUnitNames.map(() => '?').join(',');
-    userCompetitors = db.prepare(`SELECT * FROM competitors WHERE unit IN (${placeholders})`).all(...userUnitNames);
-    userSurveys = db.prepare(`SELECT * FROM surveys WHERE unit IN (${placeholders}) AND state != "удалена"`).all(...userUnitNames);
+    userCompetitors = await queryAll(`SELECT * FROM competitors WHERE unit IN (${placeholders})`, userUnitNames);
+    userSurveys = await queryAll(`SELECT * FROM surveys WHERE unit IN (${placeholders}) AND state != 'удалена'`, userUnitNames);
   }
+
+  const period = await getPeriodInfo();
 
   return {
     user: {
@@ -109,7 +115,7 @@ function getUserPayload(user, db) {
       role: user.role,
       phone: user.phone || ''
     },
-    period: getPeriodInfo(db),
+    period,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb',
     units: visibleUnits,
     allUnits: allUnits,
@@ -155,93 +161,113 @@ function getUserPayload(user, db) {
   };
 }
 
-exports.login = (req, res) => {
+exports.login = async (req, res) => {
   const { login, password } = req.body;
   if (!login || !password) {
     return res.status(400).json({ ok: false, error: 'Введите логин и пароль' });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE LOWER(login) = LOWER(?)').get(login.trim());
+  try {
+    const user = await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [login.trim()]);
 
-  if (!user) {
-    return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
+    if (!user) {
+      return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ ok: false, error: 'Учетная запись заблокирована' });
+    }
+
+    if (!verifyPassword(password, user)) {
+      return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
+    }
+
+    const now = new Date().toISOString();
+    await run('UPDATE users SET last_login_at = ? WHERE id = ?', [now, user.id]);
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      user.login,
+      'вход',
+      'Успешная авторизация',
+      req.ip || ''
+    ]);
+
+    const token = makeToken(user);
+    const data = await getUserPayload(user);
+
+    res.json({
+      ok: true,
+      token,
+      data
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ ok: false, error: 'Внутренняя ошибка сервера при входе' });
   }
-
-  if (!user.active) {
-    return res.status(403).json({ ok: false, error: 'Учетная запись заблокирована' });
-  }
-
-  if (!verifyPassword(password, user)) {
-    return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
-  }
-
-  // Обновляем время входа
-  const now = new Date().toISOString();
-  db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, user.id);
-  db.prepare('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)').run(
-    user.login,
-    'вход',
-    'Успешная авторизация',
-    req.ip
-  );
-
-  const token = makeToken(user);
-  const data = getUserPayload(user, db);
-
-  res.json({
-    ok: true,
-    token,
-    data
-  });
 };
 
-exports.resume = (req, res) => {
-  const db = getDb();
-  const data = getUserPayload(req.user, db);
-  res.json({
-    ok: true,
-    token: makeToken(req.user),
-    data
-  });
+exports.resume = async (req, res) => {
+  try {
+    const data = await getUserPayload(req.user);
+    res.json({
+      ok: true,
+      token: makeToken(req.user),
+      data
+    });
+  } catch (err) {
+    console.error('Resume error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка обновления сессии' });
+  }
 };
 
-exports.changePassword = (req, res) => {
+exports.changePassword = async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   if (!oldPassword || !newPassword || newPassword.length < 6) {
     return res.status(400).json({ ok: false, error: 'Новый пароль должен содержать минимум 6 символов' });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  try {
+    const user = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
 
-  if (!verifyPassword(oldPassword, user)) {
-    return res.status(400).json({ ok: false, error: 'Неверный текущий пароль' });
+    if (!verifyPassword(oldPassword, user)) {
+      return res.status(400).json({ ok: false, error: 'Неверный текущий пароль' });
+    }
+
+    const newHash = hashPassword(newPassword);
+    const now = new Date().toISOString();
+    await run('UPDATE users SET password_hash = ?, raw_password = NULL, updated_at = ? WHERE id = ?', [
+      newHash,
+      now,
+      user.id
+    ]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      user.login,
+      'смена пароля',
+      'Пользователь изменил свой пароль'
+    ]);
+
+    res.json({ ok: true, message: 'Пароль успешно изменён' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка смены пароля' });
   }
-
-  const newHash = hashPassword(newPassword);
-  db.prepare('UPDATE users SET password_hash = ?, raw_password = NULL, updated_at = ? WHERE id = ?').run(
-    newHash,
-    new Date().toISOString(),
-    user.id
-  );
-  db.prepare('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)').run(user.login, 'смена пароля', 'Пользователь изменил свой пароль');
-
-  res.json({ ok: true, message: 'Пароль успешно изменён' });
 };
 
-exports.setUnits = (req, res) => {
+exports.setUnits = async (req, res) => {
   const { units } = req.body;
   if (!Array.isArray(units) || !units.length) {
     return res.status(400).json({ ok: false, error: 'Выберите хотя бы одно подразделение' });
   }
 
-  const db = getDb();
-  const unitsStr = units.join('; ');
-  db.prepare('UPDATE users SET units = ? WHERE id = ?').run(unitsStr, req.user.id);
+  try {
+    const unitsStr = units.join('; ');
+    await run('UPDATE users SET units = ? WHERE id = ?', [unitsStr, req.user.id]);
 
-  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const data = getUserPayload(updatedUser, db);
+    const updatedUser = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const data = await getUserPayload(updatedUser);
 
-  res.json({ ok: true, data });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error('Set units error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка выбора подразделения' });
+  }
 };
