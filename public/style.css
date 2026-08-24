@@ -1670,3 +1670,41 @@ label.lbl {
 .co-tbl tr:hover td {
   background: var(--card-hover);
 }
+
+/* ─── Таблица пользователей (только десктоп; ниже 1024px показываются .u-cards) ───
+   Переключение живёт здесь, а не в общем десктопном медиа-запросе выше по файлу:
+   тот идёт раньше и базовое display:none его перебивало бы. */
+.u-tblwrap { display: none; }
+
+@media (min-width: 1024px) {
+  .u-tblwrap { display: block; }
+  .u-cards { display: none; }
+}
+
+.u-tbl td { vertical-align: middle; }
+
+.u-t-fio { font-weight: 700; }
+
+.u-t-login {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.u-t-dim { color: var(--muted); white-space: nowrap; }
+
+.u-t-acts {
+  display: flex;
+  gap: 6px;
+}
+
+.u-t-acts button {
+  width: auto;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.b-tg { background: var(--accent-soft); color: var(--accent); }

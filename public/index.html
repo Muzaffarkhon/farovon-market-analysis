@@ -2239,6 +2239,16 @@ function loadAdminUsers(){
   });
 }
 
+function userActs(u, compact){
+  var login = esc(u.login);
+  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+(compact?'Изменить':'✏️ Изменить')+'</button>'+
+    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+(compact?'Сброс пароля':'🔑 Сбросить пароль')+'</button>'+
+    '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
+      (u.active ? (compact?'Заблокировать':'🚫 Заблокировать') : (compact?'Активировать':'✅ Активировать'))+
+    '</button>'+
+    '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+(compact?'В архив':'🗄️ В архив')+'</button>';
+}
+
 function renderAdminUsers(){
   var users = S.adminUsers || [];
   var search = ($('uSearch') ? $('uSearch').value : '').toLowerCase();
@@ -2269,14 +2279,27 @@ function renderAdminUsers(){
 
   h += '<div class="sec-title">Список пользователей ('+filtered.length+')</div>';
 
-  h += filtered.map(function(u){
+  var rows = '', cards = '';
+  filtered.forEach(function(u){
     var rBadge = 'b-user';
     if(u.role === 'admin') rBadge = 'b-admin';
     else if(u.role === 'cb') rBadge = 'b-cb';
     else if(u.role === 'hrbp') rBadge = 'b-hrbp';
     else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
 
-    return '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
+    rows += '<tr id="urow_'+esc(u.login)+'">'+
+      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-login">'+esc(u.login)+
+        (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
+      '</td>'+
+      '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
+      '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
+      '<td>'+(u.units?u.units.length:0)+'</td>'+
+      '<td class="u-t-dim">'+esc(u.lastIn || '—')+'</td>'+
+      '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
+    '</tr>';
+
+    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
       '<div class="u-hd">'+
         '<div class="u-fio">'+esc(u.fio)+'</div>'+
         '<div>'+
@@ -2291,16 +2314,19 @@ function renderAdminUsers(){
         '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
         (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
       '</div>'+
-      '<div class="u-acts">'+
-        '<button class="btn-line" onclick="openUserModal(\''+esc(u.login)+'\')">✏️ Изменить</button>'+
-        '<button class="btn-line" onclick="adminResetPwd(\''+esc(u.login)+'\')">🔑 Сбросить пароль</button>'+
-        '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+esc(u.login)+'\','+(!u.active)+')">'+
-          (u.active ? '🚫 Заблокировать' : '✅ Активировать')+
-        '</button>'+
-        '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+esc(u.login)+'\')">🗄️ В архив</button>'+
-      '</div>'+
+      '<div class="u-acts">'+userActs(u, false)+'</div>'+
     '</div>';
-  }).join('');
+  });
+
+  h += '<div class="tblwrap u-tblwrap"><table class="co-tbl u-tbl">'+
+    '<thead><tr>'+
+      '<th>ФИО</th><th>Логин</th><th>Роль</th><th>Статус</th>'+
+      '<th>Подразделений</th><th>Вход</th><th>Действия</th>'+
+    '</tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+  '</table></div>';
+
+  h += '<div class="u-cards">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
 
