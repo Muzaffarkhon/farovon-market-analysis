@@ -168,7 +168,7 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const user = await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [login.trim()]);
+    const user = await queryOne("SELECT * FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL", [login.trim()]);
 
     if (!user) {
       return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });

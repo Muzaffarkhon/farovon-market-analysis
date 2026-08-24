@@ -38,6 +38,9 @@ router.get('/admin/users', requireRoles('admin', 'cb'), adminController.getUsers
 router.post('/admin/users', requireRoles('admin', 'cb'), adminController.saveUser);
 router.post('/admin/users/:login/toggle', requireRoles('admin', 'cb'), adminController.toggleUser);
 router.post('/admin/users/:login/reset-password', requireRoles('admin', 'cb'), adminController.resetPassword);
+router.get('/admin/users-archive', requireRoles('admin', 'cb'), adminController.getArchivedUsers);
+router.post('/admin/users/:login/archive', requireRoles('admin', 'cb'), adminController.archiveUser);
+router.post('/admin/users/:login/restore', requireRoles('admin', 'cb'), adminController.restoreUser);
 
 router.get('/admin/divisions', requireRoles('admin', 'cb', 'hrbp'), adminController.getDivisions);
 router.post('/admin/divisions', requireRoles('admin', 'cb'), adminController.saveDivision);
