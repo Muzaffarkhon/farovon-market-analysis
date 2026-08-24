@@ -10,6 +10,15 @@ const { queryOne } = require('./db/database');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
 
+// Секретов с запасными значениями в коде больше нет — если переменные окружения не
+// заданы, сервис обязан упасть сразу, а не поднять полурабочий прод.
+const missing = config.missingSecrets();
+if (missing.length) {
+  console.error(`❌ Не заданы обязательные переменные окружения: ${missing.join(', ')}`);
+  console.error('   Render → Environment (или файл .env локально, см. .env.example), затем перезапуск.');
+  process.exit(1);
+}
+
 const app = express();
 
 // Проверка подключения к базе данных
@@ -41,9 +50,17 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API роуты
 app.use('/api', apiRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ ok: true, version: '2.1.3', timestamp: new Date().toISOString(), env: config.nodeEnv });
+// Health check. Поле db показывает, доехало ли подключение к Turso — текст ошибки
+// наружу не отдаём, он остаётся в логах Render.
+app.get('/health', async (req, res) => {
+  let db = 'ok';
+  try {
+    await queryOne('SELECT 1 AS ok');
+  } catch (err) {
+    db = 'error';
+    console.error('❌ Health check: база недоступна:', err.message);
+  }
+  res.json({ ok: db === 'ok', db, version: '2.2.0', timestamp: new Date().toISOString(), env: config.nodeEnv });
 });
 
 // SPA fallback для роутинга

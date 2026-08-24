@@ -2,8 +2,7 @@ const path = require('path');
 const https = require('https');
 const bcrypt = require('bcryptjs');
 
-const TURSO_URL = 'https://farovon-market-analysis-muzaffarkhon.aws-eu-west-1.turso.io/v2/pipeline';
-const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc1MDIzMzYsImlkIjoiMDFhMDJlOGUtMjAwMS03MjVjLWEwNGItMGE1ZDA5MGY2NDk4Iiwia2lkIjoiTy1IeVlYU1FJYjhhV01pSk5rTUtudGpzVHpnUlBLYUdRSGFrOWlwYjZDTSIsInJpZCI6IjAyMmRjNGE0LWNhOTYtNGFhMi1hNmQ0LWFiOWM1OThhOTIwMSJ9.7tqWfPL2AuJ6WmFL3d5hhfrLYooTWE1zrCBbYfopYTkiILQ2PpSIj-8AKuxnLe-hF2fuu854zRQi-QpaIkpuDQ';
+const { TURSO_URL_PIPELINE: TURSO_URL, TURSO_TOKEN } = require('./tursoEnv');
 
 async function executeSql(sql, args = []) {
   const requests = [
