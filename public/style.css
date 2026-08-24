@@ -2791,3 +2791,13 @@ label.lbl {
   border-color: var(--warn-border);
   color: var(--text);
 }
+
+/* Успешное состояние. Базовый .note янтарный — это предупреждение, и «данные
+   загружены» в нём читалось как тревога. */
+.note--ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: var(--ok-border);
+}
+
+.note--ok svg { vertical-align: -2px; margin-right: 2px; }
