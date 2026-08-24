@@ -161,6 +161,13 @@ function icBare(name, size){
   size = size || 14;
   return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none">'+(ICONS[name]||'')+'</svg>';
 }
+/** Дата входа приходит с сервера сырым ISO-таймстампом — приводим к «ДД.ММ.ГГГГ ЧЧ:ММ». */
+function fmtDateTime(s){
+  if(!s || !/^\d{4}-\d{2}-\d{2}T/.test(s)) return s;
+  var d = new Date(s);
+  if(isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+}
 
 /** Клиент для работы с REST API сервера */
 var API_ROUTES = {
@@ -2298,12 +2305,22 @@ function loadAdminUsers(){
 
 function userActs(u, compact){
   var login = esc(u.login);
-  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+(compact?'Изменить':ic('pencil')+'Изменить')+'</button>'+
-    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+(compact?'Сброс пароля':ic('key')+'Сбросить пароль')+'</button>'+
+  if(compact){
+    // Таблица (десктоп): 4 текстовых кнопки не влезали в колонку без
+    // горизонтального скролла — только иконки с подсказкой в title.
+    return '<button class="btn-icon" title="Изменить" onclick="openUserModal(\''+login+'\')">'+icBare('pencil',15)+'</button>'+
+      '<button class="btn-icon" title="Сбросить пароль" onclick="adminResetPwd(\''+login+'\')">'+icBare('key',15)+'</button>'+
+      '<button class="btn-icon '+(u.active?'btn-danger':'')+'" title="'+(u.active?'Заблокировать':'Активировать')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
+        (u.active ? icBare('block',15) : icBare('check',15))+
+      '</button>'+
+      '<button class="btn-icon btn-danger" title="В архив" onclick="adminArchiveUser(\''+login+'\')">'+icBare('archive',15)+'</button>';
+  }
+  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+ic('pencil')+'Изменить</button>'+
+    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+ic('key')+'Сбросить пароль</button>'+
     '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
-      (u.active ? (compact?'Заблокировать':ic('block')+'Заблокировать') : (compact?'Активировать':ic('check')+'Активировать'))+
+      (u.active ? ic('block')+'Заблокировать' : ic('check')+'Активировать')+
     '</button>'+
-    '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+(compact?'В архив':ic('archive')+'В архив')+'</button>';
+    '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+ic('archive')+'В архив</button>';
 }
 
 function renderAdminUsers(){
@@ -2353,7 +2370,7 @@ function renderAdminUsers(){
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
       '<td>'+(u.units?u.units.length:0)+'</td>'+
-      '<td class="u-t-dim">'+esc(u.lastIn || '—')+'</td>'+
+      '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
 
@@ -2370,7 +2387,7 @@ function renderAdminUsers(){
         (u.phone ? ' · Тел: '+esc(u.phone) : '') +
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
         '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
-        (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
+        (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
       '<div class="u-acts">'+userActs(u, false)+'</div>'+
     '</div>';
@@ -2436,7 +2453,7 @@ function openUserModal(login){
       '</div>'+
     '</div>'+
     '<div style="margin:14px 0 10px">'+
-      '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
+      '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
     '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
     '<div class="search-wrap">'+icBare('search')+
