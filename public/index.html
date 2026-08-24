@@ -201,6 +201,18 @@ function icBare(name, size){
 var TZ = 'Asia/Dushanbe';
 function fmtDateTime(s){
   if(!s) return s;
+
+  // Серийная дата Excel: 22 строки приехали из таблицы числом вида
+  // 46254.529018368055 — это дни от 1899-12-30. В интерфейсе такое значение
+  // показывалось как есть, прямо в колонке «Обновлено».
+  if(typeof s === 'number' || /^\d{5}(\.\d+)?$/.test(String(s).trim())){
+    var n = parseFloat(s);
+    if(n > 20000 && n < 80000){
+      var d0 = new Date(Math.round((n - 25569) * 86400 * 1000));
+      if(!isNaN(d0.getTime())) return fmtDate_(d0);
+    }
+  }
+
   var iso;
   if(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)){
     // Наивную строку из базы помечаем как UTC явно — иначе браузер прочитает
@@ -211,13 +223,19 @@ function fmtDateTime(s){
   }
   var d = new Date(iso);
   if(isNaN(d.getTime())) return s;
+  return fmtDate_(d);
+}
+
+/** Приведение готового Date к виду «25.08.2026 00:15» по времени Душанбе. */
+function fmtDate_(d){
   try {
     return d.toLocaleString('ru-RU', {
       timeZone: TZ, day:'2-digit', month:'2-digit', year:'numeric',
       hour:'2-digit', minute:'2-digit'
     }).replace(', ', ' ');
   } catch(e){
-    return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+    return d.toLocaleDateString('ru-RU') + ' ' +
+           d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
   }
 }
 
@@ -525,6 +543,80 @@ function bindPickField(root, id, title, listFn, store, key){
       }
     });
   };
+}
+
+/**
+ * Выбор нескольких значений: поиск + отметки + «Выбрать все / Снять».
+ *
+ * Раньше направления выводились простыней из 30 с лишним «чипов» — их нельзя
+ * было ни отфильтровать, ни понять, сколько отмечено, а список занимал экран
+ * целиком. Здесь та же логика, что в openPicker, только выбор не закрывает
+ * окно, а копится, и применяется кнопкой.
+ *
+ * opts = { title, list, value: [], onPick(массив) }
+ */
+function openMultiPicker(opts){
+  var chosen = {};
+  (opts.value || []).forEach(function(v){ chosen[v] = true; });
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+esc(opts.title)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="pk-search"><input id="mpQ" placeholder="Поиск…" autocomplete="off" '+
+      'autocapitalize="off" autocorrect="off" spellcheck="false"></div>'+
+    '<div class="mp-bar"><span id="mpCnt"></span>'+
+      '<button type="button" class="btn-ghost" id="mpAll">Выбрать все</button>'+
+      '<button type="button" class="btn-ghost" id="mpNone">Снять все</button></div>'+
+    '<div id="mpBody"></div>'+
+    '<div style="height:12px"></div>'+
+    '<button class="btn-primary" id="mpOk">Готово</button>'+
+    '<div style="height:10px"></div></div>';
+  document.body.appendChild(el);
+
+  var q = el.querySelector('#mpQ');
+  var body = el.querySelector('#mpBody');
+
+  function visible(){
+    var s = norm(q.value);
+    return (opts.list || []).filter(function(v){ return !s || norm(v).indexOf(s) >= 0; });
+  }
+
+  function draw(){
+    var list = visible();
+    var n = Object.keys(chosen).filter(function(k){ return chosen[k]; }).length;
+    el.querySelector('#mpCnt').textContent = 'Отмечено: ' + n;
+    body.innerHTML = list.length
+      ? '<div class="pk-list">'+ list.map(function(v){
+          return '<button type="button" class="mp-row'+(chosen[v] ? ' on' : '')+'" '+
+            'data-v="'+esc(v)+'"><i></i><span>'+esc(v)+'</span></button>';
+        }).join('') +'</div>'
+      : '<div class="pk-empty">Совпадений нет</div>';
+  }
+  draw();
+  q.oninput = draw;
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target.closest('#mpAll')){ visible().forEach(function(v){ chosen[v] = true; }); draw(); return; }
+    if(e.target.closest('#mpNone')){ visible().forEach(function(v){ chosen[v] = false; }); draw(); return; }
+    if(e.target.closest('#mpOk')){
+      el.remove();
+      opts.onPick(Object.keys(chosen).filter(function(k){ return chosen[k]; }).sort());
+      return;
+    }
+    var row = e.target.closest('.mp-row');
+    if(row){
+      var v = row.dataset.v;
+      chosen[v] = !chosen[v];
+      row.classList.toggle('on', !!chosen[v]);
+      var n = Object.keys(chosen).filter(function(k){ return chosen[k]; }).length;
+      el.querySelector('#mpCnt').textContent = 'Отмечено: ' + n;
+    }
+  });
+
+  setTimeout(function(){ try{ q.focus(); }catch(e){} }, 60);
 }
 
 function openPicker(opts){
@@ -956,8 +1048,24 @@ function openProfile(){
       '<div><div class="profile-fio">'+esc(fio)+'</div>'+
         '<div class="profile-sub">'+esc(roleNames[u.role] || u.role)+' · '+esc(u.login)+'</div></div>'+
     '</div>'+
+    // Сколько подразделений закреплено — первый вопрос, который задают, когда
+    // не находят своё; раньше это нигде не показывалось.
+    '<div class="profile-facts">'+
+      '<div class="pf"><b>'+((S.data.units || []).length)+'</b><span>'+
+        declOfNum((S.data.units || []).length, ['подразделение','подразделения','подразделений'])+'</span></div>'+
+      '<div class="pf"><b>'+((S.data.rows || []).length)+'</b><span>'+
+        declOfNum((S.data.rows || []).length, ['участник рынка','участника рынка','участников рынка'])+'</span></div>'+
+      '<div class="pf"><b>'+((S.data.surveys || []).length)+'</b><span>'+
+        declOfNum((S.data.surveys || []).length, ['запись','записи','записей'])+'</span></div>'+
+    '</div>'+
     '<button id="prPwd" class="btn-line">'+ic('key')+'Сменить пароль</button>'+
     '<button id="prTg" class="btn-line">'+(hasTg ? ic('check')+'Telegram привязан' : ic('link')+'Привязать Telegram')+'</button>'+
+    '<button id="prUnits" class="btn-line">'+ic('units')+'Мои подразделения</button>'+
+    '<button id="prHelp" class="btn-line">'+ic('help')+'Как заполнять</button>'+
+    '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
+    '<div class="profile-sep"></div>'+
+    '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -967,6 +1075,10 @@ function openProfile(){
 
   el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
   el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
+  el.querySelector('#prHelp').onclick = function(){ el.remove(); openHelp(); };
+  el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
+  el.querySelector('#prRefresh').onclick = function(){ el.remove(); doRefresh(); };
+  el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
 }
 
 /** Смена собственного пароля. */
@@ -3309,11 +3421,13 @@ function drawDict(){
     return;
   }
 
+  // ID из исходных таблиц (К136, П53, код отдела 529). По ним данные сверяют
+  // со штатным расписанием и бухгалтерией, поэтому они видны в списке.
   var cols = kind === 'companies'
-    ? ['Название', 'Сегмент', 'Регион', 'Направления', 'Использований', '']
+    ? ['ID', 'Название', 'Сегмент', 'Регион', 'Направления', 'Использований', '']
     : kind === 'positions'
-      ? ['Название', 'Направления', 'Использований', '']
-      : ['Название', 'Использований', ''];
+      ? ['ID', 'Название', 'Направления', 'Использований', '']
+      : ['ID', 'Название', 'Использований', ''];
 
   var dash = '<span style="color:var(--muted)">—</span>';
 
@@ -3333,16 +3447,18 @@ function drawDict(){
         ? it.dirs.map(function(d){ return '<span class="badge b-user">'+esc(d)+'</span>'; }).join(' ')
         : dash)+'</td>';
 
+      var id = '<td class="dict-id">'+(it.code ? esc(it.code) : dash)+'</td>';
+
       if(kind === 'companies'){
-        return '<tr><td><b>'+esc(it.name)+'</b></td>'+
+        return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+
           '<td>'+(it.segment ? esc(it.segment) : dash)+'</td>'+
           '<td>'+(it.region ? esc(it.region) : dash)+'</td>'+
           dirs + used + acts +'</tr>';
       }
       if(kind === 'positions'){
-        return '<tr><td><b>'+esc(it.name)+'</b></td>'+ dirs + used + acts +'</tr>';
+        return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+ dirs + used + acts +'</tr>';
       }
-      return '<tr><td><b>'+esc(it.name)+'</b></td>'+ used + acts +'</tr>';
+      return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+ used + acts +'</tr>';
     }).join('') +
     '</tbody></table></div>';
 
@@ -3406,7 +3522,9 @@ function openDictItem(name){
 
   if(kind === 'companies' || kind === 'positions'){
     body += '<label class="lbl">Направления</label>'+
-      '<div id="dcDirs" class="chips"></div>'+
+      '<button type="button" class="pick" id="dcDirsBtn"><span id="dcDirsTxt"></span>'+
+        icBare('chevron', 16)+'</button>'+
+      '<div id="dcDirs" class="chips chips--ro"></div>'+
       '<p style="font-size:12.5px;color:var(--muted);margin:8px 2px 0">'+(kind === 'companies'
         ? 'Компания попадёт в карту тех направлений, что отмечены.'
         : 'Должность попадёт в штатку подразделений этих направлений.')+'</p>';
@@ -3422,23 +3540,39 @@ function openDictItem(name){
 
   document.body.appendChild(el);
 
+  // Направлений больше тридцати, поэтому выбор — окно с поиском, а под кнопкой
+  // только отметки: простыня из всех вариантов занимала экран целиком и не
+  // давала понять, сколько выбрано.
   function drawDirs(){
+    var txt = el.querySelector('#dcDirsTxt');
     var box = el.querySelector('#dcDirs');
-    if(!box) return;
-    box.innerHTML = (S.dictDirs || []).map(function(d){
-      var on = cur.dirs.indexOf(d) >= 0;
-      return '<button type="button"'+(on?' class="on"':'')+' data-dir="'+esc(d)+'">'+esc(d)+'</button>';
-    }).join('') || '<span style="color:var(--muted)">Направлений в оргструктуре нет</span>';
+    if(!txt || !box) return;
+    txt.textContent = cur.dirs.length
+      ? 'Выбрано: ' + cur.dirs.length
+      : 'Выбрать направления';
+    txt.className = cur.dirs.length ? '' : 'ph';
+    box.innerHTML = cur.dirs.map(function(d){
+      return '<button type="button" class="on" data-dir="'+esc(d)+'">'+esc(d)+
+        '<i aria-hidden="true">×</i></button>';
+    }).join('');
     box.querySelectorAll('button[data-dir]').forEach(function(b){
       b.onclick = function(){
-        var d = this.dataset.dir;
-        var i = cur.dirs.indexOf(d);
-        if(i >= 0) cur.dirs.splice(i, 1); else cur.dirs.push(d);
+        var i = cur.dirs.indexOf(this.dataset.dir);
+        if(i >= 0) cur.dirs.splice(i, 1);
         drawDirs();
       };
     });
   }
   drawDirs();
+
+  el.querySelector('#dcDirsBtn') && (el.querySelector('#dcDirsBtn').onclick = function(){
+    openMultiPicker({
+      title: 'Направления',
+      list: S.dictDirs || [],
+      value: cur.dirs,
+      onPick: function(v){ cur.dirs = v; drawDirs(); }
+    });
+  });
 
   function bindRef(id, field, block, title){
     var btn = el.querySelector('#'+id);
@@ -3542,6 +3676,16 @@ function renderAdminTools(){
         '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Проверка привязки к оргструктуре</div>'+
         '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Компании привязаны к подразделению по названию. Если название разошлось с оргструктурой, строка перестаёт быть видна кому-либо. Утилита обновляет направление/ответственного/HR BP по оргструктуре и перечисляет подразделения, которых в ней не нашлось.</div>'+
         '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки\')">Проверить привязки</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">'+ic('units',15)+'Загрузить штатное расписание</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Заводит должности по каждому подразделению из штатного расписания (1340 пар «должность × отдел» по 285 отделам) и проставляет подразделениям коды. До этой загрузки привязки должности к отделу в базе нет вообще, и шаг 2 пишет «штатка не заведена» для любого подразделения. Повторный запуск безопасен.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')">Загрузить штатку</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">'+ic('book',15)+'Сверить компании с листом участников рынка</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие. Сегмент и регион, если их уже заполнили руками, не перезаписываются.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">Сверить компании</button>'+
       '</div>'+
     '</div>';
 

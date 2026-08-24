@@ -99,30 +99,55 @@ exports.list = async (req, res) => {
   const kind = req.params.kind;
   if (!KINDS[kind]) return res.status(400).json({ ok: false, error: 'Неизвестный справочник' });
 
+  // Колонки code и таблица unit_positions появляются миграцией. Если она ещё не
+  // прошла, справочник должен открыться без этих полей, а не отдать 500.
+  const tryQuery = async (sql, fallbackSql) => {
+    try {
+      return await queryAll(sql);
+    } catch (e) {
+      console.error('Справочник: читаем упрощённым запросом —', e.message);
+      return await queryAll(fallbackSql);
+    }
+  };
+
   try {
     let items;
 
     if (kind === 'companies') {
-      const rows = await queryAll(`
-        SELECT d.name, d.segment, d.region, COALESCE(d.dirs, '') AS dirs,
+      const rows = await tryQuery(`
+        SELECT d.name, d.segment, d.region, COALESCE(d.dirs, '') AS dirs, COALESCE(d.code, '') AS code,
+               (SELECT COUNT(*) FROM competitors c WHERE c.company = d.name) AS used
+        FROM dictionary_companies d ORDER BY d.name ASC`, `
+        SELECT d.name, d.segment, d.region, '' AS dirs, '' AS code,
                (SELECT COUNT(*) FROM competitors c WHERE c.company = d.name) AS used
         FROM dictionary_companies d ORDER BY d.name ASC`);
       items = rows.map(r => ({
         name: r.name,
+        code: r.code || '',
         segment: r.segment || '',
         region: r.region || '',
         dirs: String(r.dirs || '').split(';').map(s => s.trim()).filter(Boolean),
         used: r.used || 0
       }));
     } else if (kind === 'positions') {
-      const rows = await queryAll(`
-        SELECT d.name, COALESCE(d.dirs, '') AS dirs,
+      // «Использований» для должности — это ещё и штатное расписание: должность
+      // может быть заведена в отделах, но пока не встречаться ни в одной анкете.
+      const rows = await tryQuery(`
+        SELECT d.name, COALESCE(d.dirs, '') AS dirs, COALESCE(d.code, '') AS code,
                (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
-                  AND s.state != 'удалена') AS used
+                  AND s.state != 'удалена') AS used,
+               (SELECT COUNT(*) FROM unit_positions up WHERE up.position = d.name) AS units
+        FROM dictionary_positions d ORDER BY d.name ASC`, `
+        SELECT d.name, '' AS dirs, '' AS code,
+               (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
+                  AND s.state != 'удалена') AS used,
+               0 AS units
         FROM dictionary_positions d ORDER BY d.name ASC`);
       items = rows.map(r => ({
         name: r.name,
+        code: r.code || '',
         dirs: String(r.dirs || '').split(';').map(s => s.trim()).filter(Boolean),
+        units: r.units || 0,
         used: r.used || 0
       }));
     } else {
