@@ -14,22 +14,34 @@
 
 <!-- ══════════ ВХОД ══════════ -->
 <div id="scrLogin" class="login hidden">
-  <div class="logo">
-    <div class="logo-icon">📊</div>
-    <b>Анализ рынка</b>
-    <span>Конкурентная карта · Фаровон</span>
+  <!-- Видна только от 1024px (см. .login-brand в style.css) — на мобильном
+       вход остаётся прежним центрированным экраном. -->
+  <div class="login-brand">
+    <div class="brand-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M12 19V5M20 19V13" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </div>
+    <h1>Обзор рынка вознаграждений</h1>
+    <p>Единая система сбора и анализа зарплат, бонусов и льгот компаний-конкурентов ГК «Фаровон» — для руководителей направлений, HR&nbsp;BP и C&amp;B.</p>
   </div>
 
-  <div id="loginCard" class="card">
-    <div id="loginErr" class="err hidden"></div>
-    <label class="lbl" style="margin-top:0">Логин</label>
-    <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
-    <label class="lbl">Пароль</label>
-    <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
-    <div style="height:18px"></div>
-    <button id="btnLogin" class="btn-primary">Войти в систему</button>
+  <div class="login-form-col">
+    <div class="logo">
+      <div class="logo-icon">📊</div>
+      <b>Анализ рынка</b>
+      <span>Конкурентная карта · Фаровон</span>
+    </div>
+
+    <div id="loginCard" class="card">
+      <div id="loginErr" class="err hidden"></div>
+      <label class="lbl" style="margin-top:0">Логин</label>
+      <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
+      <label class="lbl">Пароль</label>
+      <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div style="height:18px"></div>
+      <button id="btnLogin" class="btn-primary">Войти в систему</button>
+    </div>
+    <div id="loginHelp"></div>
   </div>
-  <div id="loginHelp"></div>
 </div>
 
 <!-- ══════════ ЗАГРУЗКА ══════════ -->
@@ -813,10 +825,12 @@ function renderUnitPicker(){
   setTop('Выберите подразделение', userLabel(), false);
   $('body').onclick = null;
   $('body').innerHTML =
+    '<div class="unit-picker-card">' +
     '<div class="note">За вами пока не закреплено подразделение. ' +
     'Отметьте те, по которым вы отвечаете за обзор рынка.</div>' +
     '<input id="pickFind" placeholder="Поиск по названию…"><div id="pickList"></div>' +
-    '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>';
+    '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>' +
+    '</div>';
   var chosen = {};
   function draw(){
     var q = ($('pickFind').value||'').toLowerCase();
@@ -1058,16 +1072,16 @@ function renderTabComp(){
       'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
   }
 
-  h += '<div class="sec-title">Компании в вашей карте</div><div id="rows">';
+  h += '<div class="sec-title">Компании в вашей карте</div><div id="rows" class="row-grid">';
   h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
        '<div class="empty">Список пуст</div>';
   h += '</div>';
 
   if(S.added.length){
-    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds">';
+    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds" class="row-grid">';
     h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
     h += '</div>';
-  } else { h += '<div id="adds"></div>'; }
+  } else { h += '<div id="adds" class="row-grid"></div>'; }
 
   if(!S.ro) h += '<button id="btnAdd" class="btn-line" style="margin-top:6px">+ Добавить компанию</button>';
 
@@ -1242,7 +1256,7 @@ function renderTabSurvey(){
     h += '<div class="sec-title">Должности подразделения · закрыто ' + closed +
          ' из ' + G.groups.length + '</div>';
 
-    h += G.groups.map(function(g, gi){
+    h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
       var n = g.items.length;
       var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
       var cls = 'pos' + (n ? ' pos-done' : '');
@@ -1272,7 +1286,7 @@ function renderTabSurvey(){
       }
       x += '</div>';
       return x;
-    }).join('');
+    }).join('') + '</div>';
   }
 
   if(!S.ro){
@@ -1946,7 +1960,7 @@ function renderSalariesTab(positions){
 
   var h = '<div class="sec-title">Зарплатные вилки по должностям ('+positions.length+')</div>';
 
-  h += positions.map(function(pos, idx){
+  h += '<div class="fork-grid">' + positions.map(function(pos, idx){
     var maxVal = Math.max(pos.max, 1);
     var p25Pct = pos.min > 0 ? Math.round((pos.p25 / maxVal) * 100) : 0;
     var p75Pct = pos.min > 0 ? Math.round((pos.p75 / maxVal) * 100) : 0;
@@ -2003,7 +2017,7 @@ function renderSalariesTab(positions){
         '</div>'+
       '</div>'+
     '</div>';
-  }).join('');
+  }).join('') + '</div>';
 
   return h;
 }
@@ -2344,27 +2358,39 @@ function openUserModal(login){
 
   var el = document.createElement('div');
   el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
+  el.innerHTML = '<div class="sheet-in um-modal">'+
     '<div class="sheet-hd"><b>'+(isEdit ? 'Редактирование: ' + esc(u.fio) : 'Новый пользователь')+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div id="uModalErr" class="err hidden"></div>'+
     '<label class="lbl" style="margin-top:4px">ФИО *</label>'+
     '<input id="umFio" value="'+esc(u?u.fio:'')+'" placeholder="Иванов Иван Иванович">'+
-    '<label class="lbl">Логин (оставьте пустым для автогенерации)</label>'+
-    '<input id="umLogin" value="'+esc(u?u.login:'')+'" placeholder="ivanov" '+(isEdit?'readonly style="opacity:.7"':'')+'>'+
-    '<label class="lbl">Роль</label>'+
-    '<select id="umRole">'+
-      '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>user — Сотрудник</option>'+
-      '<option value="head"'+(u&&u.role==='head'?' selected':'')+'>head — Руководитель отдела</option>'+
-      '<option value="dir_head"'+(u&&u.role==='dir_head'?' selected':'')+'>dir_head — Руководитель направления</option>'+
-      '<option value="hrbp"'+(u&&u.role==='hrbp'?' selected':'')+'>hrbp — HR BP</option>'+
-      '<option value="cb"'+(u&&u.role==='cb'?' selected':'')+'>cb — C&B Аналитик</option>'+
-      '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>admin — Администратор</option>'+
-    '</select>'+
-    '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
-    '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
-    '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
-    '<input id="umPwd" type="text" placeholder="пароль">'+
+    '<div class="field-grid">'+
+      '<div>'+
+        '<label class="lbl">Логин (оставьте пустым для автогенерации)</label>'+
+        '<input id="umLogin" value="'+esc(u?u.login:'')+'" placeholder="ivanov" '+(isEdit?'readonly style="opacity:.7"':'')+'>'+
+      '</div>'+
+      '<div>'+
+        '<label class="lbl">Роль</label>'+
+        '<select id="umRole">'+
+          '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>user — Сотрудник</option>'+
+          '<option value="head"'+(u&&u.role==='head'?' selected':'')+'>head — Руководитель отдела</option>'+
+          '<option value="dir_head"'+(u&&u.role==='dir_head'?' selected':'')+'>dir_head — Руководитель направления</option>'+
+          '<option value="hrbp"'+(u&&u.role==='hrbp'?' selected':'')+'>hrbp — HR BP</option>'+
+          '<option value="cb"'+(u&&u.role==='cb'?' selected':'')+'>cb — C&B Аналитик</option>'+
+          '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>admin — Администратор</option>'+
+        '</select>'+
+      '</div>'+
+    '</div>'+
+    '<div class="field-grid">'+
+      '<div>'+
+        '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
+        '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+      '</div>'+
+      '<div>'+
+        '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
+        '<input id="umPwd" type="text" placeholder="пароль">'+
+      '</div>'+
+    '</div>'+
     '<div style="margin:14px 0 10px">'+
       '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
@@ -2533,8 +2559,23 @@ function renderAdminArchive(){
 
   var h = '<div class="sec-title">В архиве ('+users.length+')</div>';
 
-  h += users.length ? users.map(function(u){
-    return '<div class="u-card">'+
+  if(!users.length){
+    h += '<div class="empty">Архив пуст</div>';
+    $('adminContent').innerHTML = h;
+    return;
+  }
+
+  var rows = '', cards = '';
+  users.forEach(function(u){
+    rows += '<tr>'+
+      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-login">'+esc(u.login)+'</td>'+
+      '<td><span class="badge b-user">'+esc(u.role)+'</span></td>'+
+      '<td class="u-t-dim">'+esc(u.archivedAt || '—')+'</td>'+
+      '<td><div class="u-t-acts"><button class="btn-line" onclick="adminRestoreUser(\''+esc(u.login)+'\')">Восстановить</button></div></td>'+
+    '</tr>';
+
+    cards += '<div class="u-card">'+
       '<div class="u-hd">'+
         '<div class="u-fio">'+esc(u.fio)+'</div>'+
         '<span class="badge b-user">'+esc(u.role)+'</span>'+
@@ -2548,7 +2589,13 @@ function renderAdminArchive(){
         '<button class="btn-line" onclick="adminRestoreUser(\''+esc(u.login)+'\')">↩️ Восстановить</button>'+
       '</div>'+
     '</div>';
-  }).join('') : '<div class="empty">Архив пуст</div>';
+  });
+
+  h += '<div class="tblwrap u-tblwrap"><table class="co-tbl u-tbl">'+
+    '<thead><tr><th>ФИО</th><th>Логин</th><th>Роль</th><th>В архиве с</th><th>Действия</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+  '</table></div>';
+  h += '<div class="u-cards">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
 }
@@ -2806,7 +2853,7 @@ function openDash(){
     var p = S.data.period || {};
     var closed = p.state === 'закрыт';
 
-    var h = '<div class="card" style="margin-bottom:16px">'+
+    var h = '<div class="card" style="margin-bottom:16px;max-width:520px">'+
       '<div style="font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;'+
         'letter-spacing:.6px;margin-bottom:6px">Период заполнения</div>'+
       '<div style="font-weight:600;font-size:16px">'+esc(p.name || 'без названия')+'</div>'+

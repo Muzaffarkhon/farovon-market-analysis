@@ -551,6 +551,91 @@ label.lbl {
   display: block;
 }
 
+.login-brand {
+  display: none;
+}
+
+/* На десктопе вход — сплит-экран: брендовая панель слева, форма справа
+   (на мобильном #scrLogin остаётся прежним центрированным блоком выше). */
+@media (min-width: 1024px) {
+  #scrLogin.login {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .login-brand {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    background: linear-gradient(155deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+    color: #fff;
+    padding: 56px;
+  }
+
+  .login-brand .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .login-brand h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin: 0 0 10px;
+    max-width: 420px;
+  }
+
+  .login-brand p {
+    font-size: 14.5px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+    max-width: 400px;
+    margin: 0;
+  }
+
+  .login-form-col {
+    width: 460px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    padding: 0 40px;
+  }
+
+  .login-form-col .logo,
+  .login-form-col .card,
+  .login-form-col #loginHelp {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  /* Экран выбора подразделения при первом входе — центрированная карточка
+     вместо содержимого на всю ширину. */
+  .unit-picker-card {
+    max-width: 600px;
+    margin: 24px auto 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 24px 28px;
+  }
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -882,6 +967,30 @@ label.lbl {
   font-weight: 600;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Списки конкурентов/должностей на карточке подразделения: на десктопе
+   2 колонки, раскрытая карточка (детали конкурента / записи по должности)
+   растягивается на всю ширину, чтобы не сжимать таблицы и чипы. */
+@media (min-width: 1024px) {
+  .row-grid, .pos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .row-grid .row, .pos-grid .pos {
+    margin-bottom: 0;
+  }
+
+  .row-grid .row:has(.more:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
+
+  .pos-grid .pos:has(.pos-items:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ─── Карточка Должности и Зарплат ─── */
@@ -1224,6 +1333,19 @@ label.lbl {
   }
 }
 
+/* Модалка пользователя (openUserModal) шире на десктопе — под неё есть место,
+   и пары полей (логин/роль, телефон/пароль) встают в 2 колонки вместо стопки. */
+@media (min-width: 1024px) {
+  .um-modal {
+    max-width: 640px;
+  }
+  .um-modal .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+  }
+}
+
 .sheet-hd {
   display: flex;
   align-items: center;
@@ -1398,6 +1520,26 @@ label.lbl {
   border-top: 1px solid var(--line);
   padding-top: 10px;
   margin-top: 10px;
+}
+
+/* На десктопе вилки идут в 2 колонки; раскрытая карточка (таблица компаний
+   в fork-body) растягивается на всю ширину, иначе 5-колоночная таблица не
+   помещается в половину экрана. */
+@media (min-width: 1024px) {
+  .fork-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .fork-grid .fork-box {
+    margin-bottom: 0;
+  }
+
+  .fork-grid .fork-box:has(.fork-body:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ─── Бейджи ─── */
