@@ -105,6 +105,28 @@
   tg.ready();
   if(tg.expand) tg.expand();
   if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  // Внутри Telegram окно уже, чем обычный мобильный браузер, и рядом с ним
+  // всегда стоит собственная шапка клиента. Интерфейс, рассчитанный на
+  // телефон, здесь выглядит крупным: вкладки перестают помещаться в строку,
+  // карточки занимают экран целиком. Помечаем документ — компактный режим
+  // ниже включается и по этой метке, независимо от ширины: на десктопном
+  // Telegram окно шире 560px, но тесноты это не отменяет.
+  document.documentElement.classList.add('tg');
+})();
+
+/**
+ * Компактный режим: узкий экран или окно Telegram. Класс на <html>, чтобы
+ * одни и те же правила не пришлось дублировать в медиазапросе и в селекторе
+ * для Telegram.
+ */
+(function(){
+  function apply(){
+    var narrow = window.innerWidth <= 560;
+    document.documentElement.classList.toggle('compact',
+      narrow || document.documentElement.classList.contains('tg'));
+  }
+  apply();
+  window.addEventListener('resize', apply);
 })();
 
 // ═══════════════════════════════════════════════════════════
