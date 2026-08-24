@@ -46,7 +46,7 @@ function makePassword() {
 // ─── Пользователи ───
 exports.getUsers = async (req, res) => {
   try {
-    const users = await queryAll('SELECT id, login, fio, role, phone, telegram_chat_id, units, active, last_login_at FROM users ORDER BY fio ASC');
+    const users = await queryAll("SELECT id, login, fio, role, phone, telegram_chat_id, units, active, last_login_at FROM users WHERE archived_at IS NULL ORDER BY fio ASC");
 
     res.json({
       ok: true,
@@ -152,6 +152,78 @@ exports.toggleUser = async (req, res) => {
   } catch (err) {
     console.error('toggleUser error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка изменения статуса' });
+  }
+};
+
+// ─── Архив пользователей ───
+// Учётки гасим, а не удаляем: архивный пользователь пропадает из основного списка и не
+// может войти, но данные (его заполненные анкеты, аудит-лог) никуда не деваются и его
+// можно вернуть кнопкой «Восстановить».
+exports.getArchivedUsers = async (req, res) => {
+  try {
+    const users = await queryAll("SELECT id, login, fio, role, phone, units, archived_at FROM users WHERE archived_at IS NOT NULL ORDER BY archived_at DESC");
+
+    res.json({
+      ok: true,
+      users: users.map(u => ({
+        id: u.id,
+        login: u.login,
+        fio: u.fio,
+        role: u.role,
+        phone: u.phone || '',
+        units: u.units ? u.units.split(';').map(s => s.trim()).filter(Boolean) : [],
+        archivedAt: u.archived_at
+      }))
+    });
+  } catch (err) {
+    console.error('getArchivedUsers error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки архива' });
+  }
+};
+
+exports.archiveUser = async (req, res) => {
+  const { login } = req.params;
+
+  try {
+    const user = await queryOne('SELECT id, login, role FROM users WHERE LOWER(login) = LOWER(?)', [login]);
+    if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
+    if (user.role === 'admin' && req.user.login.toLowerCase() === user.login.toLowerCase()) {
+      return res.status(400).json({ ok: false, error: 'Нельзя архивировать самого себя' });
+    }
+
+    // active сбрасываем заодно:архивный не должен остаться залогиненным по старой сессии
+    await run("UPDATE users SET archived_at = CURRENT_TIMESTAMP, active = 0 WHERE id = ?", [user.id]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'архивирование пользователя',
+      `Логин: ${user.login}`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('archiveUser error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка архивирования' });
+  }
+};
+
+exports.restoreUser = async (req, res) => {
+  const { login } = req.params;
+
+  try {
+    const user = await queryOne('SELECT id, login FROM users WHERE LOWER(login) = LOWER(?)', [login]);
+    if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
+
+    await run("UPDATE users SET archived_at = NULL WHERE id = ?", [user.id]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'восстановление пользователя',
+      `Логин: ${user.login}`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('restoreUser error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка восстановления' });
   }
 };
 

@@ -101,6 +101,9 @@ var API_ROUTES = {
   apiAdminSaveUser: function(args){ return fetchJson('/api/admin/users', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminToggleUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/toggle', { method:'POST', token:args[0], body:{ active:args[2] } }); },
   apiAdminResetPassword: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/reset-password', { method:'POST', token:args[0] }); },
+  apiAdminGetArchive: function(args){ return fetchJson('/api/admin/users-archive', { method:'GET', token:args[0] }); },
+  apiAdminArchiveUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/archive', { method:'POST', token:args[0] }); },
+  apiAdminRestoreUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/restore', { method:'POST', token:args[0] }); },
   apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
@@ -2117,6 +2120,7 @@ function openAdminPanel(){
 function renderAdminPanel(){
   var tabs = [
     { id:'users', label:'👥 Пользователи' },
+    { id:'archive', label:'🗄️ Архив' },
     { id:'divisions', label:'🏢 Оргструктура (326)' },
     { id:'period', label:'⏱️ Период сбора' },
     { id:'tools', label:'🛠️ Сервис и Журнал' }
@@ -2138,6 +2142,7 @@ function renderAdminPanel(){
   });
 
   if(S.adminTab === 'users') loadAdminUsers();
+  else if(S.adminTab === 'archive') loadAdminArchive();
   else if(S.adminTab === 'divisions') loadAdminDivisions();
   else if(S.adminTab === 'period') renderAdminPeriod();
   else if(S.adminTab === 'tools') renderAdminTools();
@@ -2215,6 +2220,7 @@ function renderAdminUsers(){
         '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+esc(u.login)+'\','+(!u.active)+')">'+
           (u.active ? '🚫 Заблокировать' : '✅ Активировать')+
         '</button>'+
+        '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+esc(u.login)+'\')">🗄️ В архив</button>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -2365,6 +2371,83 @@ function adminResetPwd(login){
       }
     });
   });
+}
+
+function adminArchiveUser(login){
+  ask({
+    title: 'Отправить пользователя в архив?',
+    html: 'Логин: <b>'+esc(login)+'</b><br>Пропадёт из общего списка и не сможет войти. '+
+      'Данные никуда не денутся — вернуть можно из вкладки «Архив».',
+    ok: 'В архив',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminArchiveUser', S.token, login).then(function(res){
+      if(res && res.ok){
+        toast('Пользователь отправлен в архив');
+        loadAdminUsers();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    });
+  });
+}
+
+function adminRestoreUser(login){
+  ask({
+    title: 'Восстановить пользователя?',
+    html: 'Логин: <b>'+esc(login)+'</b><br>Снова появится в общем списке и сможет войти.',
+    ok: 'Восстановить'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminRestoreUser', S.token, login).then(function(res){
+      if(res && res.ok){
+        toast('Пользователь восстановлен');
+        loadAdminArchive();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    });
+  });
+}
+
+// ─── Вкладка: Архив ───
+function loadAdminArchive(){
+  call('apiAdminGetArchive', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки архива')+'</div>';
+      return;
+    }
+    S.adminArchive = r.users || [];
+    renderAdminArchive();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminArchive(){
+  var users = S.adminArchive || [];
+
+  var h = '<div class="sec-title">В архиве ('+users.length+')</div>';
+
+  h += users.length ? users.map(function(u){
+    return '<div class="u-card">'+
+      '<div class="u-hd">'+
+        '<div class="u-fio">'+esc(u.fio)+'</div>'+
+        '<span class="badge b-user">'+esc(u.role)+'</span>'+
+      '</div>'+
+      '<div class="u-meta">'+
+        'Логин: <b>'+esc(u.login)+'</b>'+
+        (u.phone ? ' · Тел: '+esc(u.phone) : '') +
+        '<br>В архиве с: '+esc(u.archivedAt || '—') +
+      '</div>'+
+      '<div class="u-acts">'+
+        '<button class="btn-line" onclick="adminRestoreUser(\''+esc(u.login)+'\')">↩️ Восстановить</button>'+
+      '</div>'+
+    '</div>';
+  }).join('') : '<div class="empty">Архив пуст</div>';
+
+  $('adminContent').innerHTML = h;
 }
 
 // ─── Вкладка: Оргструктура ───

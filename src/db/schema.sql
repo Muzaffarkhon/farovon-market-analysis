@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   telegram_link_expires DATETIME,
   units TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
+  archived_at DATETIME, -- NULL = обычный пользователь; иначе — в архиве, не виден в списке и не может войти
   last_login_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
