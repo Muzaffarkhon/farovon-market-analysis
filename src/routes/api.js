@@ -6,9 +6,13 @@ const authController = require('../controllers/authController');
 const surveyController = require('../controllers/surveyController');
 const dashboardController = require('../controllers/dashboardController');
 const adminController = require('../controllers/adminController');
+const telegramController = require('../controllers/telegramController');
 
 // ─── Публичные роуты авторизации ───
 router.post('/auth/login', authController.login);
+
+// Сюда Telegram шлёт входящие сообщения — без JWT, проверяется секретным заголовком
+router.post('/telegram/webhook', telegramController.webhook);
 
 // ─── Защищенные роуты (требуют JWT) ───
 router.use(authMiddleware);
@@ -17,6 +21,7 @@ router.use(authMiddleware);
 router.get('/auth/resume', authController.resume);
 router.post('/auth/change-password', authController.changePassword);
 router.post('/auth/set-units', authController.setUnits);
+router.post('/telegram/link', telegramController.link);
 
 // Опрос и данные
 router.post('/survey/save', surveyController.saveSurveyData);

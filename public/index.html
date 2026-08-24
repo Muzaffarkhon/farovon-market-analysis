@@ -91,6 +91,7 @@ var API_ROUTES = {
   apiRefresh: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
   apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
+  apiTelegramLink: function(args){ return fetchJson('/api/telegram/link', { method:'POST', token:args[0] }); },
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
   apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
@@ -490,6 +491,8 @@ $('btnMenu').onclick = function(){
   items.push(['refresh', '🔄 Обновить данные из таблицы']);
   items.push(['help', '❓ Как заполнять']);
   items.push(['pwd', '🔑 Сменить пароль']);
+  var hasTg = S.data && S.data.user && S.data.user.hasTelegram;
+  items.push(['tg', hasTg ? '✅ Telegram привязан' : '📲 Привязать Telegram']);
   items.push(['out', '🚪 Выйти']);
 
   var el = document.createElement('div');
@@ -515,6 +518,7 @@ $('btnMenu').onclick = function(){
     else if(g === 'refresh') doRefresh();
     else if(g === 'help') openHelp();
     else if(g === 'pwd') openPassword();
+    else if(g === 'tg') openTelegramLink();
     else if(g === 'out') doLogout();
   });
 };
@@ -616,6 +620,43 @@ function openPassword(){
   };
 
   setTimeout(function(){ el.querySelector('#pwOld').focus(); }, 60);
+}
+
+/** Привязка Telegram — получаем одноразовую ссылку и открываем чат с ботом. */
+function openTelegramLink(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Привязать Telegram</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="tgBody" class="sp"><i></i> Готовим ссылку…</div>'+
+    '</div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  call('apiTelegramLink', S.token).then(function(r){
+    var box = el.querySelector('#tgBody');
+    if(!r || !r.ok){
+      box.className = 'err';
+      box.textContent = (r && r.error) || 'Не удалось получить ссылку';
+      return;
+    }
+    box.className = '';
+    box.innerHTML = '<p style="color:var(--muted);font-size:13.5px;line-height:1.5">'+
+        'Нажмите кнопку, откроется Telegram — там напишите боту команду '+
+        '<b>/start</b> (обычно она уже подставлена, останется нажать «Отправить»). '+
+        'Ссылка действует '+r.expiresInMinutes+' минут.</p>'+
+      '<div style="height:12px"></div>'+
+      '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-primary" '+
+        'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
+        'Открыть Telegram</a>';
+  }).catch(function(){
+    el.querySelector('#tgBody').className = 'err';
+    el.querySelector('#tgBody').textContent = 'Нет связи с сервером';
+  });
 }
 
 /** Подпись пользователя. Если ФИО в таблице не заполнено — показываем логин. */

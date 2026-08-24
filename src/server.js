@@ -9,6 +9,7 @@ const config = require('./config');
 const { queryOne } = require('./db/database');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
+const { ensureWebhook } = require('./services/telegramService');
 
 // Секретов с запасными значениями в коде больше нет — если переменные окружения не
 // заданы, сервис обязан упасть сразу, а не поднять полурабочий прод.
@@ -29,6 +30,7 @@ const app = express();
   } catch (err) {
     console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
+  await ensureWebhook();
 })();
 
 // Middleware

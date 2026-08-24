@@ -2,6 +2,7 @@ const config = require('../config');
 const { queryAll } = require('../db/database');
 
 let bot = null;
+let botUsername = null;
 
 function getBot() {
   if (bot) return bot;
@@ -14,6 +15,43 @@ function getBot() {
     console.warn('Telegram bot initialization skipped (no token or module):', e.message);
   }
   return bot;
+}
+
+/** Юзернейм бота — нужен, чтобы собрать диплинк t.me/<username>?start=<token>. Спрашиваем
+ *  у Telegram один раз при старте и держим в памяти, вместо ещё одной переменной окружения. */
+async function getBotUsername() {
+  if (botUsername) return botUsername;
+  const tg = getBot();
+  if (!tg) return null;
+  try {
+    const me = await tg.getMe();
+    botUsername = me.username;
+    return botUsername;
+  } catch (err) {
+    console.warn('Не удалось получить username бота (getMe):', err.message);
+    return null;
+  }
+}
+
+/** Регистрирует вебхук в Telegram, чтобы бот мог принимать входящие сообщения — без
+ *  этого он умеет только отправлять. Вызывается один раз при старте сервера; ошибка
+ *  не должна мешать серверу подняться, поэтому не бросает исключение наружу. */
+async function ensureWebhook() {
+  const tg = getBot();
+  if (!tg || !config.webappUrl || config.webappUrl.indexOf('localhost') >= 0) return;
+  if (!config.telegramWebhookSecret) {
+    console.warn('⚠️ TELEGRAM_WEBHOOK_SECRET не задан — вебхук Telegram не регистрируется.');
+    return;
+  }
+  try {
+    await tg.setWebHook(`${config.webappUrl}/api/telegram/webhook`, {
+      secret_token: config.telegramWebhookSecret
+    });
+    await getBotUsername();
+    console.log(`✅ Telegram webhook зарегистрирован (@${botUsername || '?'})`);
+  } catch (err) {
+    console.warn('⚠️ Не удалось зарегистрировать Telegram webhook:', err.message);
+  }
 }
 
 async function sendTelegramMessage(chatId, text, options = {}) {
@@ -76,6 +114,8 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
 
 module.exports = {
   getBot,
+  getBotUsername,
+  ensureWebhook,
   sendTelegramMessage,
   sendMassReminder
 };
