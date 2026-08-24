@@ -14,21 +14,24 @@ exports.getCBDashboard = async (req, res) => {
 exports.getHRBPDashboard = async (req, res) => {
   try {
     const divisions = await queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions');
-    const competitors = await queryAll('SELECT unit, actual FROM competitors');
-    const surveys = await queryAll("SELECT unit FROM surveys WHERE state != 'удалена'");
+    const competitors = await queryAll('SELECT unit, actual, updated_at FROM competitors');
+    const surveys = await queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена'");
 
     const compMap = {};
+    const lastMap = {};
     competitors.forEach(c => {
       if (!compMap[c.unit]) compMap[c.unit] = { total: 0, done: 0, ask: 0 };
       compMap[c.unit].total++;
       const act = (c.actual || '').toLowerCase();
       if (act === 'актуально' || act === 'не актуально') compMap[c.unit].done++;
       else if (act === 'уточнить') compMap[c.unit].ask++;
+      if (c.updated_at && (!lastMap[c.unit] || c.updated_at > lastMap[c.unit])) lastMap[c.unit] = c.updated_at;
     });
 
     const survMap = {};
     surveys.forEach(s => {
       survMap[s.unit] = (survMap[s.unit] || 0) + 1;
+      if (s.created_at && (!lastMap[s.unit] || s.created_at > lastMap[s.unit])) lastMap[s.unit] = s.created_at;
     });
 
     const isAll = (req.user.role === 'admin' || req.user.role === 'cb');
@@ -51,7 +54,7 @@ exports.getHRBPDashboard = async (req, res) => {
         ask: c.ask,
         surveys: survMap[d.unit] || 0,
         state: (c.total > 0 && c.done === c.total) ? 'заполнено' : (c.done > 0 ? 'в процессе' : 'не начато'),
-        at: ''
+        at: lastMap[d.unit] || ''
       });
     });
 
