@@ -94,6 +94,21 @@ async function getUserPayload(user) {
   const dictPositionsRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
   const dictPositions = dictPositionsRows.map(x => x.name);
 
+  // Сегменты и регионы — из живых данных, а не из списка, придуманного при
+  // переносе с Apps Script: там было 7 сегментов («Телеком», «Банки и Финтех»…),
+  // которых нет ни в одной строке базы, при 60 реальных. Выбрать корректное
+  // значение из такого списка было невозможно.
+  const segRows = await queryAll(
+    `SELECT DISTINCT TRIM(segment) AS v FROM dictionary_companies WHERE TRIM(COALESCE(segment,'')) <> ''
+     UNION SELECT DISTINCT TRIM(segment) FROM competitors WHERE TRIM(COALESCE(segment,'')) <> ''
+     ORDER BY v`
+  );
+  const regRows = await queryAll(
+    `SELECT DISTINCT TRIM(region) AS v FROM dictionary_companies WHERE TRIM(COALESCE(region,'')) <> ''
+     UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> ''
+     ORDER BY v`
+  );
+
   // Конкуренты для пользователя
   const userUnitNames = visibleUnits.map(x => x.unit);
   let userCompetitors = [];
@@ -159,8 +174,8 @@ async function getUserPayload(user) {
     companies: dictCompanies.map(c => ({ name: c.name, seg: c.segment, region: c.region })),
     companiesAll: dictCompanies,
     positions: dictPositions,
-    segments: ['Телеком', 'Банки и Финтех', 'Ритейл и FMCG', 'Производство и Дистрибуция', 'Строительство и Девелопмент', 'Услуги и Сервис', 'IT и Технологии'],
-    regions: ['Душанбе', 'Худжанд', 'Бохтар', 'Куляб', 'РРП', 'ГБАО', 'Вся страна', 'Узбекистан', 'Казахстан', 'РФ'],
+    segments: segRows.map(x => x.v),
+    regions: regRows.map(x => x.v),
     // Список компаний в стоп-листе ("нельзя включать в обзор") — сейчас нет ни
     // таблицы, ни админ-экрана для его ведения, поэтому пусто, а не выдумано.
     // openAddSheet() уже безусловно читает S.data.banned.filter(...), без этого

@@ -336,12 +336,47 @@ exports.runMaintenance = async (req, res) => {
   try {
     let message = '';
     if (taskType === 'clean_segments') {
-      await run('UPDATE competitors SET company = TRIM(company), segment = TRIM(segment), region = TRIM(region)');
-      message = 'Сегменты и дубли компаний успешно нормализованы.';
+      // Чистка пробелов + подтягивание сегмента/региона из справочника компаний
+      // в строки, где они пустые. Раньше делался только TRIM, а сообщение
+      // обещало ещё и нормализацию сегментов и дублей — теперь совпадает.
+      await run('UPDATE competitors SET company = TRIM(company), segment = TRIM(COALESCE(segment, \'\')), region = TRIM(COALESCE(region, \'\'))');
+      await run('UPDATE dictionary_companies SET name = TRIM(name), segment = TRIM(COALESCE(segment, \'\')), region = TRIM(COALESCE(region, \'\'))');
+      const filled = await run(
+        `UPDATE competitors SET
+           segment = COALESCE((SELECT d.segment FROM dictionary_companies d WHERE d.name = competitors.company), segment),
+           region  = COALESCE((SELECT d.region  FROM dictionary_companies d WHERE d.name = competitors.company), region)
+         WHERE (TRIM(COALESCE(segment,'')) = '' OR TRIM(COALESCE(region,'')) = '')
+           AND company IN (SELECT name FROM dictionary_companies)`
+      );
+      const added = await run(
+        `INSERT OR IGNORE INTO dictionary_companies (name, segment, region)
+         SELECT DISTINCT company, segment, region FROM competitors WHERE TRIM(COALESCE(company,'')) <> ''`
+      );
+      message = `Пробелы убраны. Заполнено сегментов/регионов по справочнику: ${filled.rowsAffected || 0}. Компаний добавлено в справочник: ${added.rowsAffected || 0}.`;
+
     } else if (taskType === 'fix_links') {
-      message = 'Расхождения и связи в базе данных проверены и согласованы.';
-    } else if (taskType === 'sync_status') {
-      message = 'Статусы заполнения подразделений успешно пересчитаны.';
+      // Ищет строки, которые «висят в воздухе»: конкурент привязан к подразделению
+      // текстом (competitors.unit), и если название разошлось с оргструктурой,
+      // строка не видна никому. Раньше функция не выполняла ни одного запроса.
+      const orphanComp = await queryAll(
+        `SELECT DISTINCT unit FROM competitors WHERE unit NOT IN (SELECT unit FROM divisions) ORDER BY unit`
+      );
+      const orphanSurv = await queryAll(
+        `SELECT DISTINCT unit FROM surveys WHERE state != 'удалена' AND unit NOT IN (SELECT unit FROM divisions) ORDER BY unit`
+      );
+      const synced = await run(
+        `UPDATE competitors SET
+           dir  = COALESCE((SELECT d.dir  FROM divisions d WHERE d.unit = competitors.unit), dir),
+           resp = COALESCE((SELECT d.resp FROM divisions d WHERE d.unit = competitors.unit), resp),
+           hrbp = COALESCE((SELECT d.hrbp FROM divisions d WHERE d.unit = competitors.unit), hrbp)
+         WHERE unit IN (SELECT unit FROM divisions)`
+      );
+      const names = orphanComp.map(x => x.unit).concat(orphanSurv.map(x => x.unit));
+      const uniq = Array.from(new Set(names));
+      message = uniq.length
+        ? `Обновлено связей с оргструктурой: ${synced.rowsAffected || 0}. Не найдены в оргструктуре (${uniq.length}): ${uniq.slice(0, 10).join(', ')}${uniq.length > 10 ? '…' : ''}`
+        : `Обновлено связей с оргструктурой: ${synced.rowsAffected || 0}. Потерянных привязок нет.`;
+
     } else if (taskType === 'mass_reminder') {
       const r = await sendMassReminder(req.user.fio);
       message = `Напоминания успешно отправлены: ${r.sent} сотрудникам.`;
