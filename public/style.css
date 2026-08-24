@@ -2193,9 +2193,29 @@ label.lbl {
   background: var(--card-hover);
 }
 
-.dlg-a button.btn-primary,
-.dlg-a button.btn-danger {
+/* Селектор `.dlg-a button` (0,1,1) сильнее, чем `.btn-primary`/`.btn-danger`
+   (0,1,0), поэтому нейтральный фон и цвет текста из правила выше побеждали —
+   и кнопка подтверждения в диалоге выглядела серой и выключенной, независимо
+   от того, обычное это действие или опасное. Здесь цвет задаётся с той же
+   специфичностью, что и перебивающее правило. */
+.dlg-a button.btn-primary {
+  background: var(--accent);
   border-color: transparent;
+  color: #ffffff;
+}
+
+.dlg-a button.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.dlg-a button.btn-danger {
+  background: var(--no);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.dlg-a button.btn-danger:hover {
+  background: var(--no-hover);
 }
 
 /* ─── Полосы прогресса (в таблицах дашборда: HR BP, дирекции, льготы) ───
@@ -2396,4 +2416,97 @@ label.lbl {
 .tbl-count .tbl-count-of {
   font-weight: 500;
   color: var(--subtle);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ДВА ШАГА НА КАРТОЧКЕ ПОДРАЗДЕЛЕНИЯ
+   Кольцо показывало один процент — проверку компаний, и карточка писала
+   «100%», когда данные по рынку (главное, ради чего собирается обзор) не
+   внесены вовсе. Шага два, значит и полос две; каждая подписана цифрой,
+   потому что «14 из 14» и «0 записей» — принципиально разные состояния.
+   ═══════════════════════════════════════════════════════════ */
+.u-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+
+@media (max-width: 560px) {
+  .u-bars { grid-template-columns: 1fr; gap: 8px; }
+}
+
+.u-bar-t {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.u-bar-t b {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.u-bar-track {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
+  overflow: hidden;
+}
+
+/* i — сделано, u — «уточнить»: отложенное, но не пустое место. */
+.u-bar-track i {
+  display: block;
+  background: var(--line-strong);
+  transition: width 0.25s ease;
+}
+
+.u-bar-track u {
+  display: block;
+  background: var(--warn);
+  opacity: 0.45;
+}
+
+.u-bar.is-part .u-bar-track i { background: var(--warn); }
+.u-bar.is-ok .u-bar-track i { background: var(--ok); }
+.u-bar.is-ok .u-bar-t b { color: var(--ok); }
+
+/* ─── Вложенные вкладки (справочники внутри админки) ───
+   Верхний ряд вкладок уже занят разделами админки; этот — второй уровень,
+   поэтому он тише: без залипания и с чуть меньшим кеглем, иначе два
+   одинаковых ряда кнопок подряд читаются как один сломанный. */
+.sub-tabs--inner {
+  position: static;
+  margin-bottom: 4px;
+  padding-top: 0;
+}
+
+.sub-tabs--inner .sub-tab {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+/* ─── Бейдж действия в журнале ─── */
+.log-act {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.log-act--none {
+  background: transparent;
+  color: var(--subtle);
+  font-weight: 500;
 }
