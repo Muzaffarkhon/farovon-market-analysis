@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
+const { benefitsToList } = require('./surveyController');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
@@ -244,7 +245,10 @@ async function getUserPayload(user) {
       bonSize: s.bon_size || '',
       bonType: s.bon_type || '',
       bonPer: s.bon_per || '',
-      benefits: s.benefits || '',
+      // Массив, а не строка: фронт держит льготы списком (чипы с
+      // множественным выбором) и вызывает на них .map. Строка из базы
+      // роняла отрисовку всего шага 2.
+      benefits: benefitsToList(s.benefits),
       note: s.note || '',
       source: s.source || '',
       trust: s.trust || ''

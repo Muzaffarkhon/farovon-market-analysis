@@ -1,5 +1,29 @@
 const { queryOne, queryAll, run, batch } = require('../db/database');
 
+/**
+ * Льготы: на фронте это массив (чипы с множественным выбором), в базе —
+ * текстовое поле. Раньше массив уходил в libSQL как есть, а обратно приходил
+ * строкой — и `r.benefits.slice(0,3).map(...)` в карточке записи падал с
+ * TypeError, потому что slice у строки возвращает строку. Одна сохранённая
+ * запись с льготами делала весь шаг 2 пустым: исключение прерывало отрисовку
+ * до вставки в DOM, и пользователь видел белый экран при живых данных.
+ *
+ * Поэтому граница приводится явно в обе стороны, разделитель ';' — тот же,
+ * что у units и dirs.
+ */
+function benefitsToText(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).join(';');
+  return String(v == null ? '' : v);
+}
+
+function benefitsToList(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  return String(v == null ? '' : v)
+    .split(/[;,]/).map(s => s.trim()).filter(Boolean);
+}
+
+exports.benefitsToList = benefitsToList;
+
 exports.saveSurveyData = async (req, res) => {
   const { unit, rows, added, note, submit } = req.body;
   if (!unit) {
@@ -119,7 +143,7 @@ exports.saveSurveyDetails = async (req, res) => {
             s.company, s.posOur, s.posTheir || '', s.grade || '',
             Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
             s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-            s.benefits || '', s.extra || '', s.source || '', s.trust || '', s.note || '',
+            benefitsToText(s.benefits), s.extra || '', s.source || '', s.trust || '', s.note || '',
             sid, unit
           ]
         });
@@ -134,7 +158,7 @@ exports.saveSurveyDetails = async (req, res) => {
             sid, unit, s.company, s.posOur, s.posTheir || '', s.grade || '',
             Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
             s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-            s.benefits || '', s.extra || '', s.source || '', s.trust || '', s.note || '',
+            benefitsToText(s.benefits), s.extra || '', s.source || '', s.trust || '', s.note || '',
             req.user.fio || req.user.login, now, period.name
           ]
         });
