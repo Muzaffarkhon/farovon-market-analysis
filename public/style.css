@@ -2801,3 +2801,81 @@ label.lbl {
 }
 
 .note--ok svg { vertical-align: -2px; margin-right: 2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   КОМПАКТНЫЙ РЕЖИМ: узкий экран или окно Telegram
+
+   В мини-приложении Telegram доступной ширины меньше, чем в мобильном
+   браузере, и над страницей всегда стоит собственная шапка клиента.
+   Интерфейс, рассчитанный на телефон, выглядит там крупным: три вкладки
+   дашборда переставали помещаться в строку и вставали друг под друга,
+   четыре карточки показателей занимали экран целиком, до содержимого
+   приходилось прокручивать.
+
+   Класс ставится из JS (см. index.html) — по ширине либо по факту запуска
+   внутри Telegram: на десктопном клиенте окно шире 560px, но теснее не
+   становится.
+   ═══════════════════════════════════════════════════════════ */
+html.compact { font-size: 13.5px; }
+
+.compact .wrap { padding: 12px 12px 110px; }
+
+.compact .top {
+  min-height: 48px;
+  padding: 7px 12px;
+  gap: 8px;
+}
+.compact .top h1 { font-size: 14.5px; }
+.compact .top .sub { display: none; }
+
+/* Вкладки — в одну прокручиваемую строку вместо стопки. Обрезание тени
+   overflow'ом здесь допустимо: строка вкладок плоская. */
+.compact .sub-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+}
+.compact .sub-tabs::-webkit-scrollbar { display: none; }
+
+.compact .sub-tab {
+  flex: none;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  min-height: 32px;
+}
+.compact .sub-tab svg { width: 14px; height: 14px; }
+
+/* Показатели: две колонки вместо авторазмещения, компактнее по вертикали. */
+.compact .kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.compact .kpi-card { padding: 10px 11px; }
+.compact .kpi-t { font-size: 10px; }
+.compact .kpi-v { font-size: 20px; }
+.compact .kpi-s { font-size: 10.5px; }
+
+.compact .card { padding: 12px; }
+.compact .sec-title { font-size: 12px; margin: 14px 0 8px; }
+
+.compact .unit { padding: 11px 12px; gap: 10px; }
+.compact .u-name { font-size: 14px; }
+.compact .u-bars { gap: 6px; margin-top: 8px; }
+
+.compact .dash-filters { gap: 8px; }
+.compact input, .compact select, .compact textarea {
+  font-size: 14px;
+  padding: 8px 10px;
+}
+/* 14px — нижняя граница, при которой iOS не увеличивает страницу
+   при фокусе на поле. Меньше ставить нельзя. */
+
+.compact .btn-line, .compact .btn-primary { min-height: 38px; font-size: 13.5px; }
+.compact .toolbar { gap: 8px; margin-bottom: 8px; }
+.compact .page-head { padding: 10px 12px; gap: 12px; }
+.compact .page-head-act { margin-left: 0; }
+.compact .sheet-in { padding: 14px; }
+.compact .row { padding: 11px 12px; }
