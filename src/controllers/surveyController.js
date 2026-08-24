@@ -167,8 +167,17 @@ exports.saveSurveyDetails = async (req, res) => {
   }
 };
 
+/**
+ * Добавление значения в справочник прямо из анкеты — кнопка «+ Добавить» в
+ * пикере. Раньше поддерживались только компании и должности, а сегменты с
+ * регионами вообще не были таблицами; теперь блоков четыре.
+ *
+ * Для должности можно передать unit: тогда она не просто попадёт в общий
+ * справочник, но и прикрепится к направлению этого подразделения — то есть
+ * появится в «штатке» у всех, кто это направление ведёт.
+ */
 exports.addDictionaryItem = async (req, res) => {
-  const { block, name, segment, region } = req.body;
+  const { block, name, segment, region, unit } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ ok: false, error: 'Укажите название' });
   }
@@ -187,14 +196,54 @@ exports.addDictionaryItem = async (req, res) => {
         list: list.map(x => x.name),
         all: list
       });
-    } else if (block === 'positions') {
+    }
+
+    if (block === 'positions') {
       await run('INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)', [cleanName]);
-      const listRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
-      return res.json({
-        ok: true,
-        name: cleanName,
-        list: listRows.map(x => x.name)
-      });
+
+      // Прикрепляем к направлению подразделения. Колонки dirs может не быть,
+      // если миграция ещё не прошла, — тогда должность просто останется общей,
+      // а не приведёт к ошибке при сохранении анкеты.
+      let dirsOfUser = [];
+      if (unit) {
+        try {
+          const d = await queryOne('SELECT dir FROM divisions WHERE unit = ?', [unit]);
+          const dir = d && String(d.dir || '').trim();
+          if (dir) {
+            const cur = await queryOne("SELECT COALESCE(dirs,'') AS dirs FROM dictionary_positions WHERE name = ?", [cleanName]);
+            const own = String((cur && cur.dirs) || '').split(';').map(s => s.trim()).filter(Boolean);
+            if (!own.includes(dir)) {
+              own.push(dir);
+              await run('UPDATE dictionary_positions SET dirs = ? WHERE name = ?', [own.join(';'), cleanName]);
+            }
+            dirsOfUser = [dir];
+          }
+        } catch (e) {
+          console.error('Не удалось прикрепить должность к направлению:', e.message);
+        }
+      }
+
+      const allRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
+      const all = allRows.map(x => x.name);
+
+      let list = all;
+      if (dirsOfUser.length) {
+        try {
+          const scoped = await queryAll(
+            "SELECT name, COALESCE(dirs,'') AS dirs FROM dictionary_positions WHERE COALESCE(dirs,'') <> '' ORDER BY name ASC");
+          const own = scoped.filter(p => String(p.dirs || '').split(';').map(s => s.trim()).includes(dirsOfUser[0]));
+          if (own.length) list = own.map(x => x.name);
+        } catch (e) { /* остаёмся на общем списке */ }
+      }
+
+      return res.json({ ok: true, name: cleanName, list, all });
+    }
+
+    if (block === 'segments' || block === 'regions') {
+      const table = block === 'segments' ? 'dictionary_segments' : 'dictionary_regions';
+      await run(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`, [cleanName]);
+      const rows = await queryAll(`SELECT name FROM ${table} ORDER BY name ASC`);
+      return res.json({ ok: true, name: cleanName, list: rows.map(x => x.name) });
     }
 
     res.status(400).json({ ok: false, error: 'Неизвестный блок' });

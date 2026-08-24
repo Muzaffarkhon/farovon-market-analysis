@@ -6,6 +6,7 @@ const authController = require('../controllers/authController');
 const surveyController = require('../controllers/surveyController');
 const dashboardController = require('../controllers/dashboardController');
 const adminController = require('../controllers/adminController');
+const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
 
 // ─── Публичные роуты авторизации ───
@@ -47,6 +48,13 @@ router.post('/admin/users/:login/restore', requireRoles('admin', 'cb'), adminCon
 
 router.get('/admin/divisions', requireRoles('admin', 'cb', 'hrbp'), adminController.getDivisions);
 router.post('/admin/divisions', requireRoles('admin', 'cb'), adminController.saveDivision);
+
+// Справочники. Читать может и HR BP — список нужен ему для сверки, но правка и
+// удаление тянут за собой живые данные, поэтому только admin/cb.
+router.get('/admin/dictionary/:kind', requireRoles('admin', 'cb', 'hrbp'), dictionaryController.list);
+router.get('/admin/dictionary/:kind/usage', requireRoles('admin', 'cb'), dictionaryController.usage);
+router.post('/admin/dictionary/:kind', requireRoles('admin', 'cb'), dictionaryController.save);
+router.post('/admin/dictionary/:kind/delete', requireRoles('admin', 'cb'), dictionaryController.remove);
 
 router.post('/admin/period', requireRoles('admin', 'cb', 'hrbp'), adminController.setPeriod);
 router.post('/admin/maintenance', requireRoles('admin', 'cb'), adminController.runMaintenance);

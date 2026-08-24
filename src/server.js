@@ -7,6 +7,7 @@ const morgan = require('morgan');
 
 const config = require('./config');
 const { queryOne } = require('./db/database');
+const { migrate } = require('./db/migrate');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
 const { ensureWebhook } = require('./services/telegramService');
@@ -75,6 +76,11 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
+  // Схему доводим до актуальной до того, как примем первый запрос. Ошибку не
+  // проглатываем молча, но и сервер не роняем: без миграции работает всё, кроме
+  // новых справочников, и это лучше, чем недоступное приложение у 111 человек.
+  migrate().catch(err => console.error('❌ Миграция не выполнена:', err.message));
+
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
     console.log(`📁 База данных: ${config.dbPath}`);

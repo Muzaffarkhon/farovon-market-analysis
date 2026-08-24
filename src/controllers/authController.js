@@ -89,10 +89,36 @@ async function getUserPayload(user) {
     }));
   }
 
-  // Справочники
-  const dictCompanies = await queryAll('SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC');
-  const dictPositionsRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
+  // Справочники.
+  // Колонка dirs добавляется миграцией на старте; если та не прошла, читаем без
+  // неё, а не роняем вход — см. комментарий к safeNames ниже.
+  const withDirs = async (sql, fallbackSql) => {
+    try {
+      return await queryAll(sql);
+    } catch (e) {
+      console.error('Колонка dirs недоступна, читаем без неё:', e.message);
+      return await queryAll(fallbackSql);
+    }
+  };
+  const dictCompanies = await withDirs(
+    "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
+    'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC');
+  const dictPositionsRows = await withDirs(
+    "SELECT name, COALESCE(dirs, '') AS dirs FROM dictionary_positions ORDER BY name ASC",
+    'SELECT name FROM dictionary_positions ORDER BY name ASC');
   const dictPositions = dictPositionsRows.map(x => x.name);
+
+  // Направления подразделений, доступных пользователю: по ним отбираются
+  // должности и компании его профиля. Раньше «штатка» подразделения не
+  // показывалась никому и никогда — привязки должности к чему-либо просто не
+  // существовало в схеме, и экран всегда писал «штатка не заведена».
+  const userDirs = [...new Set(visibleUnits.map(u => (u.dir || '').trim()).filter(Boolean))];
+  const inDirs = (raw) => {
+    const own = String(raw || '').split(';').map(s => s.trim()).filter(Boolean);
+    if (!own.length) return false;
+    return own.some(d => userDirs.includes(d));
+  };
+  const positionsByDir = dictPositionsRows.filter(p => inDirs(p.dirs)).map(p => p.name);
 
   // Сегменты и регионы — из живых данных, а не из списка, придуманного при
   // переносе с Apps Script: там было 7 сегментов («Телеком», «Банки и Финтех»…),
@@ -108,6 +134,30 @@ async function getUserPayload(user) {
      UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> ''
      ORDER BY v`
   );
+
+  // Сегменты и регионы теперь ещё и настоящие справочники, которые админ ведёт
+  // руками: значение, заведённое заранее, должно быть доступно для выбора до
+  // того, как появится первая строка с ним.
+  //
+  // Отдельным запросом с проглатыванием ошибки — намеренно. getUserPayload
+  // выполняется при каждом входе, и если миграция на живой базе почему-то не
+  // прошла, обращение к несуществующей таблице заблокировало бы вход всем
+  // 111 пользователям. Списки при этом останутся прежними, собранными по
+  // живым данным, — то есть деградация, а не отказ.
+  const safeNames = async (table) => {
+    try {
+      const rows = await queryAll(
+        `SELECT TRIM(name) AS v FROM ${table} WHERE TRIM(COALESCE(name,'')) <> ''`);
+      return rows.map(r => r.v);
+    } catch (e) {
+      console.error(`Справочник ${table} недоступен:`, e.message);
+      return [];
+    }
+  };
+  const uniqSorted = (a, b) => [...new Set([...a, ...b])].sort((x, y) => x.localeCompare(y, 'ru'));
+
+  const segments = uniqSorted(segRows.map(x => x.v), await safeNames('dictionary_segments'));
+  const regions = uniqSorted(regRows.map(x => x.v), await safeNames('dictionary_regions'));
 
   // Конкуренты для пользователя
   const userUnitNames = visibleUnits.map(x => x.unit);
@@ -173,9 +223,14 @@ async function getUserPayload(user) {
     // компаний было сломано (TypeError при вводе 2+ символов).
     companies: dictCompanies.map(c => ({ name: c.name, seg: c.segment, region: c.region })),
     companiesAll: dictCompanies,
-    positions: dictPositions,
-    segments: segRows.map(x => x.v),
-    regions: regRows.map(x => x.v),
+    // positions — должности направления пользователя (его «штатка»),
+    // positionsAll — весь справочник холдинга. Пока админ не прикрепил
+    // должности к направлениям, первый список пуст, и пикер сразу показывает
+    // общий: пустой экран без выбора мы уже проходили.
+    positions: positionsByDir.length ? positionsByDir : dictPositions,
+    positionsAll: dictPositions,
+    segments,
+    regions,
     // Список компаний в стоп-листе ("нельзя включать в обзор") — сейчас нет ни
     // таблицы, ни админ-экрана для его ведения, поэтому пусто, а не выдумано.
     // openAddSheet() уже безусловно читает S.data.banned.filter(...), без этого
@@ -198,9 +253,16 @@ async function getUserPayload(user) {
       types: ['прямой', 'косвенный', 'потенциальный'],
       priorities: ['высокий', 'средний', 'низкий'],
       currencies: ['сомони', 'доллар США', 'рубль'],
-      payPeriods: ['в месяц', 'в год'],
-      bonusTypes: ['KPI / Ежемесячный %', 'Квартальная премия', 'Полугодовой бонус', 'Годовой бонус (13-я ЗП)', 'Процент от маржи / продаж', 'Проектный бонус'],
-      bonusPeriods: ['в месяц', 'в квартал', 'в полугодие', 'в год'],
+      // ЧТС (часовая тарифная ставка) — у рабочих специальностей оклад
+      // назначается за час, и пересчитывать его в месяц вручную значит
+      // получить в базе цифру, которой нет ни в одном штатном расписании.
+      payPeriods: ['в час (ЧТС)', 'в день', 'в месяц', 'в год'],
+      // Тип переменной части отвечает на вопрос «за что», периодичность —
+      // «как часто». Раньше это дублировалось: в типах уже были «Квартальная
+      // премия» и «Годовой бонус», и рядом отдельно спрашивалась
+      // периодичность — можно было выбрать «Квартальная премия / в год».
+      bonusTypes: ['KPI / % от оклада', 'Премия за результат', 'Процент от маржи / продаж', 'Проектный бонус', '13-я зарплата', 'Фиксированная премия'],
+      bonusPeriods: ['в месяц', 'в квартал', 'в полугодие', 'в год', 'разово'],
       sources: ['Рыночные данные C&B', 'Резюме соискателей', 'HR контакты', 'Интервью', 'Аналитика рынка', 'Опрос'],
       trust: ['высокая', 'средняя', 'низкая']
     }

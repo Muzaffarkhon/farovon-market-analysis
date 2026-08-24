@@ -397,6 +397,32 @@ exports.runMaintenance = async (req, res) => {
   }
 };
 
+/**
+ * Подпись действия для журнала.
+ *
+ * В живой базе колонка action у записей оказалась пустой, хотя код пишет её при
+ * каждой вставке — из-за этого столбец «Действие» в журнале не показывал
+ * ничего. Восстанавливаем подпись по тексту детали: она у каждого действия
+ * своя и заполнена. Записи, сделанные после этой правки, приходят со своим
+ * action и через подбор не проходят.
+ */
+function actionLabel(l) {
+  const a = String(l.action || '').trim();
+  if (a) return a;
+
+  const d = String(l.detail || '');
+  if (/успешная авторизаци/i.test(d)) return 'вход';
+  if (/изменил свой пароль/i.test(d)) return 'смена пароля';
+  if (/сохранено анкет/i.test(d)) return 'сохранение данных по должностям';
+  if (/обновлено строк/i.test(d)) return 'сохранение участников рынка';
+  if (/^Период:/i.test(d)) return 'период сбора';
+  if (/^Подразделение:.*Рук:/i.test(d)) return 'правка подразделения';
+  if (/^Логин:.*Роль:/i.test(d)) return 'правка пользователя';
+  if (/^Логин:/i.test(d)) return 'действие с учётной записью';
+  if (/нормализован|привязк|расхожден/i.test(d)) return 'сервисная утилита';
+  return '—';
+}
+
 exports.getAuditLog = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
 
@@ -409,7 +435,7 @@ exports.getAuditLog = async (req, res) => {
         id: l.id,
         dt: l.created_at,
         login: l.login,
-        action: l.action,
+        action: actionLabel(l),
         detail: l.detail || '',
         ip: l.ip || ''
       }))
