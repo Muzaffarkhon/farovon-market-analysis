@@ -2510,3 +2510,133 @@ label.lbl {
   color: var(--subtle);
   font-weight: 500;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   КОМПАКТНАЯ ШАПКА ЭКРАНА И ПАНЕЛЬ НАД ТАБЛИЦЕЙ
+
+   Было: карточка периода шириной 520px в колонку (заголовок, значение,
+   состояние, кто изменил, кнопка), под ней отдельной строкой итоги, под
+   ними отдельной строкой поиск, и только потом таблица — при экране 900px
+   в высоту таблица начиналась примерно на 500-й точке, то есть больше
+   половины экрана уходило на четыре строки текста. Справа от всех этих
+   блоков (ширина 520px при доступных 1600px) не было ничего.
+
+   Стало: те же данные в один ряд по горизонтали — сведения слева, цифры
+   в середине, действие справа. Ниже одна строка «поиск + счётчик».
+   Таблица начинается сразу и занимает всю оставшуюся высоту.
+   ═══════════════════════════════════════════════════════════ */
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-xs);
+}
+
+.page-head-main {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.page-head-k {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--subtle);
+}
+
+.page-head-v {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.page-head-s {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Цифры вынесены в шапку: раньше они шли отдельной строкой-заголовком
+   капсом и стоили ещё одной высоты. */
+.page-head-stats {
+  display: flex;
+  gap: 22px;
+  flex: none;
+}
+
+.phs {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.phs b {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.phs span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.page-head-act {
+  flex: none;
+  width: auto;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+/* Поиск и счётчик в одну строку — счётчик больше не занимает свою. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.toolbar .search-wrap {
+  flex: 1 1 260px;
+  margin: 0;
+  max-width: 520px;
+}
+
+.toolbar .tbl-count {
+  margin: 0;
+  flex: none;
+}
+
+.toolbar-act {
+  flex: none;
+  width: auto;
+  margin-left: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13.5px;
+}
+
+/* Таблица занимает остаток экрана, а не фиксированные 68vh: при компактной
+   шапке это заметно больше строк без прокрутки страницы. */
+.tblwrap--page {
+  max-height: calc(100vh - 250px);
+}
+
+@media (max-width: 700px) {
+  .page-head-act, .toolbar-act { margin-left: 0; }
+  .page-head-stats { gap: 16px; }
+  .tblwrap--page { max-height: min(68vh, 720px); }
+}
