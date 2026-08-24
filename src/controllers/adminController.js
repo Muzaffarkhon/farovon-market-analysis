@@ -69,6 +69,43 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+/**
+ * Защита учётной записи администратора.
+ *
+ * Заблокированный или заархивированный админ не может войти — а войти под
+ * другим админом может быть уже некому. Это необратимая потеря доступа ко
+ * всей системе, поэтому проверка стоит на сервере: прятать кнопки в интерфейсе
+ * недостаточно, эндпоинты вызываются и напрямую.
+ *
+ * Путей отключить админа было три, закрыты все: «Заблокировать», «В архив» и
+ * правка карточки (там есть и флаг active, и смена роли).
+ *
+ * Возвращает текст ошибки либо null, если действие разрешено.
+ */
+function guardAdmin(actor, target, verb) {
+  if (!target) return null;
+  if (String(actor.login).toLowerCase() === String(target.login).toLowerCase()) {
+    return `Нельзя ${verb} собственную учётную запись`;
+  }
+  if (target.role === 'admin') {
+    return `Учётную запись администратора нельзя ${verb}. ` +
+           'Сначала передайте роль администратора другому сотруднику.';
+  }
+  return null;
+}
+
+/**
+ * Сколько администраторов останется, если у этого забрать роль. Нужен, чтобы
+ * смена роли не стала обходным путём: снять «админа», а потом заблокировать.
+ */
+async function otherActiveAdmins(login) {
+  const row = await queryOne(
+    `SELECT COUNT(*) AS n FROM users
+      WHERE role = 'admin' AND active = 1 AND archived_at IS NULL
+        AND LOWER(login) <> LOWER(?)`, [login]);
+  return (row && row.n) || 0;
+}
+
 exports.saveUser = async (req, res) => {
   const { fio, role, phone, password, active, units } = req.body;
   let { login } = req.body;
@@ -85,6 +122,26 @@ exports.saveUser = async (req, res) => {
 
     if (existing) {
       // Редактирование
+      const newRole = role || 'user';
+
+      // Через карточку админа тоже можно было и разжаловать, и снять галочку
+      // «активен» — те же последствия, что и «Заблокировать».
+      if (existing.role === 'admin') {
+        const left = await otherActiveAdmins(existing.login);
+        if (newRole !== 'admin' && left === 0) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Это единственный администратор. Сначала назначьте администратором кого-то ещё.'
+          });
+        }
+        if (active === false) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Учётную запись администратора нельзя перевести в неактивные.'
+          });
+        }
+      }
+
       const hash = password ? hashPassword(password) : null;
 
       await run(`
@@ -138,8 +195,14 @@ exports.toggleUser = async (req, res) => {
   const { active } = req.body;
 
   try {
-    const user = await queryOne('SELECT id, login FROM users WHERE LOWER(login) = LOWER(?)', [login]);
+    const user = await queryOne('SELECT id, login, role FROM users WHERE LOWER(login) = LOWER(?)', [login]);
     if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
+
+    // Разблокировать можно кого угодно — необратимых последствий у этого нет.
+    if (!active) {
+      const deny = guardAdmin(req.user, user, 'заблокировать');
+      if (deny) return res.status(403).json({ ok: false, error: deny });
+    }
 
     await run('UPDATE users SET active = ? WHERE id = ?', [active ? 1 : 0, user.id]);
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
@@ -187,9 +250,12 @@ exports.archiveUser = async (req, res) => {
   try {
     const user = await queryOne('SELECT id, login, role FROM users WHERE LOWER(login) = LOWER(?)', [login]);
     if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
-    if (user.role === 'admin' && req.user.login.toLowerCase() === user.login.toLowerCase()) {
-      return res.status(400).json({ ok: false, error: 'Нельзя архивировать самого себя' });
-    }
+
+    // Прежняя проверка ловила только «админ архивирует сам себя»: другой админ
+    // или C&B-аналитик мог отправить администратора в архив, а архивный войти
+    // уже не может.
+    const deny = guardAdmin(req.user, user, 'архивировать');
+    if (deny) return res.status(403).json({ ok: false, error: deny });
 
     // active сбрасываем заодно:архивный не должен остаться залогиненным по старой сессии
     await run("UPDATE users SET archived_at = CURRENT_TIMESTAMP, active = 0 WHERE id = ?", [user.id]);

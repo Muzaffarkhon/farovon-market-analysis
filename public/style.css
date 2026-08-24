@@ -2755,3 +2755,15 @@ label.lbl {
   color: var(--subtle);
   padding: 12px 0 2px;
 }
+
+/* Место кнопок «Заблокировать» и «В архив» у защищённых учёток: показываем,
+   что действие недоступно, а не оставляем дыру в ряду кнопок. */
+.btn-icon.is-locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--subtle);
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
