@@ -69,6 +69,43 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+/**
+ * Защита учётной записи администратора.
+ *
+ * Заблокированный или заархивированный админ не может войти — а войти под
+ * другим админом может быть уже некому. Это необратимая потеря доступа ко
+ * всей системе, поэтому проверка стоит на сервере: прятать кнопки в интерфейсе
+ * недостаточно, эндпоинты вызываются и напрямую.
+ *
+ * Путей отключить админа было три, закрыты все: «Заблокировать», «В архив» и
+ * правка карточки (там есть и флаг active, и смена роли).
+ *
+ * Возвращает текст ошибки либо null, если действие разрешено.
+ */
+function guardAdmin(actor, target, verb) {
+  if (!target) return null;
+  if (String(actor.login).toLowerCase() === String(target.login).toLowerCase()) {
+    return `Нельзя ${verb} собственную учётную запись`;
+  }
+  if (target.role === 'admin') {
+    return `Учётную запись администратора нельзя ${verb}. ` +
+           'Сначала передайте роль администратора другому сотруднику.';
+  }
+  return null;
+}
+
+/**
+ * Сколько администраторов останется, если у этого забрать роль. Нужен, чтобы
+ * смена роли не стала обходным путём: снять «админа», а потом заблокировать.
+ */
+async function otherActiveAdmins(login) {
+  const row = await queryOne(
+    `SELECT COUNT(*) AS n FROM users
+      WHERE role = 'admin' AND active = 1 AND archived_at IS NULL
+        AND LOWER(login) <> LOWER(?)`, [login]);
+  return (row && row.n) || 0;
+}
+
 exports.saveUser = async (req, res) => {
   const { fio, role, phone, password, active, units } = req.body;
   let { login } = req.body;
@@ -85,6 +122,26 @@ exports.saveUser = async (req, res) => {
 
     if (existing) {
       // Редактирование
+      const newRole = role || 'user';
+
+      // Через карточку админа тоже можно было и разжаловать, и снять галочку
+      // «активен» — те же последствия, что и «Заблокировать».
+      if (existing.role === 'admin') {
+        const left = await otherActiveAdmins(existing.login);
+        if (newRole !== 'admin' && left === 0) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Это единственный администратор. Сначала назначьте администратором кого-то ещё.'
+          });
+        }
+        if (active === false) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Учётную запись администратора нельзя перевести в неактивные.'
+          });
+        }
+      }
+
       const hash = password ? hashPassword(password) : null;
 
       await run(`
@@ -138,8 +195,14 @@ exports.toggleUser = async (req, res) => {
   const { active } = req.body;
 
   try {
-    const user = await queryOne('SELECT id, login FROM users WHERE LOWER(login) = LOWER(?)', [login]);
+    const user = await queryOne('SELECT id, login, role FROM users WHERE LOWER(login) = LOWER(?)', [login]);
     if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
+
+    // Разблокировать можно кого угодно — необратимых последствий у этого нет.
+    if (!active) {
+      const deny = guardAdmin(req.user, user, 'заблокировать');
+      if (deny) return res.status(403).json({ ok: false, error: deny });
+    }
 
     await run('UPDATE users SET active = ? WHERE id = ?', [active ? 1 : 0, user.id]);
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
@@ -187,9 +250,12 @@ exports.archiveUser = async (req, res) => {
   try {
     const user = await queryOne('SELECT id, login, role FROM users WHERE LOWER(login) = LOWER(?)', [login]);
     if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
-    if (user.role === 'admin' && req.user.login.toLowerCase() === user.login.toLowerCase()) {
-      return res.status(400).json({ ok: false, error: 'Нельзя архивировать самого себя' });
-    }
+
+    // Прежняя проверка ловила только «админ архивирует сам себя»: другой админ
+    // или C&B-аналитик мог отправить администратора в архив, а архивный войти
+    // уже не может.
+    const deny = guardAdmin(req.user, user, 'архивировать');
+    if (deny) return res.status(403).json({ ok: false, error: deny });
 
     // active сбрасываем заодно:архивный не должен остаться залогиненным по старой сессии
     await run("UPDATE users SET archived_at = CURRENT_TIMESTAMP, active = 0 WHERE id = ?", [user.id]);
@@ -444,10 +510,143 @@ async function importCompanyDirs() {
          `Направления проставлены у ${(withDirs && withDirs.n) || 0} компаний.`;
 }
 
+/** Метка источника у строк, созданных раздачей по направлению. */
+const AUTO_SRC = 'по направлению';
+
+/**
+ * Устойчивый идентификатор: одна и та же пара «подразделение + компания»
+ * всегда даёт один cid, поэтому повторный запуск не плодит дубли.
+ */
+function autoCid(unit, company) {
+  const h = crypto.createHash('sha1').update(unit + '|' + company).digest('hex');
+  return 'D' + h.slice(0, 12).toUpperCase();
+}
+
+/**
+ * Раздача компаний пустым подразделениям — ровно по той схеме, что уже
+ * заложена в листе «Конкуренты».
+ *
+ * В листе у каждого из 22 направлений есть строки, заведённые на самом
+ * направлении (подразделение = направление) — это базовый набор направления,
+ * 4–18 компаний. Кроме них отдельные отделы имеют собственные добавления.
+ *
+ * Раздаём именно базовый набор и только тем отделам, у которых сейчас нет ни
+ * одной компании. Брать объединение всех компаний направления неправильно:
+ * тогда отдел получал бы до 57 компаний вместо привычных восьми, а вместе с
+ * ними и чужие добавления соседних отделов — всего вышло бы 7290 строк вместо
+ * 2914. Отделы, где компании уже есть, не трогаем: там выбор сделан вручную.
+ */
+async function distributeCompanies(confirm) {
+  const divs = await queryAll(
+    "SELECT unit, dir, resp, hrbp FROM divisions WHERE TRIM(COALESCE(dir,'')) <> ''");
+  const comps = await queryAll('SELECT unit, company, segment, region FROM competitors');
+
+  const dirNames = new Set(divs.map(d => String(d.dir).trim()));
+  const busy = new Set(comps.map(c => c.unit));
+
+  // Базовый набор направления — строки, где подразделение совпадает с ним самим.
+  const base = new Map();
+  comps.forEach(c => {
+    const u = String(c.unit || '').trim();
+    if (!dirNames.has(u)) return;
+    if (!base.has(u)) base.set(u, new Map());
+    if (!base.get(u).has(c.company)) base.get(u).set(c.company, c);
+  });
+
+  const planned = [];
+  const perDir = new Map();
+  for (const d of divs) {
+    const set = base.get(String(d.dir).trim());
+    if (!set || busy.has(d.unit)) continue;
+    for (const c of set.values()) {
+      planned.push({ d, c });
+      perDir.set(d.dir, (perDir.get(d.dir) || 0) + 1);
+    }
+  }
+
+  const top = [...perDir.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
+    .map(([d, n]) => `${d} — ${n}`).join('; ');
+
+  if (!confirm) {
+    return {
+      needsConfirm: true,
+      total: planned.length,
+      message: planned.length
+        ? `Подразделений без единой компании: ${new Set(planned.map(p => p.d.unit)).size}. ` +
+          `Каждое получит базовый набор своего направления — тот, что заведён в листе ` +
+          `на самом направлении. Всего строк: ${planned.length} (сейчас в базе ${comps.length}). ` +
+          `Больше всего: ${top}. Отделы, где компании уже есть, не затрагиваются. ` +
+          'Новые строки получат статус «уточнить» и метку «по направлению» — их можно убрать одной кнопкой.'
+        : 'Добавлять нечего: у всех подразделений с направлением уже есть компании.'
+    };
+  }
+
+  const stmts = planned.map(({ d, c }) => ({
+    sql: `INSERT OR IGNORE INTO competitors
+            (cid, unit, dir, resp, hrbp, company, segment, region, actual, src)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'уточнить', ?)`,
+    args: [autoCid(d.unit, c.company), d.unit, d.dir, d.resp || '', d.hrbp || '',
+           c.company, c.segment || '', c.region || '', AUTO_SRC]
+  }));
+
+  for (let i = 0; i < stmts.length; i += 200) {
+    await batch(stmts.slice(i, i + 200));
+  }
+
+  const now = await queryOne('SELECT COUNT(*) AS n FROM competitors');
+  const units = await queryOne('SELECT COUNT(DISTINCT unit) AS n FROM competitors');
+  return {
+    message: `Компании разданы по направлениям. Добавлено строк: ${planned.length}. ` +
+             `Всего участников рынка: ${(now && now.n) || 0} по ${(units && units.n) || 0} подразделениям.`
+  };
+}
+
+/**
+ * Откат раздачи. Убираются только строки с меткой «по направлению», которых
+ * никто не касался: если по компании уже отметили актуальность или оставили
+ * комментарий, строка остаётся — это уже работа руководителя, а не вставка.
+ */
+async function undoDistribute(confirm) {
+  const cond = `src = ? AND COALESCE(actual,'уточнить') = 'уточнить'
+                AND TRIM(COALESCE(updated_by,'')) = '' AND TRIM(COALESCE(note,'')) = ''`;
+  const cnt = await queryOne(`SELECT COUNT(*) AS n FROM competitors WHERE ${cond}`, [AUTO_SRC]);
+  const kept = await queryOne(
+    `SELECT COUNT(*) AS n FROM competitors WHERE src = ? AND NOT (${cond})`, [AUTO_SRC, AUTO_SRC]);
+  const n = (cnt && cnt.n) || 0;
+
+  if (!confirm) {
+    return {
+      needsConfirm: true,
+      total: n,
+      message: n
+        ? `Будет удалено строк: ${n}. Строки, по которым уже работали, останутся` +
+          ((kept && kept.n) ? `: ${kept.n}` : '') + '.'
+        : 'Убирать нечего: строк с меткой «по направлению» и без правок нет.'
+    };
+  }
+
+  await run(`DELETE FROM competitors WHERE ${cond}`, [AUTO_SRC]);
+  return { message: `Раздача отменена. Удалено строк: ${n}.` };
+}
+
 exports.runMaintenance = async (req, res) => {
-  const { taskType } = req.body;
+  const { taskType, confirm } = req.body;
 
   try {
+    // Задачи, меняющие данные массово, сначала показывают объём и ничего не
+    // делают. Ответ с needsConfirm интерфейс превращает в диалог с цифрами.
+    if (taskType === 'distribute_companies' || taskType === 'undo_distribute') {
+      const fn = taskType === 'distribute_companies' ? distributeCompanies : undoDistribute;
+      const r = await fn(confirm === true);
+      if (r.needsConfirm) {
+        return res.json({ ok: false, needsConfirm: true, total: r.total, message: r.message });
+      }
+      await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+        req.user.login, 'сервис ' + taskType, r.message
+      ]);
+      return res.json({ ok: true, message: r.message });
+    }
+
     let message = '';
     if (taskType === 'clean_segments') {
       // Чистка пробелов + подтягивание сегмента/региона из справочника компаний
@@ -542,6 +741,46 @@ function actionLabel(l) {
   if (/нормализован|привязк|расхожден/i.test(d)) return 'сервисная утилита';
   return '—';
 }
+
+/**
+ * Что сейчас реально лежит в базе по загружаемым данным.
+ *
+ * Без этого понять, отработала загрузка или нет, можно было только открыв
+ * подразделение и посмотрев, появились ли должности, — а это ещё и зависело
+ * от роли смотрящего. Цифры показываются прямо над кнопками загрузки.
+ */
+exports.getDataStatus = async (req, res) => {
+  const num = async (sql) => {
+    try {
+      const r = await queryOne(sql);
+      return (r && r.n) || 0;
+    } catch (e) {
+      return null; // таблицы/колонки ещё нет — миграция не прошла
+    }
+  };
+
+  try {
+    res.json({
+      ok: true,
+      status: {
+        divisions: await num('SELECT COUNT(*) AS n FROM divisions'),
+        divisionsWithCode: await num("SELECT COUNT(*) AS n FROM divisions WHERE TRIM(COALESCE(code,'')) <> ''"),
+        staffPairs: await num('SELECT COUNT(*) AS n FROM unit_positions'),
+        staffUnits: await num('SELECT COUNT(DISTINCT unit) AS n FROM unit_positions'),
+        positions: await num('SELECT COUNT(*) AS n FROM dictionary_positions'),
+        companies: await num('SELECT COUNT(*) AS n FROM dictionary_companies'),
+        companiesWithDirs: await num("SELECT COUNT(*) AS n FROM dictionary_companies WHERE TRIM(COALESCE(dirs,'')) <> ''"),
+        companiesWithCode: await num("SELECT COUNT(*) AS n FROM dictionary_companies WHERE TRIM(COALESCE(code,'')) <> ''"),
+        competitors: await num('SELECT COUNT(*) AS n FROM competitors'),
+        competitorUnits: await num('SELECT COUNT(DISTINCT unit) AS n FROM competitors'),
+        surveys: await num("SELECT COUNT(*) AS n FROM surveys WHERE state != 'удалена'")
+      }
+    });
+  } catch (err) {
+    console.error('getDataStatus error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка получения состояния данных' });
+  }
+};
 
 exports.getAuditLog = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);

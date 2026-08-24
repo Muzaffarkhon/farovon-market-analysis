@@ -2755,3 +2755,39 @@ label.lbl {
   color: var(--subtle);
   padding: 12px 0 2px;
 }
+
+/* Место кнопок «Заблокировать» и «В архив» у защищённых учёток: показываем,
+   что действие недоступно, а не оставляем дыру в ряду кнопок. */
+.btn-icon.is-locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--subtle);
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+/* ─── Состояние данных в «Сервисе» ─── */
+.st-card { padding: 12px 14px; }
+.st-k {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--subtle);
+}
+.st-v {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 2px 0 1px;
+}
+.st-s { font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+/* Предупреждение, когда обязательная загрузка ещё не выполнена. */
+.note--warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
+  color: var(--text);
+}

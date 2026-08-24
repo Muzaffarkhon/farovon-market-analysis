@@ -126,16 +126,22 @@ async function getUserPayload(user) {
   // должностей направления.
   const positionsByUnit = {};
   try {
-    // Админу и C&B штатка всех 326 подразделений в payload не нужна — они анкеты
-    // не заполняют, а список раздул бы ответ на каждом входе.
-    const fillsSurveys = user.role !== 'admin' && user.role !== 'cb';
-    const myUnits = fillsSurveys ? visibleUnits.map(x => x.unit) : [];
+    // Раньше здесь стояло исключение для admin и cb — «анкеты они не заполняют,
+    // незачем раздувать ответ». Но открыть подразделение и посмотреть его
+    // данные они могут, и у них экран всегда писал «штатка не заведена»,
+    // независимо от того, загружено расписание или нет. Именно под админом
+    // проверяют результат загрузки, так что исключение маскировало сам факт
+    // импорта. Всё расписание — 1340 строк, это несколько десятков килобайт.
+    const myUnits = visibleUnits.map(x => x.unit);
     if (myUnits.length) {
-      const ph = myUnits.map(() => '?').join(',');
-      const rows = await queryAll(
-        `SELECT unit, position FROM unit_positions WHERE unit IN (${ph}) ORDER BY position ASC`,
-        myUnits);
+      const rows = myUnits.length > 200
+        ? await queryAll('SELECT unit, position FROM unit_positions ORDER BY position ASC')
+        : await queryAll(
+            `SELECT unit, position FROM unit_positions WHERE unit IN (${myUnits.map(() => '?').join(',')})
+             ORDER BY position ASC`, myUnits);
+      const allowed = new Set(myUnits);
       rows.forEach(r => {
+        if (!allowed.has(r.unit)) return;
         if (!positionsByUnit[r.unit]) positionsByUnit[r.unit] = [];
         positionsByUnit[r.unit].push(r.position);
       });
