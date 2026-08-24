@@ -37,19 +37,40 @@
 
 <!-- ══════════ ПРИЛОЖЕНИЕ ══════════ -->
 <div id="app" class="hidden">
-  <div class="top">
-    <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
-    <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
-    <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
-    <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
-            aria-label="Меню">⋮</button>
+  <!-- Видна только от 1024px и шире (см. .rail в style.css) — на мобильном
+       остаётся прежняя навигация через ⋮ и нижний #topNav. -->
+  <div class="rail" id="rail">
+    <div class="rail-brand">
+      <div class="rail-brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M12 19V5M20 19V13" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <div class="rail-brand-name">Анализ рынка</div>
+        <div class="rail-brand-sub">Фаровон · C&amp;B</div>
+      </div>
+    </div>
+    <div class="rail-nav" id="railNav"></div>
+    <div class="rail-foot">
+      <div class="rail-av" id="railAv"></div>
+      <div class="rail-who"><b id="railFio"></b><span id="railRole"></span></div>
+    </div>
   </div>
-  <div id="topNav" class="nav-tabs hidden"></div>
-  <div class="wrap" id="body"></div>
-  <div class="bar hidden" id="bar">
-    <div class="bar-in">
-      <div class="prog"><b id="progT"></b><i id="progS"></i></div>
-      <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+
+  <div class="app-main">
+    <div class="top">
+      <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
+      <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
+      <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
+      <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
+              aria-label="Меню">⋮</button>
+    </div>
+    <div id="topNav" class="nav-tabs hidden"></div>
+    <div class="wrap" id="body"></div>
+    <div class="bar hidden" id="bar">
+      <div class="bar-in">
+        <div class="prog"><b id="progT"></b><i id="progS"></i></div>
+        <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+      </div>
     </div>
   </div>
 </div>
@@ -526,7 +547,63 @@ $('btnMenu').onclick = function(){
   });
 };
 
+/**
+ * Боковая навигация на десктопе (см. .rail в style.css, видна от 1024px).
+ * На мобильном экрана этот блок просто не отображается CSS-ом — вызывать
+ * его лишний раз безвредно. Пункты те же, что в topNav/меню ⋮, чтобы
+ * не разъезжались правила видимости по роли в трёх разных местах.
+ */
+function renderRail(){
+  var rail = $('rail');
+  if(!rail || !S.data) return;
+  var r = S.data.user.role;
+
+  var items = [];
+  items.push({ id:'units', view:'units', label:'Подразделения', icon:
+    '<rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>' });
+  if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head'){
+    items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon:
+      '<path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' });
+  }
+  if(r === 'admin' || r === 'cb'){
+    items.push({ id:'admin', view:'admin', label:'Админка', icon:
+      '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.6"/>' });
+  }
+  if(r === 'hrbp'){
+    items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon:
+      '<path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' });
+  }
+
+  $('railNav').innerHTML = items.map(function(it){
+    var on = (S.appView === it.view && S.unit === null) ? ' on' : '';
+    return '<button class="rail-item'+on+'" data-rail="'+it.id+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg>'+esc(it.label)+'</button>';
+  }).join('');
+
+  $('railNav').onclick = function(e){
+    var b = e.target.closest('button[data-rail]');
+    if(!b) return;
+    var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
+    if(!it) return;
+    if(it.id === 'hrbp_summary'){ openDash(); return; }
+    if(it.view === S.appView && S.unit === null) return;
+    if(S.dirty){
+      askDirty('Переключить раздел').then(function(yes){
+        if(yes){ S.dirty = false; switchView(it.view); }
+      });
+    } else {
+      switchView(it.view);
+    }
+  };
+
+  var fio = userLabel();
+  $('railAv').textContent = fio.trim().slice(0,1).toUpperCase() || '?';
+  $('railFio').textContent = fio;
+  var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
+  $('railRole').textContent = roleNames[r] || r;
+}
+
 function renderTopNav(){
+  renderRail();
   var r = S.data && S.data.user && S.data.user.role;
   var isSpecial = (r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head');
   var topNav = $('topNav');
