@@ -609,6 +609,46 @@ function actionLabel(l) {
   return '—';
 }
 
+/**
+ * Что сейчас реально лежит в базе по загружаемым данным.
+ *
+ * Без этого понять, отработала загрузка или нет, можно было только открыв
+ * подразделение и посмотрев, появились ли должности, — а это ещё и зависело
+ * от роли смотрящего. Цифры показываются прямо над кнопками загрузки.
+ */
+exports.getDataStatus = async (req, res) => {
+  const num = async (sql) => {
+    try {
+      const r = await queryOne(sql);
+      return (r && r.n) || 0;
+    } catch (e) {
+      return null; // таблицы/колонки ещё нет — миграция не прошла
+    }
+  };
+
+  try {
+    res.json({
+      ok: true,
+      status: {
+        divisions: await num('SELECT COUNT(*) AS n FROM divisions'),
+        divisionsWithCode: await num("SELECT COUNT(*) AS n FROM divisions WHERE TRIM(COALESCE(code,'')) <> ''"),
+        staffPairs: await num('SELECT COUNT(*) AS n FROM unit_positions'),
+        staffUnits: await num('SELECT COUNT(DISTINCT unit) AS n FROM unit_positions'),
+        positions: await num('SELECT COUNT(*) AS n FROM dictionary_positions'),
+        companies: await num('SELECT COUNT(*) AS n FROM dictionary_companies'),
+        companiesWithDirs: await num("SELECT COUNT(*) AS n FROM dictionary_companies WHERE TRIM(COALESCE(dirs,'')) <> ''"),
+        companiesWithCode: await num("SELECT COUNT(*) AS n FROM dictionary_companies WHERE TRIM(COALESCE(code,'')) <> ''"),
+        competitors: await num('SELECT COUNT(*) AS n FROM competitors'),
+        competitorUnits: await num('SELECT COUNT(DISTINCT unit) AS n FROM competitors'),
+        surveys: await num("SELECT COUNT(*) AS n FROM surveys WHERE state != 'удалена'")
+      }
+    });
+  } catch (err) {
+    console.error('getDataStatus error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка получения состояния данных' });
+  }
+};
+
 exports.getAuditLog = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
 

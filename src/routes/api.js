@@ -59,5 +59,6 @@ router.post('/admin/dictionary/:kind/delete', requireRoles('admin', 'cb'), dicti
 router.post('/admin/period', requireRoles('admin', 'cb', 'hrbp'), adminController.setPeriod);
 router.post('/admin/maintenance', requireRoles('admin', 'cb'), adminController.runMaintenance);
 router.get('/admin/audit-log', requireRoles('admin', 'cb'), adminController.getAuditLog);
+router.get('/admin/data-status', requireRoles('admin', 'cb'), adminController.getDataStatus);
 
 module.exports = router;
