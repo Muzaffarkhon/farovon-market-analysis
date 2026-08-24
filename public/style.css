@@ -1668,6 +1668,30 @@ label.lbl {
   min-width: 140px;
 }
 
+/* ─── Поле поиска с иконкой (замена эмодзи-плейсхолдеров на SVG) ───
+   Иконка живёт вне <input> — placeholder не может содержать разметку. */
+.search-wrap {
+  position: relative;
+}
+
+.search-wrap svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--subtle);
+  pointer-events: none;
+}
+
+.search-wrap input {
+  padding-left: 34px;
+}
+
+.dash-filters .search-wrap {
+  flex: 2;
+  min-width: 180px;
+}
+
 /* ─── Карточки пользователей и подразделений ─── */
 .u-card, .div-card {
   background: var(--card);
