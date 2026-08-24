@@ -28,10 +28,13 @@ router.post('/survey/save', surveyController.saveSurveyData);
 router.post('/survey/save-details', surveyController.saveSurveyDetails);
 router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 
-// Дашборд
-router.all('/dashboard/extended', requireRoles('admin', 'cb', 'hrbp', 'dir_head'), dashboardController.getCBDashboard);
-router.all('/dashboard/hrbp', requireRoles('admin', 'cb', 'hrbp', 'dir_head'), dashboardController.getHRBPDashboard);
-router.get('/dashboard/export-csv', requireRoles('admin', 'cb', 'hrbp', 'dir_head'), dashboardController.exportCSV);
+// Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
+// всех HR BP). Руководителю направления (dir_head) по роли не нужна: он видит
+// свои подразделения. Убран и из навигации, и отсюда — иначе доступ остался бы
+// открытым в обход интерфейса.
+router.all('/dashboard/extended', requireRoles('admin', 'cb', 'hrbp'), dashboardController.getCBDashboard);
+router.all('/dashboard/hrbp', requireRoles('admin', 'cb', 'hrbp'), dashboardController.getHRBPDashboard);
+router.get('/dashboard/export-csv', requireRoles('admin', 'cb', 'hrbp'), dashboardController.exportCSV);
 
 // Панель Администратора (только admin и cb)
 router.get('/admin/users', requireRoles('admin', 'cb'), adminController.getUsers);

@@ -1,15 +1,18 @@
 /* Farovon Market Analysis - Apple HIG & Linear Design System */
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-  --bg: #f8fafc;
+  --bg: #f6f8fb;
   --card: #ffffff;
   --card-hover: #f1f5f9;
   --card-2: #f1f5f9;
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
-  --text: #0f172a;
-  --muted: #64748b;
-  --subtle: #94a3b8;
+  /* Текст: вторичный был #64748b — на белом это 4.7:1, читается как выцветший.
+     Подтянут до #475569 (7.5:1), третичный до #64748b. Ощущение «серости»
+     интерфейса шло отсюда, а не от шрифта. */
+  --text: #0b1220;
+  --muted: #475569;
+  --subtle: #64748b;
   
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -54,8 +57,8 @@
     --line: #1e293b;
     --line-strong: #334155;
     --text: #f8fafc;
-    --muted: #94a3b8;
-    --subtle: #64748b;
+    --muted: #a8b6c8;
+    --subtle: #7c8da3;
     
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
@@ -99,6 +102,17 @@ html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* cv11 — одноэтажная «g», ss03 — более округлая кириллица; tnum держит
+     цифры в одной сетке, из-за чего колонки чисел в таблицах не «пляшут». */
+  font-feature-settings: 'cv11' 1, 'ss03' 1, 'tnum' 1;
+  font-optical-sizing: auto;
+  letter-spacing: -0.006em;
+}
+
+/* Заголовки — единая шкала на весь интерфейс, чтобы одни и те же по смыслу
+   надписи не набирались в каждом экране своим размером. */
+h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
+  letter-spacing: -0.02em;
 }
 
 .hidden { display: none !important; }
@@ -146,25 +160,45 @@ html, body {
   margin-left: 4px;
 }
 
+/* Каркас приложения: прокручивается только .wrap, шапка и панель сохранения
+   остаются на месте.
+
+   Это уже было починено 24.08.2026, но правило лежало ВНУТРИ @media
+   (min-width: 1024px) — то есть только для десктопа. Ниже 1024px у #app
+   по-прежнему не было высоты, `height: calc(100% - 58px)` у .wrap считался
+   от родителя с высотой auto и сам становился auto: .wrap вырастал под
+   контент, а всё, что не помещалось в экран, обрезалось body{overflow:hidden}
+   и было недостижимо — длинные списки просто не пролистывались.
+   min-height:0 обязателен: без него flex-элемент не даёт себя сжать ниже
+   размера содержимого и overflow-y:auto снова не срабатывает. */
+#app {
+  display: flex;
+  height: 100%;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .wrap {
   max-width: 880px;
+  width: 100%;
   margin: 0 auto;
   padding: 16px 16px 130px;
-  height: calc(100% - 58px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 /* ─── Десктопная раскладка (24.08.2026) ───────────────────────────────────
-   На мобильном ничего не меняется — .rail остаётся display:none (см. выше),
-   .app-main просто оборачивает прежнюю разметку без своих стилей ниже брейкпоинта.
-   #app раньше не имел height, поэтому #app вырастал выше вьюпорта и .wrap не
-   скроллился сам, а обрезался body{overflow:hidden}; здесь это заодно чинится. */
+   На мобильном ничего не меняется — .rail остаётся display:none (см. выше).
+   Каркас (#app/.app-main/.wrap) теперь общий для всех ширин, см. выше. */
 @media (min-width: 1024px) {
-  #app {
-    display: flex;
-    height: 100vh;
-  }
 
   .rail {
     display: flex;
@@ -269,13 +303,6 @@ html, body {
   .rail-who b { display: block; font-size: 12.5px; font-weight: 700; line-height: 1.3; }
   .rail-who span { font-size: 11px; color: var(--muted); }
 
-  .app-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
 
   /* Мобильная горизонтальная полоска вкладок дублирует то, что теперь делает
      боковая панель — прячем её, а не только саму панель показываем. */
@@ -1257,28 +1284,60 @@ label.lbl {
   min-width: 140px;
 }
 
-/* ─── Уведомления и Модальные окна ─── */
+/* ─── Уведомления и Модальные окна ───
+   Уведомление стоит справа под шапкой, а не по центру внизу: снизу его
+   перекрывала панель сохранения, и подтверждение сохранения было не видно
+   ровно в тот момент, когда оно нужно. */
 .toast {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 84px;
+  top: 70px;
+  right: 16px;
   z-index: 80;
-  background: #0f172a;
-  color: #ffffff;
-  padding: 10px 18px;
-  border-radius: var(--radius-full);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: var(--radius);
   font-size: 13.5px;
   font-weight: 500;
-  max-width: 90vw;
-  text-align: center;
+  line-height: 1.45;
+  max-width: min(360px, calc(100vw - 32px));
   box-shadow: var(--shadow-lg);
+  animation: toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
+.toast.t-ok { border-left-color: var(--ok); }
+.toast.t-no { border-left-color: var(--no); }
+
+.toast-ic {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.toast.t-ok .toast-ic { color: var(--ok); }
+.toast.t-no .toast-ic { color: var(--no); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* На узком экране шапка ниже, а места справа нет — растягиваем на ширину. */
+@media (max-width: 640px) {
   .toast {
-    background: #f8fafc;
-    color: #0f172a;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
   }
 }
 
@@ -1780,6 +1839,32 @@ label.lbl {
   margin-bottom: 16px;
 }
 
+/* Вкладки админки и дашборда закреплены встык к шапке: .wrap скроллится сам,
+   поэтому sticky считается от него. Отрицательные поля растягивают подложку
+   на всю ширину .wrap, иначе при прокрутке содержимое видно в щели по бокам.
+   Смещения завязаны на padding у .wrap (16px здесь, 24/32px на десктопе):
+   Chrome считает залипание от границы content box, то есть уже ниже шапки, и
+   без компенсации между шапкой и вкладками оставался просвет, сквозь который
+   проезжал текст. При точном совпадении исходное и закреплённое положение
+   одинаковы — при прокрутке нет скачка. */
+.sub-tabs--sticky {
+  position: sticky;
+  top: -16px;
+  z-index: 25;
+  margin: -16px -16px 16px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+@media (min-width: 1024px) {
+  .sub-tabs--sticky {
+    top: -24px;
+    margin: -24px -32px 16px;
+    padding: 14px 32px;
+  }
+}
+
 .sub-tab {
   min-height: 36px;
   padding: 0 14px;
@@ -2044,3 +2129,271 @@ label.lbl {
 }
 
 .b-tg { background: var(--accent-soft); color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ДОПИСАННЫЕ СТИЛИ 24.08.2026
+
+   Аудит: прогнал все классы из index.html против style.css. Из 174 классов
+   у 7 групп не было НИ ОДНОЙ строчки CSS — они рисовались браузерной вёрсткой
+   по умолчанию. Это ровно те места, на которые жаловался пользователь
+   («как будто написано одним сообщением», «окно помощь слишком узкое и
+   строки рядом»). Тот же паттерн, что уже ловили с .pickrow/.checkline/.menu
+   и .dash — наследие переноса с Apps Script, где разметку писали, а стили
+   к ней не доносили.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Диалоги ask()/askText() — подтверждения и ввод строки ───
+   Использовались во всём приложении (выход без сохранения, удаление
+   пользователя, смена периода), но выглядели как голый текст с системными
+   кнопками вплотную. */
+.dlg {
+  padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+}
+
+.dlg-t {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.dlg-x {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.dlg-in {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.dlg-a {
+  display: flex;
+  gap: 10px;
+}
+
+.dlg-a button {
+  flex: 1;
+  min-height: var(--tap);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dlg-a button:hover {
+  background: var(--card-hover);
+}
+
+.dlg-a button.btn-primary,
+.dlg-a button.btn-danger {
+  border-color: transparent;
+}
+
+/* ─── Полосы прогресса (в таблицах дашборда: HR BP, дирекции, льготы) ───
+   Раньше эти блоки шли стопкой карточек .prog-row, у которых не было ни
+   строчки CSS: полосы не рисовались вообще, а соседние <span> стояли инлайн
+   вплотную — «Подразделений: 1 / 23Связей: 14 / 148». Сами списки переведены
+   в таблицы, здесь осталась только сама полоса. */
+.prog-bar-bg {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
+  overflow: hidden;
+}
+
+.prog-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+/* ─── Строка кнопок дашборда (сброс фильтров / экспорт) ─── */
+.dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ─── Модалка «Как заполнять» ───
+   <ol> без стилей: браузерный отступ маркеров ~16px прижимал текст к номеру,
+   строки шли без интервала. Отсюда «слишком узкая и слишком рядом стоят». */
+.howto {
+  margin: 0;
+  padding-left: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.howto li {
+  margin-bottom: 16px;
+  padding-left: 4px;
+}
+
+.howto li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.howto li:last-child {
+  margin-bottom: 0;
+}
+
+.howto b {
+  display: block;
+  color: var(--text);
+  font-weight: 650;
+  font-size: 14.5px;
+  margin-bottom: 3px;
+}
+
+.callout-h {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 8px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* Помощь длинная и на десктопе помещается шире дефолтных 540px. */
+@media (min-width: 900px) {
+  .howto-sheet {
+    max-width: 680px;
+  }
+}
+
+/* ─── Блок перехода к шагу 2 ─── */
+.next-step {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.next-step > p,
+.next-step > div:not([class]) {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ─── Подсказки автодополнения компании ─── */
+.sug {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.sug button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+
+.sug button:last-child {
+  border-bottom: none;
+}
+
+.sug button:hover {
+  background: var(--accent-soft);
+}
+
+/* ═══ Закреплённые шапки таблиц ═══════════════════════════════════════════
+   Работает только если у прокручиваемого контейнера есть своя высота: sticky
+   считается относительно ближайшего скроллящегося предка. Раньше .tblwrap имел
+   только overflow-x, вертикально скроллилась вся страница, и thead уезжал
+   вместе с ней. Даём .tblwrap собственный max-height — тогда длинные таблицы
+   (326 подразделений, 110 пользователей, журнал аудита) скроллятся внутри
+   себя с закреплённой шапкой, а короткие остаются как были. */
+.tblwrap {
+  max-height: min(68vh, 720px);
+  overflow-y: auto;
+}
+
+.co-tbl thead th,
+.co-tbl tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Полупрозрачный фон дал бы просвечивание строк под шапкой при прокрутке. */
+  background: var(--card-2);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+/* Первая колонка длинных таблиц остаётся видна при горизонтальной прокрутке. */
+.co-tbl--pin td:first-child,
+.co-tbl--pin th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  z-index: 1;
+}
+
+.co-tbl--pin thead th:first-child,
+.co-tbl--pin tr:first-child th:first-child {
+  z-index: 3;
+  background: var(--card-2);
+}
+
+.co-tbl--pin tr:hover td:first-child {
+  background: var(--card-hover);
+}
+
+/* Числовые колонки — моноширинные цифры, чтобы разряды стояли в столбик. */
+.co-tbl td.num,
+.co-tbl th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── Счётчик строк над таблицей ─── */
+.tbl-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 2px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tbl-count b {
+  color: var(--text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tbl-count .tbl-count-of {
+  font-weight: 500;
+  color: var(--subtle);
+}

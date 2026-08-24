@@ -60,7 +60,7 @@ exports.saveSurveyData = async (req, res) => {
       sql: `INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)`,
       args: [
         req.user.login,
-        submit ? 'отправка подразделения' : 'сохранение конкурентов',
+        submit ? 'отправка подразделения' : 'сохранение участников рынка',
         `Подразделение: ${unit}, обновлено строк: ${(rows || []).length}, добавлено: ${(added || []).length}`
       ]
     });
@@ -76,7 +76,7 @@ exports.saveSurveyData = async (req, res) => {
     });
   } catch (err) {
     console.error('Save survey data error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка сохранения конкурентов' });
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения данных по компаниям' });
   }
 };
 
