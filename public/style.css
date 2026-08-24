@@ -1408,6 +1408,21 @@ label.lbl {
   letter-spacing: -0.01em;
 }
 
+/* ─── Меню «⋮» (профиль/навигация) — класс использовался без единой строчки
+   CSS, кнопки слипались в браузерную вёрстку по умолчанию вплотную друг
+   к другу. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
 /* ─── Меню Навигации ─── */
 .nav-tabs {
   display: flex;
