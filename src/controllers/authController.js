@@ -120,6 +120,31 @@ async function getUserPayload(user) {
   };
   const positionsByDir = dictPositionsRows.filter(p => inDirs(p.dirs)).map(p => p.name);
 
+  // Штатное расписание по конкретным подразделениям пользователя. Это точнее
+  // направления: в исходном штатном расписании должности расписаны по отделам,
+  // и руководителю на шаге 2 нужен список именно своего отдела, а не всех 255
+  // должностей направления.
+  const positionsByUnit = {};
+  try {
+    // Админу и C&B штатка всех 326 подразделений в payload не нужна — они анкеты
+    // не заполняют, а список раздул бы ответ на каждом входе.
+    const fillsSurveys = user.role !== 'admin' && user.role !== 'cb';
+    const myUnits = fillsSurveys ? visibleUnits.map(x => x.unit) : [];
+    if (myUnits.length) {
+      const ph = myUnits.map(() => '?').join(',');
+      const rows = await queryAll(
+        `SELECT unit, position FROM unit_positions WHERE unit IN (${ph}) ORDER BY position ASC`,
+        myUnits);
+      rows.forEach(r => {
+        if (!positionsByUnit[r.unit]) positionsByUnit[r.unit] = [];
+        positionsByUnit[r.unit].push(r.position);
+      });
+    }
+  } catch (e) {
+    // Таблицы ещё нет — экран просто останется на общем справочнике.
+    console.error('Штатное расписание недоступно:', e.message);
+  }
+
   // Сегменты и регионы — из живых данных, а не из списка, придуманного при
   // переносе с Apps Script: там было 7 сегментов («Телеком», «Банки и Финтех»…),
   // которых нет ни в одной строке базы, при 60 реальных. Выбрать корректное
@@ -229,6 +254,10 @@ async function getUserPayload(user) {
     // общий: пустой экран без выбора мы уже проходили.
     positions: positionsByDir.length ? positionsByDir : dictPositions,
     positionsAll: dictPositions,
+    // Штатка по подразделениям: фронт уже читает S.data.positionsByUnit[unit]
+    // при построении чек-листа шага 2 — до загрузки штатного расписания объект
+    // всегда был пуст, отсюда «Для этого подразделения штатка не заведена».
+    positionsByUnit,
     segments,
     regions,
     // Список компаний в стоп-листе ("нельзя включать в обзор") — сейчас нет ни

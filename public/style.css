@@ -2640,3 +2640,118 @@ label.lbl {
   .page-head-stats { gap: 16px; }
   .tblwrap--page { max-height: min(68vh, 720px); }
 }
+
+/* ═══ Множественный выбор (направления и т.п.) ═══════════════════════════
+   Раньше направления выводились простынёй из 30+ «чипов»: отфильтровать
+   нельзя, сколько отмечено — непонятно, список занимал экран целиком. */
+.mp-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.mp-bar span { margin-right: auto; font-weight: 600; }
+
+.mp-bar button {
+  width: auto;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: var(--accent);
+}
+
+.mp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mp-row:last-child { border-bottom: none; }
+.mp-row:hover { background: var(--card-hover); }
+
+/* Собственная «галочка»: нативный чекбокс здесь наследовал стиль поля ввода
+   и раздувался — этот же дефект мы уже чинили у .checkline. */
+.mp-row i {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--card);
+  position: relative;
+}
+
+.mp-row.on i {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mp-row.on i::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.mp-row.on span { font-weight: 600; }
+
+/* Отметки под кнопкой выбора — только чтение, снимаются крестиком. */
+.chips--ro { margin-top: 8px; }
+
+.chips--ro button i {
+  font-style: normal;
+  margin-left: 6px;
+  opacity: 0.55;
+}
+
+/* ─── ID в справочнике ─── */
+.dict-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ─── Профиль: цифры и разделитель ─── */
+.profile-facts {
+  display: flex;
+  gap: 18px;
+  padding: 12px 2px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+.pf { display: flex; flex-direction: column; line-height: 1.15; }
+.pf b { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.pf span { font-size: 11.5px; color: var(--muted); }
+
+.profile-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 12px 0;
+}
+
+.profile-ver {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--subtle);
+  padding: 12px 0 2px;
+}

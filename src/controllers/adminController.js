@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { queryAll, queryOne, run } = require('../db/database');
+const { queryAll, queryOne, run, batch } = require('../db/database');
 const { sendMassReminder } = require('../services/telegramService');
 
 function hashPassword(pwd) {
@@ -330,6 +330,120 @@ exports.setPeriod = async (req, res) => {
 };
 
 // ─── Сервис и Аудит ───
+/**
+ * Загрузка штатного расписания: 1340 пар «должность × подразделение» по 285
+ * отделам плюс код отдела.
+ *
+ * До этого привязки должности к подразделению в схеме не существовало вовсе —
+ * список должностей был общим на весь холдинг (216 позиций), и экран шага 2
+ * писал «штатка не заведена» для любого подразделения.
+ *
+ * Данные лежат файлом в репозитории, а не заливаются скриптом снаружи: доступа
+ * к живой базе у разработчика нет и быть не должно, поэтому загрузку запускает
+ * админ кнопкой. Повторный запуск безопасен — INSERT OR IGNORE и UPDATE.
+ */
+async function importStaffing() {
+  const data = require('../data/staffing.json');
+
+  const known = await queryAll('SELECT unit FROM divisions');
+  const knownSet = new Set(known.map(d => String(d.unit || '').trim()));
+
+  let pairs = 0;
+  let skipped = 0;
+  const positions = new Set();
+
+  // Пишем пачками: 1340 отдельных запросов к Turso — это 1340 сетевых
+  // обращений, батч укладывается в считанные секунды.
+  const stmts = [];
+  for (const s of data.staff) {
+    if (!knownSet.has(s.u)) { skipped++; continue; }
+    positions.add(s.p);
+    stmts.push({
+      sql: 'INSERT OR IGNORE INTO unit_positions (unit, position, staff_count) VALUES (?, ?, ?)',
+      args: [s.u, s.p, s.n || 0]
+    });
+    pairs++;
+  }
+
+  // Должность обязана быть и в общем справочнике: пикер «Должность в компании»
+  // работает по нему.
+  for (const p of positions) {
+    stmts.push({ sql: 'INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)', args: [p] });
+  }
+
+  for (const [unit, code] of Object.entries(data.codes || {})) {
+    if (!knownSet.has(unit)) continue;
+    stmts.push({ sql: 'UPDATE divisions SET code = ? WHERE unit = ?', args: [code, unit] });
+  }
+
+  for (let i = 0; i < stmts.length; i += 200) {
+    await batch(stmts.slice(i, i + 200));
+  }
+
+  const total = await queryOne('SELECT COUNT(*) AS n FROM unit_positions');
+  const units = await queryOne('SELECT COUNT(DISTINCT unit) AS n FROM unit_positions');
+
+  return `Штатное расписание загружено. Пар «должность × подразделение»: ${(total && total.n) || 0} ` +
+         `по ${(units && units.n) || 0} подразделениям, должностей в справочнике добавлено/сверено: ${positions.size}. ` +
+         `Кодов отделов проставлено: ${Object.keys(data.codes || {}).length}.` +
+         (skipped ? ` Пропущено строк (подразделения нет в оргструктуре): ${skipped}.` : '');
+}
+
+/**
+ * Проставляет компаниям направления и коды-идентификаторы по фактическому
+ * использованию в листе участников рынка.
+ *
+ * Поле «Направления» у компании заводилось руками и поэтому пустовало у всех
+ * 188 записей: в таблице справочника было видно «Использований 2», а внутри
+ * карточки — ни одного отмеченного направления. Это не расхождение данных:
+ * «использований» считается по строкам участников рынка, а направление до сих
+ * пор никто не проставлял. Теперь оно выводится из тех же строк.
+ */
+async function importCompanyDirs() {
+  const data = require('../data/companiesImport.json');
+
+  const rows = await queryAll('SELECT name FROM dictionary_companies');
+  const byLower = new Map();
+  rows.forEach(r => byLower.set(String(r.name || '').trim().toLowerCase(), r.name));
+
+  const stmts = [];
+  let updated = 0;
+  let added = 0;
+
+  for (const c of data.companies) {
+    const existing = byLower.get(c.name.trim().toLowerCase());
+    if (!existing) {
+      stmts.push({
+        sql: 'INSERT OR IGNORE INTO dictionary_companies (name, segment, region, dirs, code) VALUES (?, ?, ?, ?, ?)',
+        args: [c.name, c.seg || '', c.reg || '', (c.dirs || []).join(';'), c.code || '']
+      });
+      added++;
+      continue;
+    }
+    // Направления и код перезаписываем, сегмент/регион — только если пусты:
+    // их мог поправить руками админ, и затирать эту правку нельзя.
+    stmts.push({
+      sql: `UPDATE dictionary_companies
+              SET dirs = ?, code = ?,
+                  segment = CASE WHEN TRIM(COALESCE(segment,'')) = '' THEN ? ELSE segment END,
+                  region  = CASE WHEN TRIM(COALESCE(region,'')) = ''  THEN ? ELSE region  END
+            WHERE name = ?`,
+      args: [(c.dirs || []).join(';'), c.code || '', c.seg || '', c.reg || '', existing]
+    });
+    updated++;
+  }
+
+  for (let i = 0; i < stmts.length; i += 200) {
+    await batch(stmts.slice(i, i + 200));
+  }
+
+  const withDirs = await queryOne(
+    "SELECT COUNT(*) AS n FROM dictionary_companies WHERE TRIM(COALESCE(dirs,'')) <> ''");
+
+  return `Компании сверены с листом участников рынка. Обновлено: ${updated}, добавлено новых: ${added}. ` +
+         `Направления проставлены у ${(withDirs && withDirs.n) || 0} компаний.`;
+}
+
 exports.runMaintenance = async (req, res) => {
   const { taskType } = req.body;
 
@@ -376,6 +490,12 @@ exports.runMaintenance = async (req, res) => {
       message = uniq.length
         ? `Обновлено связей с оргструктурой: ${synced.rowsAffected || 0}. Не найдены в оргструктуре (${uniq.length}): ${uniq.slice(0, 10).join(', ')}${uniq.length > 10 ? '…' : ''}`
         : `Обновлено связей с оргструктурой: ${synced.rowsAffected || 0}. Потерянных привязок нет.`;
+
+    } else if (taskType === 'import_staffing') {
+      message = await importStaffing();
+
+    } else if (taskType === 'import_company_dirs') {
+      message = await importCompanyDirs();
 
     } else if (taskType === 'mass_reminder') {
       const r = await sendMassReminder(req.user.fio);

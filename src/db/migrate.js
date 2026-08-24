@@ -33,6 +33,26 @@ async function migrate() {
   // подразделений и выбирать в нём невозможно.
   await ensureColumn('dictionary_positions', 'dirs', 'TEXT DEFAULT \'\'');
 
+  // Штатное расписание: должность привязана к конкретному подразделению, а не
+  // к направлению. Направления оказались слишком крупной единицей — в исходном
+  // штатном расписании 1340 пар «должность × отдел» по 285 отделам, и именно
+  // такой список нужен руководителю на шаге 2.
+  await run(`CREATE TABLE IF NOT EXISTS unit_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    position TEXT NOT NULL,
+    staff_count INTEGER DEFAULT 0,
+    UNIQUE(unit, position)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_unit_positions_unit ON unit_positions(unit)');
+
+  // Коды-идентификаторы. В исходных таблицах они были у всего (П53, К136, код
+  // отдела 529), при переносе в базу потерялись — а по ним сверяют данные с
+  // бухгалтерией и штатным расписанием.
+  await ensureColumn('divisions', 'code', 'TEXT');
+  await ensureColumn('dictionary_companies', 'code', 'TEXT');
+  await ensureColumn('dictionary_positions', 'code', 'TEXT');
+
   await run(`CREATE TABLE IF NOT EXISTS dictionary_segments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL
