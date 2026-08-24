@@ -2752,7 +2752,7 @@ function renderAdminDivisions(){
 
   h += '<div class="sec-title">Оргструктура подразделений ('+filtered.length+')</div>';
 
-  h += '<div class="tblwrap"><table class="dash">'+
+  h += '<div class="tblwrap"><table class="co-tbl">'+
     '<tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr>'+
     filtered.map(function(d, idx){
       return '<tr>'+
@@ -2926,7 +2926,7 @@ function renderAdminTools(){
       $('auditLogBox').innerHTML = '<div class="empty">Журнал пуст</div>';
       return;
     }
-    var logH = '<div class="tblwrap"><table class="dash">'+
+    var logH = '<div class="tblwrap"><table class="co-tbl">'+
       '<tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr>'+
       logs.map(function(l){
         return '<tr>'+
@@ -2999,21 +2999,44 @@ function openDash(){
       h += '<div class="note">На уточнении по всем подразделениям: <b>'+askTotal+'</b> компаний. '+
            'Они не входят в «проверено».</div>';
     }
-    h += '<div class="tblwrap"><table class="dash">'+
-      '<tr><th>Подразделение</th><th>Ответственный</th><th>Компании</th><th>Уточнить</th>'+
-      '<th>Данные</th><th>Обновлено</th></tr>';
-    h += r.rows.map(function(x){
-      var pct = x.total ? Math.round(x.done/x.total*100) : 0;
-      var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
-      var scls = x.surveys>0 ? 'p-ok' : 'p-no';
-      return '<tr><td>'+esc(x.unit)+'</td><td>'+esc(x.resp)+'</td>'+
-        '<td><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
-        '<td>'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
-        '<td><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
-        '<td style="font-size:12px;color:var(--muted)">'+esc(x.at||'—')+'</td></tr>';
-    }).join('');
-    h += '</table></div>';
+    h += '<div class="search-wrap" style="max-width:420px;margin-bottom:14px">'+icBare('search')+
+      '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…"></div>';
+    h += '<div id="dashSumTblBox"></div>';
     $('body').innerHTML = h;
+
+    function drawTable(){
+      var q = ($('dashSumSearch').value || '').trim().toLowerCase();
+      var rows = !q ? r.rows : r.rows.filter(function(x){
+        return (x.unit||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.resp||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.hrbp||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.dir||'').toLowerCase().indexOf(q) >= 0;
+      });
+      var t = '<div class="tblwrap"><table class="co-tbl">'+
+        '<tr><th>Подразделение</th><th>Ответственный</th><th>Компании</th><th>Уточнить</th>'+
+        '<th>Данные</th><th>Обновлено</th></tr>';
+      t += rows.length ? rows.map(function(x){
+        var pct = x.total ? Math.round(x.done/x.total*100) : 0;
+        var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
+        var scls = x.surveys>0 ? 'p-ok' : 'p-no';
+        return '<tr class="dash-row" data-u="'+esc(x.unit)+'" style="cursor:pointer">'+
+          '<td>'+esc(x.unit)+'</td><td>'+esc(x.resp)+'</td>'+
+          '<td><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
+          '<td>'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
+          '<td><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
+          '<td style="font-size:12px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
+      }).join('') : '<tr><td colspan="6"><div class="empty">Ничего не найдено</div></td></tr>';
+      t += '</table></div>';
+      $('dashSumTblBox').innerHTML = t;
+
+      $('dashSumTblBox').onclick = function(e){
+        var tr = e.target.closest('tr[data-u]');
+        if(!tr) return;
+        openUnit(tr.dataset.u);
+      };
+    }
+    drawTable();
+    $('dashSumSearch').oninput = drawTable;
 
     $('btnPeriod').onclick = function(){
       var btn = this;
