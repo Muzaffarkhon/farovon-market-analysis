@@ -112,7 +112,8 @@ async function getUserPayload(user) {
       login: user.login,
       fio: user.fio,
       role: user.role,
-      phone: user.phone || ''
+      phone: user.phone || '',
+      hasTelegram: !!user.telegram_chat_id
     },
     period,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb',

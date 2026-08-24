@@ -13,6 +13,7 @@ const config = {
   tursoUrl: process.env.TURSO_DATABASE_URL || '',
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
   webappUrl: process.env.WEBAPP_URL || 'http://localhost:3000'
 };
 

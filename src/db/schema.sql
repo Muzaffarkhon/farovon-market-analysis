@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL DEFAULT 'user', -- 'admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'
   phone TEXT,
   telegram_chat_id TEXT,
+  telegram_link_token TEXT,
+  telegram_link_expires DATETIME,
   units TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
   last_login_at DATETIME,
