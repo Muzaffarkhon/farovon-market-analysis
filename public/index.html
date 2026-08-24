@@ -62,10 +62,10 @@
       </div>
     </div>
     <div class="rail-nav" id="railNav"></div>
-    <div class="rail-foot">
+    <button class="rail-foot" id="railFootBtn" title="Профиль">
       <div class="rail-av" id="railAv"></div>
       <div class="rail-who"><b id="railFio"></b><span id="railRole"></span></div>
-    </div>
+    </button>
   </div>
 
   <div class="app-main">
@@ -149,7 +149,9 @@ var ICONS = {
   block: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   undo: '<path d="M4 12a8 8 0 108-8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 5v5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   broom: '<path d="M14 3l-9 9-2 5 5-2 9-9-3-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 16l-1.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-  bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>'
+  bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  profile: '<circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.9"/><path d="M4.5 20c1-4 4-6.2 7.5-6.2s6.5 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
 };
 /** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
 function ic(name, size){
@@ -160,6 +162,13 @@ function ic(name, size){
 function icBare(name, size){
   size = size || 14;
   return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none">'+(ICONS[name]||'')+'</svg>';
+}
+/** Дата входа приходит с сервера сырым ISO-таймстампом — приводим к «ДД.ММ.ГГГГ ЧЧ:ММ». */
+function fmtDateTime(s){
+  if(!s || !/^\d{4}-\d{2}-\d{2}T/.test(s)) return s;
+  var d = new Date(s);
+  if(isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
 }
 
 /** Клиент для работы с REST API сервера */
@@ -555,9 +564,14 @@ function doRefresh_(){
   }).catch(function(){ toast('Нет связи'); });
 }
 
-/** Меню в шапке */
+/**
+ * Меню в шапке. Раньше было полноэкранным оверлеем (.sheet) — по просьбе
+ * пользователя переделано в панель, закреплённую у шапки справа, с
+ * закрытием по X. Действует одинаково на мобильном и десктопе.
+ */
 $('btnMenu').onclick = function(){
   var r = S.data && S.data.user && S.data.user.role;
+  var isElevated = (r === 'admin' || r === 'cb');
   var items = [];
   if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head') {
     items.push(['dash_analytics', 'dashboard', 'Аналитический дашборд']);
@@ -568,26 +582,28 @@ $('btnMenu').onclick = function(){
   if(r === 'hrbp') {
     items.push(['dash_hrbp', 'clipboard', 'Сводка по HR BP']);
   }
-  items.push(['units_view', 'units', 'Мои подразделения']);
+  if(isElevated){
+    items.push(['dash_hrbp', 'clipboard', 'Отчёт по подразделениям']);
+  } else {
+    items.push(['units_view', 'units', 'Мои подразделения']);
+  }
   items.push(['refresh', 'refresh', 'Обновить данные из таблицы']);
   items.push(['help', 'help', 'Как заполнять']);
-  items.push(['pwd', 'key', 'Сменить пароль']);
-  var hasTg = S.data && S.data.user && S.data.user.hasTelegram;
-  items.push(['tg', hasTg ? 'check' : 'link', hasTg ? 'Telegram привязан' : 'Привязать Telegram']);
+  items.push(['profile', 'profile', 'Профиль']);
   items.push(['out', 'logout', 'Выйти']);
 
   var el = document.createElement('div');
-  el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
-    '<div class="sheet-hd"><b>'+esc(userLabel())+'</b>'+
-      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+  el.className = 'menu-scrim';
+  el.innerHTML = '<div class="menu-pop">'+
+    '<div class="menu-pop-hd"><b>'+esc(userLabel())+'</b>'+
+      '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ items.map(function(it){
       return '<button data-go="'+it[0]+'"'+(it[0]==='out'?' class="btn-danger"':'')+'>'+ic(it[1])+esc(it[2])+'</button>';
     }).join('') +'</div></div>';
   document.body.appendChild(el);
 
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
     var b = e.target.closest('button[data-go]');
     if(!b) return;
     el.remove();
@@ -598,8 +614,7 @@ $('btnMenu').onclick = function(){
     else if(g === 'units_view') switchView('units');
     else if(g === 'refresh') doRefresh();
     else if(g === 'help') openHelp();
-    else if(g === 'pwd') openPassword();
-    else if(g === 'tg') openTelegramLink();
+    else if(g === 'profile') openProfile();
     else if(g === 'out') doLogout();
   });
 };
@@ -615,8 +630,17 @@ function renderRail(){
   if(!rail || !S.data) return;
   var r = S.data.user.role;
 
+  // Admin/CB не заполняют анкеты сами — вместо «Мои подразделения» им
+  // нужен отчёт по всем подразделениям (та же сводка, что видит HR BP,
+  // серверная роль это уже разрешает — см. src/routes/api.js).
+  var isElevated = (r === 'admin' || r === 'cb');
+
   var items = [];
-  items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
+  if(isElevated){
+    items.push({ id:'report', view:null, label:'Отчёт по подразделениям', icon: ICONS.clipboard });
+  } else {
+    items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
+  }
   if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head'){
     items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
   }
@@ -637,7 +661,7 @@ function renderRail(){
     if(!b) return;
     var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
     if(!it) return;
-    if(it.id === 'hrbp_summary'){ openDash(); return; }
+    if(it.id === 'hrbp_summary' || it.id === 'report'){ openDash(); return; }
     if(it.view === S.appView && S.unit === null) return;
     if(S.dirty){
       askDirty('Переключить раздел').then(function(yes){
@@ -666,7 +690,9 @@ function renderTopNav(){
   }
   topNav.classList.remove('hidden');
   var btns = [];
-  btns.push({ id:'units', icon:'units', label:'Подразделения' });
+  if(r !== 'admin' && r !== 'cb'){
+    btns.push({ id:'units', icon:'units', label:'Подразделения' });
+  }
   btns.push({ id:'dashboard', icon:'dashboard', label:'Дашборд' });
   if(r === 'admin' || r === 'cb'){
     btns.push({ id:'admin', icon:'admin', label:'Админка' });
@@ -699,6 +725,40 @@ function switchView(v){
   if(v === 'units') renderUnits();
   else if(v === 'dashboard') openDashboard();
   else if(v === 'admin') openAdminPanel();
+}
+
+/**
+ * Профиль пользователя: сводка (ФИО/роль/логин) + смена пароля + Telegram.
+ * Открывается из меню «⋮» и из кнопки профиля в боковой панели (десктоп).
+ * Сами формы не дублирует — переиспользует openPassword()/openTelegramLink().
+ */
+function openProfile(){
+  var u = S.data.user;
+  var hasTg = !!u.hasTelegram;
+  var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
+  var fio = userLabel();
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Профиль</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="profile-card">'+
+      '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
+      '<div><div class="profile-fio">'+esc(fio)+'</div>'+
+        '<div class="profile-sub">'+esc(roleNames[u.role] || u.role)+' · '+esc(u.login)+'</div></div>'+
+    '</div>'+
+    '<button id="prPwd" class="btn-line">'+ic('key')+'Сменить пароль</button>'+
+    '<button id="prTg" class="btn-line">'+(hasTg ? ic('check')+'Telegram привязан' : ic('link')+'Привязать Telegram')+'</button>'+
+    '</div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
+  el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
 }
 
 /** Смена собственного пароля. */
@@ -801,6 +861,7 @@ function userLabel(){
 }
 
 $('btnHelp').onclick = function(){ openHelp(); };
+$('railFootBtn').onclick = function(){ openProfile(); };
 
 function openHelp(){
   var el = document.createElement('div');
@@ -837,6 +898,12 @@ function onLoaded(data){
   S.data = data;
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
+  // Admin/CB не заполняют анкеты сами, поэтому у них нет экрана «Мои
+  // подразделения» — на нём они увидели бы только «не назначены».
+  // Дефолт при первом входе — дашборд; как только пользователь сам
+  // переключится на другой раздел, S.appView уже не 'units', и это
+  // условие больше не сработает в текущей сессии.
+  if(isElevated && S.appView === 'units') S.appView = 'dashboard';
   show('app');
   renderTopNav();
   if(data.needsUnitPick) renderUnitPicker();
@@ -2298,12 +2365,22 @@ function loadAdminUsers(){
 
 function userActs(u, compact){
   var login = esc(u.login);
-  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+(compact?'Изменить':ic('pencil')+'Изменить')+'</button>'+
-    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+(compact?'Сброс пароля':ic('key')+'Сбросить пароль')+'</button>'+
+  if(compact){
+    // Таблица (десктоп): 4 текстовых кнопки не влезали в колонку без
+    // горизонтального скролла — только иконки с подсказкой в title.
+    return '<button class="btn-icon" title="Изменить" onclick="openUserModal(\''+login+'\')">'+icBare('pencil',15)+'</button>'+
+      '<button class="btn-icon" title="Сбросить пароль" onclick="adminResetPwd(\''+login+'\')">'+icBare('key',15)+'</button>'+
+      '<button class="btn-icon '+(u.active?'btn-danger':'')+'" title="'+(u.active?'Заблокировать':'Активировать')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
+        (u.active ? icBare('block',15) : icBare('check',15))+
+      '</button>'+
+      '<button class="btn-icon btn-danger" title="В архив" onclick="adminArchiveUser(\''+login+'\')">'+icBare('archive',15)+'</button>';
+  }
+  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+ic('pencil')+'Изменить</button>'+
+    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+ic('key')+'Сбросить пароль</button>'+
     '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
-      (u.active ? (compact?'Заблокировать':ic('block')+'Заблокировать') : (compact?'Активировать':ic('check')+'Активировать'))+
+      (u.active ? ic('block')+'Заблокировать' : ic('check')+'Активировать')+
     '</button>'+
-    '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+(compact?'В архив':ic('archive')+'В архив')+'</button>';
+    '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+ic('archive')+'В архив</button>';
 }
 
 function renderAdminUsers(){
@@ -2353,7 +2430,7 @@ function renderAdminUsers(){
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
       '<td>'+(u.units?u.units.length:0)+'</td>'+
-      '<td class="u-t-dim">'+esc(u.lastIn || '—')+'</td>'+
+      '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
 
@@ -2370,7 +2447,7 @@ function renderAdminUsers(){
         (u.phone ? ' · Тел: '+esc(u.phone) : '') +
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
         '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
-        (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
+        (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
       '<div class="u-acts">'+userActs(u, false)+'</div>'+
     '</div>';
@@ -2436,7 +2513,7 @@ function openUserModal(login){
       '</div>'+
     '</div>'+
     '<div style="margin:14px 0 10px">'+
-      '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
+      '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
     '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
     '<div class="search-wrap">'+icBare('search')+

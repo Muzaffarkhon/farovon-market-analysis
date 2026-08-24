@@ -233,12 +233,25 @@ html, body {
 
   .rail-foot {
     margin-top: auto;
-    padding-top: 14px;
+    padding: 14px 10px 0;
     border-top: 1px solid var(--line);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    min-height: 0;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 10px;
-    padding-left: 10px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .rail-foot:hover {
+    background: var(--card-2);
   }
   .rail-av {
     width: 32px;
@@ -387,6 +400,20 @@ input, select, textarea {
   box-shadow: var(--shadow-xs);
 }
 
+/* Чекбоксы/радио наследовали общие стили text-input (width:100%, padding,
+   min-height:var(--tap)) — на экране это раздувало обычный чекбокс в
+   огромный синий квадрат на всю ширину поля. Сбрасываем до нормального
+   размера отдельно. */
+input[type="checkbox"], input[type="radio"] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -457,6 +484,36 @@ label.lbl {
 .pick.need {
   border-color: var(--warn);
   background: var(--warn-soft);
+}
+
+/* ─── Строка выбора подразделения (выбор при первом входе, привязка юнитов
+   пользователю) — класс использовался в разметке с самого начала проекта,
+   но CSS для него никогда не был написан. */
+.pickrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.pickrow:hover {
+  background: var(--card-hover);
+}
+
+.pickrow small {
+  display: block;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ─── Чекбокс с подписью в одну строку (например «Пользователь активен») ─── */
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .pk-search {
@@ -1364,6 +1421,110 @@ label.lbl {
   letter-spacing: -0.01em;
 }
 
+/* ─── Меню «⋮» (профиль/навигация) — класс использовался без единой строчки
+   CSS, кнопки слипались в браузерную вёрстку по умолчанию вплотную друг
+   к другу. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* ─── Меню «⋮»: панель, закреплённая у шапки (не полноэкранный оверлей) ───
+   Одинаково на мобильном и десктопе. Клик вне панели закрывает её —
+   .menu-scrim прозрачный, а не затемняющий фон. */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: transparent;
+}
+
+.menu-pop {
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  z-index: 66;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+}
+
+.menu-pop-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.menu-pop-hd b {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.menu-x {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: auto;
+  padding: 4px;
+  color: var(--muted);
+}
+
+.menu-x:hover {
+  color: var(--text);
+  background: var(--card-2);
+}
+
+/* ─── Карточка профиля (экран «Профиль») ─── */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-av {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.profile-fio {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 /* ─── Меню Навигации ─── */
 .nav-tabs {
   display: flex;
@@ -1871,6 +2032,15 @@ label.lbl {
   padding: 0 10px;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.u-t-acts .btn-icon {
+  width: 30px;
+  padding: 0;
+}
+
+.u-t-acts .btn-icon svg {
+  margin: 0;
 }
 
 .b-tg { background: var(--accent-soft); color: var(--accent); }
