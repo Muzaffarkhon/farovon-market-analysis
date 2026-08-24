@@ -233,12 +233,25 @@ html, body {
 
   .rail-foot {
     margin-top: auto;
-    padding-top: 14px;
+    padding: 14px 10px 0;
     border-top: 1px solid var(--line);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    min-height: 0;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 10px;
-    padding-left: 10px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .rail-foot:hover {
+    background: var(--card-2);
   }
   .rail-av {
     width: 32px;
@@ -1421,6 +1434,95 @@ label.lbl {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
+}
+
+/* ─── Меню «⋮»: панель, закреплённая у шапки (не полноэкранный оверлей) ───
+   Одинаково на мобильном и десктопе. Клик вне панели закрывает её —
+   .menu-scrim прозрачный, а не затемняющий фон. */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: transparent;
+}
+
+.menu-pop {
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  z-index: 66;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+}
+
+.menu-pop-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.menu-pop-hd b {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.menu-x {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: auto;
+  padding: 4px;
+  color: var(--muted);
+}
+
+.menu-x:hover {
+  color: var(--text);
+  background: var(--card-2);
+}
+
+/* ─── Карточка профиля (экран «Профиль») ─── */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-av {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.profile-fio {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 /* ─── Меню Навигации ─── */
