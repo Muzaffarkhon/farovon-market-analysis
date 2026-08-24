@@ -1745,6 +1745,12 @@ function survGroups(){
 
 function norm(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim(); }
 
+/** Льготы к списку: в базе они текстом, в форме — массивом. */
+function benList(v){
+  if(Array.isArray(v)) return v.filter(Boolean);
+  return String(v == null ? '' : v).split(/[;,]/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+
 /** Подпись на вкладке шага 2: «закрыто/всего» по штатке, иначе просто число записей. */
 function svLabel(){
   var g = survGroups();
@@ -1878,8 +1884,14 @@ function svCard(r, i){
     h += '<div class="sv-line">Бонусов нет</div>';
   }
   if(r.extra) h += '<div class="sv-line">Прочее: '+esc(r.extra)+'</div>';
-  if(r.benefits && r.benefits.length){
-    var vis = r.benefits.slice(0,3), rest = r.benefits.length - vis.length;
+  // Льготы приходят массивом, но записи, сохранённые до нормализации поля,
+  // лежат в базе строкой. На строке slice(0,3) вернёт «Опл», а .map у строки
+  // нет — исключение прерывало отрисовку всего шага 2, и экран оставался
+  // пустым при живых данных. Приводим к списку здесь, а не полагаемся на то,
+  // что сервер уже всё починил.
+  var ben = benList(r.benefits);
+  if(ben.length){
+    var vis = ben.slice(0,3), rest = ben.length - vis.length;
     h += '<div class="sv-tags">'+vis.map(function(b){ return '<span>'+esc(b)+'</span>'; }).join('')+
          (rest>0 ? '<span>+'+rest+'</span>' : '')+'</div>';
   }
@@ -1905,6 +1917,11 @@ function openSurveySheet(i, presetPos){
         bonHas:'', bonSize:'', bonType:'', bonPer:'',
         benefits:[], extra:'', source:'', trust:'', note:'' }
     : JSON.parse(JSON.stringify(S.surveys[i]));
+
+  // Форма работает с льготами как со списком (indexOf/splice/push по чипам).
+  // У записи из базы это может быть строка — тогда push молча ничего не даёт,
+  // а выбранные льготы теряются при сохранении.
+  r.benefits = benList(r.benefits);
 
   var ref = S.data.ref;
   var coList = S.rows.map(function(x){ return x.company; })
