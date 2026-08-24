@@ -59,9 +59,16 @@ async function executeSql(sql, args = []) {
 }
 
 async function run() {
-  console.log('1. Generating bcrypt hashes for ADMIN_PASSWORD (09630801) and CB_PASSWORD (00000000)...');
-  const adminHash = bcrypt.hashSync('09630801', 10);
-  const cbHash = bcrypt.hashSync('00000000', 10);
+  // Пароли — только из окружения. Раньше здесь были захардкожены конкретные значения;
+  // если бы кто-то перезапустил скрипт, он тихо вернул бы пароли admin/cb к этим же
+  // известным значениям, отменив любой сброс пароля, сделанный через админку.
+  if (!process.env.ADMIN_PASSWORD || !process.env.CB_PASSWORD) {
+    console.error('❌ Не заданы ADMIN_PASSWORD и/или CB_PASSWORD (переменные окружения или .env).');
+    process.exit(1);
+  }
+  console.log('1. Generating bcrypt hashes for ADMIN_PASSWORD and CB_PASSWORD...');
+  const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
+  const cbHash = bcrypt.hashSync(process.env.CB_PASSWORD, 10);
 
   console.log('2. Updating admin password_hash in Turso...');
   await executeSql("UPDATE users SET password_hash = ? WHERE login = 'admin';", [adminHash]);
@@ -88,7 +95,8 @@ async function run() {
     const role = r[2].value;
     const hash = r[3].value;
     const isBcrypt = hash.startsWith('$2');
-    console.log(`User: ${login} (${role}) | Bcrypt: ${isBcrypt} | Validates: ${bcrypt.compareSync(login === 'admin' ? '09630801' : '00000000', hash)}`);
+    const expected = login === 'admin' ? process.env.ADMIN_PASSWORD : process.env.CB_PASSWORD;
+    console.log(`User: ${login} (${role}) | Bcrypt: ${isBcrypt} | Validates: ${bcrypt.compareSync(expected, hash)}`);
   });
   console.log('\nALL DONE SUCCESSFULLY!');
 }

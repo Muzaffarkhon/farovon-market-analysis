@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   login TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  raw_password TEXT,
   fio TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user', -- 'admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'
   phone TEXT,

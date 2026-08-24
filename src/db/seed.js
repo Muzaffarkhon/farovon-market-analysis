@@ -27,8 +27,8 @@ function runSeed() {
   // 2. Пользователи
   if (bundle.users && bundle.users.length) {
     const insertUser = db.prepare(`
-      INSERT OR REPLACE INTO users (id, login, password_hash, raw_password, fio, role, phone, units, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO users (id, login, password_hash, fio, role, phone, units, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertManyUsers = db.transaction((users) => {
       for (const u of users) {
@@ -36,7 +36,6 @@ function runSeed() {
           u.id || null,
           u.login,
           u.password_hash,
-          u.raw_password || null,
           u.fio || u.login,
           u.role || 'guest',
           u.phone || null,

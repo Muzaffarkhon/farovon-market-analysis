@@ -1,9 +1,10 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 function hashPassword(pwd) {
-  return crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
+  return bcrypt.hashSync(String(pwd || ''), 10);
 }
 
 function parseCsv(content) {
@@ -74,14 +75,20 @@ const userFile = path.join(dataDir, '(Свод данных) Конкурент�
 const users = [];
 const userMap = {};
 
-// Гарантируем системных пользователей
+// Гарантируем системных пользователей. Пароли — только из окружения: значений по
+// умолчанию в коде намеренно нет, чтобы сюда не вернулись захардкоженные admin123/cb123.
+if (!process.env.ADMIN_PASSWORD || !process.env.CB_PASSWORD) {
+  console.error('❌ Не заданы ADMIN_PASSWORD и/или CB_PASSWORD (переменные окружения или .env).');
+  process.exit(1);
+}
 const defaultAdmins = [
-  { login: 'admin', raw_password: 'admin123', fio: 'Главный Администратор', role: 'admin', phone: '', units: '', active: 1 },
-  { login: 'cb', raw_password: 'cb123', fio: 'C&B Аналитик', role: 'cb', phone: '', units: '', active: 1 }
+  { login: 'admin', fio: 'Главный Администратор', role: 'admin', phone: '', units: '', active: 1,
+    password_hash: hashPassword(process.env.ADMIN_PASSWORD) },
+  { login: 'cb', fio: 'C&B Аналитик', role: 'cb', phone: '', units: '', active: 1,
+    password_hash: hashPassword(process.env.CB_PASSWORD) }
 ];
 
 defaultAdmins.forEach(u => {
-  u.password_hash = hashPassword(u.raw_password);
   users.push(u);
   userMap[u.login.toLowerCase()] = u;
 });
@@ -107,7 +114,6 @@ if (fs.existsSync(userFile)) {
     const uObj = {
       login,
       password_hash: pwdHash,
-      raw_password: rawPwd,
       fio,
       role,
       phone,
