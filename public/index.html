@@ -273,6 +273,8 @@ var API_ROUTES = {
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
+  // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
+  apiAdminRunMaintenanceConfirm: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1], confirm:true } }); },
   apiAdminDataStatus: function(args){ return fetchJson('/api/admin/data-status', { method:'GET', token:args[0] }); },
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
   apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); }
@@ -3704,6 +3706,14 @@ function renderAdminTools(){
         '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие. Сегмент и регион, если их уже заполнили руками, не перезаписываются.</div>'+
         '<button class="btn-line" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">Сверить компании</button>'+
       '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Раздать компании по направлениям</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Сейчас участники рынка заведены только у 72 подразделений из 326 — так было в исходной таблице. Кнопка добавит каждому подразделению компании его направления: если компания относится к направлению, она релевантна всем отделам этого направления. Прибавка порядка 7400 строк, поэтому сначала будет показан точный расклад, и только после подтверждения данные изменятся. Новые строки получают статус «уточнить» и метку «по направлению».</div>'+
+        '<button class="btn-line" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')">Раздать по направлениям</button>'+
+        '<div style="height:8px"></div>'+
+        '<button class="btn-line btn-danger" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу по направлениям\')">Отменить раздачу</button>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:8px">Отмена убирает только строки с меткой «по направлению», которых никто не касался. Если по компании уже отметили актуальность или оставили комментарий — строка останется.</div>'+
+      '</div>'+
     '</div>';
 
   h += '<div class="sec-title">Журнал последних действий (Audit Log)</div>'+
@@ -3780,6 +3790,40 @@ function stCard(title, value, sub){
     '<div class="st-k">'+esc(title)+'</div>'+
     '<div class="st-v">'+esc(String(value))+'</div>'+
     '<div class="st-s">'+esc(sub)+'</div></div>';
+}
+
+/**
+ * Массовые задачи (раздача компаний и её откат) сначала запрашиваются без
+ * confirm: сервер ничего не меняет, а возвращает объём — сколько строк
+ * появится или исчезнет. Пользователь видит цифру до того, как что-то
+ * произошло, а не после.
+ */
+function runBulkTool(type, title){
+  toast('Считаем объём…');
+  call('apiAdminRunMaintenance', S.token, type).then(function(r){
+    if(r && r.ok){ ask({ title:'Готово', html: esc(r.message), ok:'Понятно' }); renderAdminTools(); return; }
+    if(!r || !r.needsConfirm){ toast((r && r.error) || 'Не удалось выполнить', 'no'); return; }
+    if(!r.total){ ask({ title: title, html: esc(r.message), ok:'Понятно' }); return; }
+
+    ask({
+      title: title,
+      html: esc(r.message),
+      ok: 'Выполнить',
+      danger: type === 'undo_distribute'
+    }).then(function(yes){
+      if(!yes) return;
+      toast('Выполняется: ' + title + '…');
+      call('apiAdminRunMaintenanceConfirm', S.token, type).then(function(res){
+        if(res && res.ok){
+          ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
+          renderAdminTools();
+          quietRefresh();
+        } else {
+          toast((res && res.error) || 'Ошибка выполнения', 'no');
+        }
+      }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+    });
+  }).catch(function(){ toast('Нет связи с сервером', 'no'); });
 }
 
 function runMaintenanceTool(type, title){
