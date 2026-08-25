@@ -1,4 +1,5 @@
 const { queryAll, run } = require('./database');
+const { ROLES, DEFAULT_ROLE_CAPABILITIES } = require('../config/capabilities');
 
 /**
  * Идемпотентные миграции живой базы.
@@ -80,6 +81,31 @@ async function migrate() {
       SELECT DISTINCT TRIM(region) FROM dictionary_companies WHERE TRIM(COALESCE(region,'')) <> ''
       UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> ''`);
     console.log('🔧 Миграция: справочник регионов наполнен из живых данных');
+  }
+
+  // Конструктор ролей и доступов. 'admin' сюда никогда не пишется — у него
+  // все права всегда, без исключений (см. src/config/capabilities.js).
+  // Сиды 1:1 повторяют requireRoles(...), стоявший на маршрутах до этой
+  // правки, — миграция на живой базе не должна никого лишить доступа,
+  // который уже был.
+  await run(`CREATE TABLE IF NOT EXISTS role_capabilities (
+    role TEXT NOT NULL,
+    capability TEXT NOT NULL,
+    PRIMARY KEY (role, capability)
+  )`);
+
+  const capCount = await queryAll('SELECT COUNT(*) AS n FROM role_capabilities');
+  if (!capCount[0] || !capCount[0].n) {
+    const stmts = [];
+    ROLES.forEach(role => {
+      (DEFAULT_ROLE_CAPABILITIES[role] || []).forEach(cap => {
+        stmts.push({ sql: 'INSERT OR IGNORE INTO role_capabilities (role, capability) VALUES (?, ?)', args: [role, cap] });
+      });
+    });
+    for (const s of stmts) {
+      await run(s.sql, s.args);
+    }
+    console.log('🔧 Миграция: конструктор ролей заполнен правами по умолчанию');
   }
 }
 

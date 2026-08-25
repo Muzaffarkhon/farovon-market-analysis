@@ -1,4 +1,5 @@
 const { queryAll, queryOne, run } = require('../db/database');
+const { hasCapability } = require('../middleware/auth');
 
 /**
  * Справочники системы: компании, должности, сегменты, регионы.
@@ -185,6 +186,13 @@ exports.save = async (req, res) => {
   const segment = String(req.body.segment || '').trim();
   const region = String(req.body.region || '').trim();
   const dirs = Array.isArray(req.body.dirs) ? req.body.dirs.filter(Boolean).join(';') : '';
+
+  // Маршрут пускает по dictionary:create ИЛИ dictionary:edit (см. routes/api.js) —
+  // точная граница зависит от prev, известного только здесь.
+  const needed = prev ? 'dictionary:edit' : 'dictionary:create';
+  if (!(await hasCapability(req.user, needed))) {
+    return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа' });
+  }
 
   try {
     const dup = await queryOne(`SELECT name FROM ${KINDS[kind].table} WHERE LOWER(name) = LOWER(?)`, [name]);

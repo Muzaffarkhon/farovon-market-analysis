@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
 const { sendMassReminder } = require('../services/telegramService');
+const { CAPABILITIES, ROLES } = require('../config/capabilities');
+const { hasCapability } = require('../middleware/auth');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
@@ -116,6 +118,14 @@ exports.saveUser = async (req, res) => {
 
   try {
     const existing = login ? await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [login.trim()]) : null;
+
+    // Маршрут пускает по users:create ИЛИ users:edit (см. routes/api.js) —
+    // точная граница между «добавить» и «править» зависит от того, нашёлся
+    // ли пользователь, и это известно только здесь.
+    const needed = existing ? 'users:edit' : 'users:create';
+    if (!(await hasCapability(req.user, needed))) {
+      return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа' });
+    }
 
     const unitsStr = Array.isArray(units) ? units.join('; ') : (units || '');
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
@@ -859,5 +869,55 @@ exports.getAuditLog = async (req, res) => {
   } catch (err) {
     console.error('getAuditLog error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки журнала аудита' });
+  }
+};
+
+// ─── Конструктор ролей и доступов ───
+// Управляет только сам эндпоинт-редактор — admin-only, не requireCapability:
+// давать C&B-аналитику менять права всей компании через настройку было бы
+// той самой эскалацией прав, которую конструктор должен предотвращать.
+// 'admin' в таблицу не пишется и не читается отсюда — у него все права
+// всегда, это не настраивается (см. src/config/capabilities.js).
+exports.getRoleCapabilities = async (req, res) => {
+  try {
+    const rows = await queryAll('SELECT role, capability FROM role_capabilities');
+    const byRole = {};
+    ROLES.forEach(r => { byRole[r] = []; });
+    rows.forEach(r => {
+      if (byRole[r.role]) byRole[r.role].push(r.capability);
+    });
+
+    res.json({ ok: true, roles: ROLES, capabilities: CAPABILITIES, matrix: byRole });
+  } catch (err) {
+    console.error('getRoleCapabilities error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки прав доступа' });
+  }
+};
+
+exports.saveRoleCapabilities = async (req, res) => {
+  const { role, capabilities } = req.body;
+
+  if (!ROLES.includes(role)) {
+    return res.status(400).json({ ok: false, error: 'Неизвестная или защищённая роль' });
+  }
+  const known = new Set(CAPABILITIES.map(c => c.id));
+  const clean = Array.isArray(capabilities) ? capabilities.filter(c => known.has(c)) : [];
+
+  try {
+    await run('DELETE FROM role_capabilities WHERE role = ?', [role]);
+    for (const cap of clean) {
+      await run('INSERT OR IGNORE INTO role_capabilities (role, capability) VALUES (?, ?)', [role, cap]);
+    }
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'права доступа',
+      `Роль: ${role}, прав: ${clean.length}`
+    ]);
+
+    res.json({ ok: true, capabilities: clean });
+  } catch (err) {
+    console.error('saveRoleCapabilities error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения прав доступа' });
   }
 };
