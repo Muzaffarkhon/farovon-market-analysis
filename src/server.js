@@ -53,6 +53,16 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API роуты
 app.use('/api', apiRoutes);
 
+let lastUptimeRobotPing = null;
+
+app.use((req, res, next) => {
+  const ua = req.get('user-agent');
+  if (ua && ua.includes('UptimeRobot')) {
+    lastUptimeRobotPing = new Date().toISOString();
+  }
+  next();
+});
+
 // Health check. Поле db показывает, доехало ли подключение к Turso — текст ошибки
 // наружу не отдаём, он остаётся в логах Render.
 app.get('/health', async (req, res) => {
@@ -63,7 +73,14 @@ app.get('/health', async (req, res) => {
     db = 'error';
     console.error('❌ Health check: база недоступна:', err.message);
   }
-  res.json({ ok: db === 'ok', db, version: '2.2.0', timestamp: new Date().toISOString(), env: config.nodeEnv });
+  res.json({ 
+    ok: db === 'ok', 
+    db, 
+    version: '2.2.0', 
+    timestamp: new Date().toISOString(), 
+    env: config.nodeEnv,
+    lastUptimeRobotPing
+  });
 });
 
 // SPA fallback для роутинга
