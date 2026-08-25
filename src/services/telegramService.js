@@ -33,6 +33,19 @@ async function getBotUsername() {
   }
 }
 
+// Список команд для меню бота (кнопка «Меню» в Telegram). До этой правки
+// там висел набор от прошлой (Apps Script) версии бота — /start и /help с
+// чужими описаниями и /login «Показать мой логин и пароль», которого в этом
+// боте вообще нет. Telegram хранит меню на своей стороне, а не берёт его из
+// кода при каждом сообщении — обновляется только явным вызовом setMyCommands.
+const BOT_COMMANDS = [
+  { command: 'start', description: 'Привязать аккаунт' },
+  { command: 'link', description: 'Привязать по номеру телефона' },
+  { command: 'status', description: 'Мои подразделения и прогресс' },
+  { command: 'unlink', description: 'Отвязать этот Telegram от аккаунта' },
+  { command: 'help', description: 'Список команд' }
+];
+
 /** Регистрирует вебхук в Telegram, чтобы бот мог принимать входящие сообщения — без
  *  этого он умеет только отправлять. Вызывается один раз при старте сервера; ошибка
  *  не должна мешать серверу подняться, поэтому не бросает исключение наружу. */
@@ -51,6 +64,12 @@ async function ensureWebhook() {
     console.log(`✅ Telegram webhook зарегистрирован (@${botUsername || '?'})`);
   } catch (err) {
     console.warn('⚠️ Не удалось зарегистрировать Telegram webhook:', err.message);
+  }
+
+  try {
+    await tg.setMyCommands(BOT_COMMANDS);
+  } catch (err) {
+    console.warn('⚠️ Не удалось обновить меню команд Telegram:', err.message);
   }
 }
 
