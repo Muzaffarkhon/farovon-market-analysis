@@ -8,6 +8,7 @@ const LINK_TTL_MINUTES = 10;
 const HELP_TEXT = 'Доступные команды:\n' +
   '/status — мои подразделения и прогресс заполнения\n' +
   '/unlink — отвязать этот Telegram от аккаунта\n' +
+  '/link — привязать по номеру телефона\n' +
   '/help — этот список';
 
 /** Пользователь запрашивает ссылку для привязки своего Telegram — одноразовый токен
@@ -60,28 +61,105 @@ async function findByChatId(chatId) {
 
 const NOT_LINKED_MSG = 'Аккаунт не привязан. Откройте приложение «Обзор рынка» → Профиль → «Привязать Telegram».';
 
+/**
+ * Последние 9 цифр — локальный номер без кода страны (+992) и без ведущих
+ * нулей/плюсов, в любом написании. И users.phone, и Telegram-контакт
+ * сравниваются в этом виде — форматы у них исторически расходятся
+ * (с кодом страны/без, с ведущим нулём/без).
+ */
+function normalizePhone(raw) {
+  return String(raw || '').replace(/\D/g, '').slice(-9);
+}
+
+/** Клавиатура «поделиться номером» — request_contact сам просит у Telegram
+ *  разрешение и подставляет ровно тот номер, что привязан к аккаунту
+ *  пользователя, руками вводить/подделать нельзя. */
+const CONTACT_KEYBOARD = {
+  reply_markup: {
+    keyboard: [[{ text: '📱 Отправить номер телефона', request_contact: true }]],
+    resize_keyboard: true,
+    one_time_keyboard: true
+  }
+};
+const REMOVE_KEYBOARD = { reply_markup: { remove_keyboard: true } };
+
+/**
+ * Диплинк с токеном не всегда доезжает как готовое сообщение — часть клиентов
+ * Telegram (особенно если чат с ботом уже когда-то открывали) просто
+ * открывает чат, не подставляя «/start <токен>» в поле ввода, и человек
+ * видит «ничего не произошло». Поэтому даже при невалидном/просроченном
+ * токене не останавливаемся на ошибке, а сразу предлагаем более надёжный
+ * способ — поделиться номером телефона одной кнопкой.
+ */
 async function handleStart(chatId, token) {
-  if (!token) {
-    await sendTelegramMessage(chatId,
-      'Здравствуйте! Чтобы привязать аккаунт, откройте ссылку из приложения «Обзор рынка» — ' +
-      'раздел меню «Привязать Telegram».\n\n' + HELP_TEXT);
+  if (token) {
+    const user = await queryOne(
+      "SELECT id, fio FROM users WHERE telegram_link_token = ? AND telegram_link_expires > datetime('now')",
+      [token]
+    );
+    if (user) {
+      await run('UPDATE users SET telegram_chat_id = ?, telegram_link_token = NULL, telegram_link_expires = NULL WHERE id = ?', [
+        String(chatId),
+        user.id
+      ]);
+      await sendTelegramMessage(chatId,
+        `Готово, ${user.fio}! Telegram привязан — теперь сюда будут приходить напоминания о заполнении обзора рынка.\n\n${HELP_TEXT}`,
+        REMOVE_KEYBOARD);
+      return;
+    }
+  }
+
+  const already = await findByChatId(chatId);
+  if (already) {
+    await sendTelegramMessage(chatId, `Здравствуйте, ${already.fio}! Аккаунт уже привязан.\n\n${HELP_TEXT}`, REMOVE_KEYBOARD);
     return;
   }
 
-  const user = await queryOne(
-    "SELECT id, fio FROM users WHERE telegram_link_token = ? AND telegram_link_expires > datetime('now')",
-    [token]
+  await sendTelegramMessage(chatId,
+    'Здравствуйте! Чтобы привязать аккаунт, нажмите кнопку ниже и поделитесь номером телефона — ' +
+    'найдём вас по номеру, указанному в приложении «Обзор рынка» (спросите HR BP или администратора, ' +
+    'если номер ещё не занесён).',
+    CONTACT_KEYBOARD);
+}
+
+/** Привязка по общему номеру телефона — резервный путь, когда диплинк из
+ *  приложения не подставился (см. комментарий к handleStart). */
+async function handleContact(chatId, fromId, contact) {
+  if (!contact || !contact.phone_number) return;
+  // Кнопка request_contact всегда шлёт контакт нажавшего, но Telegram технически
+  // допускает и ручную пересылку чужой карточки через скрепку — проверяем,
+  // что это правда собственный номер отправителя, а не чей-то ещё.
+  if (contact.user_id && fromId && contact.user_id !== fromId) {
+    await sendTelegramMessage(chatId, 'Поделитесь своим собственным номером, не чужим.');
+    return;
+  }
+
+  const norm = normalizePhone(contact.phone_number);
+  if (!norm) {
+    await sendTelegramMessage(chatId, 'Не удалось распознать номер.', REMOVE_KEYBOARD);
+    return;
+  }
+
+  const users = await queryAll(
+    "SELECT id, fio, phone FROM users WHERE archived_at IS NULL AND active = 1 AND TRIM(COALESCE(phone,'')) <> ''"
   );
-  if (!user) {
-    await sendTelegramMessage(chatId, 'Ссылка недействительна или устарела. Сгенерируйте новую в приложении — меню → «Привязать Telegram».');
+  const match = users.find(u => normalizePhone(u.phone) === norm);
+
+  if (!match) {
+    await sendTelegramMessage(chatId,
+      'Не нашли сотрудника с таким номером в приложении «Обзор рынка». Проверьте номер в профиле ' +
+      '(Админка → Пользователи) или привяжите аккаунт по ссылке из приложения.',
+      REMOVE_KEYBOARD);
     return;
   }
 
   await run('UPDATE users SET telegram_chat_id = ?, telegram_link_token = NULL, telegram_link_expires = NULL WHERE id = ?', [
     String(chatId),
-    user.id
+    match.id
   ]);
-  await sendTelegramMessage(chatId, `Готово, ${user.fio}! Telegram привязан — теперь сюда будут приходить напоминания о заполнении обзора рынка.\n\n${HELP_TEXT}`);
+  await sendTelegramMessage(chatId,
+    `Готово, ${match.fio}! Telegram привязан по номеру телефона.\n\n${HELP_TEXT}`,
+    REMOVE_KEYBOARD);
 }
 
 /** «Мои подразделения» — тот же прогресс, что на экране «Мои подразделения» в приложении,
@@ -167,14 +245,24 @@ exports.webhook = async (req, res) => {
     if (cb) { await handleCallbackQuery(cb); return; }
 
     const msg = req.body && req.body.message;
-    if (!msg || !msg.text || !msg.chat) return;
+    if (!msg || !msg.chat) return;
 
     const chatId = msg.chat.id;
+
+    if (msg.contact) {
+      await handleContact(chatId, msg.from && msg.from.id, msg.contact);
+      return;
+    }
+
+    if (!msg.text) return;
     const text = msg.text.trim();
 
     const startMatch = text.match(/^\/start(?:\s+([a-f0-9]{32}))?$/i);
     if (startMatch) { await handleStart(chatId, startMatch[1]); return; }
 
+    // Ручной запасной путь — если диплинк из приложения не подставил
+    // /start в поле ввода, человек всё равно может набрать /link сам.
+    if (/^\/link\b/i.test(text)) { await handleStart(chatId, null); return; }
     if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
     if (/^\/unlink\b/i.test(text)) { await handleUnlinkPrompt(chatId); return; }
     if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
