@@ -1246,18 +1246,27 @@ function openTelegramLink(){
       box.textContent = (r && r.error) || 'Не удалось получить ссылку';
       return;
     }
+    // Диплинк с кодом подставляет «/start <код>» в поле ввода не у всех
+    // клиентов Telegram — если чат с ботом уже открывался раньше, часть
+    // клиентов просто открывает чат, ничего не подставляя, и человек не
+    // понимает, что сделать. Привязка по номеру телефона (кнопка в самом
+    // боте) не зависит от этого — поэтому она теперь основной вариант,
+    // а ссылка с кодом — запасной.
+    var botUser = (r.deepLink.match(/t\.me\/([^?]+)/) || [])[1] || '';
     box.className = '';
     box.innerHTML = '<p style="color:var(--muted);font-size:13.5px;line-height:1.5">'+
-        'Нажмите кнопку, откроется Telegram — там напишите боту команду '+
-        '<b>/start</b> (обычно она уже подставлена, останется нажать «Отправить»). '+
-        'Ссылка действует '+r.expiresInMinutes+' минут.</p>'+
-      '<div style="height:12px"></div>'+
-      '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-primary" '+
+        'Откройте бота'+(botUser?' <b>@'+esc(botUser)+'</b>':'')+', наберите <b>/link</b> и нажмите '+
+        'кнопку «Отправить номер телефона» — привяжется по номеру, указанному в вашем профиле.</p>'+
+      '<div style="height:10px"></div>'+
+      '<a href="https://t.me/'+esc(botUser)+'" target="_blank" class="btn-primary" '+
         'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
-        'Открыть Telegram</a>'+
-      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:12px">'+
-        'Если чат с ботом уже открывался раньше, кнопка может не подставить команду сама — '+
-        'тогда наберите в чате <b>/link</b> и поделитесь номером телефона, указанным здесь в профиле.</p>';
+        'Открыть '+(botUser?'@'+esc(botUser):'бота')+'</a>'+
+      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px">'+
+        'Или ссылка с кодом (действует '+r.expiresInMinutes+' минут) — у части клиентов Telegram '+
+        'сама подставляет команду, тогда останется нажать «Отправить»:</p>'+
+      '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-line" '+
+        'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
+        'Открыть по ссылке с кодом</a>';
   }).catch(function(){
     el.querySelector('#tgBody').className = 'err';
     el.querySelector('#tgBody').textContent = 'Нет связи с сервером';
