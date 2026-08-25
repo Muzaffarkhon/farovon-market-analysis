@@ -196,7 +196,8 @@ var ICONS = {
   info: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/>',
   chevron: '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   trash: '<path d="M4 7h16M10 4h4M9 7v12M15 7v12M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
-  shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
+  shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 019 0v3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
 };
 /** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
 function ic(name, size){
@@ -463,6 +464,31 @@ function askDirty(action){
     ok: action,
     cancel: 'Остаться',
     danger: true
+  });
+}
+
+/** Тот же вопрос, что askDirty, но для карточек/модалок общего вида (не анкеты подразделения). */
+function confirmDiscard(){
+  return ask({
+    title: 'Есть несохранённые изменения',
+    html: 'Введённые данные не сохранены. Закрыть без сохранения?',
+    ok: 'Закрыть без сохранения',
+    cancel: 'Остаться',
+    danger: true
+  });
+}
+
+/**
+ * Общая защита закрытия карточки (сheet) с несохранёнными данными: закрытие
+ * по фону/«Закрыть»/Esc спрашивает подтверждение, если isDirty() вернёт true.
+ * Esc уже устроен так, что кликает по [data-x] (см. глобальный keydown выше),
+ * поэтому один обработчик здесь закрывает и клик, и Esc, и клик по фону.
+ */
+function guardClose(el, isDirty){
+  el.addEventListener('click', function(e){
+    if(e.target !== el && !e.target.dataset.x) return;
+    if(!isDirty()){ el.remove(); return; }
+    confirmDiscard().then(function(yes){ if(yes) el.remove(); });
   });
 }
 
@@ -1095,6 +1121,9 @@ function openProfile(){
     '<button id="prPwd" class="btn-line">'+ic('key')+'Сменить пароль</button>'+
     '<button id="prTg" class="btn-line">'+(hasTg ? ic('check')+'Telegram привязан' : ic('link')+'Привязать Telegram')+'</button>'+
     '<button id="prUnits" class="btn-line">'+ic('units')+'Мои подразделения</button>'+
+    // Руководитель направления сам назначает ответственных по отделам своего
+    // направления — админ закрепляет за ним только само направление.
+    (u.role === 'dir_head' ? '<button id="prAssign" class="btn-line">'+ic('units')+'Назначить ответственных</button>' : '')+
     '<button id="prHelp" class="btn-line">'+ic('help')+'Как заполнять</button>'+
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
@@ -1111,6 +1140,8 @@ function openProfile(){
   el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
   el.querySelector('#prHelp').onclick = function(){ openHelp(); };
   el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
+  var prAssign = el.querySelector('#prAssign');
+  if(prAssign) prAssign.onclick = function(){ el.remove(); openDeptAssign(); };
   el.querySelector('#prRefresh').onclick = function(){ el.remove(); doRefresh(); };
   el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
 }
@@ -1141,8 +1172,8 @@ function openPassword(){
     e.textContent = m; e.classList.remove('hidden');
   };
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
+  guardClose(el, function(){
+    return !!(el.querySelector('#pwOld').value || el.querySelector('#pwNew').value || el.querySelector('#pwNew2').value);
   });
 
   el.querySelector('#pwGo').onclick = function(){
@@ -1262,6 +1293,7 @@ function onLoaded(data){
   show('app');
   renderTopNav();
   if(data.needsUnitPick) renderUnitPicker();
+  else if(data.needsAssignment) renderNeedsAssignment();
   else if(S.appView === 'dashboard') openDashboard();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
@@ -1284,6 +1316,28 @@ function periodBanner(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: выбор подразделения
 // ═══════════════════════════════════════════════════════════
+/**
+ * Экран для dir_head/head, за которыми администратор ещё не закрепил
+ * направление/отдел. Раньше в этом случае показывался тот же свободный
+ * пикер, что и рядовому сотруднику, — то есть руководитель мог сам выбрать
+ * себе зону ответственности. Теперь только ждём назначения сверху.
+ */
+function renderNeedsAssignment(){
+  setTop('Назначение ожидается', userLabel(), false);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="unit-picker-card">' +
+    '<div class="note">За вами пока не закреплено направление или отдел. ' +
+    'Назначение выполняет администратор — как только он это сделает, ' +
+    'здесь появятся ваши подразделения.</div>' +
+    '<button id="naRefresh" class="btn-primary">Проверить снова</button>' +
+    '</div>';
+  $('naRefresh').onclick = function(){
+    this.disabled = true; this.textContent = 'Проверяем…';
+    doRefresh();
+  };
+}
+
 function renderUnitPicker(){
   setTop('Выберите подразделение', userLabel(), false);
   $('body').onclick = null;
@@ -1633,17 +1687,33 @@ function renderTabComp(){
   if($('btnSubmit')) $('btnSubmit').onclick = function(){ save(true); };
 }
 
+/**
+ * Строка занята другим ответственным (см. isOwnedByOther на сервере —
+ * та же граница, здесь только для UI). Пока не защищено сервером — это
+ * просто более честный интерфейс, реальная блокировка проверяется при
+ * сохранении и в списке заблокированных из ответа save().
+ */
+function isLockedForMe(owner){
+  if(!owner) return false;
+  var role = S.data.user.role;
+  if(role === 'admin' || role === 'cb') return false;
+  var mine = String(S.data.user.fio || S.data.user.login || '').trim().toLowerCase();
+  return String(owner).trim().toLowerCase() !== mine;
+}
+
 function rowCard(r, i, isNew){
   var st = r.actual === 'актуально' ? 'st-yes'
          : r.actual === 'не актуально' ? 'st-no'
          : r.actual === 'уточнить' ? 'st-ask' : '';
   var meta = [r.seg, r.region].filter(String).join(' · ');
   var name = r.company || '(название не заполнено в таблице)';
-  var h = '<div class="row '+st+'" data-i="'+i+'">';
+  var locked = isLockedForMe(r.by);
+  var h = '<div class="row '+st+(locked?' row-locked':'')+'" data-i="'+i+'">';
   h += '<div class="row-head"><div class="row-name"'+
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
+  if(locked) h += '<div class="row-meta" style="color:var(--warn)">'+ic('lock',12)+'изменяет '+esc(r.by)+'</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
 
@@ -1651,7 +1721,7 @@ function rowCard(r, i, isNew){
     [['актуально','✓ Актуально'],['не актуально','✕ Не актуально'],['уточнить','? Уточнить']].map(function(pair){
       var v = pair[0], lbl = pair[1];
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
-        (S.ro?' disabled':'')+'>'+lbl+'</button>';
+        ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
     }).join('')+'</div>';
 
   // «требует уточнения» стоит ПОСЛЕ строки кнопок, а не до неё: иначе
@@ -1668,7 +1738,7 @@ function rowCard(r, i, isNew){
        (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
   h += '<textarea data-act="note" placeholder="'+
        (r.actual === 'уточнить' ? 'Что нужно выяснить и у кого' : 'Почему важен / что учесть')+
-       '"'+(S.ro?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
+       '"'+((S.ro||locked)?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
   h += '</div></div>';
   return h;
 }
@@ -1691,7 +1761,7 @@ function bindRows(){
         b.textContent = closed ? 'Подробнее ▾' : 'Свернуть ▴';
         return;
       }
-      if(S.ro) return;
+      if(S.ro || card.classList.contains('row-locked')) return;
       if(act === 'actual'){
         r.actual = (r.actual === b.dataset.v) ? 'не проверено' : b.dataset.v;
         card.className = 'row ' + (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':
@@ -1720,6 +1790,7 @@ function bindRows(){
     box.addEventListener('input', function(e){
       if(e.target.dataset.act !== 'note') return;
       var card = e.target.closest('.row');
+      if(card.classList.contains('row-locked')) return;
       var arr = zone === 'rows' ? S.rows : S.added;
       arr[+card.dataset.i].note = e.target.value;
       markDirty();
@@ -1911,10 +1982,13 @@ function svCard(r, i){
   var meta = [r.source, r.trust ? 'достоверность: '+r.trust : ''].filter(String).join(' · ');
   if(meta) h += '<div class="sv-by">'+esc(meta)+'</div>';
   if(r.by) h += '<div class="sv-by">'+esc(r.by)+(r.at ? ' · '+esc(fmtDateTime(r.at)) : '')+'</div>';
+  var locked = isLockedForMe(r.by);
   if(!S.ro){
-    h += '<div class="sv-act">'+
-      '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
-      '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
+    h += locked
+      ? '<div class="sv-locked">'+ic('lock',12)+'изменить может только '+esc(r.by)+'</div>'
+      : '<div class="sv-act">'+
+        '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
+        '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
   }
   h += '</div>';
   return h;
@@ -1934,6 +2008,10 @@ function openSurveySheet(i, presetPos){
   // У записи из базы это может быть строка — тогда push молча ничего не даёт,
   // а выбранные льготы теряются при сохранении.
   r.benefits = benList(r.benefits);
+  // Снимок «как было» — часть полей (chips/пикеры) пишутся прямо в r по ходу
+  // правки, часть (обычные поля) читаются из DOM только при сохранении;
+  // isDirty ниже сравнивает и то, и другое с этим снимком.
+  var orig = JSON.parse(JSON.stringify(r));
 
   var ref = S.data.ref;
   var coList = S.rows.map(function(x){ return x.company; })
@@ -2049,8 +2127,37 @@ function openSurveySheet(i, presetPos){
     wideLabel: 'Показать все компании справочника'
   });
 
+  var isDirty = function(){
+    var cur = {
+      company: r.company, posOur: r.posOur, posTheir: r.posTheir,
+      grade: el.querySelector('#fGrade').value.trim(),
+      payFrom: el.querySelector('#fFrom').value.trim(),
+      payTo: el.querySelector('#fTo').value.trim(),
+      cur: r.cur, payPer: r.payPer,
+      bonHas: r.bonHas, bonSize: el.querySelector('#fBonSize').value.trim(),
+      bonType: r.bonType, bonPer: r.bonPer,
+      benefits: (r.benefits||[]).slice().sort().join(','),
+      extra: el.querySelector('#fExtra').value.trim(),
+      source: r.source, trust: r.trust,
+      note: el.querySelector('#fNote').value.trim()
+    };
+    return cur.company !== (orig.company||'') || cur.posOur !== (orig.posOur||'') ||
+      cur.posTheir !== (orig.posTheir||'') || cur.grade !== String(orig.grade||'') ||
+      cur.payFrom !== String(orig.payFrom||'') || cur.payTo !== String(orig.payTo||'') ||
+      cur.cur !== orig.cur || cur.payPer !== orig.payPer || cur.bonHas !== (orig.bonHas||'') ||
+      cur.bonSize !== String(orig.bonSize||'') || cur.bonType !== (orig.bonType||'') ||
+      cur.bonPer !== (orig.bonPer||'') ||
+      cur.benefits !== (orig.benefits||[]).slice().sort().join(',') ||
+      cur.extra !== String(orig.extra||'') || cur.source !== (orig.source||'') ||
+      cur.trust !== (orig.trust||'') || cur.note !== String(orig.note||'');
+  };
+
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.dataset.x){
+      if(!isDirty()){ el.remove(); return; }
+      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+      return;
+    }
     var b = e.target.closest('.chips button');
     if(!b) return;
     var box = b.parentNode, act = b.dataset.act, v = b.dataset.v;
@@ -2210,8 +2317,17 @@ function openAddSheet(){
   bindRef('addSeg', 'seg', 'Сегмент', 'segments', function(){ return S.data.segments || []; });
   bindRef('addReg', 'region', 'Регион присутствия', 'regions', function(){ return S.data.regions || []; });
 
+  var isDirty = function(){
+    return !!(el.querySelector('#addName').value.trim() || picked.type || picked.prio ||
+      picked.seg || picked.region || el.querySelector('#addNote').value.trim());
+  };
+
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.dataset.x){
+      if(!isDirty()){ el.remove(); return; }
+      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+      return;
+    }
     var b = e.target.closest('.chips button');
     if(!b) return;
     var act = b.dataset.act;
@@ -2361,6 +2477,22 @@ function doSave(submit){
       u.done = after.done;
       u.ask = after.ask;
       u.surveys = S.surveys.length;
+    }
+
+    // Часть строк принадлежит другому ответственному (см. isOwnedByOther
+    // на сервере) — сохранилось всё остальное, но по этим строкам локальное
+    // состояние теперь расходится с базой, поэтому явно предупреждаем и
+    // предлагаем обновить, а не притворяемся, что сохранилось всё.
+    var blocked = ([]).concat((a.blocked || []), (b.blocked || []));
+    if(blocked.length){
+      var names = blocked.map(function(x){ return (x.company||'')+' — заполняет '+(x.owner||'кто-то другой'); });
+      ask({
+        title: 'Часть строк не сохранена',
+        html: 'Остальное сохранено. Эти записи уже занял другой ответственный:<br>'+
+              names.slice(0,6).map(esc).join('<br>')+(names.length>6?'<br>и ещё '+(names.length-6):''),
+        ok: 'Обновить данные',
+        cancel: 'Понятно'
+      }).then(function(yes){ if(yes) doRefresh_(); });
     }
 
     toast(submit ? 'Отправлено. Спасибо!' : 'Сохранено в ' + a.at, 'ok');
@@ -3034,9 +3166,18 @@ function openUserModal(login){
     if(e.target.dataset.u) userUnits[e.target.dataset.u] = e.target.checked;
   };
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
-  });
+  var origUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; }).sort().join(',');
+  var isDirty = function(){
+    var curUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; }).sort().join(',');
+    return el.querySelector('#umFio').value.trim() !== (u?u.fio:'') ||
+      el.querySelector('#umLogin').value.trim() !== (u?u.login:'') ||
+      el.querySelector('#umRole').value !== (u?u.role:'user') ||
+      el.querySelector('#umPhone').value.trim() !== (u?u.phone:'') ||
+      !!el.querySelector('#umPwd').value.trim() ||
+      el.querySelector('#umActive').checked !== (u?!!u.active:true) ||
+      curUnits !== origUnits;
+  };
+  guardClose(el, isDirty);
 
   el.querySelector('#umSave').onclick = function(){
     var fio = el.querySelector('#umFio').value.trim();
@@ -3256,7 +3397,7 @@ function renderAdminDivisions(){
 
   h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
     '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
-    filtered.map(function(d, idx){
+    filtered.map(function(d){
       return '<tr>'+
         '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
         '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
@@ -3278,9 +3419,24 @@ function renderAdminDivisions(){
   };
 }
 
-function openDivisionModal(unit){
+/**
+ * opts.restricted — режим dir_head: направление и HR BP только на просмотр,
+ * меняются лишь руководитель отдела и ответственный за обзор (см. saveDivision
+ * на сервере — та же граница проверяется и там, это не только фронт).
+ * opts.onSaved — что перерисовать после сохранения (по умолчанию — таблица админки).
+ */
+function openDivisionModal(unit, opts){
+  opts = opts || {};
+  var restricted = !!opts.restricted;
+  var onSaved = opts.onSaved || loadAdminDivisions;
+
   var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
   if(!d) return;
+
+  var lockedField = function(v){
+    return '<div class="pick" style="opacity:.6;pointer-events:none">'+
+      '<span'+(v?'':' class="ph"')+'>'+esc(v || '—')+'</span></div>';
+  };
 
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -3288,13 +3444,13 @@ function openDivisionModal(unit){
     '<div class="sheet-hd"><b>'+esc(d.unit)+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<label class="lbl" style="margin-top:4px">Направление</label>'+
-    pickField('dmDir', d.dir, 'Выбрать направление')+
+    (restricted ? lockedField(d.dir) : pickField('dmDir', d.dir, 'Выбрать направление'))+
     '<label class="lbl">Руководитель отдела</label>'+
     pickField('dmHead', d.head, 'Выбрать из пользователей')+
     '<label class="lbl">Ответственный за обзор</label>'+
     pickField('dmResp', d.resp, 'Выбрать из пользователей')+
     '<label class="lbl">HR BP</label>'+
-    pickField('dmHrbp', d.hrbp, 'Выбрать из пользователей')+
+    (restricted ? lockedField(d.hrbp) : pickField('dmHrbp', d.hrbp, 'Выбрать из пользователей'))+
     '<label class="lbl">Примечание</label>'+
     '<input id="dmNote" value="'+esc(d.note)+'">'+
     '<div style="height:16px"></div>'+
@@ -3309,16 +3465,20 @@ function openDivisionModal(unit){
   // людьми, а подразделение с опечаткой в направлении выпадало из отчётов.
   var picked = { dir: d.dir || '', head: d.head || '', resp: d.resp || '', hrbp: d.hrbp || '' };
 
-  bindPickField(el, 'dmDir', 'Направление', function(){
-    return uniqSortedList((S.data.allUnits || []).map(function(x){ return x.dir; }));
-  }, picked, 'dir');
+  if(!restricted){
+    bindPickField(el, 'dmDir', 'Направление', function(){
+      return uniqSortedList((S.data.allUnits || []).map(function(x){ return x.dir; }));
+    }, picked, 'dir');
+  }
 
   var fioList = function(){
     return uniqSortedList((S.adminUsers || []).map(function(u){ return u.fio; }));
   };
   bindPickField(el, 'dmHead', 'Руководитель отдела', fioList, picked, 'head');
   bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp');
-  bindPickField(el, 'dmHrbp', 'HR BP', fioList, picked, 'hrbp');
+  if(!restricted){
+    bindPickField(el, 'dmHrbp', 'HR BP', fioList, picked, 'hrbp');
+  }
 
   var isDirty = function(){
     var note = el.querySelector('#dmNote').value.trim();
@@ -3326,18 +3486,7 @@ function openDivisionModal(unit){
       picked.resp !== (d.resp || '') || picked.hrbp !== (d.hrbp || '') ||
       note !== (d.note || '');
   };
-
-  el.addEventListener('click', function(e){
-    if(e.target !== el && !e.target.dataset.x) return;
-    if(!isDirty()){ el.remove(); return; }
-    ask({
-      title: 'Есть несохранённые изменения',
-      html: 'Правки по подразделению «'+esc(d.unit)+'» не сохранены. Закрыть без сохранения?',
-      ok: 'Закрыть без сохранения',
-      cancel: 'Остаться',
-      danger: true
-    }).then(function(yes){ if(yes) el.remove(); });
-  });
+  guardClose(el, isDirty);
 
   el.querySelector('#dmSave').onclick = function(){
     var payload = {
@@ -3355,7 +3504,7 @@ function openDivisionModal(unit){
       if(res && res.ok){
         el.remove();
         toast('Подразделение обновлено');
-        loadAdminDivisions();
+        onSaved();
       } else {
         toast((res && res.error) || 'Ошибка');
       }
@@ -3363,6 +3512,75 @@ function openDivisionModal(unit){
       btn.disabled = false; btn.textContent = 'Сохранить';
       toast('Нет связи');
     });
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// dir_head: НАЗНАЧЕНИЕ ОТВЕТСТВЕННЫХ ПО СВОЕМУ НАПРАВЛЕНИЮ
+// ═══════════════════════════════════════════════════════════
+/**
+ * Экран для роли dir_head — тот же список/модалка, что в админской
+ * «Оргструктуре» (openDivisionModal переиспользуется в restricted-режиме),
+ * но сервер отдаёт и принимает только отделы направления, закреплённого
+ * за этим руководителем администратором (см. getDivisions/saveDivision).
+ */
+function openDeptAssign(){
+  S.backTo = null;
+  setTop('Назначить ответственных', userLabel(), true);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="sp"><i></i> Загружаем…</div>';
+  call('apiAdminGetDivisions', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
+      return;
+    }
+    S.adminDivs = r.divisions || [];
+    ensureAdminUsers();
+    drawDeptAssign();
+  }).catch(function(){
+    $('body').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawDeptAssign(){
+  var divs = S.adminDivs || [];
+  var search = ($('deptSearch') ? $('deptSearch').value : '').toLowerCase();
+
+  var filtered = divs.filter(function(d){
+    return !search || d.unit.toLowerCase().indexOf(search) >= 0 ||
+      (d.resp||'').toLowerCase().indexOf(search) >= 0 || (d.head||'').toLowerCase().indexOf(search) >= 0;
+  });
+
+  var myDir = (S.data.user.units || [])[0] || '';
+  var h = '<p class="step-hint">Отделы направления «'+esc(myDir)+'». Назначьте руководителя отдела '+
+    'и ответственного за обзор — они будут вносить данные по рынку.</p>';
+  h += '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="deptSearch" placeholder="Поиск по отделу, ответственным…" value="'+esc(search)+'"></div>'+
+    tblCount(filtered.length, divs.length, ['отдел', 'отдела', 'отделов']) +
+  '</div>';
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+    '<thead><tr><th>Отдел</th><th>Руководитель / Ответственный</th><th>Действия</th></tr></thead><tbody>'+
+    (filtered.length ? filtered.map(function(d){
+      return '<tr>'+
+        '<td><b>'+esc(d.unit)+'</b></td>'+
+        '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
+        '<td><button class="btn-ghost" data-u="'+esc(d.unit)+'" style="border:1px solid var(--line);min-height:32px;font-size:12px">'+ic('pencil')+'Назначить</button></td>'+
+      '</tr>';
+    }).join('') : '<tr><td colspan="3"><div class="empty">Ничего не найдено</div></td></tr>')+
+  '</tbody></table></div>';
+
+  $('body').innerHTML = h;
+  var input = $('deptSearch');
+  input.oninput = drawDeptAssign;
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  $('body').onclick = function(e){
+    var btn = e.target.closest('button[data-u]');
+    if(!btn) return;
+    openDivisionModal(btn.dataset.u, { restricted: true, onSaved: openDeptAssign });
   };
 }
 
@@ -3685,9 +3903,13 @@ function openDictItem(name){
   bindRef('dcSeg', 'segment', 'segments', 'Сегмент');
   bindRef('dcReg', 'region', 'regions', 'Регион');
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
-  });
+  var isDirty = function(){
+    return el.querySelector('#dcName').value.trim() !== cur.name ||
+      cur.segment !== (it ? (it.segment || '') : '') ||
+      cur.region !== (it ? (it.region || '') : '') ||
+      cur.dirs.slice().sort().join(',') !== (it ? (it.dirs || []).slice().sort().join(',') : '');
+  };
+  guardClose(el, isDirty);
 
   el.querySelector('#dcSave').onclick = function(){
     var nm = el.querySelector('#dcName').value.trim();

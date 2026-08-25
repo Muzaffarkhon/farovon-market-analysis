@@ -936,6 +936,14 @@ label.lbl {
 .row.st-no { border-left: 4px solid var(--no); }
 .row.st-ask { border-left: 4px solid var(--warn); }
 
+/* Строку уже сохранил другой ответственный — правит только он сам или admin/cb. */
+.row-locked .seg button,
+.row-locked .more button,
+.row-locked .more textarea {
+  pointer-events: none;
+  opacity: .55;
+}
+
 .row-head {
   padding: 10px 12px;
 }
@@ -1225,6 +1233,13 @@ label.lbl {
   font-size: 11px;
   color: var(--subtle);
   margin-top: 8px;
+}
+
+.sv .sv-locked {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--warn);
 }
 
 /* ─── Нижняя Панель Действий ─── */

@@ -1,6 +1,20 @@
 const { queryOne, queryAll, run, batch } = require('../db/database');
 
 /**
+ * Если у подразделения несколько ответственных («Ответственный за обзор»
+ * допускает несколько ФИО), нельзя, чтобы один затирал уже сохранённые
+ * данные другого. Строка «принадлежит» тому, кто первым её сохранил —
+ * дальше правит только он сам (по ФИО) или admin/cb.
+ */
+function isOwnedByOther(existingOwner, user) {
+  if (user.role === 'admin' || user.role === 'cb') return false;
+  const owner = String(existingOwner || '').trim().toLowerCase();
+  if (!owner) return false;
+  const mine = String(user.fio || user.login || '').trim().toLowerCase();
+  return owner !== mine;
+}
+
+/**
  * Льготы: на фронте это массив (чипы с множественным выбором), в базе —
  * текстовое поле. Раньше массив уходил в libSQL как есть, а обратно приходил
  * строкой — и `r.benefits.slice(0,3).map(...)` в карточке записи падал с
@@ -40,14 +54,30 @@ exports.saveSurveyData = async (req, res) => {
     const newIds = [];
     const stmts = [];
 
-    // 1. Обновляем существующие строки конкурентов
+    // 1. Обновляем существующие строки конкурентов — но только те, что не
+    // заняты другим ответственным (см. isOwnedByOther выше).
+    const editIds = (rows || []).filter(r => r.id).map(r => r.id);
+    const ownerByCid = {};
+    if (editIds.length) {
+      const placeholders = editIds.map(() => '?').join(',');
+      const existing = await queryAll(
+        `SELECT cid, company, updated_by FROM competitors WHERE unit = ? AND cid IN (${placeholders})`,
+        [unit, ...editIds]);
+      existing.forEach(x => { ownerByCid[x.cid] = x; });
+    }
+
+    const blocked = [];
     (rows || []).forEach(r => {
-      if (r.id) {
-        stmts.push({
-          sql: `UPDATE competitors SET actual = ?, note = ?, updated_by = ?, updated_at = ? WHERE cid = ? AND unit = ?`,
-          args: [r.actual || 'уточнить', r.note || '', req.user.fio || req.user.login, now, r.id, unit]
-        });
+      if (!r.id) return;
+      const existing = ownerByCid[r.id];
+      if (existing && isOwnedByOther(existing.updated_by, req.user)) {
+        blocked.push({ id: r.id, company: existing.company, owner: existing.updated_by });
+        return;
       }
+      stmts.push({
+        sql: `UPDATE competitors SET actual = ?, note = ?, updated_by = ?, updated_at = ? WHERE cid = ? AND unit = ?`,
+        args: [r.actual || 'уточнить', r.note || '', req.user.fio || req.user.login, now, r.id, unit]
+      });
     });
 
     // 2. Вставляем добавленные компании
@@ -96,6 +126,7 @@ exports.saveSurveyData = async (req, res) => {
     res.json({
       ok: true,
       newIds,
+      blocked,
       at: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     });
   } catch (err) {
@@ -119,10 +150,31 @@ exports.saveSurveyDetails = async (req, res) => {
     const now = new Date().toISOString();
     const newIds = [];
     const stmts = [];
+    const blocked = [];
+
+    // Владельцы существующих записей — и тех, что редактируют, и тех, что
+    // удаляют: правит/удаляет только тот, кто создал запись (или admin/cb).
+    const touchedSids = ([]).concat(
+      Array.isArray(remove) ? remove : [],
+      (upsert || []).filter(s => s.id && !String(s.id).startsWith('tmp')).map(s => s.id)
+    );
+    const ownerBySid = {};
+    if (touchedSids.length) {
+      const placeholders = touchedSids.map(() => '?').join(',');
+      const existing = await queryAll(
+        `SELECT sid, company, created_by FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
+        [unit, ...touchedSids]);
+      existing.forEach(x => { ownerBySid[x.sid] = x; });
+    }
 
     // Удаление
     if (Array.isArray(remove) && remove.length) {
       remove.forEach(sid => {
+        const existing = ownerBySid[sid];
+        if (existing && isOwnedByOther(existing.created_by, req.user)) {
+          blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'remove' });
+          return;
+        }
         stmts.push({
           sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?",
           args: [sid, unit]
@@ -134,6 +186,12 @@ exports.saveSurveyDetails = async (req, res) => {
     (upsert || []).forEach(s => {
       let sid = s.id;
       if (sid && !sid.startsWith('tmp')) {
+        const existing = ownerBySid[sid];
+        if (existing && isOwnedByOther(existing.created_by, req.user)) {
+          blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'edit' });
+          newIds.push(sid); // не трогали — фронт просто оставит запись как была
+          return;
+        }
         stmts.push({
           sql: `UPDATE surveys
                 SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
@@ -181,6 +239,7 @@ exports.saveSurveyDetails = async (req, res) => {
     res.json({
       ok: true,
       newIds,
+      blocked,
       added: (upsert || []).filter(x => !x.id || x.id.startsWith('tmp')).length,
       updated: (upsert || []).filter(x => x.id && !x.id.startsWith('tmp')).length,
       removed: (remove || []).length

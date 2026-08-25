@@ -320,6 +320,17 @@ exports.resetPassword = async (req, res) => {
 // ─── Оргструктура ───
 exports.getDivisions = async (req, res) => {
   try {
+    // dir_head видит и правит только отделы своего направления — не всю
+    // оргструктуру. Своё направление ему закрепляет администратор (units).
+    if (req.user.role === 'dir_head') {
+      const myDirs = req.user.units || [];
+      if (!myDirs.length) return res.json({ ok: true, divisions: [] });
+      const placeholders = myDirs.map(() => '?').join(',');
+      const divisions = await queryAll(
+        `SELECT * FROM divisions WHERE dir IN (${placeholders}) ORDER BY num ASC, unit ASC`, myDirs);
+      return res.json({ ok: true, divisions });
+    }
+
     const divisions = await queryAll('SELECT * FROM divisions ORDER BY num ASC, unit ASC');
     res.json({ ok: true, divisions });
   } catch (err) {
@@ -333,6 +344,52 @@ exports.saveDivision = async (req, res) => {
   if (!unit) return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
 
   try {
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'cb';
+
+    // dir_head назначает ответственных только по отделам СВОЕГО направления —
+    // само направление (dir) и его руководителя (head) на уровне департамента
+    // он менять не может, это была бы самоназначаемая смена зоны ответственности.
+    // Проверка на сервере, а не только скрытая кнопка на фронте: маршрут
+    // доступен dir_head напрямую.
+    if (!isAdmin) {
+      if (req.user.role !== 'dir_head') {
+        return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
+      }
+      const division = await queryOne('SELECT * FROM divisions WHERE unit = ?', [unit]);
+      if (!division) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
+
+      const myDirs = req.user.units || [];
+      const inMyDirection = myDirs.includes(division.dir);
+      // Строка самого направления (unit === dir) — её головные поля
+      // (head/dir) закрепляет администратор, dir_head её не редактирует.
+      if (!inMyDirection || division.unit === division.dir) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Можно назначать ответственных только по отделам своего направления'
+        });
+      }
+      if (dir !== undefined && dir !== null && dir !== division.dir) {
+        return res.status(403).json({ ok: false, error: 'Менять направление отдела нельзя' });
+      }
+
+      await run(`
+        UPDATE divisions
+        SET head = COALESCE(?, head),
+            resp = COALESCE(?, resp),
+            note = COALESCE(?, note),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE unit = ?
+      `, [head, resp, note, unit]);
+
+      await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+        req.user.login,
+        'правка подразделения (dir_head)',
+        `Подразделение: ${unit}, Рук: ${head}, Отв: ${resp}`
+      ]);
+
+      return res.json({ ok: true, message: 'Подразделение обновлено' });
+    }
+
     await run(`
       UPDATE divisions
       SET dir = COALESCE(?, dir),
