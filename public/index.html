@@ -590,7 +590,7 @@ function pickField(id, value, placeholder){
  * из DOM при сохранении: у кнопки нет .value, и попытка прочитать её как input
  * молча отправила бы на сервер пустую строку.
  */
-function bindPickField(root, id, title, listFn, store, key){
+function bindPickField(root, id, title, listFn, store, key, emptyLabel){
   var btn = root.querySelector('#'+id);
   if(!btn) return;
   btn.onclick = function(){
@@ -598,6 +598,7 @@ function bindPickField(root, id, title, listFn, store, key){
       title: title,
       list: listFn(),
       value: store[key],
+      emptyLabel: emptyLabel,
       onPick: function(v){
         store[key] = v;
         var sp = btn.querySelector('span');
@@ -717,10 +718,16 @@ function openPicker(opts){
       }).join('') +'</div>';
       if(list.length > 300) h += '<div class="pk-empty">Показаны первые 300 — уточните поиск</div>';
     } else {
+      // Текст «для вашего подразделения должности ещё не заведены» был
+      // зашит здесь безусловно — этот пикер общий для компаний, должностей
+      // и (с недавних пор) ФИО в назначении ответственных, и всем остальным
+      // показывал то же самое про должности. opts.emptyLabel — точный текст
+      // под конкретный вызов, дефолт остаётся про должности только там, где
+      // это тот самый пикер (addUnit).
       h += '<div class="pk-empty">'+
         (s ? 'Совпадений нет'
            : (wideOn ? 'Справочник пока пуст'
-                     : 'Для вашего подразделения должности ещё не заведены')) +'</div>';
+                     : (opts.emptyLabel || (opts.addUnit ? 'Для вашего подразделения должности ещё не заведены' : 'Список пуст')))) +'</div>';
     }
 
     // Переключатель на полный список холдинга
@@ -3555,13 +3562,45 @@ function openDivisionModal(unit, opts){
     }, picked, 'dir');
   }
 
-  var fioList = function(){
+  var allFio = function(){
     return uniqSortedList((S.adminUsers || []).map(function(u){ return u.fio; }));
   };
-  bindPickField(el, 'dmHead', 'Руководитель отдела', fioList, picked, 'head');
-  bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp');
+
+  /**
+   * dir_head назначает по своему направлению — раньше пикер показывал всех
+   * ~111 сотрудников компании, среди которых своё направление было не
+   * найти. Сужаем до тех, кто уже как-то связан с направлением: у себя в
+   * профиле имеет юнит из S.adminDivs (он у dir_head и так уже отдан
+   * сервером только по своему направлению — см. getDivisions), либо уже
+   * упомянут в head/resp/hrbp одного из этих подразделений. Если список
+   * пуст (совсем новое направление, никто ещё не привязан) — не запираем
+   * dir_head в тупик, откатываемся на полный список.
+   */
+  var deptFio = function(){
+    var deptUnits = {};
+    (S.adminDivs || []).forEach(function(x){ deptUnits[x.unit] = true; });
+    var names = {};
+    (S.adminUsers || []).forEach(function(u){
+      if((u.units || []).some(function(un){ return deptUnits[un]; })) names[u.fio] = true;
+    });
+    (S.adminDivs || []).forEach(function(x){
+      [x.head, x.resp, x.hrbp].forEach(function(field){
+        String(field || '').split(',').forEach(function(n){
+          n = n.trim();
+          if(n) names[n] = true;
+        });
+      });
+    });
+    var list = uniqSortedList(Object.keys(names));
+    return list.length ? list : allFio();
+  };
+
+  var fioList = restricted ? deptFio : allFio;
+  var fioEmptyLabel = restricted ? 'В этом направлении пока никто не закреплён' : undefined;
+  bindPickField(el, 'dmHead', 'Руководитель отдела', fioList, picked, 'head', fioEmptyLabel);
+  bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp', fioEmptyLabel);
   if(!restricted){
-    bindPickField(el, 'dmHrbp', 'HR BP', fioList, picked, 'hrbp');
+    bindPickField(el, 'dmHrbp', 'HR BP', allFio, picked, 'hrbp');
   }
 
   var isDirty = function(){
