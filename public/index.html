@@ -360,6 +360,14 @@ document.addEventListener('keydown', function(e){
   if(x) x.click(); else top.remove();
 }, false);
 
+/** Иконка в .search-wrap стоит справа и кликабельна — просто фокусирует поле рядом. */
+document.addEventListener('click', function(e){
+  var icon = e.target.closest('.search-wrap svg');
+  if(!icon) return;
+  var input = icon.parentElement.querySelector('input');
+  if(input) input.focus();
+});
+
 /**
  * Внутреннее окно подтверждения вместо confirm().
  * Браузерное показывает домен googleusercontent.com и читается как
@@ -1101,7 +1109,7 @@ function openProfile(){
 
   el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
   el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
-  el.querySelector('#prHelp').onclick = function(){ el.remove(); openHelp(); };
+  el.querySelector('#prHelp').onclick = function(){ openHelp(); };
   el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
   el.querySelector('#prRefresh').onclick = function(){ el.remove(); doRefresh(); };
   el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
@@ -1447,7 +1455,7 @@ function setTop(title, sub, back, icon){
   window.scrollTo(0,0);
 }
 $('btnBack').onclick = function(){
-  var go = function(){ S.dirty = false; renderUnits(); };
+  var go = function(){ S.dirty = false; (S.backTo || renderUnits)(); };
   if(!S.dirty){ go(); return; }
   askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
 };
@@ -1455,7 +1463,8 @@ $('btnBack').onclick = function(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: подразделение (две вкладки)
 // ═══════════════════════════════════════════════════════════
-function openUnit(unit){
+function openUnit(unit, backTo){
+  S.backTo = backTo || renderUnits;
   S.unit = unit;
   S.tab = 'comp';
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
@@ -1635,7 +1644,6 @@ function rowCard(r, i, isNew){
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
 
@@ -1645,6 +1653,10 @@ function rowCard(r, i, isNew){
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
         (S.ro?' disabled':'')+'>'+lbl+'</button>';
     }).join('')+'</div>';
+
+  // «требует уточнения» стоит ПОСЛЕ строки кнопок, а не до неё: иначе
+  // кнопка, только что нажатая, уезжает вниз под курсором.
+  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
 
   h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
   h += '<div class="more hidden">';
@@ -1686,15 +1698,15 @@ function bindRows(){
                                    r.actual==='уточнить'?'st-ask':'');
         card.querySelectorAll('.seg button').forEach(function(x){
           x.classList.toggle('on', x.dataset.v === r.actual); });
-        // подпись «не считается проверенной» появляется и исчезает сразу
-        var head = card.querySelector('.row-head');
-        var mark = head.querySelector('.row-ask');
+        // подпись «не считается проверенной» стоит после строки кнопок —
+        // если поставить её раньше, только что нажатая кнопка уезжает вниз.
+        var seg = card.querySelector('.seg');
+        var mark = card.querySelector('.row-ask');
         if(r.actual === 'уточнить' && !mark){
           var d = document.createElement('div');
           d.className = 'row-ask';
           d.textContent = 'не считается проверенной';
-          var prev = head.querySelector('.row-note-preview');
-          if(prev) head.insertBefore(d, prev); else head.appendChild(d);
+          seg.insertAdjacentElement('afterend', d);
         } else if(r.actual !== 'уточнить' && mark){ mark.remove(); }
         markDirty(); updateProgress(); return;
       }
@@ -3249,17 +3261,25 @@ function renderAdminDivisions(){
         '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
         '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
         '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-        '<td><button class="btn-ghost" style="border:1px solid var(--line);min-height:32px;font-size:12px" onclick="openDivisionModal('+idx+')">'+ic('pencil')+'Назначить</button></td>'+
+        '<td><button class="btn-ghost" data-u="'+esc(d.unit)+'" style="border:1px solid var(--line);min-height:32px;font-size:12px">'+ic('pencil')+'Назначить</button></td>'+
       '</tr>';
     }).join('')+
   '</tbody></table></div>';
 
   $('adminContent').innerHTML = h;
-  $('divSearch').oninput = renderAdminDivisions;
+  var input = $('divSearch');
+  input.oninput = renderAdminDivisions;
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  $('adminContent').onclick = function(e){
+    var btn = e.target.closest('button[data-u]');
+    if(!btn) return;
+    openDivisionModal(btn.dataset.u);
+  };
 }
 
-function openDivisionModal(idx){
-  var d = (S.adminDivs || [])[idx];
+function openDivisionModal(unit){
+  var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
   if(!d) return;
 
   var el = document.createElement('div');
@@ -3300,8 +3320,23 @@ function openDivisionModal(idx){
   bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp');
   bindPickField(el, 'dmHrbp', 'HR BP', fioList, picked, 'hrbp');
 
+  var isDirty = function(){
+    var note = el.querySelector('#dmNote').value.trim();
+    return picked.dir !== (d.dir || '') || picked.head !== (d.head || '') ||
+      picked.resp !== (d.resp || '') || picked.hrbp !== (d.hrbp || '') ||
+      note !== (d.note || '');
+  };
+
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
+    if(e.target !== el && !e.target.dataset.x) return;
+    if(!isDirty()){ el.remove(); return; }
+    ask({
+      title: 'Есть несохранённые изменения',
+      html: 'Правки по подразделению «'+esc(d.unit)+'» не сохранены. Закрыть без сохранения?',
+      ok: 'Закрыть без сохранения',
+      cancel: 'Остаться',
+      danger: true
+    }).then(function(yes){ if(yes) el.remove(); });
   });
 
   el.querySelector('#dmSave').onclick = function(){
@@ -3892,6 +3927,7 @@ function runMaintenanceTool(type, title){
 // СВОДКА ПО HR BP (быстрый вид)
 // ═══════════════════════════════════════════════════════════
 function openDash(){
+  S.backTo = null;
   setTop('Сводка по подразделениям', userLabel(), true);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
@@ -3972,7 +4008,7 @@ function openDash(){
       $('dashSumTblBox').onclick = function(e){
         var tr = e.target.closest('tr[data-u]');
         if(!tr) return;
-        openUnit(tr.dataset.u);
+        openUnit(tr.dataset.u, openDash);
       };
     }
     drawTable();
