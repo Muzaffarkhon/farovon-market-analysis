@@ -67,6 +67,20 @@ async function sendTelegramMessage(chatId, text, options = {}) {
   }
 }
 
+/** Убирает "часики" на нажатой inline-кнопке — без этого Telegram сам снимет их
+ *  через несколько секунд таймаутом, но кнопка выглядит зависшей. */
+async function answerCallbackQuery(callbackQueryId, text) {
+  const tg = getBot();
+  if (!tg || !callbackQueryId) return false;
+  try {
+    await tg.answerCallbackQuery(callbackQueryId, text ? { text } : undefined);
+    return true;
+  } catch (err) {
+    console.error('Failed to answer Telegram callback query:', err.message);
+    return false;
+  }
+}
+
 async function sendMassReminder(senderFio = 'Администрация C&B') {
   const divisions = await queryAll('SELECT unit, resp, head, hrbp FROM divisions');
   const competitors = await queryAll('SELECT unit, actual FROM competitors');
@@ -117,5 +131,6 @@ module.exports = {
   getBotUsername,
   ensureWebhook,
   sendTelegramMessage,
+  answerCallbackQuery,
   sendMassReminder
 };
