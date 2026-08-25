@@ -1692,6 +1692,26 @@ function renderTabComp(){
       'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
   }
 
+  // Смежная группа (см. currentUnitGroup) — компании, которые уже отметили
+  // на других площадках этой же группы, но здесь ещё не добавлены. Не
+  // дублирует их автоматически (оценка «актуально/не актуально» у каждой
+  // площадки может отличаться) — только подсказка в один клик вместо
+  // повторного набора названия.
+  var group = currentUnitGroup();
+  if(group && S.data.companiesByGroup && S.data.companiesByGroup[group] && !S.ro){
+    var known = {};
+    S.rows.concat(S.added).forEach(function(r){ known[norm(r.company)] = true; });
+    var groupSuggestions = S.data.companiesByGroup[group].filter(function(c){ return !known[norm(c)]; });
+    if(groupSuggestions.length){
+      h += '<div class="note">Есть на других площадках этой группы, но не добавлены здесь — добавить в один клик:</div>';
+      h += '<div class="chips" style="margin:8px 0 16px">'+
+        groupSuggestions.map(function(c){
+          return '<button type="button" data-add-group-company="'+esc(c)+'">+ '+esc(c)+'</button>';
+        }).join('')+
+      '</div>';
+    }
+  }
+
   h += '<div class="sec-title">Компании в вашей карте</div>';
   // Список компаний подразделения доходит до нескольких десятков, и найти в нём
   // нужную можно было только глазами. Фильтр — на клиенте, по названию,
@@ -1739,6 +1759,18 @@ function renderTabComp(){
   bindRows();
   $('unitNote').oninput = function(){ S.note = this.value; markDirty(); };
   if($('btnAdd')) $('btnAdd').onclick = openAddSheet;
+
+  $('tabBody').querySelectorAll('button[data-add-group-company]').forEach(function(btn){
+    btn.onclick = function(){
+      S.added.push({
+        id:'', unit:S.unit, company:this.dataset.addGroupCompany, type:'', prio:'',
+        seg:'', region:'', note:'', status:'', src:'', actual:'актуально'
+      });
+      markDirty();
+      renderUnit();
+      toast('Компания добавлена. Не забудьте сохранить.');
+    };
+  });
 
   if($('compSearch')){
     $('compSearch').oninput = function(){
@@ -1879,8 +1911,22 @@ function bindRows(){
  * Должности, которых нет в штатке, идут отдельной группой в конце —
  * их вносили вручную, и терять их нельзя.
  */
+/** Смежная группа текущего подразделения (площадки с одинаковой структурой
+ *  должностей, отличающиеся только регионом/точкой) — см. divisions.group_key. */
+function currentUnitGroup(){
+  var u = (S.data.units || []).filter(function(x){ return x.unit === S.unit; })[0];
+  return u && u.group ? u.group : '';
+}
+
 function survGroups(){
-  var штатка = (S.data.positionsByUnit && S.data.positionsByUnit[S.unit]) || [];
+  // Для подразделения без группы — штатка как раньше, только своя. Для
+  // группы — объединённый уникальный список по всей группе (см. комментарий
+  // к positionsByGroup в authController.js): не заставляет вносить одну и ту
+  // же должность отдельно для каждой площадки.
+  var group = currentUnitGroup();
+  var штатка = group && S.data.positionsByGroup && S.data.positionsByGroup[group]
+    ? S.data.positionsByGroup[group]
+    : ((S.data.positionsByUnit && S.data.positionsByUnit[S.unit]) || []);
   var groups = [], byPos = {};
 
   штатка.forEach(function(p){
@@ -1930,6 +1976,11 @@ function renderTabSurvey(){
     var closed = G.groups.filter(function(g){ return g.items.length; }).length;
     h += '<div class="sec-title">Должности подразделения · закрыто ' + closed +
          ' из ' + G.groups.length + '</div>';
+
+    if(currentUnitGroup()){
+      h += '<p class="step-hint">Список объединён по всем площадкам смежной группы — '+
+           'должность вносится один раз, не по каждой площадке отдельно.</p>';
+    }
 
     h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
       var n = g.items.length;
@@ -3552,6 +3603,15 @@ function openDivisionModal(unit, opts){
     pickField('dmResp', d.resp, 'Выбрать из пользователей')+
     '<label class="lbl">HR BP</label>'+
     (restricted ? lockedField(d.hrbp) : pickField('dmHrbp', d.hrbp, 'Выбрать из пользователей'))+
+    (restricted ? '' :
+      '<label class="lbl">Смежная группа <span style="font-weight:400;color:var(--muted)">'+
+        '(площадки с одинаковой структурой должностей — разные только регионом)</span></label>'+
+      '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
+        'placeholder="например: служба_охраны — оставьте пустым, если площадка одна">'+
+      '<datalist id="dmGroupList">'+
+        uniqSortedList((S.adminDivs || []).map(function(x){ return x.group_key; }).filter(Boolean))
+          .map(function(g){ return '<option value="'+esc(g)+'">'; }).join('')+
+      '</datalist>')+
     '<label class="lbl">Примечание</label>'+
     '<input id="dmNote" value="'+esc(d.note)+'">'+
     '<div style="height:16px"></div>'+
@@ -3615,9 +3675,10 @@ function openDivisionModal(unit, opts){
 
   var isDirty = function(){
     var note = el.querySelector('#dmNote').value.trim();
+    var group = restricted ? (d.group_key || '') : el.querySelector('#dmGroup').value.trim();
     return picked.dir !== (d.dir || '') || picked.head !== (d.head || '') ||
       picked.resp !== (d.resp || '') || picked.hrbp !== (d.hrbp || '') ||
-      note !== (d.note || '');
+      note !== (d.note || '') || group !== (d.group_key || '');
   };
   guardClose(el, isDirty);
 
@@ -3628,7 +3689,8 @@ function openDivisionModal(unit, opts){
       head: picked.head,
       resp: picked.resp,
       hrbp: picked.hrbp,
-      note: el.querySelector('#dmNote').value.trim()
+      note: el.querySelector('#dmNote').value.trim(),
+      group: restricted ? d.group_key || '' : el.querySelector('#dmGroup').value.trim()
     };
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохраняем…';

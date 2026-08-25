@@ -54,6 +54,14 @@ async function migrate() {
   await ensureColumn('dictionary_companies', 'code', 'TEXT');
   await ensureColumn('dictionary_positions', 'code', 'TEXT');
 
+  // Смежная группа: несколько подразделений с одинаковой структурой
+  // должностей, отличающихся только площадкой (например «Служба охраны
+  // Анхор/ТМК/Фаровон/Навобод»). Проставляется вручную админом — угадывать
+  // похожесть по названию на живых данных ненадёжно (единообразия в именах
+  // нет). Используется, чтобы не заставлять человека вводить одни и те же
+  // должности и компании по нескольку раз для каждой площадки отдельно.
+  await ensureColumn('divisions', 'group_key', 'TEXT');
+
   await run(`CREATE TABLE IF NOT EXISTS dictionary_segments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL

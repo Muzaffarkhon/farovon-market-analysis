@@ -350,7 +350,7 @@ exports.getDivisions = async (req, res) => {
 };
 
 exports.saveDivision = async (req, res) => {
-  const { unit, dir, head, resp, hrbp, note } = req.body;
+  const { unit, dir, head, resp, hrbp, note, group } = req.body;
   if (!unit) return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
 
   try {
@@ -407,9 +407,10 @@ exports.saveDivision = async (req, res) => {
           resp = COALESCE(?, resp),
           hrbp = COALESCE(?, hrbp),
           note = COALESCE(?, note),
+          group_key = COALESCE(?, group_key),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [dir, head, resp, hrbp, note, unit]);
+    `, [dir, head, resp, hrbp, note, group, unit]);
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,

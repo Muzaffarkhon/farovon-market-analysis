@@ -49,7 +49,17 @@ async function getUserPayload(user) {
     ? (Array.isArray(user.units) ? user.units : user.units.split(';').map(s => s.trim()).filter(Boolean))
     : [];
 
-  const allUnits = await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC');
+  // group_key может отсутствовать до миграции — та же защита, что у dirs
+  // ниже: вход не должен падать, если сервер стартовал раньше миграции.
+  const allUnits = await (async () => {
+    try {
+      return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key FROM divisions ORDER BY num ASC, unit ASC");
+    } catch (e) {
+      console.error('Колонка group_key недоступна:', e.message);
+      return (await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC'))
+        .map(d => ({ ...d, group_key: '' }));
+    }
+  })();
 
   // Подсчёт прогресса по доступным подразделениям
   const compRows = await queryAll('SELECT unit, actual FROM competitors');
@@ -75,6 +85,7 @@ async function getUserPayload(user) {
     visibleUnits = allUnits.map(d => ({
       unit: d.unit,
       dir: d.dir,
+      group: d.group_key || '',
       total: (compMap[d.unit] || {}).total || 0,
       done: (compMap[d.unit] || {}).done || 0,
       ask: (compMap[d.unit] || {}).ask || 0,
@@ -84,6 +95,7 @@ async function getUserPayload(user) {
     visibleUnits = allUnits.filter(d => unitsList.includes(d.unit)).map(d => ({
       unit: d.unit,
       dir: d.dir,
+      group: d.group_key || '',
       total: (compMap[d.unit] || {}).total || 0,
       done: (compMap[d.unit] || {}).done || 0,
       ask: (compMap[d.unit] || {}).ask || 0,
@@ -152,6 +164,57 @@ async function getUserPayload(user) {
     // Таблицы ещё нет — экран просто останется на общем справочнике.
     console.error('Штатное расписание недоступно:', e.message);
   }
+
+  // Смежные группы (см. миграцию group_key) — площадки с одинаковой
+  // структурой должностей («Служба охраны Анхор/ТМК/Фаровон/Навобод»).
+  // positionsByGroup — объединённый уникальный список должностей по всей
+  // группе, а не по одной площадке: не заставляет вносить одну и ту же
+  // должность несколько раз для каждой площадки. companiesByGroup — уже
+  // использованные кем-то из группы названия компаний, подсказками при
+  // добавлении новой площадки в группу — только имена, не оценки/заметки.
+  // Считаем только для групп, где есть хоть одно подразделение пользователя
+  // — не тянем чужие группы в ответ.
+  const positionsByGroup = {};
+  const companiesByGroup = {};
+  try {
+    const myGroups = [...new Set(visibleUnits.map(x => x.group).filter(Boolean))];
+    if (myGroups.length) {
+      const placeholders = myGroups.map(() => '?').join(',');
+      const groupDivs = await queryAll(
+        `SELECT unit, group_key FROM divisions WHERE group_key IN (${placeholders})`, myGroups);
+      const unitsInGroup = groupDivs.map(d => d.unit);
+      const unitToGroup = {};
+      groupDivs.forEach(d => { unitToGroup[d.unit] = d.group_key; });
+
+      if (unitsInGroup.length) {
+        const up = unitsInGroup.map(() => '?').join(',');
+        const posRows = await queryAll(
+          `SELECT unit, position FROM unit_positions WHERE unit IN (${up})`, unitsInGroup);
+        posRows.forEach(r => {
+          const g = unitToGroup[r.unit];
+          if (!g) return;
+          if (!positionsByGroup[g]) positionsByGroup[g] = new Set();
+          positionsByGroup[g].add(r.position);
+        });
+
+        const compRowsGroup = await queryAll(
+          `SELECT unit, company FROM competitors WHERE unit IN (${up})`, unitsInGroup);
+        compRowsGroup.forEach(r => {
+          const g = unitToGroup[r.unit];
+          if (!g) return;
+          if (!companiesByGroup[g]) companiesByGroup[g] = new Set();
+          companiesByGroup[g].add(r.company);
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Смежные группы недоступны:', e.message);
+  }
+  const setsToArrays = (obj) => {
+    const out = {};
+    Object.keys(obj).forEach(k => { out[k] = [...obj[k]].sort((a, b) => a.localeCompare(b, 'ru')); });
+    return out;
+  };
 
   // Сегменты и регионы — из живых данных, а не из списка, придуманного при
   // переносе с Apps Script: там было 7 сегментов («Телеком», «Банки и Финтех»…),
@@ -304,6 +367,9 @@ async function getUserPayload(user) {
     // при построении чек-листа шага 2 — до загрузки штатного расписания объект
     // всегда был пуст, отсюда «Для этого подразделения штатка не заведена».
     positionsByUnit,
+    // Смежные группы площадок (group_key) — см. комментарий выше по коду.
+    positionsByGroup: setsToArrays(positionsByGroup),
+    companiesByGroup: setsToArrays(companiesByGroup),
     segments,
     regions,
     // Список компаний в стоп-листе ("нельзя включать в обзор") — сейчас нет ни
