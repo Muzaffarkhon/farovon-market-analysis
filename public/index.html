@@ -965,6 +965,9 @@ $('btnMenu').onclick = function(){
   if(r === 'hrbp') {
     items.push(['dash_hrbp', 'clipboard', 'Сводка по HR BP']);
   }
+  if(r === 'dir_head') {
+    items.push(['dept_assign', 'clipboard', 'Назначить ответственных']);
+  }
   if(isElevated){
     items.push(['dash_hrbp', 'clipboard', 'Отчёт по подразделениям']);
   } else {
@@ -994,6 +997,7 @@ $('btnMenu').onclick = function(){
     if(g === 'dash_analytics') switchView('dashboard');
     else if(g === 'admin_panel') switchView('admin');
     else if(g === 'dash_hrbp') openDash();
+    else if(g === 'dept_assign') openDeptAssign();
     else if(g === 'units_view') switchView('units');
     else if(g === 'refresh') doRefresh();
     else if(g === 'help') openHelp();
@@ -1033,6 +1037,11 @@ function renderRail(){
   if(r === 'hrbp'){
     items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon: ICONS.clipboard });
   }
+  // Отдельный пункт, чтобы dir_head сразу видел, куда идти назначать
+  // ответственных по своим отделам — не только через меню профиля.
+  if(r === 'dir_head'){
+    items.push({ id:'dept_assign', view:null, label:'Назначить ответственных', icon: ICONS.clipboard });
+  }
 
   $('railNav').innerHTML = items.map(function(it){
     var on = (S.appView === it.view && S.unit === null) ? ' on' : '';
@@ -1045,6 +1054,7 @@ function renderRail(){
     var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
     if(!it) return;
     if(it.id === 'hrbp_summary' || it.id === 'report'){ openDash(); return; }
+    if(it.id === 'dept_assign'){ openDeptAssign(); return; }
     if(it.view === S.appView && S.unit === null) return;
     if(S.dirty){
       askDirty('Переключить раздел').then(function(yes){
