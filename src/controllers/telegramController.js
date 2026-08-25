@@ -195,35 +195,32 @@ async function handleStatus(chatId) {
     `Записей по должностям: <b>${survs.length}</b>\n\n${unitLines}`);
 }
 
-async function handleUnlinkPrompt(chatId) {
+/**
+ * Раньше /unlink спрашивал подтверждение inline-кнопками (callback_query) —
+ * пользователь сообщил, что кнопки не срабатывали (либо задержка холодного
+ * старта на бесплатном Render, либо сам механизм callback_query ненадёжен
+ * для этого бота — воспроизвести из кода не удалось). Убрал промежуточный
+ * шаг совсем: отвязка — не то действие, которое опасно сделать случайно
+ * (привязать обратно можно тут же командой /link), а у самого приложения
+ * уже есть свой explicit-confirm через ask() для того же действия.
+ */
+async function handleUnlink(chatId) {
   const user = await findByChatId(chatId);
   if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG); return; }
 
-  await sendTelegramMessage(chatId,
-    `Отвязать Telegram от аккаунта <b>${user.fio}</b>? Напоминания приходить перестанут.`, {
-      reply_markup: {
-        inline_keyboard: [[
-          { text: 'Да, отвязать', callback_data: 'unlink_confirm' },
-          { text: 'Отмена', callback_data: 'unlink_cancel' }
-        ]]
-      }
-    });
+  await run('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id]);
+  await sendTelegramMessage(chatId, `Telegram отвязан от аккаунта ${user.fio}. Привязать заново — командой /link.`);
 }
 
-async function handleCallbackQuery(cb) {
-  const chatId = cb.message && cb.message.chat && cb.message.chat.id;
-  if (!chatId) return;
-
-  if (cb.data === 'unlink_confirm') {
-    const user = await findByChatId(chatId);
-    if (user) {
-      await run('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id]);
-      await sendTelegramMessage(chatId, 'Telegram отвязан. Привязать заново можно в любой момент через приложение.');
-    }
-  } else if (cb.data === 'unlink_cancel') {
-    await sendTelegramMessage(chatId, 'Отменено, аккаунт остаётся привязан.');
-  }
-
+/** Старые сообщения с inline-кнопками «Да, отвязать»/«Отмена» могли остаться
+ *  в истории чата у тех, кто видел прошлую версию /unlink, — без ответа на
+ *  callback_query кнопка так и висит с крутящимся индикатором. Отвечаем, но
+ *  саму отвязку через кнопки больше не делаем (см. handleUnlink выше). */
+async function handleStaleCallback(cb) {
+  await sendTelegramMessage(
+    (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id),
+    'Эта кнопка устарела. Наберите /unlink ещё раз.'
+  );
   await answerCallbackQuery(cb.id);
 }
 
@@ -242,7 +239,7 @@ exports.webhook = async (req, res) => {
 
   try {
     const cb = req.body && req.body.callback_query;
-    if (cb) { await handleCallbackQuery(cb); return; }
+    if (cb) { await handleStaleCallback(cb); return; }
 
     const msg = req.body && req.body.message;
     if (!msg || !msg.chat) return;
@@ -264,7 +261,7 @@ exports.webhook = async (req, res) => {
     // /start в поле ввода, человек всё равно может набрать /link сам.
     if (/^\/link\b/i.test(text)) { await handleStart(chatId, null); return; }
     if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
-    if (/^\/unlink\b/i.test(text)) { await handleUnlinkPrompt(chatId); return; }
+    if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
     if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
 
     await sendTelegramMessage(chatId, 'Не понял команду.\n\n' + HELP_TEXT);
