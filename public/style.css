@@ -1,15 +1,18 @@
 /* Farovon Market Analysis - Apple HIG & Linear Design System */
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-  --bg: #f8fafc;
+  --bg: #f6f8fb;
   --card: #ffffff;
   --card-hover: #f1f5f9;
   --card-2: #f1f5f9;
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
-  --text: #0f172a;
-  --muted: #64748b;
-  --subtle: #94a3b8;
+  /* Текст: вторичный был #64748b — на белом это 4.7:1, читается как выцветший.
+     Подтянут до #475569 (7.5:1), третичный до #64748b. Ощущение «серости»
+     интерфейса шло отсюда, а не от шрифта. */
+  --text: #0b1220;
+  --muted: #475569;
+  --subtle: #64748b;
   
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -54,8 +57,8 @@
     --line: #1e293b;
     --line-strong: #334155;
     --text: #f8fafc;
-    --muted: #94a3b8;
-    --subtle: #64748b;
+    --muted: #a8b6c8;
+    --subtle: #7c8da3;
     
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
@@ -99,9 +102,23 @@ html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* cv11 — одноэтажная «g», ss03 — более округлая кириллица; tnum держит
+     цифры в одной сетке, из-за чего колонки чисел в таблицах не «пляшут». */
+  font-feature-settings: 'cv11' 1, 'ss03' 1, 'tnum' 1;
+  font-optical-sizing: auto;
+  letter-spacing: -0.006em;
+}
+
+/* Заголовки — единая шкала на весь интерфейс, чтобы одни и те же по смыслу
+   надписи не набирались в каждом экране своим размером. */
+h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
+  letter-spacing: -0.02em;
 }
 
 .hidden { display: none !important; }
+
+/* ─── Боковая навигация (только десктоп, см. ниже) ─── */
+.rail { display: none; }
 
 /* ─── Шапка и Каркас ─── */
 .top {
@@ -143,14 +160,174 @@ html, body {
   margin-left: 4px;
 }
 
+/* Каркас приложения: прокручивается только .wrap, шапка и панель сохранения
+   остаются на месте.
+
+   Это уже было починено 24.08.2026, но правило лежало ВНУТРИ @media
+   (min-width: 1024px) — то есть только для десктопа. Ниже 1024px у #app
+   по-прежнему не было высоты, `height: calc(100% - 58px)` у .wrap считался
+   от родителя с высотой auto и сам становился auto: .wrap вырастал под
+   контент, а всё, что не помещалось в экран, обрезалось body{overflow:hidden}
+   и было недостижимо — длинные списки просто не пролистывались.
+   min-height:0 обязателен: без него flex-элемент не даёт себя сжать ниже
+   размера содержимого и overflow-y:auto снова не срабатывает. */
+#app {
+  display: flex;
+  height: 100%;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .wrap {
   max-width: 880px;
+  width: 100%;
   margin: 0 auto;
   padding: 16px 16px 130px;
   flex: 1;
-  width: 100%;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Десктопная раскладка (24.08.2026) ───────────────────────────────────
+   На мобильном ничего не меняется — .rail остаётся display:none (см. выше).
+   Каркас (#app/.app-main/.wrap) теперь общий для всех ширин, см. выше. */
+@media (min-width: 1024px) {
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    width: 248px;
+    flex: none;
+    border-right: 1px solid var(--line);
+    background: var(--card);
+    padding: 20px 14px;
+    overflow-y: auto;
+  }
+
+  .rail-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px 22px;
+  }
+  .rail-brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .rail-brand-name {
+    font-weight: 800;
+    font-size: 14.5px;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+  .rail-brand-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .rail-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .rail-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+  }
+  .rail-item svg { flex: none; opacity: .8; }
+  .rail-item:hover { background: var(--card-2); color: var(--text); }
+  .rail-item.on { background: var(--accent-soft); color: var(--accent); }
+  .rail-item.on svg { opacity: 1; }
+
+  .rail-foot {
+    margin-top: auto;
+    padding: 14px 10px 0;
+    border-top: 1px solid var(--line);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+  .rail-foot:hover {
+    background: var(--card-2);
+  }
+  .rail-av {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .rail-who b { display: block; font-size: 12.5px; font-weight: 700; line-height: 1.3; }
+  .rail-who span { font-size: 11px; color: var(--muted); }
+
+
+  /* Мобильная горизонтальная полоска вкладок дублирует то, что теперь делает
+     боковая панель — прячем её, а не только саму панель показываем. */
+  #topNav {
+    display: none !important;
+  }
+
+  .wrap {
+    max-width: none;
+    margin: 0;
+    padding: 24px 32px 60px;
+    height: auto;
+    flex: 1;
+    min-height: 0; /* иначе flex-элемент растягивается по контенту вместо своего скролла */
+  }
+
+  #unitsContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+
+  #unitsContainer .unit {
+    margin-bottom: 0;
+  }
 }
 
 /* ─── Кнопки ─── */
@@ -250,6 +427,20 @@ input, select, textarea {
   box-shadow: var(--shadow-xs);
 }
 
+/* Чекбоксы/радио наследовали общие стили text-input (width:100%, padding,
+   min-height:var(--tap)) — на экране это раздувало обычный чекбокс в
+   огромный синий квадрат на всю ширину поля. Сбрасываем до нормального
+   размера отдельно. */
+input[type="checkbox"], input[type="radio"] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -320,6 +511,36 @@ label.lbl {
 .pick.need {
   border-color: var(--warn);
   background: var(--warn-soft);
+}
+
+/* ─── Строка выбора подразделения (выбор при первом входе, привязка юнитов
+   пользователю) — класс использовался в разметке с самого начала проекта,
+   но CSS для него никогда не был написан. */
+.pickrow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.pickrow:hover {
+  background: var(--card-hover);
+}
+
+.pickrow small {
+  display: block;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ─── Чекбокс с подписью в одну строку (например «Пользователь активен») ─── */
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .pk-search {
@@ -414,13 +635,97 @@ label.lbl {
   display: block;
 }
 
+.login-brand {
+  display: none;
+}
+
+/* На десктопе вход — сплит-экран: брендовая панель слева, форма справа
+   (на мобильном #scrLogin остаётся прежним центрированным блоком выше). */
+@media (min-width: 1024px) {
+  #scrLogin.login {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .login-brand {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    background: linear-gradient(155deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+    color: #fff;
+    padding: 56px;
+  }
+
+  .login-brand .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .login-brand h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin: 0 0 10px;
+    max-width: 420px;
+  }
+
+  .login-brand p {
+    font-size: 14.5px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+    max-width: 400px;
+    margin: 0;
+  }
+
+  .login-form-col {
+    width: 460px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+    padding: 0 40px;
+  }
+
+  .login-form-col .logo,
+  .login-form-col .card,
+  .login-form-col #loginHelp {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  /* Экран выбора подразделения при первом входе — центрированная карточка
+     вместо содержимого на всю ширину. */
+  .unit-picker-card {
+    max-width: 600px;
+    margin: 24px auto 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 24px 28px;
+  }
+}
+
 .card {
   background: var(--card);
-  border: none;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ─── Карточки Подразделений ─── */
@@ -554,7 +859,7 @@ label.lbl {
 }
 
 .tabs button.done small::after {
-  content: " ";
+  content: " ✓";
   color: var(--ok);
 }
 
@@ -631,13 +936,21 @@ label.lbl {
 .row.st-no { border-left: 4px solid var(--no); }
 .row.st-ask { border-left: 4px solid var(--warn); }
 
+/* Строку уже сохранил другой ответственный — правит только он сам или admin/cb. */
+.row-locked .seg button,
+.row-locked .more button,
+.row-locked .more textarea {
+  pointer-events: none;
+  opacity: .55;
+}
+
 .row-head {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .row-name {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.3;
   color: var(--text);
   word-break: break-word;
@@ -669,15 +982,15 @@ label.lbl {
 
 .seg {
   display: flex;
-  gap: 6px;
-  padding: 0 14px 12px;
+  gap: 5px;
+  padding: 0 12px 10px;
 }
 
 .seg button {
   flex: 1;
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--line);
   background: var(--card-2);
@@ -746,6 +1059,30 @@ label.lbl {
   font-weight: 600;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Списки конкурентов/должностей на карточке подразделения: на десктопе
+   2 колонки, раскрытая карточка (детали конкурента / записи по должности)
+   растягивается на всю ширину, чтобы не сжимать таблицы и чипы. */
+@media (min-width: 1024px) {
+  .row-grid, .pos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+
+  .row-grid .row, .pos-grid .pos {
+    margin-bottom: 0;
+  }
+
+  .row-grid .row:has(.more:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
+
+  .pos-grid .pos:has(.pos-items:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ─── Карточка Должности и Зарплат ─── */
@@ -898,6 +1235,13 @@ label.lbl {
   margin-top: 8px;
 }
 
+.sv .sv-locked {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--warn);
+}
+
 /* ─── Нижняя Панель Действий ─── */
 .bar {
   position: fixed;
@@ -955,28 +1299,60 @@ label.lbl {
   min-width: 140px;
 }
 
-/* ─── Уведомления и Модальные окна ─── */
+/* ─── Уведомления и Модальные окна ───
+   Уведомление стоит справа под шапкой, а не по центру внизу: снизу его
+   перекрывала панель сохранения, и подтверждение сохранения было не видно
+   ровно в тот момент, когда оно нужно. */
 .toast {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 84px;
+  top: 70px;
+  right: 16px;
   z-index: 80;
-  background: #0f172a;
-  color: #ffffff;
-  padding: 10px 18px;
-  border-radius: var(--radius-full);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: var(--radius);
   font-size: 13.5px;
   font-weight: 500;
-  max-width: 90vw;
-  text-align: center;
+  line-height: 1.45;
+  max-width: min(360px, calc(100vw - 32px));
   box-shadow: var(--shadow-lg);
+  animation: toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
+.toast.t-ok { border-left-color: var(--ok); }
+.toast.t-no { border-left-color: var(--no); }
+
+.toast-ic {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.toast.t-ok .toast-ic { color: var(--ok); }
+.toast.t-no .toast-ic { color: var(--no); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+/* На узком экране шапка ниже, а места справа нет — растягиваем на ширину. */
+@media (max-width: 640px) {
   .toast {
-    background: #f8fafc;
-    color: #0f172a;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
   }
 }
 
@@ -1088,6 +1464,19 @@ label.lbl {
   }
 }
 
+/* Модалка пользователя (openUserModal) шире на десктопе — под неё есть место,
+   и пары полей (логин/роль, телефон/пароль) встают в 2 колонки вместо стопки. */
+@media (min-width: 1024px) {
+  .um-modal {
+    max-width: 640px;
+  }
+  .um-modal .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+  }
+}
+
 .sheet-hd {
   display: flex;
   align-items: center;
@@ -1104,6 +1493,110 @@ label.lbl {
   font-size: 16.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+/* ─── Меню «⋮» (профиль/навигация) — класс использовался без единой строчки
+   CSS, кнопки слипались в браузерную вёрстку по умолчанию вплотную друг
+   к другу. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* ─── Меню «⋮»: панель, закреплённая у шапки (не полноэкранный оверлей) ───
+   Одинаково на мобильном и десктопе. Клик вне панели закрывает её —
+   .menu-scrim прозрачный, а не затемняющий фон. */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: transparent;
+}
+
+.menu-pop {
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  z-index: 66;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+}
+
+.menu-pop-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.menu-pop-hd b {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.menu-x {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: auto;
+  padding: 4px;
+  color: var(--muted);
+}
+
+.menu-x:hover {
+  color: var(--text);
+  background: var(--card-2);
+}
+
+/* ─── Карточка профиля (экран «Профиль») ─── */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-av {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.profile-fio {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 /* ─── Меню Навигации ─── */
@@ -1264,6 +1757,26 @@ label.lbl {
   margin-top: 10px;
 }
 
+/* На десктопе вилки идут в 2 колонки; раскрытая карточка (таблица компаний
+   в fork-body) растягивается на всю ширину, иначе 5-колоночная таблица не
+   помещается в половину экрана. */
+@media (min-width: 1024px) {
+  .fork-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .fork-grid .fork-box {
+    margin-bottom: 0;
+  }
+
+  .fork-grid .fork-box:has(.fork-body:not(.hidden)) {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ─── Бейджи ─── */
 .badge {
   display: inline-flex;
@@ -1341,6 +1854,32 @@ label.lbl {
   margin-bottom: 16px;
 }
 
+/* Вкладки админки и дашборда закреплены встык к шапке: .wrap скроллится сам,
+   поэтому sticky считается от него. Отрицательные поля растягивают подложку
+   на всю ширину .wrap, иначе при прокрутке содержимое видно в щели по бокам.
+   Смещения завязаны на padding у .wrap (16px здесь, 24/32px на десктопе):
+   Chrome считает залипание от границы content box, то есть уже ниже шапки, и
+   без компенсации между шапкой и вкладками оставался просвет, сквозь который
+   проезжал текст. При точном совпадении исходное и закреплённое положение
+   одинаковы — при прокрутке нет скачка. */
+.sub-tabs--sticky {
+  position: sticky;
+  top: -16px;
+  z-index: 25;
+  margin: -16px -16px 16px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+@media (min-width: 1024px) {
+  .sub-tabs--sticky {
+    top: -24px;
+    margin: -24px -32px 16px;
+    padding: 14px 32px;
+  }
+}
+
 .sub-tab {
   min-height: 36px;
   padding: 0 14px;
@@ -1388,6 +1927,37 @@ label.lbl {
 .dash-filters select {
   flex: 1;
   min-width: 140px;
+}
+
+/* ─── Поле поиска с иконкой (замена эмодзи-плейсхолдеров на SVG) ───
+   Иконка живёт вне <input> — placeholder не может содержать разметку. */
+.search-wrap {
+  position: relative;
+}
+
+.search-wrap svg {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--subtle);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 8px;
+}
+
+.search-wrap svg:hover {
+  color: var(--text);
+  background: var(--hover, rgba(0,0,0,0.04));
+}
+
+.search-wrap input {
+  padding-right: 36px;
+}
+
+.dash-filters .search-wrap {
+  flex: 2;
+  min-width: 180px;
 }
 
 /* ─── Карточки пользователей и подразделений ─── */
@@ -1535,71 +2105,799 @@ label.lbl {
   background: var(--card-hover);
 }
 
-/* ─── HR BP Progress Bars ─── */
-.prog-row {
-  background: var(--card);
-  border-radius: 16px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.02);
+/* ─── Таблица пользователей (только десктоп; ниже 1024px показываются .u-cards) ───
+   Переключение живёт здесь, а не в общем десктопном медиа-запросе выше по файлу:
+   тот идёт раньше и базовое display:none его перебивало бы. */
+.u-tblwrap { display: none; }
+
+@media (min-width: 1024px) {
+  .u-tblwrap { display: block; }
+  .u-cards { display: none; }
 }
-.prog-hd {
+
+.u-tbl td { vertical-align: middle; }
+
+.u-t-fio { font-weight: 700; }
+
+.u-t-login {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.u-t-dim { color: var(--muted); white-space: nowrap; }
+
+.u-t-acts {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  font-weight: 600;
-  font-size: 15px;
+  gap: 6px;
 }
+
+.u-t-acts button {
+  width: auto;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.u-t-acts .btn-icon {
+  width: 30px;
+  padding: 0;
+}
+
+.u-t-acts .btn-icon svg {
+  margin: 0;
+}
+
+.b-tg { background: var(--accent-soft); color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ДОПИСАННЫЕ СТИЛИ 24.08.2026
+
+   Аудит: прогнал все классы из index.html против style.css. Из 174 классов
+   у 7 групп не было НИ ОДНОЙ строчки CSS — они рисовались браузерной вёрсткой
+   по умолчанию. Это ровно те места, на которые жаловался пользователь
+   («как будто написано одним сообщением», «окно помощь слишком узкое и
+   строки рядом»). Тот же паттерн, что уже ловили с .pickrow/.checkline/.menu
+   и .dash — наследие переноса с Apps Script, где разметку писали, а стили
+   к ней не доносили.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Диалоги ask()/askText() — подтверждения и ввод строки ───
+   Использовались во всём приложении (выход без сохранения, удаление
+   пользователя, смена периода), но выглядели как голый текст с системными
+   кнопками вплотную. */
+.dlg {
+  padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+}
+
+.dlg-t {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.dlg-x {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.dlg-in {
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.dlg-a {
+  display: flex;
+  gap: 10px;
+}
+
+.dlg-a button {
+  flex: 1;
+  min-height: var(--tap);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dlg-a button:hover {
+  background: var(--card-hover);
+}
+
+/* Селектор `.dlg-a button` (0,1,1) сильнее, чем `.btn-primary`/`.btn-danger`
+   (0,1,0), поэтому нейтральный фон и цвет текста из правила выше побеждали —
+   и кнопка подтверждения в диалоге выглядела серой и выключенной, независимо
+   от того, обычное это действие или опасное. Здесь цвет задаётся с той же
+   специфичностью, что и перебивающее правило. */
+.dlg-a button.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.dlg-a button.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.dlg-a button.btn-danger {
+  background: var(--no);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.dlg-a button.btn-danger:hover {
+  background: var(--no-hover);
+}
+
+/* ─── Полосы прогресса (в таблицах дашборда: HR BP, дирекции, льготы) ───
+   Раньше эти блоки шли стопкой карточек .prog-row, у которых не было ни
+   строчки CSS: полосы не рисовались вообще, а соседние <span> стояли инлайн
+   вплотную — «Подразделений: 1 / 23Связей: 14 / 148». Сами списки переведены
+   в таблицы, здесь осталась только сама полоса. */
 .prog-bar-bg {
   height: 8px;
-  background: var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
   overflow: hidden;
-  margin-bottom: 10px;
 }
+
 .prog-bar-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
   transition: width 0.4s ease;
 }
-.prog-sub {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--muted);
-}
-.prog-sub b {
-  color: var(--text);
-  font-weight: 600;
-}
-.pill {
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.p-ok { background: var(--ok-soft); color: var(--ok-hover); }
-.p-mid { background: var(--warn-soft); color: var(--warn-hover); }
-.p-no { background: var(--no-soft); color: var(--no-hover); }
 
-/* Overriding sec-title */
-.sec-title {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--subtle);
-  margin: 24px 0 12px;
+/* ─── Строка кнопок дашборда (сброс фильтров / экспорт) ─── */
+.dash-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
+/* ─── Модалка «Как заполнять» ───
+   <ol> без стилей: браузерный отступ маркеров ~16px прижимал текст к номеру,
+   строки шли без интервала. Отсюда «слишком узкая и слишком рядом стоят». */
+.howto {
+  margin: 0;
+  padding-left: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
 
-#app {
-  height: 100%;
+.howto li {
+  margin-bottom: 16px;
+  padding-left: 4px;
+}
+
+.howto li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.howto li:last-child {
+  margin-bottom: 0;
+}
+
+.howto b {
+  display: block;
+  color: var(--text);
+  font-weight: 650;
+  font-size: 14.5px;
+  margin-bottom: 3px;
+}
+
+.callout-h {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 8px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* Помощь длинная и на десктопе помещается шире дефолтных 540px. */
+@media (min-width: 900px) {
+  .howto-sheet {
+    max-width: 680px;
+  }
+}
+
+/* ─── Блок перехода к шагу 2 ─── */
+.next-step {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
+
+.next-step > p,
+.next-step > div:not([class]) {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ─── Подсказки автодополнения компании ─── */
+.sug {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.sug button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+
+.sug button:last-child {
+  border-bottom: none;
+}
+
+.sug button:hover {
+  background: var(--accent-soft);
+}
+
+/* ═══ Закреплённые шапки таблиц ═══════════════════════════════════════════
+   Работает только если у прокручиваемого контейнера есть своя высота: sticky
+   считается относительно ближайшего скроллящегося предка. Раньше .tblwrap имел
+   только overflow-x, вертикально скроллилась вся страница, и thead уезжал
+   вместе с ней. Даём .tblwrap собственный max-height — тогда длинные таблицы
+   (326 подразделений, 110 пользователей, журнал аудита) скроллятся внутри
+   себя с закреплённой шапкой, а короткие остаются как были. */
+.tblwrap {
+  max-height: min(68vh, 720px);
+  overflow-y: auto;
+}
+
+.co-tbl thead th,
+.co-tbl tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Полупрозрачный фон дал бы просвечивание строк под шапкой при прокрутке. */
+  background: var(--card-2);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+
+/* Первая колонка длинных таблиц остаётся видна при горизонтальной прокрутке. */
+.co-tbl--pin td:first-child,
+.co-tbl--pin th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  z-index: 1;
+}
+
+.co-tbl--pin thead th:first-child,
+.co-tbl--pin tr:first-child th:first-child {
+  z-index: 3;
+  background: var(--card-2);
+}
+
+.co-tbl--pin tr:hover td:first-child {
+  background: var(--card-hover);
+}
+
+/* Числовые колонки — моноширинные цифры, чтобы разряды стояли в столбик. */
+.co-tbl td.num,
+.co-tbl th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── Счётчик строк над таблицей ─── */
+.tbl-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 2px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tbl-count b {
+  color: var(--text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tbl-count .tbl-count-of {
+  font-weight: 500;
+  color: var(--subtle);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ДВА ШАГА НА КАРТОЧКЕ ПОДРАЗДЕЛЕНИЯ
+   Кольцо показывало один процент — проверку компаний, и карточка писала
+   «100%», когда данные по рынку (главное, ради чего собирается обзор) не
+   внесены вовсе. Шага два, значит и полос две; каждая подписана цифрой,
+   потому что «14 из 14» и «0 записей» — принципиально разные состояния.
+   ═══════════════════════════════════════════════════════════ */
+.u-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+
+@media (max-width: 560px) {
+  .u-bars { grid-template-columns: 1fr; gap: 8px; }
+}
+
+.u-bar-t {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.u-bar-t b {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.u-bar-track {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
+  overflow: hidden;
+}
+
+/* i — сделано, u — «уточнить»: отложенное, но не пустое место. */
+.u-bar-track i {
+  display: block;
+  background: var(--line-strong);
+  transition: width 0.25s ease;
+}
+
+.u-bar-track u {
+  display: block;
+  background: var(--warn);
+  opacity: 0.45;
+}
+
+.u-bar.is-part .u-bar-track i { background: var(--warn); }
+.u-bar.is-ok .u-bar-track i { background: var(--ok); }
+.u-bar.is-ok .u-bar-t b { color: var(--ok); }
+
+/* ─── Вложенные вкладки (справочники внутри админки) ───
+   Верхний ряд вкладок уже занят разделами админки; этот — второй уровень,
+   поэтому он тише: без залипания и с чуть меньшим кеглем, иначе два
+   одинаковых ряда кнопок подряд читаются как один сломанный. */
+.sub-tabs--inner {
+  position: static;
+  margin-bottom: 4px;
+  padding-top: 0;
+}
+
+.sub-tabs--inner .sub-tab {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+/* ─── Бейдж действия в журнале ─── */
+.log-act {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--card-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.log-act--none {
+  background: transparent;
+  color: var(--subtle);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   КОМПАКТНАЯ ШАПКА ЭКРАНА И ПАНЕЛЬ НАД ТАБЛИЦЕЙ
+
+   Было: карточка периода шириной 520px в колонку (заголовок, значение,
+   состояние, кто изменил, кнопка), под ней отдельной строкой итоги, под
+   ними отдельной строкой поиск, и только потом таблица — при экране 900px
+   в высоту таблица начиналась примерно на 500-й точке, то есть больше
+   половины экрана уходило на четыре строки текста. Справа от всех этих
+   блоков (ширина 520px при доступных 1600px) не было ничего.
+
+   Стало: те же данные в один ряд по горизонтали — сведения слева, цифры
+   в середине, действие справа. Ниже одна строка «поиск + счётчик».
+   Таблица начинается сразу и занимает всю оставшуюся высоту.
+   ═══════════════════════════════════════════════════════════ */
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-xs);
+}
+
+.page-head-main {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.page-head-k {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--subtle);
+}
+
+.page-head-v {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.page-head-s {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Цифры вынесены в шапку: раньше они шли отдельной строкой-заголовком
+   капсом и стоили ещё одной высоты. */
+.page-head-stats {
+  display: flex;
+  gap: 22px;
+  flex: none;
+}
+
+.phs {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.phs b {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.phs span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.page-head-act {
+  flex: none;
+  width: auto;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 16px;
+}
+
+/* Поиск и счётчик в одну строку — счётчик больше не занимает свою. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.toolbar .search-wrap {
+  flex: 1 1 260px;
+  margin: 0;
+  max-width: 520px;
+}
+
+.toolbar .tbl-count {
+  margin: 0;
+  flex: none;
+}
+
+.toolbar-act {
+  flex: none;
+  width: auto;
+  margin-left: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13.5px;
+}
+
+/* Таблица занимает остаток экрана, а не фиксированные 68vh: при компактной
+   шапке это заметно больше строк без прокрутки страницы. */
+.tblwrap--page {
+  max-height: calc(100vh - 250px);
+}
+
+@media (max-width: 700px) {
+  .page-head-act, .toolbar-act { margin-left: 0; }
+  .page-head-stats { gap: 16px; }
+  .tblwrap--page { max-height: min(68vh, 720px); }
+}
+
+/* ═══ Множественный выбор (направления и т.п.) ═══════════════════════════
+   Раньше направления выводились простынёй из 30+ «чипов»: отфильтровать
+   нельзя, сколько отмечено — непонятно, список занимал экран целиком. */
+.mp-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.mp-bar span { margin-right: auto; font-weight: 600; }
+
+.mp-bar button {
+  width: auto;
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: var(--accent);
+}
+
+.mp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.mp-row:last-child { border-bottom: none; }
+.mp-row:hover { background: var(--card-hover); }
+
+/* Собственная «галочка»: нативный чекбокс здесь наследовал стиль поля ввода
+   и раздувался — этот же дефект мы уже чинили у .checkline. */
+.mp-row i {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--card);
+  position: relative;
+}
+
+.mp-row.on i {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mp-row.on i::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.mp-row.on span { font-weight: 600; }
+
+/* Отметки под кнопкой выбора — только чтение, снимаются крестиком. */
+.chips--ro { margin-top: 8px; }
+
+.chips--ro button i {
+  font-style: normal;
+  margin-left: 6px;
+  opacity: 0.55;
+}
+
+/* ─── ID в справочнике ─── */
+.dict-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ─── Профиль: цифры и разделитель ─── */
+.profile-facts {
+  display: flex;
+  gap: 18px;
+  padding: 12px 2px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+.pf { display: flex; flex-direction: column; line-height: 1.15; }
+.pf b { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.pf span { font-size: 11.5px; color: var(--muted); }
+
+.profile-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 12px 0;
+}
+
+.profile-ver {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--subtle);
+  padding: 12px 0 2px;
+}
+
+/* Место кнопок «Заблокировать» и «В архив» у защищённых учёток: показываем,
+   что действие недоступно, а не оставляем дыру в ряду кнопок. */
+.btn-icon.is-locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--subtle);
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+/* ─── Состояние данных в «Сервисе» ─── */
+.st-card { padding: 12px 14px; }
+.st-k {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--subtle);
+}
+.st-v {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 2px 0 1px;
+}
+.st-s { font-size: 12px; color: var(--muted); line-height: 1.35; }
+
+/* Предупреждение, когда обязательная загрузка ещё не выполнена. */
+.note--warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
+  color: var(--text);
+}
+
+/* Успешное состояние. Базовый .note янтарный — это предупреждение, и «данные
+   загружены» в нём читалось как тревога. */
+.note--ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: var(--ok-border);
+}
+
+.note--ok svg { vertical-align: -2px; margin-right: 2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   КОМПАКТНЫЙ РЕЖИМ: узкий экран или окно Telegram
+
+   В мини-приложении Telegram доступной ширины меньше, чем в мобильном
+   браузере, и над страницей всегда стоит собственная шапка клиента.
+   Интерфейс, рассчитанный на телефон, выглядит там крупным: три вкладки
+   дашборда переставали помещаться в строку и вставали друг под друга,
+   четыре карточки показателей занимали экран целиком, до содержимого
+   приходилось прокручивать.
+
+   Класс ставится из JS (см. index.html) — по ширине либо по факту запуска
+   внутри Telegram: на десктопном клиенте окно шире 560px, но теснее не
+   становится.
+   ═══════════════════════════════════════════════════════════ */
+html.compact { font-size: 13.5px; }
+
+.compact .wrap { padding: 12px 12px 110px; }
+
+.compact .top {
+  min-height: 48px;
+  padding: 7px 12px;
+  gap: 8px;
+}
+.compact .top h1 { font-size: 14.5px; }
+.compact .top .sub { display: none; }
+
+/* Вкладки — в одну прокручиваемую строку вместо стопки. Обрезание тени
+   overflow'ом здесь допустимо: строка вкладок плоская. */
+.compact .sub-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+}
+.compact .sub-tabs::-webkit-scrollbar { display: none; }
+
+.compact .sub-tab {
+  flex: none;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  min-height: 32px;
+}
+.compact .sub-tab svg { width: 14px; height: 14px; }
+
+/* Показатели: две колонки вместо авторазмещения, компактнее по вертикали. */
+.compact .kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.compact .kpi-card { padding: 10px 11px; }
+.compact .kpi-t { font-size: 10px; }
+.compact .kpi-v { font-size: 20px; }
+.compact .kpi-s { font-size: 10.5px; }
+
+.compact .card { padding: 12px; }
+.compact .sec-title { font-size: 12px; margin: 14px 0 8px; }
+
+.compact .unit { padding: 11px 12px; gap: 10px; }
+.compact .u-name { font-size: 14px; }
+.compact .u-bars { gap: 6px; margin-top: 8px; }
+
+.compact .dash-filters { gap: 8px; }
+.compact input, .compact select, .compact textarea {
+  font-size: 14px;
+  padding: 8px 10px;
+}
+/* 14px — нижняя граница, при которой iOS не увеличивает страницу
+   при фокусе на поле. Меньше ставить нельзя. */
+
+.compact .btn-line, .compact .btn-primary { min-height: 38px; font-size: 13.5px; }
+.compact .toolbar { gap: 8px; margin-bottom: 8px; }
+.compact .page-head { padding: 10px 12px; gap: 12px; }
+.compact .page-head-act { margin-left: 0; }
+.compact .sheet-in { padding: 14px; }
+.compact .row { padding: 11px 12px; }

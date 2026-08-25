@@ -23,7 +23,7 @@ async function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, config.jwtSecret);
     const user = await queryOne(
-      'SELECT id, login, fio, role, phone, units, active, last_login_at FROM users WHERE LOWER(login) = LOWER(?)',
+      "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
       [decoded.login]
     );
 
@@ -58,7 +58,50 @@ function requireRoles(...roles) {
   };
 }
 
+/**
+ * Ядро проверки по конструктору ролей и доступов (см. src/config/capabilities.js).
+ * 'admin' всегда возвращает true без обращения к таблице — защищённая роль,
+ * не может быть урезана через конструктор ни при каких обстоятельствах.
+ *
+ * Экспортируется отдельно от requireCapability, чтобы контроллеры, где один
+ * маршрут обслуживает два разных действия (saveUser — и создание, и правку
+ * одним POST), могли различить их внутри обработчика, а не только на уровне
+ * маршрута.
+ */
+async function hasCapability(user, capability) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  try {
+    const row = await queryOne(
+      'SELECT 1 AS ok FROM role_capabilities WHERE role = ? AND capability = ?',
+      [user.role, capability]
+    );
+    return !!row;
+  } catch (err) {
+    console.error('hasCapability error:', err.message);
+    // Таблицы может не быть, если сервер поднялся раньше миграции (см.
+    // server.js — миграция не блокирует старт). Отказываем в доступе, а не
+    // роняем запрос: 500 на живом проде хуже, чем временное «нет прав».
+    return false;
+  }
+}
+
+/** Доступ к маршруту разрешён, если у роли есть хотя бы одно из перечисленных прав. */
+function requireCapability(...capabilities) {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ ok: false, error: 'AUTH_REQUIRED' });
+    }
+    for (const cap of capabilities) {
+      if (await hasCapability(req.user, cap)) return next();
+    }
+    return res.status(403).json({ ok: false, error: 'ACCESS_DENIED', message: 'Недостаточно прав доступа' });
+  };
+}
+
 module.exports = {
   authMiddleware,
-  requireRoles
+  requireRoles,
+  requireCapability,
+  hasCapability
 };

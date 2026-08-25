@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Анализ рынка — Конкурентная карта Фаровон</title>
+  <title>Обзор рынка вознаграждений</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232563eb'/%3E%3Cpath d='M4 19V10M12 19V5M20 19V13' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,22 +15,34 @@
 
 <!-- ══════════ ВХОД ══════════ -->
 <div id="scrLogin" class="login hidden">
-  <div class="logo">
-    <div class="logo-icon"></div>
-    <b>Анализ рынка</b>
-    <span>Конкурентная карта · Фаровон</span>
+  <!-- Видна только от 1024px (см. .login-brand в style.css) — на мобильном
+       вход остаётся прежним центрированным экраном. -->
+  <div class="login-brand">
+    <div class="brand-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M12 19V5M20 19V13" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </div>
+    <h1>Обзор рынка вознаграждений</h1>
+    <p>Совместный сбор и анализ данных о зарплатах, бонусах и льготах на рынке труда. Для руководителей направлений, HR&nbsp;BP, C&amp;B и компаний — участников обзора.</p>
   </div>
 
-  <div id="loginCard" class="card">
-    <div id="loginErr" class="err hidden"></div>
-    <label class="lbl" style="margin-top:0">Логин</label>
-    <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
-    <label class="lbl">Пароль</label>
-    <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
-    <div style="height:18px"></div>
-    <button id="btnLogin" class="btn-primary">Войти в систему</button>
+  <div class="login-form-col">
+    <div class="logo">
+      <div class="logo-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+      <b>Обзор рынка</b>
+      <span>Обзор вознаграждений · Фаровон</span>
+    </div>
+
+    <div id="loginCard" class="card">
+      <div id="loginErr" class="err hidden"></div>
+      <label class="lbl" style="margin-top:0">Логин</label>
+      <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
+      <label class="lbl">Пароль</label>
+      <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div style="height:18px"></div>
+      <button id="btnLogin" class="btn-primary">Войти в систему</button>
+    </div>
+    <div id="loginHelp"></div>
   </div>
-  <div id="loginHelp"></div>
 </div>
 
 <!-- ══════════ ЗАГРУЗКА ══════════ -->
@@ -37,24 +50,85 @@
 
 <!-- ══════════ ПРИЛОЖЕНИЕ ══════════ -->
 <div id="app" class="hidden">
-  <div class="top">
-    <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
-    <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
-    <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
-    <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
-            aria-label="Меню">⋮</button>
+  <!-- Видна только от 1024px и шире (см. .rail в style.css) — на мобильном
+       остаётся прежняя навигация через ⋮ и нижний #topNav. -->
+  <div class="rail" id="rail">
+    <div class="rail-brand">
+      <div class="rail-brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V10M12 19V5M20 19V13" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <div class="rail-brand-name">Обзор рынка</div>
+        <div class="rail-brand-sub">Фаровон · C&amp;B</div>
+      </div>
+    </div>
+    <div class="rail-nav" id="railNav"></div>
+    <button class="rail-foot" id="railFootBtn" title="Профиль">
+      <div class="rail-av" id="railAv"></div>
+      <div class="rail-who"><b id="railFio"></b><span id="railRole"></span></div>
+    </button>
   </div>
-  <div id="topNav" class="nav-tabs hidden"></div>
-  <div class="wrap" id="body"></div>
-  <div class="bar hidden" id="bar">
-    <div class="bar-in">
-      <div class="prog"><b id="progT"></b><i id="progS"></i></div>
-      <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+
+  <div class="app-main">
+    <div class="top">
+      <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
+      <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
+      <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
+      <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
+              aria-label="Меню">⋮</button>
+    </div>
+    <div id="topNav" class="nav-tabs hidden"></div>
+    <div class="wrap" id="body"></div>
+    <div class="bar hidden" id="bar">
+      <div class="bar-in">
+        <div class="prog"><b id="progT"></b><i id="progS"></i></div>
+        <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════
+// TELEGRAM MINI APP: подключение SDK было — инициализации не было
+// ═══════════════════════════════════════════════════════════
+// telegram-web-app.js подключён в <head>, но Telegram.WebApp.ready()/expand()
+// нигде не вызывались. Без expand() Telegram держит мини-приложение в
+// уменьшённом окне по умолчанию (шрифт/элементы кажутся крупными относительно
+// доступного места), а без отключения вертикальных свайпов жест скролла
+// внутри приложения перехватывается самим Telegram (сворачивает окно вместо
+// прокрутки контента) — совпадает с «скролл не работает». В обычном браузере
+// эффекта нет, поэтому баг был не виден при тестировании вне бота.
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if(!tg) return;
+  tg.ready();
+  if(tg.expand) tg.expand();
+  if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  // Внутри Telegram окно уже, чем обычный мобильный браузер, и рядом с ним
+  // всегда стоит собственная шапка клиента. Интерфейс, рассчитанный на
+  // телефон, здесь выглядит крупным: вкладки перестают помещаться в строку,
+  // карточки занимают экран целиком. Помечаем документ — компактный режим
+  // ниже включается и по этой метке, независимо от ширины: на десктопном
+  // Telegram окно шире 560px, но тесноты это не отменяет.
+  document.documentElement.classList.add('tg');
+})();
+
+/**
+ * Компактный режим: узкий экран или окно Telegram. Класс на <html>, чтобы
+ * одни и те же правила не пришлось дублировать в медиазапросе и в селекторе
+ * для Telegram.
+ */
+(function(){
+  function apply(){
+    var narrow = window.innerWidth <= 560;
+    document.documentElement.classList.toggle('compact',
+      narrow || document.documentElement.classList.contains('tg'));
+  }
+  apply();
+  window.addEventListener('resize', apply);
+})();
+
 // ═══════════════════════════════════════════════════════════
 // СОСТОЯНИЕ
 // ═══════════════════════════════════════════════════════════
@@ -84,6 +158,111 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
+/**
+ * Единый набор SVG-иконок (Apple HIG / Linear стиль — тонкая линия, currentColor).
+ * Эмодзи в интерфейсе не используются нигде — только эти иконки, чтобы стиль
+ * не расходился между экранами и не превращался в «стикеры».
+ */
+var ICONS = {
+  dashboard: '<path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  admin: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.6"/>',
+  clipboard: '<path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  units: '<rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>',
+  users: '<circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19c.7-3.3 3-5 5.5-5s4.8 1.7 5.5 5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17" cy="8.5" r="2.6" stroke="currentColor" stroke-width="1.9"/><path d="M15.3 19c.5-2.6 1.9-4.3 4.7-4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1.2" stroke="currentColor" stroke-width="1.9"/><path d="M4 8v10a2 2 0 002 2h12a2 2 0 002-2V8" stroke="currentColor" stroke-width="1.9"/><path d="M10 12h4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  clock: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.9"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  wrench: '<path d="M14.7 6.3a3.5 3.5 0 01-4.9 4.9L4 17l3 3 5.8-5.8a3.5 3.5 0 014.9-4.9l-3 3-2-2 3-3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  search: '<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  refresh: '<path d="M4 12a8 8 0 0113.66-5.66M20 12a8 8 0 01-13.66 5.66" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M17 3v4h-4M7 21v-4h4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  help: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.9"/><path d="M9.5 9.2a2.5 2.5 0 114.2 1.9c-.9.7-1.7 1.2-1.7 2.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="currentColor"/>',
+  key: '<circle cx="8" cy="15" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M10.3 12.7L19 4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M16 7l2.5 2.5M13.3 9.7l2 2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  check: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M8.5 12.3l2.2 2.2 4.8-4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  link: '<path d="M9.5 14.5l5-5M8.2 12.2l-1.4 1.4a3 3 0 004.2 4.2l2-2M15.8 11.8l1.4-1.4a3 3 0 00-4.2-4.2l-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  logout: '<path d="M15 3H6a2 2 0 00-2 2v14a2 2 0 002 2h9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 12h11m0 0l-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 016.5 3H12v18H6.5A2.5 2.5 0 014 18.5v-13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M20 5.5A2.5 2.5 0 0017.5 3H12v18h5.5a2.5 2.5 0 002.5-2.5v-13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  warn: '<path d="M12 3.5l9.5 16.5H2.5L12 3.5z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1" fill="currentColor"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="14.5" r="1.1" fill="currentColor"/>',
+  target: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+  medal: '<circle cx="12" cy="9" r="5.5" stroke="currentColor" stroke-width="2"/><path d="M9 13.5L7.5 21l4.5-2.5 4.5 2.5-1.5-7.5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  download: '<path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  megaphone: '<path d="M3 10v4a1 1 0 001 1h2l7 4V5l-7 4H4a1 1 0 00-1 1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 9a4 4 0 010 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M19.5 6.5a8 8 0 010 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  pencil: '<path d="M4 20l1-4.5L16.5 4l3 3L8 18.5 4 20z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 6.5l3 3" stroke="currentColor" stroke-width="1.8"/>',
+  block: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  undo: '<path d="M4 12a8 8 0 108-8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 5v5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  broom: '<path d="M14 3l-9 9-2 5 5-2 9-9-3-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 16l-1.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  profile: '<circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.9"/><path d="M4.5 20c1-4 4-6.2 7.5-6.2s6.5 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  info: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor"/>',
+  chevron: '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  trash: '<path d="M4 7h16M10 4h4M9 7v12M15 7v12M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 019 0v3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
+};
+/** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
+function ic(name, size){
+  size = size || 14;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" style="vertical-align:-2.5px;margin-right:5px;flex:none">'+(ICONS[name]||'')+'</svg>';
+}
+/** Голая иконка без отступов — для абсолютного позиционирования (.search-wrap и т.п.). */
+function icBare(name, size){
+  size = size || 14;
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none">'+(ICONS[name]||'')+'</svg>';
+}
+/** Дата входа приходит с сервера сырым ISO-таймстампом — приводим к «ДД.ММ.ГГГГ ЧЧ:ММ». */
+/**
+ * Дата и время в часовом поясе Душанбе (UTC+5).
+ *
+ * База пишет CURRENT_TIMESTAMP, а это всегда UTC и в формате «2026-08-24
+ * 19:10:51» — без «T» и без зоны. Прежняя проверка требовала ISO с «T»,
+ * поэтому такие значения возвращались как есть: пользователь видел сырую
+ * строку, да ещё и на пять часов раньше своего времени.
+ *
+ * Часовой пояс задан жёстко, а не берётся из браузера: обзор ведут из
+ * Таджикистана, и запись, сделанная коллегой, должна называться одним и тем же
+ * временем у всех, кто на неё смотрит.
+ */
+var TZ = 'Asia/Dushanbe';
+function fmtDateTime(s){
+  if(!s) return s;
+
+  // Серийная дата Excel: 22 строки приехали из таблицы числом вида
+  // 46254.529018368055 — это дни от 1899-12-30. В интерфейсе такое значение
+  // показывалось как есть, прямо в колонке «Обновлено».
+  if(typeof s === 'number' || /^\d{5}(\.\d+)?$/.test(String(s).trim())){
+    var n = parseFloat(s);
+    if(n > 20000 && n < 80000){
+      var d0 = new Date(Math.round((n - 25569) * 86400 * 1000));
+      if(!isNaN(d0.getTime())) return fmtDate_(d0);
+    }
+  }
+
+  var iso;
+  if(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)){
+    // Наивную строку из базы помечаем как UTC явно — иначе браузер прочитает
+    // её как местное время и сдвига не будет вовсе.
+    iso = /[Zz]|[+\-]\d{2}:?\d{2}$/.test(s) ? s : s.replace(' ', 'T') + 'Z';
+  } else {
+    return s;
+  }
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return s;
+  return fmtDate_(d);
+}
+
+/** Приведение готового Date к виду «25.08.2026 00:15» по времени Душанбе. */
+function fmtDate_(d){
+  try {
+    return d.toLocaleString('ru-RU', {
+      timeZone: TZ, day:'2-digit', month:'2-digit', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    }).replace(', ', ' ');
+  } catch(e){
+    return d.toLocaleDateString('ru-RU') + ' ' +
+           d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+  }
+}
+
 /** Клиент для работы с REST API сервера */
 var API_ROUTES = {
   apiLogin: function(args){ return fetchJson('/api/auth/login', { method:'POST', body:{ login:args[0], password:args[1] } }); },
@@ -91,19 +270,38 @@ var API_ROUTES = {
   apiRefresh: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
   apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
+  apiTelegramLink: function(args){ return fetchJson('/api/telegram/link', { method:'POST', token:args[0] }); },
+  apiTelegramUnlink: function(args){ return fetchJson('/api/telegram/unlink', { method:'POST', token:args[0] }); },
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
   apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
+  // Обе кнопки «+ Добавить» в пикере вызывали методы, которых в этой таблице
+  // не было: call() отклонял промис ещё до сети, и пользователь видел «Нет
+  // связи с сервером». Поэтому добавить своё значение было нельзя нигде —
+  // ни должность, ни сегмент.
+  apiAddPosition: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:'positions', unit:args[1], name:args[2] } }); },
+  apiAddRefValue: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2] } }); },
+  apiDictList: function(args){ return fetchJson('/api/admin/dictionary/' + args[1], { method:'GET', token:args[0] }); },
+  apiDictSave: function(args){ return fetchJson('/api/admin/dictionary/' + args[1], { method:'POST', token:args[0], body:args[2] }); },
+  apiDictDelete: function(args){ return fetchJson('/api/admin/dictionary/' + args[1] + '/delete', { method:'POST', token:args[0], body:args[2] }); },
   apiCBDashboardExtended: function(args){ return fetchJson('/api/dashboard/extended', { method:'POST', token:args[0], body:args[1] }); },
   apiDashboard: function(args){ return fetchJson('/api/dashboard/hrbp', { method:'POST', token:args[0] }); },
   apiAdminGetUsers: function(args){ return fetchJson('/api/admin/users', { method:'GET', token:args[0] }); },
   apiAdminSaveUser: function(args){ return fetchJson('/api/admin/users', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminToggleUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/toggle', { method:'POST', token:args[0], body:{ active:args[2] } }); },
   apiAdminResetPassword: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/reset-password', { method:'POST', token:args[0] }); },
+  apiAdminGetArchive: function(args){ return fetchJson('/api/admin/users-archive', { method:'GET', token:args[0] }); },
+  apiAdminArchiveUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/archive', { method:'POST', token:args[0] }); },
+  apiAdminRestoreUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/restore', { method:'POST', token:args[0] }); },
   apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGetRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'GET', token:args[0] }); },
+  apiAdminSaveRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'POST', token:args[0], body:args[1] }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
+  // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
+  apiAdminRunMaintenanceConfirm: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1], confirm:true } }); },
+  apiAdminDataStatus: function(args){ return fetchJson('/api/admin/data-status', { method:'GET', token:args[0] }); },
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
   apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); }
 };
@@ -131,13 +329,48 @@ function call(fn){
 }
 
 var toastTimer;
-function toast(msg){
+/**
+ * Уведомление справа под шапкой. kind: 'ok' | 'no' | undefined (нейтральное).
+ * Успех висит дольше нейтрального — его читают как подтверждение действия.
+ */
+function toast(msg, kind){
   var t = document.querySelector('.toast');
-  if(!t){ t = document.createElement('div'); t.className='toast'; document.body.appendChild(t); }
-  t.textContent = msg;
+  if(!t){ t = document.createElement('div'); document.body.appendChild(t); }
+  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : kind === 'no' ? ' t-no' : '');
+  var mark = kind === 'ok' ? 'check' : kind === 'no' ? 'close' : 'info';
+  t.innerHTML = '<span class="toast-ic">'+icBare(mark, 16)+'</span><span>'+esc(msg)+'</span>';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ t.remove(); }, 2800);
+  toastTimer = setTimeout(function(){ t.remove(); }, kind === 'ok' ? 3400 : 2800);
 }
+
+/**
+ * Единая горячая клавиша Esc для всех модалок.
+ * Раньше Esc был только внутри ask()/askText() — карточки конкурента, анкеты,
+ * пикера, помощи, профиля закрывались лишь мышкой по «Закрыть».
+ * Слушатель один на документ: закрывает самую верхнюю открытую панель, чтобы
+ * из пикера поверх анкеты Esc возвращал в анкету, а не схлопывал обе.
+ * Собственные обработчики ask/askText вызываются раньше (они на capture) и
+ * снимают своё окно сами — здесь ловим только то, что до сюда дошло.
+ */
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  var panes = document.querySelectorAll('.sheet, .menu-scrim');
+  if(!panes.length) return;
+  var top = panes[panes.length - 1];
+  // .dlg управляет своим закрытием сам (resolve промиса) — не трогаем.
+  if(top.querySelector('.dlg')) return;
+  e.preventDefault();
+  var x = top.querySelector('[data-x]');
+  if(x) x.click(); else top.remove();
+}, false);
+
+/** Иконка в .search-wrap стоит справа и кликабельна — просто фокусирует поле рядом. */
+document.addEventListener('click', function(e){
+  var icon = e.target.closest('.search-wrap svg');
+  if(!icon) return;
+  var input = icon.parentElement.querySelector('input');
+  if(input) input.focus();
+});
 
 /**
  * Внутреннее окно подтверждения вместо confirm().
@@ -237,6 +470,31 @@ function askDirty(action){
   });
 }
 
+/** Тот же вопрос, что askDirty, но для карточек/модалок общего вида (не анкеты подразделения). */
+function confirmDiscard(){
+  return ask({
+    title: 'Есть несохранённые изменения',
+    html: 'Введённые данные не сохранены. Закрыть без сохранения?',
+    ok: 'Закрыть без сохранения',
+    cancel: 'Остаться',
+    danger: true
+  });
+}
+
+/**
+ * Общая защита закрытия карточки (сheet) с несохранёнными данными: закрытие
+ * по фону/«Закрыть»/Esc спрашивает подтверждение, если isDirty() вернёт true.
+ * Esc уже устроен так, что кликает по [data-x] (см. глобальный keydown выше),
+ * поэтому один обработчик здесь закрывает и клик, и Esc, и клик по фону.
+ */
+function guardClose(el, isDirty){
+  el.addEventListener('click', function(e){
+    if(e.target !== el && !e.target.dataset.x) return;
+    if(!isDirty()){ el.remove(); return; }
+    confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+  });
+}
+
 function show(scr){
   $('scrLogin').classList.toggle('hidden', scr!=='login');
   $('scrLoad').classList.toggle('hidden', scr!=='load');
@@ -274,6 +532,157 @@ function pickField(id, value, placeholder, need){
  * wide — второй список «по всему холдингу». Нужен должностям: у руководителя
  * показывается штатка его подразделения, но иногда должность лежит шире.
  */
+/**
+ * Подгоняет высоту длинных таблиц под остаток экрана.
+ *
+ * В CSS это не выражается: у каждого экрана своя шапка (у сводки — период и
+ * итоги, у админки — два ряда вкладок и панель, у дашборда — ещё и фильтры),
+ * поэтому любое фиксированное `calc(100vh - N)` на одних экранах оставляет
+ * пустоту, а на других выталкивает низ таблицы за край. Считаем от реального
+ * положения элемента.
+ *
+ * Вызывается сам — через наблюдатель за перерисовками, чтобы не зависеть от
+ * того, вспомнили ли о нём в каждой из десяти render-функций.
+ */
+function fitTables(){
+  document.querySelectorAll('.tblwrap--page').forEach(function(el){
+    var top = el.getBoundingClientRect().top;
+    if(!top) return;
+    var avail = window.innerHeight - top - 20;
+    el.style.maxHeight = Math.max(260, avail) + 'px';
+  });
+}
+
+var fitPending = false;
+function scheduleFit(){
+  if(fitPending) return;
+  fitPending = true;
+  requestAnimationFrame(function(){ fitPending = false; fitTables(); });
+}
+
+if(window.MutationObserver){
+  new MutationObserver(scheduleFit).observe(document.documentElement, {
+    childList: true, subtree: true
+  });
+}
+window.addEventListener('resize', scheduleFit);
+
+/** Уникальный отсортированный список из «грязного» набора строк. */
+function uniqSortedList(arr){
+  var seen = {}, out = [];
+  (arr || []).forEach(function(v){
+    var s = String(v == null ? '' : v).trim();
+    if(!s || seen[s]) return;
+    seen[s] = 1; out.push(s);
+  });
+  return out.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+}
+
+/** Разметка поля-кнопки, открывающего пикер (вместо свободного <input>). */
+function pickField(id, value, placeholder){
+  return '<button type="button" class="pick" id="'+id+'">'+
+    '<span'+(value ? '' : ' class="ph"')+'>'+esc(value || placeholder)+'</span>'+
+    icBare('chevron', 16)+'</button>';
+}
+
+/**
+ * Привязка такого поля к пикеру. Значение кладётся в store[key], а не читается
+ * из DOM при сохранении: у кнопки нет .value, и попытка прочитать её как input
+ * молча отправила бы на сервер пустую строку.
+ */
+function bindPickField(root, id, title, listFn, store, key, emptyLabel){
+  var btn = root.querySelector('#'+id);
+  if(!btn) return;
+  btn.onclick = function(){
+    openPicker({
+      title: title,
+      list: listFn(),
+      value: store[key],
+      emptyLabel: emptyLabel,
+      onPick: function(v){
+        store[key] = v;
+        var sp = btn.querySelector('span');
+        sp.textContent = v;
+        sp.className = '';
+      }
+    });
+  };
+}
+
+/**
+ * Выбор нескольких значений: поиск + отметки + «Выбрать все / Снять».
+ *
+ * Раньше направления выводились простыней из 30 с лишним «чипов» — их нельзя
+ * было ни отфильтровать, ни понять, сколько отмечено, а список занимал экран
+ * целиком. Здесь та же логика, что в openPicker, только выбор не закрывает
+ * окно, а копится, и применяется кнопкой.
+ *
+ * opts = { title, list, value: [], onPick(массив) }
+ */
+function openMultiPicker(opts){
+  var chosen = {};
+  (opts.value || []).forEach(function(v){ chosen[v] = true; });
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+esc(opts.title)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="pk-search"><input id="mpQ" placeholder="Поиск…" autocomplete="off" '+
+      'autocapitalize="off" autocorrect="off" spellcheck="false"></div>'+
+    '<div class="mp-bar"><span id="mpCnt"></span>'+
+      '<button type="button" class="btn-ghost" id="mpAll">Выбрать все</button>'+
+      '<button type="button" class="btn-ghost" id="mpNone">Снять все</button></div>'+
+    '<div id="mpBody"></div>'+
+    '<div style="height:12px"></div>'+
+    '<button class="btn-primary" id="mpOk">Готово</button>'+
+    '<div style="height:10px"></div></div>';
+  document.body.appendChild(el);
+
+  var q = el.querySelector('#mpQ');
+  var body = el.querySelector('#mpBody');
+
+  function visible(){
+    var s = norm(q.value);
+    return (opts.list || []).filter(function(v){ return !s || norm(v).indexOf(s) >= 0; });
+  }
+
+  function draw(){
+    var list = visible();
+    var n = Object.keys(chosen).filter(function(k){ return chosen[k]; }).length;
+    el.querySelector('#mpCnt').textContent = 'Отмечено: ' + n;
+    body.innerHTML = list.length
+      ? '<div class="pk-list">'+ list.map(function(v){
+          return '<button type="button" class="mp-row'+(chosen[v] ? ' on' : '')+'" '+
+            'data-v="'+esc(v)+'"><i></i><span>'+esc(v)+'</span></button>';
+        }).join('') +'</div>'
+      : '<div class="pk-empty">Совпадений нет</div>';
+  }
+  draw();
+  q.oninput = draw;
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target.closest('#mpAll')){ visible().forEach(function(v){ chosen[v] = true; }); draw(); return; }
+    if(e.target.closest('#mpNone')){ visible().forEach(function(v){ chosen[v] = false; }); draw(); return; }
+    if(e.target.closest('#mpOk')){
+      el.remove();
+      opts.onPick(Object.keys(chosen).filter(function(k){ return chosen[k]; }).sort());
+      return;
+    }
+    var row = e.target.closest('.mp-row');
+    if(row){
+      var v = row.dataset.v;
+      chosen[v] = !chosen[v];
+      row.classList.toggle('on', !!chosen[v]);
+      var n = Object.keys(chosen).filter(function(k){ return chosen[k]; }).length;
+      el.querySelector('#mpCnt').textContent = 'Отмечено: ' + n;
+    }
+  });
+
+  setTimeout(function(){ try{ q.focus(); }catch(e){} }, 60);
+}
+
 function openPicker(opts){
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -309,10 +718,16 @@ function openPicker(opts){
       }).join('') +'</div>';
       if(list.length > 300) h += '<div class="pk-empty">Показаны первые 300 — уточните поиск</div>';
     } else {
+      // Текст «для вашего подразделения должности ещё не заведены» был
+      // зашит здесь безусловно — этот пикер общий для компаний, должностей
+      // и (с недавних пор) ФИО в назначении ответственных, и всем остальным
+      // показывал то же самое про должности. opts.emptyLabel — точный текст
+      // под конкретный вызов, дефолт остаётся про должности только там, где
+      // это тот самый пикер (addUnit).
       h += '<div class="pk-empty">'+
         (s ? 'Совпадений нет'
            : (wideOn ? 'Справочник пока пуст'
-                     : 'Для вашего подразделения должности ещё не заведены')) +'</div>';
+                     : (opts.emptyLabel || (opts.addUnit ? 'Для вашего подразделения должности ещё не заведены' : 'Список пуст')))) +'</div>';
     }
 
     // Переключатель на полный список холдинга
@@ -380,6 +795,10 @@ function openPicker(opts){
         } else {
           if(opts.block === 'segments') S.data.segments = r.list;
           if(opts.block === 'regions') S.data.regions = r.list;
+          // Должность, добавленная в поле «в компании», попадает в общий
+          // справочник холдинга — обновляем его здесь же, иначе она не
+          // появится в следующей строке до перезагрузки страницы.
+          if(opts.block === 'positions') S.data.positionsAll = r.list;
           opts.list = r.list;
         }
         toast('Добавлено в справочник');
@@ -458,52 +877,119 @@ function doLogout(){
   askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
 }
 
+/**
+ * Перечитывает данные с сервера. Называлась «Обновить данные из таблицы» —
+ * формулировка осталась от Google-таблицы времён Apps Script, которой больше
+ * нет: данные лежат в базе, и кнопка просто подтягивает свежее состояние,
+ * если кто-то другой успел его поменять.
+ */
 function doRefresh(){
   if(!S.dirty){ doRefresh_(); return; }
-  askDirty('Перечитать из таблицы').then(function(yes){ if(yes) doRefresh_(); });
+  askDirty('Обновить данные').then(function(yes){ if(yes) doRefresh_(); });
+}
+
+/**
+ * Подтянуть справочники в текущую сессию без тоста и без вопроса о черновике.
+ * Нужен после правки справочника в админке: значение должно стать доступным в
+ * пикерах сразу, но админ в этот момент ничего не заполняет, и сообщение
+ * «Данные обновлены» поверх его действия было бы шумом.
+ */
+function quietRefresh(){
+  call('apiRefresh', S.token).then(function(r){
+    if(r && r.ok && r.data){
+      S.data.segments = r.data.segments || S.data.segments;
+      S.data.regions = r.data.regions || S.data.regions;
+      S.data.companies = r.data.companies || S.data.companies;
+      S.data.companiesAll = r.data.companiesAll || S.data.companiesAll;
+      S.data.positions = r.data.positions || S.data.positions;
+      S.data.positionsAll = r.data.positionsAll || S.data.positionsAll;
+    }
+  }).catch(function(){});
 }
 
 function doRefresh_(){
   toast('Обновляем…');
   call('apiRefresh', S.token).then(function(r){
-    if(!r || !r.ok){ toast((r&&r.error)||'Не удалось обновить'); return; }
+    if(!r || !r.ok){ toast((r&&r.error)||'Не удалось обновить', 'no'); return; }
     S.dirty = false;
     onLoaded(r.data);
-    toast('Данные перечитаны из таблицы');
-  }).catch(function(){ toast('Нет связи'); });
+    toast('Данные обновлены', 'ok');
+  }).catch(function(){ toast('Нет связи', 'no'); });
 }
 
-/** Меню в шапке */
+/**
+ * Права из конструктора ролей и доступов (админка → «Роли и доступы»).
+ * 'admin' — всегда true, даже если у него почему-то нет записи в capabilities
+ * (сервер и так отдаёт ему полный список, это просто дублирующая подстраховка
+ * на фронте — та же граница проверяется на каждом запросе в requireCapability).
+ */
+function hasCap(id){
+  var u = S.data && S.data.user;
+  if(!u) return false;
+  if(u.role === 'admin') return true;
+  return (u.capabilities || []).indexOf(id) >= 0;
+}
+
+/** Есть ли доступ хоть к одному разделу админки — все capabilities сейчас об этом. */
+function canSeeAdmin(){
+  var u = S.data && S.data.user;
+  if(!u) return false;
+  return u.role === 'admin' || (u.capabilities && u.capabilities.length > 0);
+}
+
+/**
+ * Кто видит аналитический дашборд. Раньше это был жёсткий список ролей
+ * (admin/cb/hrbp) — теперь настраивается через dashboard:view в конструкторе.
+ * Проверка одна на все три места, где строится навигация (меню ⋮, рельса,
+ * верхние вкладки), чтобы правила не разъезжались между ними.
+ */
+function canSeeDashboard(){
+  return hasCap('dashboard:view');
+}
+
+/**
+ * Меню в шапке. Раньше было полноэкранным оверлеем (.sheet) — по просьбе
+ * пользователя переделано в панель, закреплённую у шапки справа, с
+ * закрытием по X. Действует одинаково на мобильном и десктопе.
+ */
 $('btnMenu').onclick = function(){
   var r = S.data && S.data.user && S.data.user.role;
+  var isElevated = (r === 'admin' || r === 'cb');
   var items = [];
-  if(r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head') {
-    items.push(['dash_analytics', ' Аналитический дашборд']);
+  if(canSeeDashboard()) {
+    items.push(['dash_analytics', 'dashboard', 'Аналитический дашборд']);
   }
-  if(r === 'admin' || r === 'cb') {
-    items.push(['admin_panel', '️ Панель администратора']);
+  if(canSeeAdmin()) {
+    items.push(['admin_panel', 'admin', 'Панель администратора']);
   }
   if(r === 'hrbp') {
-    items.push(['dash_hrbp', ' Сводка по HR BP']);
+    items.push(['dash_hrbp', 'clipboard', 'Сводка по HR BP']);
   }
-  items.push(['units_view', ' Мои подразделения']);
-  items.push(['refresh', ' Обновить данные из таблицы']);
-  items.push(['help', ' Как заполнять']);
-  items.push(['pwd', ' Сменить пароль']);
-  items.push(['out', ' Выйти']);
+  if(r === 'dir_head') {
+    items.push(['dept_assign', 'clipboard', 'Назначить ответственных']);
+  }
+  if(isElevated){
+    items.push(['dash_hrbp', 'clipboard', 'Отчёт по подразделениям']);
+  } else {
+    items.push(['units_view', 'units', 'Мои подразделения']);
+  }
+  items.push(['refresh', 'refresh', 'Обновить данные']);
+  items.push(['help', 'help', 'Как заполнять']);
+  items.push(['profile', 'profile', 'Профиль']);
+  items.push(['out', 'logout', 'Выйти']);
 
   var el = document.createElement('div');
-  el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
-    '<div class="sheet-hd"><b>'+esc(userLabel())+'</b>'+
-      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+  el.className = 'menu-scrim';
+  el.innerHTML = '<div class="menu-pop">'+
+    '<div class="menu-pop-hd"><b>'+esc(userLabel())+'</b>'+
+      '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ items.map(function(it){
-      return '<button data-go="'+it[0]+'"'+(it[0]==='out'?' class="btn-danger"':'')+'>'+esc(it[1])+'</button>';
+      return '<button data-go="'+it[0]+'"'+(it[0]==='out'?' class="btn-danger"':'')+'>'+ic(it[1])+esc(it[2])+'</button>';
     }).join('') +'</div></div>';
   document.body.appendChild(el);
 
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
     var b = e.target.closest('button[data-go]');
     if(!b) return;
     el.remove();
@@ -511,33 +997,108 @@ $('btnMenu').onclick = function(){
     if(g === 'dash_analytics') switchView('dashboard');
     else if(g === 'admin_panel') switchView('admin');
     else if(g === 'dash_hrbp') openDash();
+    else if(g === 'dept_assign') openDeptAssign();
     else if(g === 'units_view') switchView('units');
     else if(g === 'refresh') doRefresh();
     else if(g === 'help') openHelp();
-    else if(g === 'pwd') openPassword();
+    else if(g === 'profile') openProfile();
     else if(g === 'out') doLogout();
   });
 };
 
+/**
+ * Боковая навигация на десктопе (см. .rail в style.css, видна от 1024px).
+ * На мобильном экрана этот блок просто не отображается CSS-ом — вызывать
+ * его лишний раз безвредно. Пункты те же, что в topNav/меню ⋮, чтобы
+ * не разъезжались правила видимости по роли в трёх разных местах.
+ */
+function renderRail(){
+  var rail = $('rail');
+  if(!rail || !S.data) return;
+  var r = S.data.user.role;
+
+  // Admin/CB не заполняют анкеты сами — вместо «Мои подразделения» им
+  // нужен отчёт по всем подразделениям (та же сводка, что видит HR BP,
+  // серверная роль это уже разрешает — см. src/routes/api.js).
+  var isElevated = (r === 'admin' || r === 'cb');
+
+  var items = [];
+  if(isElevated){
+    items.push({ id:'report', view:null, label:'Отчёт по подразделениям', icon: ICONS.clipboard });
+  } else {
+    items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
+  }
+  if(canSeeDashboard()){
+    items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
+  }
+  if(canSeeAdmin()){
+    items.push({ id:'admin', view:'admin', label:'Админка', icon: ICONS.admin });
+  }
+  if(r === 'hrbp'){
+    items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon: ICONS.clipboard });
+  }
+  // Отдельный пункт, чтобы dir_head сразу видел, куда идти назначать
+  // ответственных по своим отделам — не только через меню профиля.
+  if(r === 'dir_head'){
+    items.push({ id:'dept_assign', view:null, label:'Назначить ответственных', icon: ICONS.clipboard });
+  }
+
+  $('railNav').innerHTML = items.map(function(it){
+    var on = (S.appView === it.view && S.unit === null) ? ' on' : '';
+    return '<button class="rail-item'+on+'" data-rail="'+it.id+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg>'+esc(it.label)+'</button>';
+  }).join('');
+
+  $('railNav').onclick = function(e){
+    var b = e.target.closest('button[data-rail]');
+    if(!b) return;
+    var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
+    if(!it) return;
+    if(it.id === 'hrbp_summary' || it.id === 'report'){ openDash(); return; }
+    if(it.id === 'dept_assign'){ openDeptAssign(); return; }
+    if(it.view === S.appView && S.unit === null) return;
+    if(S.dirty){
+      askDirty('Переключить раздел').then(function(yes){
+        if(yes){ S.dirty = false; switchView(it.view); }
+      });
+    } else {
+      switchView(it.view);
+    }
+  };
+
+  var fio = userLabel();
+  $('railAv').textContent = fio.trim().slice(0,1).toUpperCase() || '?';
+  $('railFio').textContent = fio;
+  var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
+  $('railRole').textContent = roleNames[r] || r;
+}
+
 function renderTopNav(){
+  renderRail();
   var r = S.data && S.data.user && S.data.user.role;
-  var isSpecial = (r === 'admin' || r === 'cb' || r === 'hrbp' || r === 'dir_head');
   var topNav = $('topNav');
-  if(!isSpecial || S.unit !== null){
+  var btns = [];
+  if(r !== 'admin' && r !== 'cb'){
+    btns.push({ id:'units', icon:'units', label:'Подразделения' });
+  }
+  if(canSeeDashboard()){
+    btns.push({ id:'dashboard', icon:'dashboard', label:'Дашборд' });
+  }
+  if(canSeeAdmin()){
+    btns.push({ id:'admin', icon:'admin', label:'Админка' });
+  }
+
+  // Полоска вкладок нужна только когда переключать есть что: у dir_head после
+  // того, как дашборд стал недоступен, остался один пункт «Подразделения» —
+  // вкладка из одной кнопки, ведущая на текущий же экран.
+  if(btns.length < 2 || S.unit !== null){
     topNav.classList.add('hidden');
     return;
   }
   topNav.classList.remove('hidden');
-  var btns = [];
-  btns.push({ id:'units', label:' Подразделения' });
-  btns.push({ id:'dashboard', label:' Дашборд' });
-  if(r === 'admin' || r === 'cb'){
-    btns.push({ id:'admin', label:'️ Админка' });
-  }
 
   topNav.innerHTML = btns.map(function(b){
     var on = S.appView === b.id ? ' on' : '';
-    return '<button class="nav-btn'+on+'" data-view="'+b.id+'">'+esc(b.label)+'</button>';
+    return '<button class="nav-btn'+on+'" data-view="'+b.id+'">'+ic(b.icon)+esc(b.label)+'</button>';
   }).join('');
 
   topNav.onclick = function(e){
@@ -562,6 +1123,68 @@ function switchView(v){
   if(v === 'units') renderUnits();
   else if(v === 'dashboard') openDashboard();
   else if(v === 'admin') openAdminPanel();
+}
+
+/**
+ * Профиль пользователя: сводка (ФИО/роль/логин) + смена пароля + Telegram.
+ * Открывается из меню «⋮» и из кнопки профиля в боковой панели (десктоп).
+ * Сами формы не дублирует — переиспользует openPassword()/openTelegramLink().
+ */
+function openProfile(){
+  var u = S.data.user;
+  var hasTg = !!u.hasTelegram;
+  var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
+  var fio = userLabel();
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Профиль</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="profile-card">'+
+      '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
+      '<div><div class="profile-fio">'+esc(fio)+'</div>'+
+        '<div class="profile-sub">'+esc(roleNames[u.role] || u.role)+' · '+esc(u.login)+'</div></div>'+
+    '</div>'+
+    // Сколько подразделений закреплено — первый вопрос, который задают, когда
+    // не находят своё; раньше это нигде не показывалось.
+    '<div class="profile-facts">'+
+      '<div class="pf"><b>'+((S.data.units || []).length)+'</b><span>'+
+        declOfNum((S.data.units || []).length, ['подразделение','подразделения','подразделений'])+'</span></div>'+
+      '<div class="pf"><b>'+((S.data.rows || []).length)+'</b><span>'+
+        declOfNum((S.data.rows || []).length, ['участник рынка','участника рынка','участников рынка'])+'</span></div>'+
+      '<div class="pf"><b>'+((S.data.surveys || []).length)+'</b><span>'+
+        declOfNum((S.data.surveys || []).length, ['запись','записи','записей'])+'</span></div>'+
+    '</div>'+
+    '<button id="prPwd" class="btn-line">'+ic('key')+'Сменить пароль</button>'+
+    '<button id="prTg" class="btn-line">'+(hasTg ? ic('check')+'Telegram привязан' : ic('link')+'Привязать Telegram')+'</button>'+
+    '<button id="prUnits" class="btn-line">'+ic('units')+'Мои подразделения</button>'+
+    // Руководитель направления сам назначает ответственных по отделам своего
+    // направления — админ закрепляет за ним только само направление.
+    (u.role === 'dir_head' ? '<button id="prAssign" class="btn-line">'+ic('units')+'Назначить ответственных</button>' : '')+
+    '<button id="prHelp" class="btn-line">'+ic('help')+'Как заполнять</button>'+
+    '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
+    '<div class="profile-sep"></div>'+
+    '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон</div>'+
+    '</div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
+  el.querySelector('#prTg').onclick = function(){
+    el.remove();
+    if(hasTg) confirmUnlinkTelegram(); else openTelegramLink();
+  };
+  el.querySelector('#prHelp').onclick = function(){ openHelp(); };
+  el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
+  var prAssign = el.querySelector('#prAssign');
+  if(prAssign) prAssign.onclick = function(){ el.remove(); openDeptAssign(); };
+  el.querySelector('#prRefresh').onclick = function(){ el.remove(); doRefresh(); };
+  el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
 }
 
 /** Смена собственного пароля. */
@@ -590,8 +1213,8 @@ function openPassword(){
     e.textContent = m; e.classList.remove('hidden');
   };
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
+  guardClose(el, function(){
+    return !!(el.querySelector('#pwOld').value || el.querySelector('#pwNew').value || el.querySelector('#pwNew2').value);
   });
 
   el.querySelector('#pwGo').onclick = function(){
@@ -618,6 +1241,77 @@ function openPassword(){
   setTimeout(function(){ el.querySelector('#pwOld').focus(); }, 60);
 }
 
+/** Привязка Telegram — получаем одноразовую ссылку и открываем чат с ботом. */
+function openTelegramLink(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Привязать Telegram</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="tgBody" class="sp"><i></i> Готовим ссылку…</div>'+
+    '</div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x) el.remove();
+  });
+
+  call('apiTelegramLink', S.token).then(function(r){
+    var box = el.querySelector('#tgBody');
+    if(!r || !r.ok){
+      box.className = 'err';
+      box.textContent = (r && r.error) || 'Не удалось получить ссылку';
+      return;
+    }
+    // Диплинк с кодом подставляет «/start <код>» в поле ввода не у всех
+    // клиентов Telegram — если чат с ботом уже открывался раньше, часть
+    // клиентов просто открывает чат, ничего не подставляя, и человек не
+    // понимает, что сделать. Привязка по номеру телефона (кнопка в самом
+    // боте) не зависит от этого — поэтому она теперь основной вариант,
+    // а ссылка с кодом — запасной.
+    var botUser = (r.deepLink.match(/t\.me\/([^?]+)/) || [])[1] || '';
+    box.className = '';
+    box.innerHTML = '<p style="color:var(--muted);font-size:13.5px;line-height:1.5">'+
+        'Откройте бота'+(botUser?' <b>@'+esc(botUser)+'</b>':'')+', наберите <b>/link</b> и нажмите '+
+        'кнопку «Отправить номер телефона» — привяжется по номеру, указанному в вашем профиле.</p>'+
+      '<div style="height:10px"></div>'+
+      '<a href="https://t.me/'+esc(botUser)+'" target="_blank" class="btn-primary" '+
+        'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
+        'Открыть '+(botUser?'@'+esc(botUser):'бота')+'</a>'+
+      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px">'+
+        'Или ссылка с кодом (действует '+r.expiresInMinutes+' минут) — у части клиентов Telegram '+
+        'сама подставляет команду, тогда останется нажать «Отправить»:</p>'+
+      '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-line" '+
+        'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
+        'Открыть по ссылке с кодом</a>';
+  }).catch(function(){
+    el.querySelector('#tgBody').className = 'err';
+    el.querySelector('#tgBody').textContent = 'Нет связи с сервером';
+  });
+}
+
+/** Отвязка Telegram — тот же результат, что команда /unlink у самого бота,
+ *  но доступно и из приложения на случай, если под рукой нет Telegram. */
+function confirmUnlinkTelegram(){
+  ask({
+    title: 'Отвязать Telegram?',
+    html: 'Напоминания и уведомления через бота приходить перестанут. Привязать можно будет заново в любой момент.',
+    ok: 'Отвязать',
+    cancel: 'Остаться',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiTelegramUnlink', S.token).then(function(r){
+      if(r && r.ok){
+        S.data.user.hasTelegram = false;
+        toast('Telegram отвязан');
+      } else {
+        toast((r && r.error) || 'Не удалось отвязать', 'no');
+      }
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+  });
+}
+
 /** Подпись пользователя. Если ФИО в таблице не заполнено — показываем логин. */
 function userLabel(){
   if(!S.data) return '';
@@ -627,30 +1321,32 @@ function userLabel(){
 }
 
 $('btnHelp').onclick = function(){ openHelp(); };
+$('railFootBtn').onclick = function(){ openProfile(); };
 
 function openHelp(){
   var el = document.createElement('div');
   el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
+  el.innerHTML = '<div class="sheet-in howto-sheet">'+
     '<div class="sheet-hd"><b>Как заполнять</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<ol class="howto">'+
-      '<li><b>Откройте своё подразделение</b><br>Если их несколько — по очереди каждое.</li>'+
-      '<li><b>Шаг 1. Конкуренты</b><br>По каждой компании нажмите одну из трёх кнопок: '+
-        '«Актуально» — это наш конкурент, «Не актуально» — нет, «Уточнить» — не уверены. '+
-        'Чего не хватает — добавьте кнопкой «+ Добавить компанию».</li>'+
-      '<li><b>«Уточнить» — это не «проверено»</b><br>Такие компании остаются в работе '+
+      '<li><b>Откройте своё подразделение</b>Если их несколько — по очереди каждое.</li>'+
+      '<li><b>Шаг 1. Участники рынка</b>По каждой компании нажмите одну из трёх кнопок: '+
+        '«Актуально» — компания релевантна для сравнения, «Не актуально» — нет, '+
+        '«Уточнить» — не уверены. Чего не хватает — добавьте кнопкой «+ Добавить компанию».</li>'+
+      '<li><b>«Уточнить» — это не «проверено»</b>Такие компании остаются в работе '+
         'и отдельно видны и вам, и HR BP. Вернитесь к ним, когда выясните.</li>'+
-      '<li><b>Шаг 2. Данные по рынку</b><br>Здесь главное. По должностям, которые знаете, '+
-        'внесите оклад, бонусы и льготы у конкурента. Неполные данные тоже нужны — '+
+      '<li><b>Шаг 2. Данные по рынку</b>Здесь главное. По должностям, которые знаете, '+
+        'внесите оклад, бонусы и льготы в компании-участнике. Неполные данные тоже нужны — '+
         'знаете только оклад, впишите оклад.</li>'+
-      '<li><b>Должность выбирается из списка</b><br>Нажмите на поле, найдите нужную через поиск. '+
+      '<li><b>Должность выбирается из списка</b>Нажмите на поле, найдите нужную через поиск. '+
         'Если такой нет — внизу появится кнопка «Добавить», и должность попадёт в общий справочник.</li>'+
-      '<li><b>Нажмите «Сохранить»</b><br>Одна кнопка сохраняет оба шага сразу. '+
-        'Данные попадают в таблицу немедленно.</li>'+
+      '<li><b>Нажмите «Сохранить»</b>Одна кнопка сохраняет оба шага сразу. Кнопка появляется, '+
+        'когда есть несохранённые изменения, и уходит после сохранения.</li>'+
     '</ol>'+
     '<div class="callout-h">Можно заполнять в несколько заходов — просто сохраняйте по ходу. '+
-      'Когда всё готово, нажмите «Сохранить и отправить как готовое» на шаге 1.</div>'+
+      'Когда всё готово, нажмите «Сохранить и отправить как готовое» на шаге 1. '+
+      'Любое окно закрывается клавишей Esc.</div>'+
     '<div style="height:14px"></div>'+
     '<button class="btn-primary" data-x="1">Понятно</button></div>';
   document.body.appendChild(el);
@@ -663,9 +1359,16 @@ function onLoaded(data){
   S.data = data;
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
+  // Admin/CB не заполняют анкеты сами, поэтому у них нет экрана «Мои
+  // подразделения» — на нём они увидели бы только «не назначены».
+  // Дефолт при первом входе — дашборд; как только пользователь сам
+  // переключится на другой раздел, S.appView уже не 'units', и это
+  // условие больше не сработает в текущей сессии.
+  if(isElevated && S.appView === 'units') S.appView = 'dashboard';
   show('app');
   renderTopNav();
   if(data.needsUnitPick) renderUnitPicker();
+  else if(data.needsAssignment) renderNeedsAssignment();
   else if(S.appView === 'dashboard') openDashboard();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
@@ -688,14 +1391,38 @@ function periodBanner(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: выбор подразделения
 // ═══════════════════════════════════════════════════════════
+/**
+ * Экран для dir_head/head, за которыми администратор ещё не закрепил
+ * направление/отдел. Раньше в этом случае показывался тот же свободный
+ * пикер, что и рядовому сотруднику, — то есть руководитель мог сам выбрать
+ * себе зону ответственности. Теперь только ждём назначения сверху.
+ */
+function renderNeedsAssignment(){
+  setTop('Назначение ожидается', userLabel(), false);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="unit-picker-card">' +
+    '<div class="note">За вами пока не закреплено направление или отдел. ' +
+    'Назначение выполняет администратор — как только он это сделает, ' +
+    'здесь появятся ваши подразделения.</div>' +
+    '<button id="naRefresh" class="btn-primary">Проверить снова</button>' +
+    '</div>';
+  $('naRefresh').onclick = function(){
+    this.disabled = true; this.textContent = 'Проверяем…';
+    doRefresh();
+  };
+}
+
 function renderUnitPicker(){
   setTop('Выберите подразделение', userLabel(), false);
   $('body').onclick = null;
   $('body').innerHTML =
+    '<div class="unit-picker-card">' +
     '<div class="note">За вами пока не закреплено подразделение. ' +
     'Отметьте те, по которым вы отвечаете за обзор рынка.</div>' +
     '<input id="pickFind" placeholder="Поиск по названию…"><div id="pickList"></div>' +
-    '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>';
+    '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>' +
+    '</div>';
   var chosen = {};
   function draw(){
     var q = ($('pickFind').value||'').toLowerCase();
@@ -744,19 +1471,20 @@ function renderUnits(){
   var h = periodBanner();
 
   if(store.get(LS_OB) !== '1'){
-    h += '<div class="onboard"><h2> Добро пожаловать в систему анализа рынка</h2><ol>'+
+    h += '<div class="onboard"><h2>Добро пожаловать в обзор рынка вознаграждений</h2><ol>'+
       '<li>Выберите <b>своё подразделение</b> в списке ниже.</li>'+
-      '<li><b>Шаг 1. Конкуренты</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
+      '<li><b>Шаг 1. Участники рынка</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
       '<li><b>Шаг 2. Данные по рынку</b> — внесите зарплаты и льготы по должностям.</li>'+
       '<li>Нажмите <b>«Сохранить»</b> внизу экрана.</li>'+
       '</ol><div class="ob-act">'+
-      '<button id="obMore"> Инструкция</button>'+
+      '<button id="obMore">'+ic('book')+'Инструкция</button>'+
       '<button id="obHide" class="btn-primary" style="width:auto">Понятно, скрыть</button>'+
       '</div></div>';
   }
 
   if(u.length > 2){
-    h += '<div style="margin-bottom:12px"><input id="unitFilter" placeholder=" Быстрый поиск подразделения..." autocomplete="off"></div>';
+    h += '<div class="search-wrap" style="margin-bottom:12px">'+icBare('search')+
+      '<input id="unitFilter" placeholder="Быстрый поиск подразделения…" autocomplete="off"></div>';
   }
 
   h += '<div class="sec-title">Подразделений: '+u.length+' · компаний: '+totalAll+' · проверено '+doneAll+
@@ -787,16 +1515,42 @@ function renderUnits(){
 function renderUnitCards(list){
   if(!list.length) return '<div class="empty">Подразделения не найдены</div>';
   return list.map(function(x){
+    // Кольцо показывало один процент — проверку компаний (шаг 1), и на карточке
+    // стояло «100%», хотя главного, данных по рынку (шаг 2), внесено не было.
+    // Полос теперь две, по одной на шаг, и подписаны они цифрами, а не только
+    // цветом: «14 из 14» и «0 записей» — разные состояния, и путать их нельзя.
     var pct = x.total ? Math.round(x.done/x.total*100) : 0;
     var askPct = x.total ? Math.round((x.ask||0)/x.total*100) : 0;
-    return '<div class="unit" data-u="'+esc(x.unit)+'">'+ring(pct, askPct)+
+    var sv = x.surveys || 0;
+    return '<div class="unit" data-u="'+esc(x.unit)+'">'+
       '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
-      '<div class="u-dir">'+esc(x.dir)+' · '+x.done+' из '+x.total+
-      ' · данных: '+(x.surveys||0)+'</div>'+
-      ((x.ask||0) ? '<div class="u-ask">️ требует уточнения: '+x.ask+'</div>' : '')+
+      '<div class="u-dir">'+esc(x.dir)+'</div>'+
+      '<div class="u-bars">'+
+        bar2('Участники рынка', x.done, x.total, pct, askPct) +
+        bar2('Данные по рынку', sv, null, sv ? 100 : 0, 0) +
+      '</div>'+
+      ((x.ask||0) ? '<div class="u-ask">'+ic('warn')+'требует уточнения: '+x.ask+'</div>' : '')+
       '</div>'+
       '<div class="u-chev">›</div></div>';
   }).join('');
+}
+
+/**
+ * Одна полоса прогресса шага. total === null — считать нечего (у данных по
+ * рынку нет знаменателя: сколько должностей «должно быть» заполнено, система
+ * не знает), поэтому показываем количество записей, а не долю.
+ */
+function bar2(label, done, total, pct, askPct){
+  var val = total == null
+    ? done + ' ' + declOfNum(done, ['запись', 'записи', 'записей'])
+    : done + ' из ' + total;
+  var cls = pct >= 100 ? ' is-ok' : (pct > 0 ? ' is-part' : '');
+  return '<div class="u-bar'+cls+'">'+
+    '<div class="u-bar-t"><span>'+esc(label)+'</span><b>'+esc(val)+'</b></div>'+
+    '<div class="u-bar-track">'+
+      '<i style="width:'+Math.min(100, pct)+'%"></i>'+
+      (askPct ? '<u style="width:'+Math.min(100 - pct, askPct)+'%"></u>' : '')+
+    '</div></div>';
 }
 
 /**
@@ -824,13 +1578,13 @@ function ring(pct, askPct){
   return h + '</svg><b>'+pct+'%</b></div>';
 }
 
-function setTop(title, sub, back){
-  $('ttl').innerHTML = esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
+function setTop(title, sub, back, icon){
+  $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
   $('btnBack').classList.toggle('hidden', !back);
   window.scrollTo(0,0);
 }
 $('btnBack').onclick = function(){
-  var go = function(){ S.dirty = false; renderUnits(); };
+  var go = function(){ S.dirty = false; (S.backTo || renderUnits)(); };
   if(!S.dirty){ go(); return; }
   askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
 };
@@ -838,7 +1592,8 @@ $('btnBack').onclick = function(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: подразделение (две вкладки)
 // ═══════════════════════════════════════════════════════════
-function openUnit(unit){
+function openUnit(unit, backTo){
+  S.backTo = backTo || renderUnits;
   S.unit = unit;
   S.tab = 'comp';
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
@@ -900,13 +1655,13 @@ function renderUnit(){
   var h = periodBanner();
   h += '<div class="tabs">'+
     '<button data-tab="comp" class="'+cls('comp', step1done)+'">'+
-      '<small>Шаг 1</small>Конкуренты · '+c.done+'/'+c.all+
+      '<small>Шаг 1</small>Участники рынка · '+c.done+'/'+c.all+
       (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '')+'</button>'+
     '<button data-tab="survey" class="'+cls('survey', S.surveys.length>0)+'">'+
       '<small>Шаг 2</small>Данные по рынку · '+svLabel()+'</button>'+
     '</div>';
   h += '<p class="step-hint">'+ (S.tab==='comp'
-      ? 'Отметьте по каждой компании, конкурент она вам или нет. Не уверены — «Уточнить»: такие останутся в работе.'
+      ? 'Отметьте по каждой компании, релевантна она для сравнения или нет. Не уверены — «Уточнить»: такие останутся в работе.'
       : 'Внесите оклады, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.'
     ) +'</p>';
   h += '<div id="tabBody"></div>';
@@ -937,16 +1692,46 @@ function renderTabComp(){
       'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
   }
 
-  h += '<div class="sec-title">Компании в вашей карте</div><div id="rows">';
+  // Смежная группа (см. currentUnitGroup) — компании, которые уже отметили
+  // на других площадках этой же группы, но здесь ещё не добавлены. Не
+  // дублирует их автоматически (оценка «актуально/не актуально» у каждой
+  // площадки может отличаться) — только подсказка в один клик вместо
+  // повторного набора названия.
+  var group = currentUnitGroup();
+  if(group && S.data.companiesByGroup && S.data.companiesByGroup[group] && !S.ro){
+    var known = {};
+    S.rows.concat(S.added).forEach(function(r){ known[norm(r.company)] = true; });
+    var groupSuggestions = S.data.companiesByGroup[group].filter(function(c){ return !known[norm(c)]; });
+    if(groupSuggestions.length){
+      h += '<div class="note">Есть на других площадках этой группы, но не добавлены здесь — добавить в один клик:</div>';
+      h += '<div class="chips" style="margin:8px 0 16px">'+
+        groupSuggestions.map(function(c){
+          return '<button type="button" data-add-group-company="'+esc(c)+'">+ '+esc(c)+'</button>';
+        }).join('')+
+      '</div>';
+    }
+  }
+
+  h += '<div class="sec-title">Компании в вашей карте</div>';
+  // Список компаний подразделения доходит до нескольких десятков, и найти в нём
+  // нужную можно было только глазами. Фильтр — на клиенте, по названию,
+  // сегменту и региону; сами карточки не перерисовываются, только скрываются,
+  // поэтому уже проставленные отметки не теряются.
+  if(S.rows.length > 6){
+    h += '<div class="search-wrap" style="margin-bottom:10px">'+icBare('search')+
+      '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>';
+  }
+  h += tblCount(S.rows.length, null, ['компания', 'компании', 'компаний']);
+  h += '<div id="rows" class="row-grid">';
   h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
        '<div class="empty">Список пуст</div>';
   h += '</div>';
 
   if(S.added.length){
-    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds">';
+    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds" class="row-grid">';
     h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
     h += '</div>';
-  } else { h += '<div id="adds"></div>'; }
+  } else { h += '<div id="adds" class="row-grid"></div>'; }
 
   if(!S.ro) h += '<button id="btnAdd" class="btn-line" style="margin-top:6px">+ Добавить компанию</button>';
 
@@ -974,8 +1759,53 @@ function renderTabComp(){
   bindRows();
   $('unitNote').oninput = function(){ S.note = this.value; markDirty(); };
   if($('btnAdd')) $('btnAdd').onclick = openAddSheet;
+
+  $('tabBody').querySelectorAll('button[data-add-group-company]').forEach(function(btn){
+    btn.onclick = function(){
+      S.added.push({
+        id:'', unit:S.unit, company:this.dataset.addGroupCompany, type:'', prio:'',
+        seg:'', region:'', note:'', status:'', src:'', actual:'актуально'
+      });
+      markDirty();
+      renderUnit();
+      toast('Компания добавлена. Не забудьте сохранить.');
+    };
+  });
+
+  if($('compSearch')){
+    $('compSearch').oninput = function(){
+      var q = norm(this.value);
+      var shown = 0;
+      $('rows').querySelectorAll('.row').forEach(function(node){
+        var r = S.rows[+node.dataset.i] || {};
+        var hit = !q || norm(r.company).indexOf(q) >= 0 ||
+                  norm(r.seg).indexOf(q) >= 0 || norm(r.region).indexOf(q) >= 0;
+        node.classList.toggle('hidden', !hit);
+        if(hit) shown++;
+      });
+      var cnt = $('tabBody').querySelector('.tbl-count');
+      if(cnt){
+        cnt.innerHTML = '<b>'+shown+'</b> '+declOfNum(shown, ['компания','компании','компаний'])+
+          (q ? '<span class="tbl-count-of">из '+S.rows.length+'</span>' : '');
+      }
+    };
+  }
   if($('btnNext')) $('btnNext').onclick = function(){ S.tab = 'survey'; renderUnit(); };
   if($('btnSubmit')) $('btnSubmit').onclick = function(){ save(true); };
+}
+
+/**
+ * Строка занята другим ответственным (см. isOwnedByOther на сервере —
+ * та же граница, здесь только для UI). Пока не защищено сервером — это
+ * просто более честный интерфейс, реальная блокировка проверяется при
+ * сохранении и в списке заблокированных из ответа save().
+ */
+function isLockedForMe(owner){
+  if(!owner) return false;
+  var role = S.data.user.role;
+  if(role === 'admin' || role === 'cb') return false;
+  var mine = String(S.data.user.fio || S.data.user.login || '').trim().toLowerCase();
+  return String(owner).trim().toLowerCase() !== mine;
 }
 
 function rowCard(r, i, isNew){
@@ -984,25 +1814,30 @@ function rowCard(r, i, isNew){
          : r.actual === 'уточнить' ? 'st-ask' : '';
   var meta = [r.seg, r.region].filter(String).join(' · ');
   var name = r.company || '(название не заполнено в таблице)';
-  var h = '<div class="row '+st+'" data-i="'+i+'">';
+  var locked = isLockedForMe(r.by);
+  var h = '<div class="row '+st+(locked?' row-locked':'')+'" data-i="'+i+'">';
   h += '<div class="row-head"><div class="row-name"'+
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(r.actual === 'уточнить') h += '<div class="row-ask">️ требует уточнения</div>';
+  if(locked) h += '<div class="row-meta" style="color:var(--warn)">'+ic('lock',12)+'изменяет '+esc(r.by)+'</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
 
   h += '<div class="seg">'+
-    [['актуально',' Актуально'],['не актуально',' Не актуально'],['уточнить','? Уточнить']].map(function(pair){
+    [['актуально','✓ Актуально'],['не актуально','✕ Не актуально'],['уточнить','? Уточнить']].map(function(pair){
       var v = pair[0], lbl = pair[1];
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
-        (S.ro?' disabled':'')+'>'+lbl+'</button>';
+        ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
     }).join('')+'</div>';
+
+  // «требует уточнения» стоит ПОСЛЕ строки кнопок, а не до неё: иначе
+  // кнопка, только что нажатая, уезжает вниз под курсором.
+  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
 
   h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
   h += '<div class="more hidden">';
-  h += '<div style="font-size:12px;color:var(--muted);margin:8px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип конкурента</div>';
+  h += '<div style="font-size:12px;color:var(--muted);margin:8px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
   h += chips('type', S.data.ref.types, r.type, false);
   h += '<div style="font-size:12px;color:var(--muted);margin:12px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
   h += chips('prio', S.data.ref.priorities, r.prio, false);
@@ -1010,7 +1845,7 @@ function rowCard(r, i, isNew){
        (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
   h += '<textarea data-act="note" placeholder="'+
        (r.actual === 'уточнить' ? 'Что нужно выяснить и у кого' : 'Почему важен / что учесть')+
-       '"'+(S.ro?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
+       '"'+((S.ro||locked)?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
   h += '</div></div>';
   return h;
 }
@@ -1033,22 +1868,22 @@ function bindRows(){
         b.textContent = closed ? 'Подробнее ▾' : 'Свернуть ▴';
         return;
       }
-      if(S.ro) return;
+      if(S.ro || card.classList.contains('row-locked')) return;
       if(act === 'actual'){
         r.actual = (r.actual === b.dataset.v) ? 'не проверено' : b.dataset.v;
         card.className = 'row ' + (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':
                                    r.actual==='уточнить'?'st-ask':'');
         card.querySelectorAll('.seg button').forEach(function(x){
           x.classList.toggle('on', x.dataset.v === r.actual); });
-        // подпись «не считается проверенной» появляется и исчезает сразу
-        var head = card.querySelector('.row-head');
-        var mark = head.querySelector('.row-ask');
+        // подпись «не считается проверенной» стоит после строки кнопок —
+        // если поставить её раньше, только что нажатая кнопка уезжает вниз.
+        var seg = card.querySelector('.seg');
+        var mark = card.querySelector('.row-ask');
         if(r.actual === 'уточнить' && !mark){
           var d = document.createElement('div');
           d.className = 'row-ask';
           d.textContent = 'не считается проверенной';
-          var prev = head.querySelector('.row-note-preview');
-          if(prev) head.insertBefore(d, prev); else head.appendChild(d);
+          seg.insertAdjacentElement('afterend', d);
         } else if(r.actual !== 'уточнить' && mark){ mark.remove(); }
         markDirty(); updateProgress(); return;
       }
@@ -1062,6 +1897,7 @@ function bindRows(){
     box.addEventListener('input', function(e){
       if(e.target.dataset.act !== 'note') return;
       var card = e.target.closest('.row');
+      if(card.classList.contains('row-locked')) return;
       var arr = zone === 'rows' ? S.rows : S.added;
       arr[+card.dataset.i].note = e.target.value;
       markDirty();
@@ -1075,8 +1911,22 @@ function bindRows(){
  * Должности, которых нет в штатке, идут отдельной группой в конце —
  * их вносили вручную, и терять их нельзя.
  */
+/** Смежная группа текущего подразделения (площадки с одинаковой структурой
+ *  должностей, отличающиеся только регионом/точкой) — см. divisions.group_key. */
+function currentUnitGroup(){
+  var u = (S.data.units || []).filter(function(x){ return x.unit === S.unit; })[0];
+  return u && u.group ? u.group : '';
+}
+
 function survGroups(){
-  var штатка = (S.data.positionsByUnit && S.data.positionsByUnit[S.unit]) || [];
+  // Для подразделения без группы — штатка как раньше, только своя. Для
+  // группы — объединённый уникальный список по всей группе (см. комментарий
+  // к positionsByGroup в authController.js): не заставляет вносить одну и ту
+  // же должность отдельно для каждой площадки.
+  var group = currentUnitGroup();
+  var штатка = group && S.data.positionsByGroup && S.data.positionsByGroup[group]
+    ? S.data.positionsByGroup[group]
+    : ((S.data.positionsByUnit && S.data.positionsByUnit[S.unit]) || []);
   var groups = [], byPos = {};
 
   штатка.forEach(function(p){
@@ -1098,6 +1948,12 @@ function survGroups(){
 }
 
 function norm(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim(); }
+
+/** Льготы к списку: в базе они текстом, в форме — массивом. */
+function benList(v){
+  if(Array.isArray(v)) return v.filter(Boolean);
+  return String(v == null ? '' : v).split(/[;,]/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
 
 /** Подпись на вкладке шага 2: «закрыто/всего» по штатке, иначе просто число записей. */
 function svLabel(){
@@ -1121,7 +1977,12 @@ function renderTabSurvey(){
     h += '<div class="sec-title">Должности подразделения · закрыто ' + closed +
          ' из ' + G.groups.length + '</div>';
 
-    h += G.groups.map(function(g, gi){
+    if(currentUnitGroup()){
+      h += '<p class="step-hint">Список объединён по всем площадкам смежной группы — '+
+           'должность вносится один раз, не по каждой площадке отдельно.</p>';
+    }
+
+    h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
       var n = g.items.length;
       var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
       var cls = 'pos' + (n ? ' pos-done' : '');
@@ -1151,7 +2012,7 @@ function renderTabSurvey(){
       }
       x += '</div>';
       return x;
-    }).join('');
+    }).join('') + '</div>';
   }
 
   if(!S.ro){
@@ -1232,19 +2093,28 @@ function svCard(r, i){
     h += '<div class="sv-line">Бонусов нет</div>';
   }
   if(r.extra) h += '<div class="sv-line">Прочее: '+esc(r.extra)+'</div>';
-  if(r.benefits && r.benefits.length){
-    var vis = r.benefits.slice(0,3), rest = r.benefits.length - vis.length;
+  // Льготы приходят массивом, но записи, сохранённые до нормализации поля,
+  // лежат в базе строкой. На строке slice(0,3) вернёт «Опл», а .map у строки
+  // нет — исключение прерывало отрисовку всего шага 2, и экран оставался
+  // пустым при живых данных. Приводим к списку здесь, а не полагаемся на то,
+  // что сервер уже всё починил.
+  var ben = benList(r.benefits);
+  if(ben.length){
+    var vis = ben.slice(0,3), rest = ben.length - vis.length;
     h += '<div class="sv-tags">'+vis.map(function(b){ return '<span>'+esc(b)+'</span>'; }).join('')+
          (rest>0 ? '<span>+'+rest+'</span>' : '')+'</div>';
   }
   if(r.note) h += '<div class="sv-line" style="font-style:italic">'+esc(r.note)+'</div>';
   var meta = [r.source, r.trust ? 'достоверность: '+r.trust : ''].filter(String).join(' · ');
   if(meta) h += '<div class="sv-by">'+esc(meta)+'</div>';
-  if(r.by) h += '<div class="sv-by">'+esc(r.by)+(r.at ? ' · '+esc(r.at) : '')+'</div>';
+  if(r.by) h += '<div class="sv-by">'+esc(r.by)+(r.at ? ' · '+esc(fmtDateTime(r.at)) : '')+'</div>';
+  var locked = isLockedForMe(r.by);
   if(!S.ro){
-    h += '<div class="sv-act">'+
-      '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
-      '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
+    h += locked
+      ? '<div class="sv-locked">'+ic('lock',12)+'изменить может только '+esc(r.by)+'</div>'
+      : '<div class="sv-act">'+
+        '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
+        '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
   }
   h += '</div>';
   return h;
@@ -1260,6 +2130,15 @@ function openSurveySheet(i, presetPos){
         benefits:[], extra:'', source:'', trust:'', note:'' }
     : JSON.parse(JSON.stringify(S.surveys[i]));
 
+  // Форма работает с льготами как со списком (indexOf/splice/push по чипам).
+  // У записи из базы это может быть строка — тогда push молча ничего не даёт,
+  // а выбранные льготы теряются при сохранении.
+  r.benefits = benList(r.benefits);
+  // Снимок «как было» — часть полей (chips/пикеры) пишутся прямо в r по ходу
+  // правки, часть (обычные поля) читаются из DOM только при сохранении;
+  // isDirty ниже сравнивает и то, и другое с этим снимком.
+  var orig = JSON.parse(JSON.stringify(r));
+
   var ref = S.data.ref;
   var coList = S.rows.map(function(x){ return x.company; })
     .concat(S.added.map(function(x){ return x.company; }))
@@ -1272,13 +2151,11 @@ function openSurveySheet(i, presetPos){
     '<div class="sheet-hd"><b>'+(isNew?'Новая запись':'Изменить запись')+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
 
-    '<label class="lbl" style="margin-top:6px">Компания-конкурент</label>'+
-    '<select id="fCo">'+
-      '<option value="">— выберите —</option>'+
-      coList.map(function(c){ return '<option'+(c===r.company?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+
-      '<option value="__other__">Другая компания…</option>'+
-    '</select>'+
-    '<input id="fCoOther" class="hidden" placeholder="Название компании" style="margin-top:8px">'+
+    // Был нативный <select> со всем списком компаний подразделения: без поиска,
+    // а системный дропдаун на телефоне ещё и обрезает длинные названия.
+    // Тот же выбор с поиском, что уже используется для должностей.
+    '<label class="lbl" style="margin-top:6px">Компания</label>'+
+    pickField('fCo', r.company, 'Выберите компанию', true)+
 
     '<label class="lbl">Должность у нас</label>'+
     pickField('fPosOur', r.posOur, 'Выберите должность', true)+
@@ -1322,16 +2199,11 @@ function openSurveySheet(i, presetPos){
 
   document.body.appendChild(el);
 
-  var coSel = el.querySelector('#fCo'), coOther = el.querySelector('#fCoOther');
-  coSel.onchange = function(){
-    var other = this.value === '__other__';
-    coOther.classList.toggle('hidden', !other);
-    if(other) coOther.focus();
-  };
+  var coBtn = el.querySelector('#fCo');
 
-  // Должности — строгий выбор из штатки, с поиском.
+  // Должности и компания — строгий выбор из справочника, с поиском.
   // «У нас» — только должности своего подразделения, добавление пишется туда же.
-  // «У конкурента» — весь холдинг: у них своя штатка, нашей её ограничивать нельзя.
+  // «В компании» — весь холдинг: у них своя штатка, нашей её ограничивать нельзя.
   var bindPick = function(id, field, opt){
     var btn = el.querySelector('#'+id);
     btn.onclick = function(){
@@ -1341,6 +2213,7 @@ function openSurveySheet(i, presetPos){
         wide: opt.wide ? opt.wide() : null,
         wideLabel: opt.wideLabel,
         addUnit: opt.addUnit ? S.unit : null,
+        block: opt.block || null,
         value: r[field],
         onPick: function(v){
           r[field] = v;
@@ -1358,13 +2231,59 @@ function openSurveySheet(i, presetPos){
     wideLabel: 'Показать все должности холдинга',
     addUnit: true
   });
+  // «Должность в компании» — то, как её называют у участника рынка. Своего
+  // варианта здесь раньше добавить было нельзя: ни block, ни addUnit не
+  // передавались, поэтому кнопка «+ Добавить» в пикере не появлялась вообще, и
+  // при незнакомом названии заполнить поле было нечем. Именно здесь чужое
+  // название нужно чаще всего — у других компаний своя номенклатура.
   bindPick('fPosTheir', 'posTheir', {
-    title: 'Должность у конкурента',
-    list: function(){ return S.data.positionsAll || []; }
+    title: 'Должность в компании',
+    list: function(){ return S.data.positionsAll || []; },
+    block: 'positions'
   });
 
+  // Компании подразделения (шаг 1) — основной список; весь справочник холдинга
+  // доступен вторым списком, если нужной компании в подразделении ещё нет.
+  bindPick('fCo', 'company', {
+    title: 'Компания',
+    list: function(){ return coList; },
+    wide: function(){
+      return (S.data.companies || []).map(function(c){ return c && c.name ? c.name : c; });
+    },
+    wideLabel: 'Показать все компании справочника'
+  });
+
+  var isDirty = function(){
+    var cur = {
+      company: r.company, posOur: r.posOur, posTheir: r.posTheir,
+      grade: el.querySelector('#fGrade').value.trim(),
+      payFrom: el.querySelector('#fFrom').value.trim(),
+      payTo: el.querySelector('#fTo').value.trim(),
+      cur: r.cur, payPer: r.payPer,
+      bonHas: r.bonHas, bonSize: el.querySelector('#fBonSize').value.trim(),
+      bonType: r.bonType, bonPer: r.bonPer,
+      benefits: (r.benefits||[]).slice().sort().join(','),
+      extra: el.querySelector('#fExtra').value.trim(),
+      source: r.source, trust: r.trust,
+      note: el.querySelector('#fNote').value.trim()
+    };
+    return cur.company !== (orig.company||'') || cur.posOur !== (orig.posOur||'') ||
+      cur.posTheir !== (orig.posTheir||'') || cur.grade !== String(orig.grade||'') ||
+      cur.payFrom !== String(orig.payFrom||'') || cur.payTo !== String(orig.payTo||'') ||
+      cur.cur !== orig.cur || cur.payPer !== orig.payPer || cur.bonHas !== (orig.bonHas||'') ||
+      cur.bonSize !== String(orig.bonSize||'') || cur.bonType !== (orig.bonType||'') ||
+      cur.bonPer !== (orig.bonPer||'') ||
+      cur.benefits !== (orig.benefits||[]).slice().sort().join(',') ||
+      cur.extra !== String(orig.extra||'') || cur.source !== (orig.source||'') ||
+      cur.trust !== (orig.trust||'') || cur.note !== String(orig.note||'');
+  };
+
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.dataset.x){
+      if(!isDirty()){ el.remove(); return; }
+      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+      return;
+    }
     var b = e.target.closest('.chips button');
     if(!b) return;
     var box = b.parentNode, act = b.dataset.act, v = b.dataset.v;
@@ -1381,8 +2300,13 @@ function openSurveySheet(i, presetPos){
   });
 
   el.querySelector('#fGo').onclick = function(){
-    var co = coSel.value === '__other__' ? coOther.value.trim() : coSel.value;
-    if(!co){ toast('Выберите или впишите компанию'); return; }
+    var co = r.company;
+    if(!co){
+      toast('Выберите компанию');
+      coBtn.classList.add('need');
+      coBtn.scrollIntoView({block:'center'});
+      return;
+    }
     if(!r.posOur){
       toast('Выберите должность у нас');
       el.querySelector('#fPosOur').classList.add('need');
@@ -1416,9 +2340,16 @@ function openSurveySheet(i, presetPos){
 // ═══════════════════════════════════════════════════════════
 function markDirty(){
   if(S.ro) return;
+  var was = S.dirty;
   S.dirty = true;
   store.set(LS_DRAFT+S.unit, JSON.stringify({
     rows:S.rows, added:S.added, surveys:S.surveys, removed:S.removed, note:S.note }));
+  // Вернуть кнопку сразу при первом изменении после сохранения — не дожидаясь
+  // ближайшей перерисовки, иначе изменения уже есть, а сохранить нечем.
+  if(!was){
+    var b = $('btnSave');
+    if(b) b.classList.toggle('hidden', S.ro);
+  }
 }
 
 function updateProgress(){
@@ -1453,7 +2384,7 @@ function updateProgress(){
   var t1 = document.querySelector('.tabs button[data-tab="comp"]');
   var t2 = document.querySelector('.tabs button[data-tab="survey"]');
   if(t1){
-    t1.innerHTML = '<small>Шаг 1</small>Конкуренты · ' + c.done + '/' + c.all +
+    t1.innerHTML = '<small>Шаг 1</small>Участники рынка · ' + c.done + '/' + c.all +
       (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '');
     t1.classList.toggle('done', c.all > 0 && c.done === c.all);
   }
@@ -1462,7 +2393,11 @@ function updateProgress(){
     t2.classList.toggle('done', S.surveys.length > 0);
   }
 
-  $('btnSave').classList.toggle('hidden', S.ro);
+  // Кнопка «Сохранить» показывается только когда есть что сохранять: после
+  // успешного сохранения S.dirty сбрасывается и кнопка уходит, при первом же
+  // изменении возвращается (см. markDirty). Без этого она висела всегда и не
+  // отличала «сохранено» от «есть несохранённое».
+  $('btnSave').classList.toggle('hidden', S.ro || !S.dirty);
   $('btnSave').textContent = 'Сохранить';
 }
 
@@ -1481,7 +2416,7 @@ function openAddSheet(){
     '<label class="lbl">Название компании</label>'+
     '<input id="addName" placeholder="Начните вводить…" autocomplete="off">'+
     '<div id="addSug"></div>'+
-    '<label class="lbl">Тип конкурента</label>'+ chips('type', S.data.ref.types, '', false) +
+    '<label class="lbl">Тип компании</label>'+ chips('type', S.data.ref.types, '', false) +
     '<label class="lbl">Приоритет</label>'+ chips('prio', S.data.ref.priorities, '', false) +
     '<label class="lbl">Сегмент</label>'+ pickField('addSeg', '', 'Выберите сегмент', false) +
     '<label class="lbl">Регион</label>'+ pickField('addReg', '', 'Выберите регион', false) +
@@ -1508,8 +2443,17 @@ function openAddSheet(){
   bindRef('addSeg', 'seg', 'Сегмент', 'segments', function(){ return S.data.segments || []; });
   bindRef('addReg', 'region', 'Регион присутствия', 'regions', function(){ return S.data.regions || []; });
 
+  var isDirty = function(){
+    return !!(el.querySelector('#addName').value.trim() || picked.type || picked.prio ||
+      picked.seg || picked.region || el.querySelector('#addNote').value.trim());
+  };
+
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.dataset.x){
+      if(!isDirty()){ el.remove(); return; }
+      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+      return;
+    }
     var b = e.target.closest('.chips button');
     if(!b) return;
     var act = b.dataset.act;
@@ -1625,7 +2569,7 @@ function doSave(submit){
     var a = res[0], b = res[1];
     if(!a || !a.ok || !b || !b.ok){
       var msg = (a && !a.ok && a.error) || (b && !b.ok && b.error) || 'Не удалось сохранить';
-      toast(msg);
+      toast(msg, 'no');
       if(msg.indexOf('Сессия') === 0){
         store.del(LS_TOKEN);
         setTimeout(function(){ location.reload(); }, 1600);
@@ -1661,14 +2605,30 @@ function doSave(submit){
       u.surveys = S.surveys.length;
     }
 
-    toast(submit ? 'Отправлено. Спасибо!' : 'Сохранено в ' + a.at);
+    // Часть строк принадлежит другому ответственному (см. isOwnedByOther
+    // на сервере) — сохранилось всё остальное, но по этим строкам локальное
+    // состояние теперь расходится с базой, поэтому явно предупреждаем и
+    // предлагаем обновить, а не притворяемся, что сохранилось всё.
+    var blocked = ([]).concat((a.blocked || []), (b.blocked || []));
+    if(blocked.length){
+      var names = blocked.map(function(x){ return (x.company||'')+' — заполняет '+(x.owner||'кто-то другой'); });
+      ask({
+        title: 'Часть строк не сохранена',
+        html: 'Остальное сохранено. Эти записи уже занял другой ответственный:<br>'+
+              names.slice(0,6).map(esc).join('<br>')+(names.length>6?'<br>и ещё '+(names.length-6):''),
+        ok: 'Обновить данные',
+        cancel: 'Понятно'
+      }).then(function(yes){ if(yes) doRefresh_(); });
+    }
+
+    toast(submit ? 'Отправлено. Спасибо!' : 'Сохранено в ' + a.at, 'ok');
     if(submit) setTimeout(renderUnits, 900);
     else renderUnit();
   }).catch(function(){
     S.saving = false;
     $('btnSave').disabled = false;
     $('btnSave').textContent = 'Сохранить';
-    toast('Нет связи. Черновик сохранён на устройстве — попробуйте позже.');
+    toast('Нет связи. Черновик сохранён на устройстве — попробуйте позже.', 'no');
   });
 }
 
@@ -1689,7 +2649,7 @@ function openDashboard(){
   S.appView = 'dashboard';
   S.unit = null;
   renderTopNav();
-  setTop(' Аналитический Дашборд', userLabel(), false);
+  setTop('Аналитический Дашборд', userLabel(), false, 'dashboard');
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Загрузка аналитики рынка…</div>';
@@ -1737,13 +2697,13 @@ function renderDashboard(){
 
   // 2. Вкладки Дашборда
   var tabs = [
-    { id:'salaries', label:' Зарплатные вилки' },
-    { id:'progress', label:' Прогресс по HR BP' },
-    { id:'benefits', label:' Льготы и Бонусы' }
+    { id:'salaries', icon:'wallet', label:'Зарплатные вилки' },
+    { id:'progress', icon:'target', label:'Прогресс по HR BP' },
+    { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
   ];
-  h += '<div class="sub-tabs">'+ tabs.map(function(t){
+  h += '<div class="sub-tabs sub-tabs--sticky">'+ tabs.map(function(t){
     var on = S.dashTab === t.id ? ' on' : '';
-    return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+esc(t.label)+'</button>';
+    return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
   }).join('') +'</div>';
 
   // 3. Панель фильтров
@@ -1751,7 +2711,8 @@ function renderDashboard(){
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
 
   h += '<div class="dash-filters">'+
-    '<input id="dashSearch" placeholder=" Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="dashSearch" placeholder="Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'"></div>'+
     '<select id="dashDir">'+
       '<option value="">Все направления</option>'+
       allDirs.map(function(dir){
@@ -1768,7 +2729,7 @@ function renderDashboard(){
 
   h += '<div class="dash-actions">'+
     '<button id="btnDashReset" class="btn-ghost" style="border:1px solid var(--line);min-height:36px">Сбросить фильтры</button>'+
-    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)"> Экспорт в CSV</button>'+
+    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)">'+ic('download')+'Экспорт в CSV</button>'+
   '</div>';
 
   // 4. Контент выбранной вкладки
@@ -1794,9 +2755,12 @@ function renderDashboard(){
   var timer = null;
   searchIn.oninput = function(){
     clearTimeout(timer);
+    var pos = searchIn.selectionStart;
     timer = setTimeout(function(){
       S.dashFilters.search = searchIn.value.trim();
       openDashboard();
+      var again = $('dashSearch');
+      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
     }, 400);
   };
 
@@ -1825,7 +2789,7 @@ function renderSalariesTab(positions){
 
   var h = '<div class="sec-title">Зарплатные вилки по должностям ('+positions.length+')</div>';
 
-  h += positions.map(function(pos, idx){
+  h += '<div class="fork-grid">' + positions.map(function(pos, idx){
     var maxVal = Math.max(pos.max, 1);
     var p25Pct = pos.min > 0 ? Math.round((pos.p25 / maxVal) * 100) : 0;
     var p75Pct = pos.min > 0 ? Math.round((pos.p75 / maxVal) * 100) : 0;
@@ -1876,13 +2840,13 @@ function renderSalariesTab(positions){
       '<div id="'+bodyId+'" class="fork-body hidden">'+
         '<div class="tblwrap">'+
           '<table class="co-tbl">'+
-            '<tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr>'+
-            coList +
+            '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
+            '<tbody>'+coList+'</tbody>'+
           '</table>'+
         '</div>'+
       '</div>'+
     '</div>';
-  }).join('');
+  }).join('') + '</div>';
 
   return h;
 }
@@ -1892,53 +2856,69 @@ function togglePosBody(id){
   if(el) el.classList.toggle('hidden');
 }
 
+/**
+ * Счётчик строк над таблицей. Показывается везде, где есть таблица, чтобы
+ * было видно, сколько записей всего и сколько осталось после фильтра.
+ */
+function tblCount(shown, total, words){
+  words = words || ['запись', 'записи', 'записей'];
+  var filtered = (total != null && total !== shown);
+  return '<div class="tbl-count"><b>'+shown+'</b> '+declOfNum(shown, words)+
+    (filtered ? '<span class="tbl-count-of">из '+total+'</span>' : '')+'</div>';
+}
+
+/**
+ * Прогресс по HR BP / дирекциям. Раньше рисовался стопкой блоков .prog-row,
+ * у которых не было ни строчки CSS: полосы не появлялись, а два соседних
+ * <span> шли инлайн вплотную — «Подразделений: 1 / 23Связей: 14 / 148».
+ * Здесь это таблица с закреплённой шапкой и счётчиком строк, как и остальные
+ * длинные списки в интерфейсе.
+ */
+function progressTable(list, whoLabel, whoOf, unitsLabel, withSurveys){
+  if(!list.length) return '<div class="empty">Нет данных</div>';
+
+  var h = tblCount(list.length, null, ['строка', 'строки', 'строк']);
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+      '<th>'+esc(whoLabel)+'</th>'+
+      '<th class="num">Готовность</th>'+
+      '<th class="num">'+esc(unitsLabel)+'</th>'+
+      '<th class="num">Связей</th>'+
+      (withSurveys ? '<th class="num">Анкет</th>' : '')+
+    '</tr></thead><tbody>';
+
+  h += list.map(function(x){
+    var isDone = x.pct >= 100;
+    var cls = isDone ? 'p-ok' : (x.pct > 0 ? 'p-mid' : 'p-no');
+    return '<tr>'+
+      '<td><b>'+esc(whoOf(x))+'</b>'+
+        '<div class="prog-bar-bg" style="margin-top:6px">'+
+          '<div class="prog-bar-fill" style="width:'+x.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
+        '</div></td>'+
+      '<td class="num"><span class="pill '+cls+'">'+x.pct+'%</span></td>'+
+      '<td class="num">'+x.unitsDone+' / '+x.unitsTotal+'</td>'+
+      '<td class="num">'+x.compDone+' / '+x.compTotal+'</td>'+
+      (withSurveys ? '<td class="num">'+x.surveysTotal+'</td>' : '')+
+    '</tr>';
+  }).join('');
+
+  return h + '</tbody></table></div>';
+}
+
 function renderProgressTab(hrbpList, dirList){
   var h = '<div class="sec-title">Прогресс сбора по HR BP</div>';
 
   if(S.data && (S.data.user.role === 'admin' || S.data.user.role === 'cb')){
     h += '<div style="margin-bottom:14px">'+
       '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:13.5px;min-height:38px">'+
-        ' Напомнить всем должникам в Telegram'+
+        ic('megaphone')+'Напомнить всем должникам в Telegram'+
       '</button>'+
     '</div>';
   }
 
-  h += hrbpList.map(function(hItem){
-    var isDone = hItem.pct >= 100;
-    var cls = isDone ? 'p-ok' : (hItem.pct > 0 ? 'p-mid' : 'p-no');
-    return '<div class="prog-row">'+
-      '<div class="prog-hd">'+
-        '<span>'+esc(hItem.hrbp)+'</span>'+
-        '<span class="pill '+cls+'">'+hItem.pct+'%</span>'+
-      '</div>'+
-      '<div class="prog-bar-bg">'+
-        '<div class="prog-bar-fill" style="width:'+hItem.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
-      '</div>'+
-      '<div class="prog-sub">'+
-        '<span>Подразделений: <b>'+hItem.unitsDone+' / '+hItem.unitsTotal+'</b></span>'+
-        '<span>Связей: <b>'+hItem.compDone+' / '+hItem.compTotal+'</b> · Анкет: <b>'+hItem.surveysTotal+'</b></span>'+
-      '</div>'+
-    '</div>';
-  }).join('');
+  h += progressTable(hrbpList, 'HR BP', function(x){ return x.hrbp; }, 'Подразделений', true);
 
   h += '<div class="sec-title" style="margin-top:24px">Прогресс сбора по Дирекциям</div>';
-  h += dirList.map(function(dItem){
-    var isDone = dItem.pct >= 100;
-    var cls = isDone ? 'p-ok' : (dItem.pct > 0 ? 'p-mid' : 'p-no');
-    return '<div class="prog-row">'+
-      '<div class="prog-hd">'+
-        '<span>'+esc(dItem.dir)+'</span>'+
-        '<span class="pill '+cls+'">'+dItem.pct+'%</span>'+
-      '</div>'+
-      '<div class="prog-bar-bg">'+
-        '<div class="prog-bar-fill" style="width:'+dItem.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
-      '</div>'+
-      '<div class="prog-sub">'+
-        '<span>Отделов: <b>'+dItem.unitsDone+' / '+dItem.unitsTotal+'</b></span>'+
-        '<span>Связей: <b>'+dItem.compDone+' / '+dItem.compTotal+'</b></span>'+
-      '</div>'+
-    '</div>';
-  }).join('');
+  h += progressTable(dirList, 'Дирекция', function(x){ return x.dir; }, 'Отделов', false);
 
   setTimeout(function(){
     var b = $('btnMassReminder');
@@ -1952,14 +2932,14 @@ function renderProgressTab(hrbpList, dirList){
           if(!yes) return;
           b.disabled = true; b.textContent = 'Отправляем…';
           call('apiSendMassReminder', S.token).then(function(res){
-            b.disabled = false; b.textContent = ' Напомнить всем должникам в Telegram';
+            b.disabled = false; b.innerHTML = ic('megaphone')+'Напомнить всем должникам в Telegram';
             if(res && res.ok){
               toast('Успешно отправлено напоминаний: ' + res.sent);
             } else {
               toast((res && res.error) || 'Ошибка отправки');
             }
           }).catch(function(){
-            b.disabled = false; b.textContent = ' Напомнить всем должникам в Telegram';
+            b.disabled = false; b.innerHTML = ic('megaphone')+'Напомнить всем должникам в Telegram';
             toast('Нет связи');
           });
         });
@@ -1976,21 +2956,21 @@ function renderBenefitsTab(benefits, bonuses, topComps){
   if(!benefits.length){
     h += '<div class="empty">Нет данных о льготах</div>';
   } else {
-    h += benefits.map(function(b){
-      return '<div class="prog-row">'+
-        '<div class="prog-hd">'+
-          '<span>'+esc(b.name)+'</span>'+
-          '<span class="pill p-ok">'+b.pct+'%</span>'+
-        '</div>'+
-        '<div class="prog-bar-bg">'+
-          '<div class="prog-bar-fill" style="width:'+b.pct+'%"></div>'+
-        '</div>'+
-        '<div class="prog-sub">'+
-          '<span>Упоминаний: <b>'+b.count+'</b></span>'+
-          '<span>Охват рынка: <b>'+b.pct+'%</b></span>'+
-        '</div>'+
-      '</div>';
-    }).join('');
+    h += tblCount(benefits.length, null, ['льгота', 'льготы', 'льгот']);
+    h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+        '<th>Льгота</th><th class="num">Охват рынка</th><th class="num">Упоминаний</th>'+
+      '</tr></thead><tbody>'+
+      benefits.map(function(b){
+        return '<tr>'+
+          '<td><b>'+esc(b.name)+'</b>'+
+            '<div class="prog-bar-bg" style="margin-top:6px">'+
+              '<div class="prog-bar-fill" style="width:'+b.pct+'%"></div>'+
+            '</div></td>'+
+          '<td class="num"><span class="pill p-ok">'+b.pct+'%</span></td>'+
+          '<td class="num">'+b.count+'</td>'+
+        '</tr>';
+      }).join('')+
+    '</tbody></table></div>';
   }
 
   // Бонусы
@@ -2011,13 +2991,14 @@ function renderBenefitsTab(benefits, bonuses, topComps){
   '</div>';
 
   // Топ конкурентов
-  h += '<div class="sec-title" style="margin-top:24px">Топ упоминаемых компаний-конкурентов ('+topComps.length+')</div>';
-  h += '<div class="tblwrap"><table class="co-tbl">'+
-    '<tr><th>Компания</th><th>Количество записей в анкетах</th></tr>'+
+  h += '<div class="sec-title" style="margin-top:24px">Топ упоминаемых компаний</div>';
+  h += tblCount(topComps.length, null, ['компания', 'компании', 'компаний']);
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+    '<thead><tr><th>Компания</th><th class="num">Записей в анкетах</th></tr></thead><tbody>'+
     topComps.map(function(c){
-      return '<tr><td><b>'+esc(c.company)+'</b></td><td>'+c.count+'</td></tr>';
+      return '<tr><td><b>'+esc(c.company)+'</b></td><td class="num">'+c.count+'</td></tr>';
     }).join('')+
-  '</table></div>';
+  '</tbody></table></div>';
 
   return h;
 }
@@ -2067,23 +3048,42 @@ function openAdminPanel(){
   S.appView = 'admin';
   S.unit = null;
   renderTopNav();
-  setTop('️ Панель Администратора', userLabel(), false);
+  setTop('Панель Администратора', userLabel(), false, 'admin');
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   renderAdminPanel();
 }
 
 function renderAdminPanel(){
-  var tabs = [
-    { id:'users', label:' Пользователи' },
-    { id:'divisions', label:' Оргструктура (326)' },
-    { id:'period', label:'⏱️ Период сбора' },
-    { id:'tools', label:'️ Сервис и Журнал' }
+  // Какие вкладки видны — по конструктору ролей и доступов (админка → «Роли
+  // и доступы»), не по жёстко зашитой роли. Сам конструктор — исключение:
+  // admin-only, редактирование прав всей компании не выдаётся правом.
+  var allTabs = [
+    { id:'users', icon:'users', label:'Пользователи', cap:'users:view' },
+    { id:'archive', icon:'archive', label:'Архив', cap:'users:view' },
+    // Число подразделений было вписано в подпись строкой «(326)» — оно
+    // разъедется, как только оргструктуру поменяют. Берём из данных.
+    { id:'divisions', icon:'units', label:'Оргструктура' + (S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : ''), cap:'divisions:view' },
+    { id:'dict', icon:'book', label:'Справочники', cap:'dictionary:view' },
+    { id:'period', icon:'clock', label:'Период сбора', cap:'period:view' },
+    { id:'tools', icon:'wrench', label:'Сервис и Журнал', cap:'service:view' },
+    { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
+  var tabs = allTabs.filter(function(t){
+    return t.adminOnly ? S.data.user.role === 'admin' : hasCap(t.cap);
+  });
 
-  var h = '<div class="sub-tabs">'+ tabs.map(function(t){
+  if(!tabs.length){
+    $('body').innerHTML = '<div class="err">Нет доступа ни к одному разделу администратора.</div>';
+    return;
+  }
+  if(!S.adminTab || !tabs.some(function(t){ return t.id === S.adminTab; })){
+    S.adminTab = tabs[0].id;
+  }
+
+  var h = '<div class="sub-tabs sub-tabs--sticky">'+ tabs.map(function(t){
     var on = S.adminTab === t.id ? ' on' : '';
-    return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+esc(t.label)+'</button>';
+    return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
   }).join('') +'</div>';
 
   h += '<div id="adminContent"><div class="sp"><i></i> Загрузка…</div></div>';
@@ -2097,9 +3097,12 @@ function renderAdminPanel(){
   });
 
   if(S.adminTab === 'users') loadAdminUsers();
+  else if(S.adminTab === 'archive') loadAdminArchive();
   else if(S.adminTab === 'divisions') loadAdminDivisions();
+  else if(S.adminTab === 'dict') renderAdminDict();
   else if(S.adminTab === 'period') renderAdminPeriod();
   else if(S.adminTab === 'tools') renderAdminTools();
+  else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
 // ─── Вкладка: Пользователи ───
@@ -2116,6 +3119,39 @@ function loadAdminUsers(){
   });
 }
 
+function userActs(u, compact){
+  var login = esc(u.login);
+
+  // Администратора и самого себя блокировать и архивировать нельзя: войти
+  // потом будет некому. Сервер это тоже проверяет — здесь просто не показываем
+  // кнопки, которые всё равно откажут.
+  var me = S.data && S.data.user ? String(S.data.user.login).toLowerCase() : '';
+  var locked = u.role === 'admin' || String(u.login).toLowerCase() === me;
+
+  if(compact){
+    // Таблица (десктоп): 4 текстовых кнопки не влезали в колонку без
+    // горизонтального скролла — только иконки с подсказкой в title.
+    var why = u.role === 'admin'
+      ? 'Учётную запись администратора отключить нельзя'
+      : 'Нельзя отключить собственную учётную запись';
+    return '<button class="btn-icon" title="Изменить" onclick="openUserModal(\''+login+'\')">'+icBare('pencil',15)+'</button>'+
+      '<button class="btn-icon" title="Сбросить пароль" onclick="adminResetPwd(\''+login+'\')">'+icBare('key',15)+'</button>'+
+      (locked
+        ? '<span class="btn-icon is-locked" title="'+esc(why)+'">'+icBare('shield',15)+'</span>'
+        : '<button class="btn-icon '+(u.active?'btn-danger':'')+'" title="'+(u.active?'Заблокировать':'Активировать')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
+            (u.active ? icBare('block',15) : icBare('check',15))+
+          '</button>'+
+          '<button class="btn-icon btn-danger" title="В архив" onclick="adminArchiveUser(\''+login+'\')">'+icBare('archive',15)+'</button>');
+  }
+  return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+ic('pencil')+'Изменить</button>'+
+    '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+ic('key')+'Сбросить пароль</button>'+
+    (locked ? '' :
+      '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
+        (u.active ? ic('block')+'Заблокировать' : ic('check')+'Активировать')+
+      '</button>'+
+      '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+ic('archive')+'В архив</button>');
+}
+
 function renderAdminUsers(){
   var users = S.adminUsers || [];
   var search = ($('uSearch') ? $('uSearch').value : '').toLowerCase();
@@ -2127,9 +3163,13 @@ function renderAdminUsers(){
     return matchSearch && matchRole;
   });
 
-  var h = '<div class="dash-filters">'+
-    '<input id="uSearch" placeholder=" Поиск по ФИО или логину…" value="'+esc(search)+'">'+
-    '<select id="uRole">'+
+  // Поиск, фильтр роли, счётчик и кнопка — одной строкой. Раньше это были три
+  // строки подряд (фильтры / кнопка / заголовок со счётчиком), и таблица из-за
+  // них начиналась заметно ниже, чем могла бы.
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(search)+'"></div>'+
+    '<select id="uRole" style="flex:none;width:auto;min-width:180px">'+
       '<option value="">Все роли ('+users.length+')</option>'+
       '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
       '<option value="cb"'+(roleFilter==='cb'?' selected':'')+'>C&B Аналитики (cb)</option>'+
@@ -2138,22 +3178,31 @@ function renderAdminUsers(){
       '<option value="head"'+(roleFilter==='head'?' selected':'')+'>Руководители отделов</option>'+
       '<option value="user"'+(roleFilter==='user'?' selected':'')+'>Сотрудники (user)</option>'+
     '</select>'+
+    tblCount(filtered.length, users.length, ['пользователь', 'пользователя', 'пользователей'])+
+    '<button id="btnAddUser" class="btn-primary toolbar-act">+ Добавить пользователя</button>'+
   '</div>';
 
-  h += '<div style="margin-bottom:14px">'+
-    '<button id="btnAddUser" class="btn-primary" style="width:auto;min-height:38px;font-size:13.5px">+ Добавить пользователя</button>'+
-  '</div>';
-
-  h += '<div class="sec-title">Список пользователей ('+filtered.length+')</div>';
-
-  h += filtered.map(function(u){
+  var rows = '', cards = '';
+  filtered.forEach(function(u){
     var rBadge = 'b-user';
     if(u.role === 'admin') rBadge = 'b-admin';
     else if(u.role === 'cb') rBadge = 'b-cb';
     else if(u.role === 'hrbp') rBadge = 'b-hrbp';
     else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
 
-    return '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
+    rows += '<tr id="urow_'+esc(u.login)+'">'+
+      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-login">'+esc(u.login)+
+        (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
+      '</td>'+
+      '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
+      '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
+      '<td>'+(u.units?u.units.length:0)+'</td>'+
+      '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
+      '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
+    '</tr>';
+
+    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
       '<div class="u-hd">'+
         '<div class="u-fio">'+esc(u.fio)+'</div>'+
         '<div>'+
@@ -2166,21 +3215,30 @@ function renderAdminUsers(){
         (u.phone ? ' · Тел: '+esc(u.phone) : '') +
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
         '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
-        (u.lastIn ? ' · Вход: '+esc(u.lastIn) : '') +
+        (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
-      '<div class="u-acts">'+
-        '<button class="btn-line" onclick="openUserModal(\''+esc(u.login)+'\')">️ Изменить</button>'+
-        '<button class="btn-line" onclick="adminResetPwd(\''+esc(u.login)+'\')"> Сбросить пароль</button>'+
-        '<button class="btn-line '+(u.active?'btn-danger':'')+'" onclick="adminToggleUser(\''+esc(u.login)+'\','+(!u.active)+')">'+
-          (u.active ? ' Заблокировать' : ' Активировать')+
-        '</button>'+
-      '</div>'+
+      '<div class="u-acts">'+userActs(u, false)+'</div>'+
     '</div>';
-  }).join('');
+  });
+
+  h += '<div class="tblwrap tblwrap--page u-tblwrap"><table class="co-tbl u-tbl">'+
+    '<thead><tr>'+
+      '<th>ФИО</th><th>Логин</th><th>Роль</th><th>Статус</th>'+
+      '<th>Подразделений</th><th>Вход</th><th>Действия</th>'+
+    '</tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+  '</table></div>';
+
+  h += '<div class="u-cards">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
 
-  $('uSearch').oninput = renderAdminUsers;
+  $('uSearch').oninput = function(){
+    var pos = this.selectionStart;
+    renderAdminUsers();
+    var again = $('uSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
   $('uRole').onchange = renderAdminUsers;
   $('btnAddUser').onclick = function(){ openUserModal(null); };
 }
@@ -2194,32 +3252,45 @@ function openUserModal(login){
 
   var el = document.createElement('div');
   el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
+  el.innerHTML = '<div class="sheet-in um-modal">'+
     '<div class="sheet-hd"><b>'+(isEdit ? 'Редактирование: ' + esc(u.fio) : 'Новый пользователь')+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div id="uModalErr" class="err hidden"></div>'+
     '<label class="lbl" style="margin-top:4px">ФИО *</label>'+
     '<input id="umFio" value="'+esc(u?u.fio:'')+'" placeholder="Иванов Иван Иванович">'+
-    '<label class="lbl">Логин (оставьте пустым для автогенерации)</label>'+
-    '<input id="umLogin" value="'+esc(u?u.login:'')+'" placeholder="ivanov" '+(isEdit?'readonly style="opacity:.7"':'')+'>'+
-    '<label class="lbl">Роль</label>'+
-    '<select id="umRole">'+
-      '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>user — Сотрудник</option>'+
-      '<option value="head"'+(u&&u.role==='head'?' selected':'')+'>head — Руководитель отдела</option>'+
-      '<option value="dir_head"'+(u&&u.role==='dir_head'?' selected':'')+'>dir_head — Руководитель направления</option>'+
-      '<option value="hrbp"'+(u&&u.role==='hrbp'?' selected':'')+'>hrbp — HR BP</option>'+
-      '<option value="cb"'+(u&&u.role==='cb'?' selected':'')+'>cb — C&B Аналитик</option>'+
-      '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>admin — Администратор</option>'+
-    '</select>'+
-    '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
-    '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
-    '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
-    '<input id="umPwd" type="text" placeholder="пароль">'+
+    '<div class="field-grid">'+
+      '<div>'+
+        '<label class="lbl">Логин (оставьте пустым для автогенерации)</label>'+
+        '<input id="umLogin" value="'+esc(u?u.login:'')+'" placeholder="ivanov" '+(isEdit?'readonly style="opacity:.7"':'')+'>'+
+      '</div>'+
+      '<div>'+
+        '<label class="lbl">Роль</label>'+
+        '<select id="umRole">'+
+          '<option value="user"'+(u&&u.role==='user'?' selected':'')+'>user — Сотрудник</option>'+
+          '<option value="head"'+(u&&u.role==='head'?' selected':'')+'>head — Руководитель отдела</option>'+
+          '<option value="dir_head"'+(u&&u.role==='dir_head'?' selected':'')+'>dir_head — Руководитель направления</option>'+
+          '<option value="hrbp"'+(u&&u.role==='hrbp'?' selected':'')+'>hrbp — HR BP</option>'+
+          '<option value="cb"'+(u&&u.role==='cb'?' selected':'')+'>cb — C&B Аналитик</option>'+
+          '<option value="admin"'+(u&&u.role==='admin'?' selected':'')+'>admin — Администратор</option>'+
+        '</select>'+
+      '</div>'+
+    '</div>'+
+    '<div class="field-grid">'+
+      '<div>'+
+        '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
+        '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+      '</div>'+
+      '<div>'+
+        '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
+        '<input id="umPwd" type="text" placeholder="пароль">'+
+      '</div>'+
+    '</div>'+
     '<div style="margin:14px 0 10px">'+
-      '<label><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
+      '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
     '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
-    '<input id="umUnitSearch" placeholder=" Фильтр подразделений…">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="umUnitSearch" placeholder="Фильтр подразделений…"></div>'+
     '<div id="umUnitList" style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
     '<div style="height:16px"></div>'+
     '<button id="umSave" class="btn-primary">Сохранить</button>'+
@@ -2245,9 +3316,18 @@ function openUserModal(login){
     if(e.target.dataset.u) userUnits[e.target.dataset.u] = e.target.checked;
   };
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
-  });
+  var origUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; }).sort().join(',');
+  var isDirty = function(){
+    var curUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; }).sort().join(',');
+    return el.querySelector('#umFio').value.trim() !== (u?u.fio:'') ||
+      el.querySelector('#umLogin').value.trim() !== (u?u.login:'') ||
+      el.querySelector('#umRole').value !== (u?u.role:'user') ||
+      el.querySelector('#umPhone').value.trim() !== (u?u.phone:'') ||
+      !!el.querySelector('#umPwd').value.trim() ||
+      el.querySelector('#umActive').checked !== (u?!!u.active:true) ||
+      curUnits !== origUnits;
+  };
+  guardClose(el, isDirty);
 
   el.querySelector('#umSave').onclick = function(){
     var fio = el.querySelector('#umFio').value.trim();
@@ -2326,6 +3406,105 @@ function adminResetPwd(login){
   });
 }
 
+function adminArchiveUser(login){
+  ask({
+    title: 'Отправить пользователя в архив?',
+    html: 'Логин: <b>'+esc(login)+'</b><br>Пропадёт из общего списка и не сможет войти. '+
+      'Данные никуда не денутся — вернуть можно из вкладки «Архив».',
+    ok: 'В архив',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminArchiveUser', S.token, login).then(function(res){
+      if(res && res.ok){
+        toast('Пользователь отправлен в архив');
+        loadAdminUsers();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    });
+  });
+}
+
+function adminRestoreUser(login){
+  ask({
+    title: 'Восстановить пользователя?',
+    html: 'Логин: <b>'+esc(login)+'</b><br>Снова появится в общем списке и сможет войти.',
+    ok: 'Восстановить'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminRestoreUser', S.token, login).then(function(res){
+      if(res && res.ok){
+        toast('Пользователь восстановлен');
+        loadAdminArchive();
+      } else {
+        toast((res && res.error) || 'Ошибка');
+      }
+    });
+  });
+}
+
+// ─── Вкладка: Архив ───
+function loadAdminArchive(){
+  call('apiAdminGetArchive', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки архива')+'</div>';
+      return;
+    }
+    S.adminArchive = r.users || [];
+    renderAdminArchive();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminArchive(){
+  var users = S.adminArchive || [];
+
+  var h = '<div class="sec-title">В архиве</div>'+
+    tblCount(users.length, null, ['учётная запись', 'учётные записи', 'учётных записей']);
+
+  if(!users.length){
+    h += '<div class="empty">Архив пуст</div>';
+    $('adminContent').innerHTML = h;
+    return;
+  }
+
+  var rows = '', cards = '';
+  users.forEach(function(u){
+    rows += '<tr>'+
+      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-login">'+esc(u.login)+'</td>'+
+      '<td><span class="badge b-user">'+esc(u.role)+'</span></td>'+
+      '<td class="u-t-dim">'+esc(fmtDateTime(u.archivedAt) || '—')+'</td>'+
+      '<td><div class="u-t-acts"><button class="btn-line" onclick="adminRestoreUser(\''+esc(u.login)+'\')">Восстановить</button></div></td>'+
+    '</tr>';
+
+    cards += '<div class="u-card">'+
+      '<div class="u-hd">'+
+        '<div class="u-fio">'+esc(u.fio)+'</div>'+
+        '<span class="badge b-user">'+esc(u.role)+'</span>'+
+      '</div>'+
+      '<div class="u-meta">'+
+        'Логин: <b>'+esc(u.login)+'</b>'+
+        (u.phone ? ' · Тел: '+esc(u.phone) : '') +
+        '<br>В архиве с: '+esc(fmtDateTime(u.archivedAt) || '—') +
+      '</div>'+
+      '<div class="u-acts">'+
+        '<button class="btn-line" onclick="adminRestoreUser(\''+esc(u.login)+'\')">'+ic('undo')+'Восстановить</button>'+
+      '</div>'+
+    '</div>';
+  });
+
+  h += '<div class="tblwrap tblwrap--page u-tblwrap"><table class="co-tbl u-tbl">'+
+    '<thead><tr><th>ФИО</th><th>Логин</th><th>Роль</th><th>В архиве с</th><th>Действия</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody>'+
+  '</table></div>';
+  h += '<div class="u-cards">'+cards+'</div>';
+
+  $('adminContent').innerHTML = h;
+}
+
 // ─── Вкладка: Оргструктура ───
 function loadAdminDivisions(){
   call('apiAdminGetDivisions', S.token).then(function(r){
@@ -2335,9 +3514,20 @@ function loadAdminDivisions(){
     }
     S.adminDivs = r.divisions || [];
     renderAdminDivisions();
+    // Карточка подразделения выбирает руководителя/HR BP из списка живых
+    // пользователей. Список грузится вкладкой «Пользователи», и если админ
+    // зашёл сразу сюда, пикер оказался бы пустым — выбрать было бы нечего.
+    ensureAdminUsers();
   }).catch(function(){
     $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
+}
+
+function ensureAdminUsers(){
+  if(S.adminUsers && S.adminUsers.length) return;
+  call('apiAdminGetUsers', S.token).then(function(r){
+    if(r && r.ok) S.adminUsers = r.users || [];
+  }).catch(function(){});
 }
 
 function renderAdminDivisions(){
@@ -2349,31 +3539,56 @@ function renderAdminDivisions(){
       d.resp.toLowerCase().indexOf(search) >= 0 || d.hrbp.toLowerCase().indexOf(search) >= 0;
   });
 
-  var h = '<div class="dash-filters">'+
-    '<input id="divSearch" placeholder=" Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'">'+
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="divSearch" placeholder="Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'"></div>'+
+    tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+
   '</div>';
 
-  h += '<div class="sec-title">Оргструктура подразделений ('+filtered.length+')</div>';
-
-  h += '<div class="tblwrap"><table class="dash">'+
-    '<tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr>'+
-    filtered.map(function(d, idx){
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+    '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
+    filtered.map(function(d){
       return '<tr>'+
         '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
         '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
         '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-        '<td><button class="btn-ghost" style="border:1px solid var(--line);min-height:32px;font-size:12px" onclick="openDivisionModal('+idx+')">️ Назначить</button></td>'+
+        '<td><button class="btn-ghost" data-u="'+esc(d.unit)+'" style="border:1px solid var(--line);min-height:32px;font-size:12px">'+ic('pencil')+'Назначить</button></td>'+
       '</tr>';
     }).join('')+
-  '</table></div>';
+  '</tbody></table></div>';
 
   $('adminContent').innerHTML = h;
-  $('divSearch').oninput = renderAdminDivisions;
+  $('divSearch').oninput = function(){
+    var pos = this.selectionStart;
+    renderAdminDivisions();
+    var again = $('divSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
+  $('adminContent').onclick = function(e){
+    var btn = e.target.closest('button[data-u]');
+    if(!btn) return;
+    openDivisionModal(btn.dataset.u);
+  };
 }
 
-function openDivisionModal(idx){
-  var d = (S.adminDivs || [])[idx];
+/**
+ * opts.restricted — режим dir_head: направление и HR BP только на просмотр,
+ * меняются лишь руководитель отдела и ответственный за обзор (см. saveDivision
+ * на сервере — та же граница проверяется и там, это не только фронт).
+ * opts.onSaved — что перерисовать после сохранения (по умолчанию — таблица админки).
+ */
+function openDivisionModal(unit, opts){
+  opts = opts || {};
+  var restricted = !!opts.restricted;
+  var onSaved = opts.onSaved || loadAdminDivisions;
+
+  var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
   if(!d) return;
+
+  var lockedField = function(v){
+    return '<div class="pick" style="opacity:.6;pointer-events:none">'+
+      '<span'+(v?'':' class="ph"')+'>'+esc(v || '—')+'</span></div>';
+  };
 
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -2381,13 +3596,22 @@ function openDivisionModal(idx){
     '<div class="sheet-hd"><b>'+esc(d.unit)+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<label class="lbl" style="margin-top:4px">Направление</label>'+
-    '<input id="dmDir" value="'+esc(d.dir)+'">'+
+    (restricted ? lockedField(d.dir) : pickField('dmDir', d.dir, 'Выбрать направление'))+
     '<label class="lbl">Руководитель отдела</label>'+
-    '<input id="dmHead" value="'+esc(d.head)+'">'+
+    pickField('dmHead', d.head, 'Выбрать из пользователей')+
     '<label class="lbl">Ответственный за обзор</label>'+
-    '<input id="dmResp" value="'+esc(d.resp)+'">'+
+    pickField('dmResp', d.resp, 'Выбрать из пользователей')+
     '<label class="lbl">HR BP</label>'+
-    '<input id="dmHrbp" value="'+esc(d.hrbp)+'">'+
+    (restricted ? lockedField(d.hrbp) : pickField('dmHrbp', d.hrbp, 'Выбрать из пользователей'))+
+    (restricted ? '' :
+      '<label class="lbl">Смежная группа <span style="font-weight:400;color:var(--muted)">'+
+        '(площадки с одинаковой структурой должностей — разные только регионом)</span></label>'+
+      '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
+        'placeholder="например: служба_охраны — оставьте пустым, если площадка одна">'+
+      '<datalist id="dmGroupList">'+
+        uniqSortedList((S.adminDivs || []).map(function(x){ return x.group_key; }).filter(Boolean))
+          .map(function(g){ return '<option value="'+esc(g)+'">'; }).join('')+
+      '</datalist>')+
     '<label class="lbl">Примечание</label>'+
     '<input id="dmNote" value="'+esc(d.note)+'">'+
     '<div style="height:16px"></div>'+
@@ -2396,18 +3620,77 @@ function openDivisionModal(idx){
 
   document.body.appendChild(el);
 
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
-  });
+  // Три поля из четырёх — это ФИО живых людей и название направления, то есть
+  // значения, которые уже есть в системе. Свободный ввод здесь означал, что
+  // «Каримов Дилшодчон Зафарчонович» и «Каримов Д.З.» становились разными
+  // людьми, а подразделение с опечаткой в направлении выпадало из отчётов.
+  var picked = { dir: d.dir || '', head: d.head || '', resp: d.resp || '', hrbp: d.hrbp || '' };
+
+  if(!restricted){
+    bindPickField(el, 'dmDir', 'Направление', function(){
+      return uniqSortedList((S.data.allUnits || []).map(function(x){ return x.dir; }));
+    }, picked, 'dir');
+  }
+
+  var allFio = function(){
+    return uniqSortedList((S.adminUsers || []).map(function(u){ return u.fio; }));
+  };
+
+  /**
+   * dir_head назначает по своему направлению — раньше пикер показывал всех
+   * ~111 сотрудников компании, среди которых своё направление было не
+   * найти. Сужаем до тех, кто уже как-то связан с направлением: у себя в
+   * профиле имеет юнит из S.adminDivs (он у dir_head и так уже отдан
+   * сервером только по своему направлению — см. getDivisions), либо уже
+   * упомянут в head/resp/hrbp одного из этих подразделений. Если список
+   * пуст (совсем новое направление, никто ещё не привязан) — не запираем
+   * dir_head в тупик, откатываемся на полный список.
+   */
+  var deptFio = function(){
+    var deptUnits = {};
+    (S.adminDivs || []).forEach(function(x){ deptUnits[x.unit] = true; });
+    var names = {};
+    (S.adminUsers || []).forEach(function(u){
+      if((u.units || []).some(function(un){ return deptUnits[un]; })) names[u.fio] = true;
+    });
+    (S.adminDivs || []).forEach(function(x){
+      [x.head, x.resp, x.hrbp].forEach(function(field){
+        String(field || '').split(',').forEach(function(n){
+          n = n.trim();
+          if(n) names[n] = true;
+        });
+      });
+    });
+    var list = uniqSortedList(Object.keys(names));
+    return list.length ? list : allFio();
+  };
+
+  var fioList = restricted ? deptFio : allFio;
+  var fioEmptyLabel = restricted ? 'В этом направлении пока никто не закреплён' : undefined;
+  bindPickField(el, 'dmHead', 'Руководитель отдела', fioList, picked, 'head', fioEmptyLabel);
+  bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp', fioEmptyLabel);
+  if(!restricted){
+    bindPickField(el, 'dmHrbp', 'HR BP', allFio, picked, 'hrbp');
+  }
+
+  var isDirty = function(){
+    var note = el.querySelector('#dmNote').value.trim();
+    var group = restricted ? (d.group_key || '') : el.querySelector('#dmGroup').value.trim();
+    return picked.dir !== (d.dir || '') || picked.head !== (d.head || '') ||
+      picked.resp !== (d.resp || '') || picked.hrbp !== (d.hrbp || '') ||
+      note !== (d.note || '') || group !== (d.group_key || '');
+  };
+  guardClose(el, isDirty);
 
   el.querySelector('#dmSave').onclick = function(){
     var payload = {
       unit: d.unit,
-      dir: el.querySelector('#dmDir').value.trim(),
-      head: el.querySelector('#dmHead').value.trim(),
-      resp: el.querySelector('#dmResp').value.trim(),
-      hrbp: el.querySelector('#dmHrbp').value.trim(),
-      note: el.querySelector('#dmNote').value.trim()
+      dir: picked.dir,
+      head: picked.head,
+      resp: picked.resp,
+      hrbp: picked.hrbp,
+      note: el.querySelector('#dmNote').value.trim(),
+      group: restricted ? d.group_key || '' : el.querySelector('#dmGroup').value.trim()
     };
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохраняем…';
@@ -2416,7 +3699,7 @@ function openDivisionModal(idx){
       if(res && res.ok){
         el.remove();
         toast('Подразделение обновлено');
-        loadAdminDivisions();
+        onSaved();
       } else {
         toast((res && res.error) || 'Ошибка');
       }
@@ -2424,6 +3707,77 @@ function openDivisionModal(idx){
       btn.disabled = false; btn.textContent = 'Сохранить';
       toast('Нет связи');
     });
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// dir_head: НАЗНАЧЕНИЕ ОТВЕТСТВЕННЫХ ПО СВОЕМУ НАПРАВЛЕНИЮ
+// ═══════════════════════════════════════════════════════════
+/**
+ * Экран для роли dir_head — тот же список/модалка, что в админской
+ * «Оргструктуре» (openDivisionModal переиспользуется в restricted-режиме),
+ * но сервер отдаёт и принимает только отделы направления, закреплённого
+ * за этим руководителем администратором (см. getDivisions/saveDivision).
+ */
+function openDeptAssign(){
+  S.backTo = null;
+  setTop('Назначить ответственных', userLabel(), true);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div class="sp"><i></i> Загружаем…</div>';
+  call('apiAdminGetDivisions', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
+      return;
+    }
+    S.adminDivs = r.divisions || [];
+    ensureAdminUsers();
+    drawDeptAssign();
+  }).catch(function(){
+    $('body').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawDeptAssign(){
+  var divs = S.adminDivs || [];
+  var search = ($('deptSearch') ? $('deptSearch').value : '').toLowerCase();
+
+  var filtered = divs.filter(function(d){
+    return !search || d.unit.toLowerCase().indexOf(search) >= 0 ||
+      (d.resp||'').toLowerCase().indexOf(search) >= 0 || (d.head||'').toLowerCase().indexOf(search) >= 0;
+  });
+
+  var myDir = (S.data.user.units || [])[0] || '';
+  var h = '<p class="step-hint">Отделы направления «'+esc(myDir)+'». Назначьте руководителя отдела '+
+    'и ответственного за обзор — они будут вносить данные по рынку.</p>';
+  h += '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="deptSearch" placeholder="Поиск по отделу, ответственным…" value="'+esc(search)+'"></div>'+
+    tblCount(filtered.length, divs.length, ['отдел', 'отдела', 'отделов']) +
+  '</div>';
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+    '<thead><tr><th>Отдел</th><th>Руководитель / Ответственный</th><th>Действия</th></tr></thead><tbody>'+
+    (filtered.length ? filtered.map(function(d){
+      return '<tr>'+
+        '<td><b>'+esc(d.unit)+'</b></td>'+
+        '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
+        '<td><button class="btn-ghost" data-u="'+esc(d.unit)+'" style="border:1px solid var(--line);min-height:32px;font-size:12px">'+ic('pencil')+'Назначить</button></td>'+
+      '</tr>';
+    }).join('') : '<tr><td colspan="3"><div class="empty">Ничего не найдено</div></td></tr>')+
+  '</tbody></table></div>';
+
+  $('body').innerHTML = h;
+  $('deptSearch').oninput = function(){
+    var pos = this.selectionStart;
+    drawDeptAssign();
+    var again = $('deptSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
+  $('body').onclick = function(e){
+    var btn = e.target.closest('button[data-u]');
+    if(!btn) return;
+    openDivisionModal(btn.dataset.u, { restricted: true, onSaved: openDeptAssign });
   };
 }
 
@@ -2438,7 +3792,7 @@ function renderAdminPeriod(){
     '<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+
       'Статус: <b style="color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b>'+
       (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
-      (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(p.at)+')':'') : '') +
+      (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(fmtDateTime(p.at))+')':'') : '') +
     '</div>'+
     '<div style="height:16px"></div>'+
     (closed
@@ -2493,24 +3847,365 @@ function renderAdminPeriod(){
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// ВКЛАДКА: СПРАВОЧНИКИ
+// ═══════════════════════════════════════════════════════════
+/**
+ * Единое место, где ведутся справочники системы. До этого добавить значение
+ * можно было только «на лету» из анкеты, а удалить — никак: реестр компаний
+ * рос сам собой и вычистить из него опечатку было нечем.
+ *
+ * Удаление здесь — не то же самое, что «убрать из выпадающего списка»: за
+ * названием компании стоят строки участников рынка и анкеты. Поэтому сервер
+ * сначала возвращает, сколько данных заденет операция, и только после
+ * подтверждения удаляет.
+ */
+var DICT_KINDS = [
+  { id:'companies', label:'Компании',  one:'компанию',  ttl:'Компания' },
+  { id:'positions', label:'Должности', one:'должность', ttl:'Должность' },
+  { id:'segments',  label:'Сегменты',  one:'сегмент',   ttl:'Сегмент' },
+  { id:'regions',   label:'Регионы',   one:'регион',    ttl:'Регион' }
+];
+
+function renderAdminDict(){
+  if(!S.dictKind) S.dictKind = 'companies';
+  if(S.dictQ == null) S.dictQ = '';
+
+  var h = '<div class="sub-tabs sub-tabs--inner">'+ DICT_KINDS.map(function(k){
+    return '<button class="sub-tab'+(S.dictKind === k.id ? ' on' : '')+'" data-dk="'+k.id+'">'+
+      esc(k.label)+'</button>';
+  }).join('') +'</div>'+
+  '<div id="dictBox"><div class="sp"><i></i> Загрузка справочника…</div></div>';
+
+  $('adminContent').innerHTML = h;
+  $('adminContent').querySelectorAll('button[data-dk]').forEach(function(b){
+    b.onclick = function(){ S.dictKind = this.dataset.dk; S.dictQ = ''; renderAdminDict(); };
+  });
+
+  loadDict();
+}
+
+function loadDict(){
+  var kind = S.dictKind;
+  call('apiDictList', S.token, kind).then(function(r){
+    if(!r || !r.ok){
+      $('dictBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить справочник')+'</div>';
+      return;
+    }
+    S.dictItems = r.items || [];
+    S.dictDirs = r.dirs || [];
+    drawDict();
+  }).catch(function(){
+    $('dictBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawDict(){
+  var kind = S.dictKind;
+  var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
+  var q = norm(S.dictQ);
+  var items = (S.dictItems || []).filter(function(it){
+    if(!q) return true;
+    return norm(it.name).indexOf(q) >= 0 ||
+           norm((it.dirs || []).join(' ')).indexOf(q) >= 0 ||
+           norm(it.segment || '').indexOf(q) >= 0 ||
+           norm(it.region || '').indexOf(q) >= 0;
+  });
+
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="dictQ" placeholder="Поиск по справочнику…" value="'+esc(S.dictQ)+'" '+
+      'autocomplete="off" spellcheck="false"></div>'+
+    tblCount(items.length, S.dictItems.length, ['запись', 'записи', 'записей'])+
+    '<button class="btn-primary toolbar-act" id="dictAdd">+ Добавить '+esc(meta.one)+'</button>'+
+  '</div>';
+
+  if(!items.length){
+    h += '<div class="empty">'+(S.dictQ ? 'Ничего не найдено' : 'Справочник пуст')+'</div>';
+    $('dictBox').innerHTML = h;
+    bindDictBar();
+    return;
+  }
+
+  // ID из исходных таблиц (К136, П53, код отдела 529). По ним данные сверяют
+  // со штатным расписанием и бухгалтерией, поэтому они видны в списке.
+  var cols = kind === 'companies'
+    ? ['ID', 'Название', 'Сегмент', 'Регион', 'Направления', 'Использований', '']
+    : kind === 'positions'
+      ? ['ID', 'Название', 'Направления', 'Использований', '']
+      : ['ID', 'Название', 'Использований', ''];
+
+  var dash = '<span style="color:var(--muted)">—</span>';
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+    cols.map(function(c){
+      return '<th'+(c === 'Использований' ? ' class="num"' : '')+'>'+esc(c)+'</th>';
+    }).join('') +'</tr></thead><tbody>'+
+    items.map(function(it){
+      var acts = '<td class="u-acts">'+
+        '<button class="btn-icon" data-edit="'+esc(it.name)+'" title="Изменить">'+icBare('pencil',15)+'</button>'+
+        '<button class="btn-icon btn-danger" data-del="'+esc(it.name)+'" title="Удалить">'+icBare('trash',15)+'</button>'+
+      '</td>';
+      var used = '<td class="num">'+(it.used
+        ? '<b>'+it.used+'</b>'
+        : '<span style="color:var(--muted)">0</span>')+'</td>';
+      var dirs = '<td>'+((it.dirs && it.dirs.length)
+        ? it.dirs.map(function(d){ return '<span class="badge b-user">'+esc(d)+'</span>'; }).join(' ')
+        : dash)+'</td>';
+
+      var id = '<td class="dict-id">'+(it.code ? esc(it.code) : dash)+'</td>';
+
+      if(kind === 'companies'){
+        return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+
+          '<td>'+(it.segment ? esc(it.segment) : dash)+'</td>'+
+          '<td>'+(it.region ? esc(it.region) : dash)+'</td>'+
+          dirs + used + acts +'</tr>';
+      }
+      if(kind === 'positions'){
+        return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+ dirs + used + acts +'</tr>';
+      }
+      return '<tr>'+ id +'<td><b>'+esc(it.name)+'</b></td>'+ used + acts +'</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+
+  $('dictBox').innerHTML = h;
+  bindDictBar();
+
+  $('dictBox').querySelectorAll('button[data-edit]').forEach(function(b){
+    b.onclick = function(){ openDictItem(this.dataset.edit); };
+  });
+  $('dictBox').querySelectorAll('button[data-del]').forEach(function(b){
+    b.onclick = function(){ removeDictItem(this.dataset.del); };
+  });
+}
+
+function bindDictBar(){
+  var inp = $('dictQ');
+  if(inp){
+    inp.oninput = function(){
+      S.dictQ = this.value;
+      var pos = this.selectionStart;
+      drawDict();
+      var again = $('dictQ');
+      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+    };
+  }
+  var add = $('dictAdd');
+  if(add) add.onclick = function(){ openDictItem(null); };
+}
+
+/** Карточка значения справочника. name === null — создание. */
+function openDictItem(name){
+  var kind = S.dictKind;
+  var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
+  var it = name
+    ? (S.dictItems || []).filter(function(x){ return x.name === name; })[0]
+    : null;
+  var cur = {
+    name: it ? it.name : '',
+    segment: it ? (it.segment || '') : '',
+    region: it ? (it.region || '') : '',
+    dirs: it ? (it.dirs || []).slice() : []
+  };
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+
+  var body = '<label class="lbl">Название</label>'+
+    '<input id="dcName" value="'+esc(cur.name)+'" placeholder="'+esc(meta.ttl)+'" '+
+    'autocomplete="off" spellcheck="false">';
+
+  if(kind === 'companies'){
+    // Сегмент и регион — выбор из справочника, а не свободный ввод: именно
+    // ручной ввод в своё время развёл варианты написания одной компании.
+    body += '<label class="lbl">Сегмент</label>'+
+      '<button type="button" class="pick" id="dcSeg"><span'+(cur.segment?'':' class="ph"')+'>'+
+        esc(cur.segment || 'Выбрать сегмент')+'</span>'+icBare('chevron',16)+'</button>'+
+      '<label class="lbl">Регион</label>'+
+      '<button type="button" class="pick" id="dcReg"><span'+(cur.region?'':' class="ph"')+'>'+
+        esc(cur.region || 'Выбрать регион')+'</span>'+icBare('chevron',16)+'</button>';
+  }
+
+  if(kind === 'companies' || kind === 'positions'){
+    body += '<label class="lbl">Направления</label>'+
+      '<button type="button" class="pick" id="dcDirsBtn"><span id="dcDirsTxt"></span>'+
+        icBare('chevron', 16)+'</button>'+
+      '<div id="dcDirs" class="chips chips--ro"></div>'+
+      '<p style="font-size:12.5px;color:var(--muted);margin:8px 2px 0">'+(kind === 'companies'
+        ? 'Компания попадёт в карту тех направлений, что отмечены.'
+        : 'Должность попадёт в штатку подразделений этих направлений.')+'</p>';
+  }
+
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>'+(it ? esc(meta.ttl)+': '+esc(cur.name) : 'Новая запись')+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    body +
+    '<div style="height:16px"></div>'+
+    '<button id="dcSave" class="btn-primary">Сохранить</button>'+
+    '<div style="height:10px"></div></div>';
+
+  document.body.appendChild(el);
+
+  // Направлений больше тридцати, поэтому выбор — окно с поиском, а под кнопкой
+  // только отметки: простыня из всех вариантов занимала экран целиком и не
+  // давала понять, сколько выбрано.
+  function drawDirs(){
+    var txt = el.querySelector('#dcDirsTxt');
+    var box = el.querySelector('#dcDirs');
+    if(!txt || !box) return;
+    txt.textContent = cur.dirs.length
+      ? 'Выбрано: ' + cur.dirs.length
+      : 'Выбрать направления';
+    txt.className = cur.dirs.length ? '' : 'ph';
+    box.innerHTML = cur.dirs.map(function(d){
+      return '<button type="button" class="on" data-dir="'+esc(d)+'">'+esc(d)+
+        '<i aria-hidden="true">×</i></button>';
+    }).join('');
+    box.querySelectorAll('button[data-dir]').forEach(function(b){
+      b.onclick = function(){
+        var i = cur.dirs.indexOf(this.dataset.dir);
+        if(i >= 0) cur.dirs.splice(i, 1);
+        drawDirs();
+      };
+    });
+  }
+  drawDirs();
+
+  el.querySelector('#dcDirsBtn') && (el.querySelector('#dcDirsBtn').onclick = function(){
+    openMultiPicker({
+      title: 'Направления',
+      list: S.dictDirs || [],
+      value: cur.dirs,
+      onPick: function(v){ cur.dirs = v; drawDirs(); }
+    });
+  });
+
+  function bindRef(id, field, block, title){
+    var btn = el.querySelector('#'+id);
+    if(!btn) return;
+    btn.onclick = function(){
+      openPicker({
+        title: title,
+        list: (block === 'segments' ? S.data.segments : S.data.regions) || [],
+        value: cur[field],
+        block: block,
+        onPick: function(v){
+          cur[field] = v;
+          var sp = btn.querySelector('span');
+          sp.textContent = v; sp.className = '';
+        }
+      });
+    };
+  }
+  bindRef('dcSeg', 'segment', 'segments', 'Сегмент');
+  bindRef('dcReg', 'region', 'regions', 'Регион');
+
+  var isDirty = function(){
+    return el.querySelector('#dcName').value.trim() !== cur.name ||
+      cur.segment !== (it ? (it.segment || '') : '') ||
+      cur.region !== (it ? (it.region || '') : '') ||
+      cur.dirs.slice().sort().join(',') !== (it ? (it.dirs || []).slice().sort().join(',') : '');
+  };
+  guardClose(el, isDirty);
+
+  el.querySelector('#dcSave').onclick = function(){
+    var nm = el.querySelector('#dcName').value.trim();
+    if(!nm){ toast('Укажите название', 'no'); return; }
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    call('apiDictSave', S.token, kind, {
+      prev: it ? it.name : '',
+      name: nm,
+      segment: cur.segment,
+      region: cur.region,
+      dirs: cur.dirs
+    }).then(function(r){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      if(r && r.ok){
+        el.remove();
+        toast(it ? 'Изменено' : 'Добавлено в справочник', 'ok');
+        loadDict();
+        quietRefresh();
+      } else {
+        toast((r && r.error) || 'Не удалось сохранить', 'no');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      toast('Нет связи с сервером', 'no');
+    });
+  };
+}
+
+function removeDictItem(name){
+  var kind = S.dictKind;
+  var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
+
+  // Первый запрос — «сухой»: сервер только считает, сколько данных заденет.
+  call('apiDictDelete', S.token, kind, { name: name }).then(function(r){
+    if(r && r.ok){
+      toast('Удалено', 'ok');
+      loadDict();
+      quietRefresh();
+      return;
+    }
+    if(!r || !r.needsConfirm){
+      toast((r && r.error) || 'Не удалось удалить', 'no');
+      return;
+    }
+    ask({
+      title: 'Удалить ' + meta.one + ' «' + name + '»?',
+      html: 'Значение используется в данных: <b>' + esc(r.parts.join(', ')) + '</b>.<br>' +
+            'Эти строки будут удалены вместе с ним и не восстановятся.',
+      ok: 'Удалить всё равно',
+      danger: true
+    }).then(function(yes){
+      if(!yes) return;
+      call('apiDictDelete', S.token, kind, { name: name, confirm: true }).then(function(r2){
+        if(r2 && r2.ok){
+          toast('Удалено, затронуто: ' + r2.parts.join(', '), 'ok');
+          loadDict();
+          quietRefresh();
+        } else {
+          toast((r2 && r2.error) || 'Не удалось удалить', 'no');
+        }
+      });
+    });
+  }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+}
+
 // ─── Вкладка: Сервис и Журнал ───
 function renderAdminTools(){
-  var h = '<div class="sec-title">Сервисные утилиты обслуживания</div>'+
+  var h = '<div class="sec-title">Состояние данных</div>'+
+    '<div id="dataStatus"><div class="sp"><i></i> Считаем…</div></div>'+
+    '<div class="sec-title" style="margin-top:22px">Сервисные утилиты обслуживания</div>'+
     '<div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:20px">'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px"> Нормализация сегментов и дублей компаний</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Сверяет лист «Конкуренты» со справочником компаний, удаляет скрытые пробелы, проставляет правильные сегменты и обновляет справочник.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация сегментов\')">Запустить нормализацию</button>'+
+        '<div style="font-weight:700;font-size:15px">'+ic('broom',15)+'Нормализация справочника компаний</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает в справочник компании, которых там ещё нет. Показывает, сколько строк затронуто.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника\')">Запустить нормализацию</button>'+
       '</div>'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px"> Устранение расхождений в связях</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Находит и восстанавливает потерянные связи между подразделениями и конкурентами.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Починка связей\')">Устранить расхождения</button>'+
+        '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Проверка привязки к оргструктуре</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Компании привязаны к подразделению по названию. Если название разошлось с оргструктурой, строка перестаёт быть видна кому-либо. Утилита обновляет направление/ответственного/HR BP по оргструктуре и перечисляет подразделения, которых в ней не нашлось.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки\')">Проверить привязки</button>'+
       '</div>'+
       '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px"> Полный пересчёт статусов заполнения</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Синхронизирует лист «Статус заполнения» по всем 326 подразделениям.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'sync_status\', \'Пересчёт статусов\')">Пересчитать статусы</button>'+
+        '<div style="font-weight:700;font-size:15px">'+ic('units',15)+'Загрузить штатное расписание</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Заводит должности по каждому подразделению из штатного расписания (1340 пар «должность × отдел» по 285 отделам) и проставляет подразделениям коды. До этой загрузки привязки должности к отделу в базе нет вообще, и шаг 2 пишет «штатка не заведена» для любого подразделения. Повторный запуск безопасен.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')">Загрузить штатку</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">'+ic('book',15)+'Сверить компании с листом участников рынка</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие. Сегмент и регион, если их уже заполнили руками, не перезаписываются.</div>'+
+        '<button class="btn-line" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">Сверить компании</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Раздать компании по направлениям</div>'+
+        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">В листе «Конкуренты» у каждого направления есть базовый набор компаний — строки, заведённые на самом направлении (4–18 компаний). Кнопка выдаёт этот набор подразделениям того же направления, у которых сейчас нет ни одной компании. Отделы, где компании уже заведены, не затрагиваются — там выбор сделан вручную. Сначала показывается точный расклад, данные меняются только после подтверждения.</div>'+
+        '<button class="btn-line" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')">Раздать по направлениям</button>'+
+        '<div style="height:8px"></div>'+
+        '<button class="btn-line btn-danger" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу по направлениям\')">Отменить раздачу</button>'+
+        '<div style="font-size:12px;color:var(--muted);margin-top:8px">Отмена убирает только строки с меткой «по направлению», которых никто не касался. Если по компании уже отметили актуальность или оставили комментарий — строка останется.</div>'+
       '</div>'+
     '</div>';
 
@@ -2518,6 +4213,7 @@ function renderAdminTools(){
     '<div id="auditLogBox"><div class="sp"><i></i> Загрузка журнала…</div></div>';
 
   $('adminContent').innerHTML = h;
+  loadDataStatus();
 
   call('apiAdminGetAuditLog', S.token, 60).then(function(r){
     if(!r || !r.ok){
@@ -2529,25 +4225,106 @@ function renderAdminTools(){
       $('auditLogBox').innerHTML = '<div class="empty">Журнал пуст</div>';
       return;
     }
-    var logH = '<div class="tblwrap"><table class="dash">'+
-      '<tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr>'+
+    var logH = tblCount(logs.length, null, ['запись', 'записи', 'записей']);
+    logH += '<div class="tblwrap"><table class="co-tbl">'+
+      '<thead><tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr></thead><tbody>'+
       logs.map(function(l){
+        var act = String(l.action || '').trim() || '—';
         return '<tr>'+
-          '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(l.dt)+'</td>'+
+          '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(fmtDateTime(l.dt))+'</td>'+
           '<td><b>'+esc(l.login)+'</b></td>'+
-          '<td>'+esc(l.action)+'</td>'+
+          '<td><span class="log-act'+(act === '—' ? ' log-act--none' : '')+'">'+esc(act)+'</span></td>'+
           '<td style="font-size:12.5px;color:var(--muted)">'+esc(l.detail)+'</td>'+
         '</tr>';
       }).join('')+
-      '</table></div>';
+      '</tbody></table></div>';
     $('auditLogBox').innerHTML = logH;
   });
+}
+
+/**
+ * Цифры по загруженным данным. Понять, отработала загрузка штатного расписания
+ * или нет, раньше можно было только открыв подразделение — а это ещё и зависело
+ * от роли смотрящего.
+ */
+function loadDataStatus(){
+  call('apiAdminDataStatus', S.token).then(function(r){
+    if(!r || !r.ok || !$('dataStatus')){
+      if($('dataStatus')) $('dataStatus').innerHTML =
+        '<div class="err">'+esc((r && r.error) || 'Не удалось получить состояние')+'</div>';
+      return;
+    }
+    var s = r.status;
+    var n = function(v){ return v == null ? '—' : v; };
+    var loaded = s.staffPairs > 0;
+
+    $('dataStatus').innerHTML =
+      // Базовый .note — янтарный, это стиль предупреждения. Успешное состояние
+      // им же выглядело тревогой: текст говорил «загружено», а плашка кричала.
+      '<div class="note '+(loaded ? 'note--ok' : 'note--warn')+'">'+
+        (loaded
+          ? icBare('check', 15) + ' Штатное расписание загружено: ' + n(s.staffPairs) +
+            ' пар по ' + n(s.staffUnits) + ' подразделениям.'
+          : '<b>Штатное расписание ещё не загружено.</b> Нажмите «Загрузить штатку» ниже — '+
+            'без этого на шаге 2 у подразделений не будет списка должностей.')+
+      '</div>'+
+      '<div class="kpi-grid">'+
+        stCard('Штатка', n(s.staffPairs), 'пар «должность × отдел» по '+n(s.staffUnits)+' отделам') +
+        stCard('Должности', n(s.positions), 'в справочнике') +
+        stCard('Подразделения', n(s.divisions), n(s.divisionsWithCode)+' с кодом') +
+        stCard('Компании', n(s.companies), n(s.companiesWithDirs)+' с направлением, '+n(s.companiesWithCode)+' с ID') +
+        stCard('Участники рынка', n(s.competitors), 'строк по '+n(s.competitorUnits)+' подразделениям') +
+        stCard('Анкеты', n(s.surveys), 'записей по должностям') +
+      '</div>';
+  }).catch(function(){
+    if($('dataStatus')) $('dataStatus').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function stCard(title, value, sub){
+  return '<div class="card st-card">'+
+    '<div class="st-k">'+esc(title)+'</div>'+
+    '<div class="st-v">'+esc(String(value))+'</div>'+
+    '<div class="st-s">'+esc(sub)+'</div></div>';
+}
+
+/**
+ * Массовые задачи (раздача компаний и её откат) сначала запрашиваются без
+ * confirm: сервер ничего не меняет, а возвращает объём — сколько строк
+ * появится или исчезнет. Цифру видно до того, как что-то произошло.
+ */
+function runBulkTool(type, title){
+  toast('Считаем объём…');
+  call('apiAdminRunMaintenance', S.token, type).then(function(r){
+    if(r && r.ok){ ask({ title:'Готово', html: esc(r.message), ok:'Понятно' }); renderAdminTools(); return; }
+    if(!r || !r.needsConfirm){ toast((r && r.error) || 'Не удалось выполнить', 'no'); return; }
+    if(!r.total){ ask({ title: title, html: esc(r.message), ok:'Понятно' }); return; }
+
+    ask({
+      title: title,
+      html: esc(r.message),
+      ok: 'Выполнить',
+      danger: type === 'undo_distribute'
+    }).then(function(yes){
+      if(!yes) return;
+      toast('Выполняется: ' + title + '…');
+      call('apiAdminRunMaintenanceConfirm', S.token, type).then(function(res){
+        if(res && res.ok){
+          ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
+          renderAdminTools();
+          quietRefresh();
+        } else {
+          toast((res && res.error) || 'Ошибка выполнения', 'no');
+        }
+      }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+    });
+  }).catch(function(){ toast('Нет связи с сервером', 'no'); });
 }
 
 function runMaintenanceTool(type, title){
   ask({
     title: 'Запустить процедуру: ' + title + '?',
-    html: 'Операция выполнится на сервере Google Apps Script и зафиксируется в журнале.',
+    html: 'Операция изменит данные в базе и будет записана в журнал действий.',
     ok: 'Запустить'
   }).then(function(yes){
     if(!yes) return;
@@ -2557,18 +4334,113 @@ function runMaintenanceTool(type, title){
         ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
         renderAdminTools();
       } else {
-        toast((res && res.error) || 'Ошибка выполнения');
+        toast((res && res.error) || 'Ошибка выполнения', 'no');
       }
     }).catch(function(){
-      toast('Нет связи');
+      toast('Нет связи', 'no');
     });
   });
+}
+
+// ─── Вкладка: Роли и доступы (admin-only) ───
+/**
+ * Конструктор ролей и доступов — матрица «право × роль» поверх фиксированных
+ * ролей (admin/cb/hrbp/dir_head/head/user). Роли сами не создаются и не
+ * переименовываются — это осознанное сужение масштаба: каскадная логика
+ * dir_head/head в других экранах завязана на точные названия ролей, и делать
+ * их произвольными означало бы переписывать эту логику. Настраивается только
+ * доступ к разделам админки (просмотр/редактирование/добавление).
+ * 'admin' — защищённая роль, здесь не редактируется, сервер и так даёт ей
+ * все права всегда (requireCapability пропускает её без обращения к таблице).
+ */
+var ROLE_LABELS_RU = { cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Рук. направления', head:'Рук. отдела', user:'Сотрудник' };
+
+function loadAdminRoles(){
+  call('apiAdminGetRoleCapabilities', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки прав доступа')+'</div>';
+      return;
+    }
+    S.roleCaps = { catalog: r.capabilities, roles: r.roles, matrix: r.matrix };
+    renderAdminRoles();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminRoles(){
+  var data = S.roleCaps;
+  if(!data) return;
+  var roles = data.roles, caps = data.catalog, matrix = data.matrix;
+
+  // Группировка прав по разделу, с сохранением порядка каталога.
+  var groups = [], byRes = {};
+  caps.forEach(function(c){
+    if(!byRes[c.resource]){ byRes[c.resource] = { label: c.resourceLabel, items: [] }; groups.push(byRes[c.resource]); }
+    byRes[c.resource].items.push(c);
+  });
+
+  var h = '<p class="step-hint">Права каждой роли на разделы админки — просмотр, редактирование, добавление. '+
+    'У «Администратора» права всегда полные и здесь не настраиваются.</p>';
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">';
+  h += '<thead><tr><th>Право</th><th class="num">Админ</th>'+
+    roles.map(function(r){ return '<th class="num">'+esc(ROLE_LABELS_RU[r] || r)+'</th>'; }).join('')+
+  '</tr></thead><tbody>';
+
+  groups.forEach(function(g){
+    h += '<tr><td colspan="'+(2+roles.length)+'" style="background:var(--card-2);font-weight:700;'+
+      'font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">'+esc(g.label)+'</td></tr>';
+    g.items.forEach(function(c){
+      h += '<tr><td>'+esc(c.label)+'</td>'+
+        '<td class="num" style="color:var(--ok)">'+ic('check',14)+'</td>'+
+        roles.map(function(r){
+          var checked = (matrix[r] || []).indexOf(c.id) >= 0;
+          return '<td class="num"><input type="checkbox" data-role="'+r+'" data-cap="'+c.id+'"'+(checked?' checked':'')+'></td>';
+        }).join('')+
+      '</tr>';
+    });
+  });
+
+  h += '</tbody></table></div>';
+  h += '<div style="height:16px"></div><button id="rolesSave" class="btn-primary">Сохранить права</button>';
+
+  $('adminContent').innerHTML = h;
+
+  $('adminContent').querySelectorAll('input[type=checkbox][data-role]').forEach(function(box){
+    box.onchange = function(){
+      var role = this.dataset.role, cap = this.dataset.cap;
+      var arr = matrix[role] = matrix[role] || [];
+      var i = arr.indexOf(cap);
+      if(this.checked){ if(i < 0) arr.push(cap); }
+      else if(i >= 0) arr.splice(i, 1);
+    };
+  });
+
+  $('rolesSave').onclick = function(){
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    Promise.all(roles.map(function(r){
+      return call('apiAdminSaveRoleCapabilities', S.token, { role: r, capabilities: matrix[r] || [] });
+    })).then(function(results){
+      btn.disabled = false; btn.textContent = 'Сохранить права';
+      if(results.some(function(r){ return !r || !r.ok; })){
+        toast('Не удалось сохранить часть прав', 'no');
+      } else {
+        toast('Права сохранены', 'ok');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить права';
+      toast('Нет связи с сервером', 'no');
+    });
+  };
 }
 
 // ═══════════════════════════════════════════════════════════
 // СВОДКА ПО HR BP (быстрый вид)
 // ═══════════════════════════════════════════════════════════
 function openDash(){
+  S.backTo = null;
   setTop('Сводка по подразделениям', userLabel(), true);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
@@ -2579,44 +4451,126 @@ function openDash(){
     var p = S.data.period || {};
     var closed = p.state === 'закрыт';
 
-    var h = '<div class="card" style="margin-bottom:16px">'+
-      '<div style="font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;'+
-        'letter-spacing:.6px;margin-bottom:6px">Период заполнения</div>'+
-      '<div style="font-weight:600;font-size:16px">'+esc(p.name || 'без названия')+'</div>'+
-      '<div style="font-size:13px;color:var(--muted);margin-top:4px">'+
-        'Состояние: <b style="color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state||'открыт')+'</b>'+
-        (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
-        (p.by ? '<br>изменил: '+esc(p.by)+(p.at?' ('+esc(p.at)+')':'') : '') + '</div>'+
-      '<div style="height:12px"></div>'+
-      (closed
-        ? '<button id="btnPeriod" class="btn-line" style="color:var(--ok);border-color:var(--ok)">Открыть новый период</button>'
-        : '<button id="btnPeriod" class="btn-line btn-danger">Закрыть период заполнения</button>')+
-      '</div>';
-
     var done = r.rows.filter(function(x){ return x.total && x.done === x.total; }).length;
     var svTotal = r.rows.reduce(function(s,x){ return s + (x.surveys||0); }, 0);
     var askTotal = r.rows.reduce(function(s,x){ return s + (x.ask||0); }, 0);
-    h += '<div class="sec-title">Заполнено полностью: '+done+' из '+r.rows.length+
-         ' · записей по должностям: '+svTotal+'</div>';
-    if(askTotal){
-      h += '<div class="note">На уточнении по всем подразделениям: <b>'+askTotal+'</b> компаний. '+
-           'Они не входят в «проверено».</div>';
-    }
-    h += '<div class="tblwrap"><table class="dash">'+
-      '<tr><th>Подразделение</th><th>Ответственный</th><th>Компании</th><th>Уточнить</th>'+
-      '<th>Данные</th><th>Обновлено</th></tr>';
-    h += r.rows.map(function(x){
-      var pct = x.total ? Math.round(x.done/x.total*100) : 0;
-      var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
-      var scls = x.surveys>0 ? 'p-ok' : 'p-no';
-      return '<tr><td>'+esc(x.unit)+'</td><td>'+esc(x.resp)+'</td>'+
-        '<td><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
-        '<td>'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
-        '<td><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
-        '<td style="font-size:12px;color:var(--muted)">'+esc(x.at||'—')+'</td></tr>';
-    }).join('');
-    h += '</table></div>';
+
+    // Период, итоги и действие — одной строкой. Раньше это были карточка на
+    // 520px в колонку, отдельная строка-заголовок с итогами и отдельная
+    // строка поиска: на экране 1440×860 таблица начиналась только на 390-й
+    // точке и уходила на 113px за нижний край, а справа от карточки
+    // простаивало 624px ширины.
+    var h = '<div class="page-head">'+
+      '<div class="page-head-main">'+
+        '<div class="page-head-k">Период заполнения</div>'+
+        '<div class="page-head-v">'+esc(p.name || 'без названия')+
+          '<span class="pill '+(closed?'p-no':'p-ok')+'">'+esc(p.state || 'открыт')+'</span></div>'+
+        '<div class="page-head-s">'+
+          (p.from ? 'с '+esc(p.from)+' ' : '') + (p.to ? 'по '+esc(p.to) : '') +
+          (p.by ? (p.from||p.to ? ' · ' : '')+'изменил: '+esc(p.by)+
+                  (p.at ? ' · '+esc(fmtDateTime(p.at)) : '') : '') +
+        '</div>'+
+      '</div>'+
+      '<div class="page-head-stats">'+
+        '<div class="phs"><b>'+done+'</b><span>из '+r.rows.length+' заполнено</span></div>'+
+        '<div class="phs"><b>'+svTotal+'</b><span>записей по должностям</span></div>'+
+        (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>на уточнении</span></div>' : '')+
+      '</div>'+
+      (closed
+        ? '<button id="btnPeriod" class="btn-line page-head-act" style="color:var(--ok);border-color:var(--ok)">Открыть новый период</button>'
+        : '<button id="btnPeriod" class="btn-line btn-danger page-head-act">Закрыть период</button>')+
+      '</div>';
+
+    // Готовность по направлениям — тот же визуальный язык, что у прогресса
+    // HR BP на «Дашборде» (.prog-bar-bg/.prog-bar-fill), но по направлениям
+    // и на этом экране: 326 отдельных подразделений одними барами не
+    // показать, а ~26 направлений — можно, и это ровно тот срез, который
+    // просил пользователь.
+    var byDir = {};
+    r.rows.forEach(function(x){
+      var dir = x.dir || '(без направления)';
+      if(!byDir[dir]) byDir[dir] = { dir: dir, total: 0, done: 0 };
+      byDir[dir].total += x.total;
+      byDir[dir].done += x.done;
+    });
+    var dirBars = Object.keys(byDir).map(function(k){
+      var d = byDir[k];
+      d.pct = d.total ? Math.round(d.done / d.total * 100) : 0;
+      return d;
+    }).sort(function(a, b){ return a.pct - b.pct; });
+
+    h += '<div class="card" style="margin-bottom:16px">'+
+      '<div class="sec-title" style="margin-top:0">Готовность по направлениям</div>'+
+      dirBars.map(function(d){
+        var isDone = d.pct >= 100;
+        return '<button type="button" data-dir="'+esc(d.dir)+'" style="'+
+            'display:block;width:100%;text-align:left;background:none;border:none;padding:0;'+
+            'margin-bottom:10px;box-shadow:none;min-height:0;cursor:pointer">'+
+          '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;color:var(--text)">'+
+            '<span>'+esc(d.dir)+'</span>'+
+            '<span style="color:var(--muted)">'+d.done+'/'+d.total+' · '+d.pct+'%</span>'+
+          '</div>'+
+          '<div class="prog-bar-bg"><div class="prog-bar-fill" style="width:'+d.pct+'%;'+
+            'background:'+(isDone ? 'var(--ok)' : 'var(--accent)')+'"></div></div>'+
+        '</button>';
+      }).join('')+
+    '</div>';
+
+    h += '<div class="toolbar">'+
+      '<div class="search-wrap">'+icBare('search')+
+        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…"></div>'+
+      '<div id="dashSumCount"></div>'+
+    '</div>';
+    h += '<div id="dashSumTblBox"></div>';
     $('body').innerHTML = h;
+
+    // Клик по бару направления — фильтрует таблицу ниже тем же поиском,
+    // что и обычный ввод текста, без отдельного состояния фильтра.
+    $('body').querySelectorAll('button[data-dir]').forEach(function(btn){
+      btn.onclick = function(){
+        $('dashSumSearch').value = this.dataset.dir === '(без направления)' ? '' : this.dataset.dir;
+        drawTable();
+        $('dashSumTblBox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      };
+    });
+
+    function drawTable(){
+      var q = ($('dashSumSearch').value || '').trim().toLowerCase();
+      var rows = !q ? r.rows : r.rows.filter(function(x){
+        return (x.unit||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.resp||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.hrbp||'').toLowerCase().indexOf(q) >= 0 ||
+               (x.dir||'').toLowerCase().indexOf(q) >= 0;
+      });
+      // Счётчик живёт в панели рядом с поиском, а не отдельной строкой над
+      // таблицей — иначе он снова отодвигает её вниз.
+      $('dashSumCount').innerHTML = tblCount(rows.length, r.rows.length,
+        ['подразделение', 'подразделения', 'подразделений']);
+      var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        '<thead><tr><th>Подразделение</th><th>Ответственный</th><th class="num">Компании</th>'+
+        '<th class="num">Уточнить</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
+      t += rows.length ? rows.map(function(x){
+        var pct = x.total ? Math.round(x.done/x.total*100) : 0;
+        var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
+        var scls = x.surveys>0 ? 'p-ok' : 'p-no';
+        return '<tr class="dash-row" data-u="'+esc(x.unit)+'" style="cursor:pointer">'+
+          '<td><b>'+esc(x.unit)+'</b></td><td>'+esc(x.resp)+'</td>'+
+          '<td class="num"><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
+          '<td class="num">'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
+          '<td class="num"><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
+          '<td class="num" style="font-size:12px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
+      }).join('') : '<tr><td colspan="6"><div class="empty">Ничего не найдено</div></td></tr>';
+      t += '</tbody></table></div>';
+      $('dashSumTblBox').innerHTML = t;
+
+      $('dashSumTblBox').onclick = function(e){
+        var tr = e.target.closest('tr[data-u]');
+        if(!tr) return;
+        openUnit(tr.dataset.u, openDash);
+      };
+    }
+    drawTable();
+    $('dashSumSearch').oninput = drawTable;
 
     $('btnPeriod').onclick = function(){
       var btn = this;

@@ -2,6 +2,7 @@ const config = require('../config');
 const { queryAll } = require('../db/database');
 
 let bot = null;
+let botUsername = null;
 
 function getBot() {
   if (bot) return bot;
@@ -16,6 +17,62 @@ function getBot() {
   return bot;
 }
 
+/** Юзернейм бота — нужен, чтобы собрать диплинк t.me/<username>?start=<token>. Спрашиваем
+ *  у Telegram один раз при старте и держим в памяти, вместо ещё одной переменной окружения. */
+async function getBotUsername() {
+  if (botUsername) return botUsername;
+  const tg = getBot();
+  if (!tg) return null;
+  try {
+    const me = await tg.getMe();
+    botUsername = me.username;
+    return botUsername;
+  } catch (err) {
+    console.warn('Не удалось получить username бота (getMe):', err.message);
+    return null;
+  }
+}
+
+// Список команд для меню бота (кнопка «Меню» в Telegram). До этой правки
+// там висел набор от прошлой (Apps Script) версии бота — /start и /help с
+// чужими описаниями и /login «Показать мой логин и пароль», которого в этом
+// боте вообще нет. Telegram хранит меню на своей стороне, а не берёт его из
+// кода при каждом сообщении — обновляется только явным вызовом setMyCommands.
+const BOT_COMMANDS = [
+  { command: 'start', description: 'Привязать аккаунт' },
+  { command: 'link', description: 'Привязать по номеру телефона' },
+  { command: 'status', description: 'Мои подразделения и прогресс' },
+  { command: 'unlink', description: 'Отвязать этот Telegram от аккаунта' },
+  { command: 'help', description: 'Список команд' }
+];
+
+/** Регистрирует вебхук в Telegram, чтобы бот мог принимать входящие сообщения — без
+ *  этого он умеет только отправлять. Вызывается один раз при старте сервера; ошибка
+ *  не должна мешать серверу подняться, поэтому не бросает исключение наружу. */
+async function ensureWebhook() {
+  const tg = getBot();
+  if (!tg || !config.webappUrl || config.webappUrl.indexOf('localhost') >= 0) return;
+  if (!config.telegramWebhookSecret) {
+    console.warn('⚠️ TELEGRAM_WEBHOOK_SECRET не задан — вебхук Telegram не регистрируется.');
+    return;
+  }
+  try {
+    await tg.setWebHook(`${config.webappUrl}/api/telegram/webhook`, {
+      secret_token: config.telegramWebhookSecret
+    });
+    await getBotUsername();
+    console.log(`✅ Telegram webhook зарегистрирован (@${botUsername || '?'})`);
+  } catch (err) {
+    console.warn('⚠️ Не удалось зарегистрировать Telegram webhook:', err.message);
+  }
+
+  try {
+    await tg.setMyCommands(BOT_COMMANDS);
+  } catch (err) {
+    console.warn('⚠️ Не удалось обновить меню команд Telegram:', err.message);
+  }
+}
+
 async function sendTelegramMessage(chatId, text, options = {}) {
   const tg = getBot();
   if (!tg || !chatId) return false;
@@ -25,6 +82,20 @@ async function sendTelegramMessage(chatId, text, options = {}) {
     return true;
   } catch (err) {
     console.error(`Failed to send Telegram message to ${chatId}:`, err.message);
+    return false;
+  }
+}
+
+/** Убирает "часики" на нажатой inline-кнопке — без этого Telegram сам снимет их
+ *  через несколько секунд таймаутом, но кнопка выглядит зависшей. */
+async function answerCallbackQuery(callbackQueryId, text) {
+  const tg = getBot();
+  if (!tg || !callbackQueryId) return false;
+  try {
+    await tg.answerCallbackQuery(callbackQueryId, text ? { text } : undefined);
+    return true;
+  } catch (err) {
+    console.error('Failed to answer Telegram callback query:', err.message);
     return false;
   }
 }
@@ -76,6 +147,9 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
 
 module.exports = {
   getBot,
+  getBotUsername,
+  ensureWebhook,
   sendTelegramMessage,
+  answerCallbackQuery,
   sendMassReminder
 };

@@ -4,13 +4,15 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   login TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  raw_password TEXT,
   fio TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user', -- 'admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'
   phone TEXT,
   telegram_chat_id TEXT,
+  telegram_link_token TEXT,
+  telegram_link_expires DATETIME,
   units TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
+  archived_at DATETIME, -- NULL = обычный пользователь; иначе — в архиве, не виден в списке и не может войти
   last_login_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

@@ -7,8 +7,19 @@ const morgan = require('morgan');
 
 const config = require('./config');
 const { queryOne } = require('./db/database');
+const { migrate } = require('./db/migrate');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
+const { ensureWebhook } = require('./services/telegramService');
+
+// Секретов с запасными значениями в коде больше нет — если переменные окружения не
+// заданы, сервис обязан упасть сразу, а не поднять полурабочий прод.
+const missing = config.missingSecrets();
+if (missing.length) {
+  console.error(`❌ Не заданы обязательные переменные окружения: ${missing.join(', ')}`);
+  console.error('   Render → Environment (или файл .env локально, см. .env.example), затем перезапуск.');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -20,6 +31,7 @@ const app = express();
   } catch (err) {
     console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
+  await ensureWebhook();
 })();
 
 // Middleware
@@ -51,11 +63,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check. Поле db показывает, доехало ли подключение к Turso — текст ошибки
+// наружу не отдаём, он остаётся в логах Render.
+app.get('/health', async (req, res) => {
+  let db = 'ok';
+  try {
+    await queryOne('SELECT 1 AS ok');
+  } catch (err) {
+    db = 'error';
+    console.error('❌ Health check: база недоступна:', err.message);
+  }
   res.json({ 
-    ok: true, 
-    version: '2.1.4', 
+    ok: db === 'ok', 
+    db, 
+    version: '2.2.0', 
     timestamp: new Date().toISOString(), 
     env: config.nodeEnv,
     lastUptimeRobotPing
@@ -72,6 +93,11 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
+  // Схему доводим до актуальной до того, как примем первый запрос. Ошибку не
+  // проглатываем молча, но и сервер не роняем: без миграции работает всё, кроме
+  // новых справочников, и это лучше, чем недоступное приложение у 111 человек.
+  migrate().catch(err => console.error('❌ Миграция не выполнена:', err.message));
+
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
     console.log(`📁 База данных: ${config.dbPath}`);
