@@ -2629,9 +2629,12 @@ function renderDashboard(){
   var timer = null;
   searchIn.oninput = function(){
     clearTimeout(timer);
+    var pos = searchIn.selectionStart;
     timer = setTimeout(function(){
       S.dashFilters.search = searchIn.value.trim();
       openDashboard();
+      var again = $('dashSearch');
+      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
     }, 400);
   };
 
@@ -3088,7 +3091,12 @@ function renderAdminUsers(){
 
   $('adminContent').innerHTML = h;
 
-  $('uSearch').oninput = renderAdminUsers;
+  $('uSearch').oninput = function(){
+    var pos = this.selectionStart;
+    renderAdminUsers();
+    var again = $('uSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
   $('uRole').onchange = renderAdminUsers;
   $('btnAddUser').onclick = function(){ openUserModal(null); };
 }
@@ -3408,10 +3416,12 @@ function renderAdminDivisions(){
   '</tbody></table></div>';
 
   $('adminContent').innerHTML = h;
-  var input = $('divSearch');
-  input.oninput = renderAdminDivisions;
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+  $('divSearch').oninput = function(){
+    var pos = this.selectionStart;
+    renderAdminDivisions();
+    var again = $('divSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
   $('adminContent').onclick = function(e){
     var btn = e.target.closest('button[data-u]');
     if(!btn) return;
@@ -3573,10 +3583,12 @@ function drawDeptAssign(){
   '</tbody></table></div>';
 
   $('body').innerHTML = h;
-  var input = $('deptSearch');
-  input.oninput = drawDeptAssign;
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+  $('deptSearch').oninput = function(){
+    var pos = this.selectionStart;
+    drawDeptAssign();
+    var again = $('deptSearch');
+    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+  };
   $('body').onclick = function(e){
     var btn = e.target.closest('button[data-u]');
     if(!btn) return;
