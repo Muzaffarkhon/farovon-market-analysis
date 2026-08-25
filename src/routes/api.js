@@ -38,7 +38,9 @@ router.all('/dashboard/hrbp', requireRoles('admin', 'cb', 'hrbp'), dashboardCont
 router.get('/dashboard/export-csv', requireRoles('admin', 'cb', 'hrbp'), dashboardController.exportCSV);
 
 // Панель Администратора (только admin и cb)
-router.get('/admin/users', requireRoles('admin', 'cb'), adminController.getUsers);
+// dir_head тоже читает список — нужен для пикера «кого назначить руководителем
+// отдела / ответственным» в своём направлении (см. GET/POST /admin/divisions).
+router.get('/admin/users', requireRoles('admin', 'cb', 'dir_head'), adminController.getUsers);
 router.post('/admin/users', requireRoles('admin', 'cb'), adminController.saveUser);
 router.post('/admin/users/:login/toggle', requireRoles('admin', 'cb'), adminController.toggleUser);
 router.post('/admin/users/:login/reset-password', requireRoles('admin', 'cb'), adminController.resetPassword);
@@ -46,8 +48,11 @@ router.get('/admin/users-archive', requireRoles('admin', 'cb'), adminController.
 router.post('/admin/users/:login/archive', requireRoles('admin', 'cb'), adminController.archiveUser);
 router.post('/admin/users/:login/restore', requireRoles('admin', 'cb'), adminController.restoreUser);
 
-router.get('/admin/divisions', requireRoles('admin', 'cb', 'hrbp'), adminController.getDivisions);
-router.post('/admin/divisions', requireRoles('admin', 'cb'), adminController.saveDivision);
+// dir_head тоже читает и правит divisions — но только свои, проверка внутри
+// saveDivision: назначает ответственных по отделам своего направления, само
+// направление ему закрепляет администратор.
+router.get('/admin/divisions', requireRoles('admin', 'cb', 'hrbp', 'dir_head'), adminController.getDivisions);
+router.post('/admin/divisions', requireRoles('admin', 'cb', 'dir_head'), adminController.saveDivision);
 
 // Справочники. Читать может и HR BP — список нужен ему для сверки, но правка и
 // удаление тянут за собой живые данные, поэтому только admin/cb.

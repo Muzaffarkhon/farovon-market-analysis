@@ -204,16 +204,30 @@ async function getUserPayload(user) {
 
   const period = await getPeriodInfo();
 
+  // dir_head/head сами не выбирают, за какое подразделение отвечают —
+  // назначение только сверху вниз: админ закрепляет направление за dir_head,
+  // тот сам назначает ответственных по своим отделам (см. saveDivision).
+  // Раньше needsUnitPick открывал им тот же свободный пикер по всем 326
+  // подразделениям, что и рядовому сотруднику — то есть руководитель мог
+  // сам выбрать себе направление без ведома администратора.
+  const selfAssignRoles = ['dir_head', 'head'];
+  const canSelfPick = !selfAssignRoles.includes(user.role);
+
   return {
     user: {
       login: user.login,
       fio: user.fio,
       role: user.role,
       phone: user.phone || '',
-      hasTelegram: !!user.telegram_chat_id
+      hasTelegram: !!user.telegram_chat_id,
+      // Сырой список назначенных подразделений (не обогащённый прогрессом) —
+      // нужен фронту dir_head, чтобы понять, каким направлением он управляет,
+      // и построить экран «Назначить ответственных» по его отделам.
+      units: unitsList
     },
     period,
-    needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb',
+    needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
+    needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),
     units: visibleUnits,
     allUnits: allUnits,
     rows: userCompetitors.map(c => ({
@@ -251,7 +265,11 @@ async function getUserPayload(user) {
       benefits: benefitsToList(s.benefits),
       note: s.note || '',
       source: s.source || '',
-      trust: s.trust || ''
+      trust: s.trust || '',
+      // svCard() уже читает r.by/r.at для подписи «кто и когда внёс запись» —
+      // поле просто никогда не приходило с сервера, подпись не появлялась.
+      by: s.created_by || '',
+      at: s.created_at || ''
     })),
     // openAddSheet() ищет подсказки по компании как c.name/c.seg/c.region (объекты),
     // а не по голым строкам — раньше здесь были только имена, автодополнение
@@ -403,6 +421,17 @@ exports.setUnits = async (req, res) => {
   const { units } = req.body;
   if (!Array.isArray(units) || !units.length) {
     return res.status(400).json({ ok: false, error: 'Выберите хотя бы одно подразделение' });
+  }
+
+  // Руководителям направлений и отделов подразделение назначает администратор
+  // или вышестоящий руководитель — самим выбирать себе зону ответственности
+  // нельзя. Проверка и на фронте (кнопка там не появляется), и здесь — эндпоинт
+  // вызывается напрямую.
+  if (req.user.role === 'dir_head' || req.user.role === 'head') {
+    return res.status(403).json({
+      ok: false,
+      error: 'Подразделение для вашей роли назначает администратор. Обратитесь к нему.'
+    });
   }
 
   try {
