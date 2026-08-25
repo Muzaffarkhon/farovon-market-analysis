@@ -271,6 +271,7 @@ var API_ROUTES = {
   apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
   apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
   apiTelegramLink: function(args){ return fetchJson('/api/telegram/link', { method:'POST', token:args[0] }); },
+  apiTelegramUnlink: function(args){ return fetchJson('/api/telegram/unlink', { method:'POST', token:args[0] }); },
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
   apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
@@ -1157,7 +1158,10 @@ function openProfile(){
   });
 
   el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
-  el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
+  el.querySelector('#prTg').onclick = function(){
+    el.remove();
+    if(hasTg) confirmUnlinkTelegram(); else openTelegramLink();
+  };
   el.querySelector('#prHelp').onclick = function(){ openHelp(); };
   el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
   var prAssign = el.querySelector('#prAssign');
@@ -1254,6 +1258,28 @@ function openTelegramLink(){
   }).catch(function(){
     el.querySelector('#tgBody').className = 'err';
     el.querySelector('#tgBody').textContent = 'Нет связи с сервером';
+  });
+}
+
+/** Отвязка Telegram — тот же результат, что команда /unlink у самого бота,
+ *  но доступно и из приложения на случай, если под рукой нет Telegram. */
+function confirmUnlinkTelegram(){
+  ask({
+    title: 'Отвязать Telegram?',
+    html: 'Напоминания и уведомления через бота приходить перестанут. Привязать можно будет заново в любой момент.',
+    ok: 'Отвязать',
+    cancel: 'Остаться',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiTelegramUnlink', S.token).then(function(r){
+      if(r && r.ok){
+        S.data.user.hasTelegram = false;
+        toast('Telegram отвязан');
+      } else {
+        toast((r && r.error) || 'Не удалось отвязать', 'no');
+      }
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
   });
 }
 
