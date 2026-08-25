@@ -1,28 +1,56 @@
-# Node dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+```
+# Database files
+*.db
 
-# Environment variables
+# Environment files
 .env
 .env.local
-.env.production
+*.env.*
 
-# Database file (generated)
-data/market.db
-data/market.db-journal
-data/market.db-wal
-data/market.db-shm
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+dist/
+build/
+target/
 
-# Backups and archives
-*.bak
-*.rar
-*.zip
+# Compiled files
+*.pyc
+*.class
+*.o
+*.exe
+*.dll
+*.so
+*.a
+*.obj
+*.out
+
+# Logs and temp files
 *.log
+*.tmp
+*.swp
+*.swo
 
-# OS / IDE files
-.DS_Store
-Thumbs.db
+# Editor/IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Cache directories
+.mypy_cache/
+.pytest_cache/
+.gradle/
+```

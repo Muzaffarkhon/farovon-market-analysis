@@ -6,16 +6,20 @@ let client = null;
 function getDb() {
   if (client) return client;
 
-  if (!config.tursoUrl || !config.tursoAuthToken) {
+  // Для локальных файловых баз данных authToken не требуется
+  const isLocalFileDb = config.tursoUrl && config.tursoUrl.startsWith('file:');
+  
+  if (!config.tursoUrl || (!config.tursoAuthToken && !isLocalFileDb)) {
     throw new Error(
       'Не заданы TURSO_DATABASE_URL и/или TURSO_AUTH_TOKEN. ' +
-      'На Render задайте их в Environment, локально — в файле .env (см. .env.example).'
+      'На Render задайте их в Environment, локально — в файле .env (см. .env.example). ' +
+      'Для локальной SQLite используйте TURSO_DATABASE_URL=file:./data/market.db'
     );
   }
 
   client = createClient({
     url: config.tursoUrl,
-    authToken: config.tursoAuthToken
+    authToken: config.tursoAuthToken || undefined
   });
 
   return client;
