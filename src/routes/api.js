@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { authMiddleware, requireRoles } = require('../middleware/auth');
+const { authMiddleware, requireRoles, requireCapability } = require('../middleware/auth');
 const authController = require('../controllers/authController');
 const surveyController = require('../controllers/surveyController');
 const dashboardController = require('../controllers/dashboardController');
@@ -30,40 +30,43 @@ router.post('/survey/save-details', surveyController.saveSurveyDetails);
 router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
-// всех HR BP). Руководителю направления (dir_head) по роли не нужна: он видит
-// свои подразделения. Убран и из навигации, и отсюда — иначе доступ остался бы
-// открытым в обход интерфейса.
-router.all('/dashboard/extended', requireRoles('admin', 'cb', 'hrbp'), dashboardController.getCBDashboard);
-router.all('/dashboard/hrbp', requireRoles('admin', 'cb', 'hrbp'), dashboardController.getHRBPDashboard);
-router.get('/dashboard/export-csv', requireRoles('admin', 'cb', 'hrbp'), dashboardController.exportCSV);
+// всех HR BP). Кто именно видит её, кроме admin, теперь настраивается в
+// конструкторе ролей (dashboard:view) — раньше было зашито requireRoles(...).
+router.all('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
+router.all('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
+router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboardController.exportCSV);
 
-// Панель Администратора (только admin и cb)
-// dir_head тоже читает список — нужен для пикера «кого назначить руководителем
-// отдела / ответственным» в своём направлении (см. GET/POST /admin/divisions).
-router.get('/admin/users', requireRoles('admin', 'cb', 'dir_head'), adminController.getUsers);
-router.post('/admin/users', requireRoles('admin', 'cb'), adminController.saveUser);
-router.post('/admin/users/:login/toggle', requireRoles('admin', 'cb'), adminController.toggleUser);
-router.post('/admin/users/:login/reset-password', requireRoles('admin', 'cb'), adminController.resetPassword);
-router.get('/admin/users-archive', requireRoles('admin', 'cb'), adminController.getArchivedUsers);
-router.post('/admin/users/:login/archive', requireRoles('admin', 'cb'), adminController.archiveUser);
-router.post('/admin/users/:login/restore', requireRoles('admin', 'cb'), adminController.restoreUser);
+// Панель Администратора. Доступ к разделам теперь по конструктору ролей
+// (см. src/config/capabilities.js) вместо жёстко зашитых requireRoles(...).
+// saveUser/dictionaryController.save обслуживают одним POST и создание, и
+// правку — маршрут пускает по любому из двух прав, точная граница внутри
+// обработчика (см. adminController.saveUser, dictionaryController.save).
+router.get('/admin/users', requireCapability('users:view'), adminController.getUsers);
+router.post('/admin/users', requireCapability('users:create', 'users:edit'), adminController.saveUser);
+router.post('/admin/users/:login/toggle', requireCapability('users:edit'), adminController.toggleUser);
+router.post('/admin/users/:login/reset-password', requireCapability('users:edit'), adminController.resetPassword);
+router.get('/admin/users-archive', requireCapability('users:view'), adminController.getArchivedUsers);
+router.post('/admin/users/:login/archive', requireCapability('users:edit'), adminController.archiveUser);
+router.post('/admin/users/:login/restore', requireCapability('users:edit'), adminController.restoreUser);
 
-// dir_head тоже читает и правит divisions — но только свои, проверка внутри
-// saveDivision: назначает ответственных по отделам своего направления, само
-// направление ему закрепляет администратор.
-router.get('/admin/divisions', requireRoles('admin', 'cb', 'hrbp', 'dir_head'), adminController.getDivisions);
-router.post('/admin/divisions', requireRoles('admin', 'cb', 'dir_head'), adminController.saveDivision);
+router.get('/admin/divisions', requireCapability('divisions:view'), adminController.getDivisions);
+router.post('/admin/divisions', requireCapability('divisions:edit'), adminController.saveDivision);
 
-// Справочники. Читать может и HR BP — список нужен ему для сверки, но правка и
-// удаление тянут за собой живые данные, поэтому только admin/cb.
-router.get('/admin/dictionary/:kind', requireRoles('admin', 'cb', 'hrbp'), dictionaryController.list);
-router.get('/admin/dictionary/:kind/usage', requireRoles('admin', 'cb'), dictionaryController.usage);
-router.post('/admin/dictionary/:kind', requireRoles('admin', 'cb'), dictionaryController.save);
-router.post('/admin/dictionary/:kind/delete', requireRoles('admin', 'cb'), dictionaryController.remove);
+router.get('/admin/dictionary/:kind', requireCapability('dictionary:view'), dictionaryController.list);
+router.get('/admin/dictionary/:kind/usage', requireCapability('dictionary:edit'), dictionaryController.usage);
+router.post('/admin/dictionary/:kind', requireCapability('dictionary:create', 'dictionary:edit'), dictionaryController.save);
+router.post('/admin/dictionary/:kind/delete', requireCapability('dictionary:edit'), dictionaryController.remove);
 
-router.post('/admin/period', requireRoles('admin', 'cb', 'hrbp'), adminController.setPeriod);
-router.post('/admin/maintenance', requireRoles('admin', 'cb'), adminController.runMaintenance);
-router.get('/admin/audit-log', requireRoles('admin', 'cb'), adminController.getAuditLog);
-router.get('/admin/data-status', requireRoles('admin', 'cb'), adminController.getDataStatus);
+router.post('/admin/period', requireCapability('period:edit'), adminController.setPeriod);
+router.post('/admin/maintenance', requireCapability('service:edit'), adminController.runMaintenance);
+router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);
+router.get('/admin/data-status', requireCapability('service:view'), adminController.getDataStatus);
+
+// Конструктор ролей и доступов — редактирует сам список прав, поэтому
+// намеренно admin-only (requireRoles, не requireCapability): выдать
+// C&B-аналитику право менять права всей компании было бы той самой
+// эскалацией, которую конструктор должен предотвращать.
+router.get('/admin/role-capabilities', requireRoles('admin'), adminController.getRoleCapabilities);
+router.post('/admin/role-capabilities', requireRoles('admin'), adminController.saveRoleCapabilities);
 
 module.exports = router;

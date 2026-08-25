@@ -294,6 +294,8 @@ var API_ROUTES = {
   apiAdminRestoreUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/restore', { method:'POST', token:args[0] }); },
   apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGetRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'GET', token:args[0] }); },
+  apiAdminSaveRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'POST', token:args[0], body:args[1] }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
   // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
@@ -908,15 +910,33 @@ function doRefresh_(){
 }
 
 /**
- * Кто видит аналитический дашборд. Раньше сюда входил и dir_head — руководитель
- * направления получал сводную аналитику по всему холдингу (зарплатные вилки
- * конкурентов, прогресс всех HR BP), которая ему по роли не нужна и не должна
- * быть доступна. Дашборд — инструмент admin / C&B / HR BP.
+ * Права из конструктора ролей и доступов (админка → «Роли и доступы»).
+ * 'admin' — всегда true, даже если у него почему-то нет записи в capabilities
+ * (сервер и так отдаёт ему полный список, это просто дублирующая подстраховка
+ * на фронте — та же граница проверяется на каждом запросе в requireCapability).
+ */
+function hasCap(id){
+  var u = S.data && S.data.user;
+  if(!u) return false;
+  if(u.role === 'admin') return true;
+  return (u.capabilities || []).indexOf(id) >= 0;
+}
+
+/** Есть ли доступ хоть к одному разделу админки — все capabilities сейчас об этом. */
+function canSeeAdmin(){
+  var u = S.data && S.data.user;
+  if(!u) return false;
+  return u.role === 'admin' || (u.capabilities && u.capabilities.length > 0);
+}
+
+/**
+ * Кто видит аналитический дашборд. Раньше это был жёсткий список ролей
+ * (admin/cb/hrbp) — теперь настраивается через dashboard:view в конструкторе.
  * Проверка одна на все три места, где строится навигация (меню ⋮, рельса,
  * верхние вкладки), чтобы правила не разъезжались между ними.
  */
-function canSeeDashboard(role){
-  return role === 'admin' || role === 'cb' || role === 'hrbp';
+function canSeeDashboard(){
+  return hasCap('dashboard:view');
 }
 
 /**
@@ -928,10 +948,10 @@ $('btnMenu').onclick = function(){
   var r = S.data && S.data.user && S.data.user.role;
   var isElevated = (r === 'admin' || r === 'cb');
   var items = [];
-  if(canSeeDashboard(r)) {
+  if(canSeeDashboard()) {
     items.push(['dash_analytics', 'dashboard', 'Аналитический дашборд']);
   }
-  if(r === 'admin' || r === 'cb') {
+  if(canSeeAdmin()) {
     items.push(['admin_panel', 'admin', 'Панель администратора']);
   }
   if(r === 'hrbp') {
@@ -996,10 +1016,10 @@ function renderRail(){
   } else {
     items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
   }
-  if(canSeeDashboard(r)){
+  if(canSeeDashboard()){
     items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
   }
-  if(r === 'admin' || r === 'cb'){
+  if(canSeeAdmin()){
     items.push({ id:'admin', view:'admin', label:'Админка', icon: ICONS.admin });
   }
   if(r === 'hrbp'){
@@ -1042,10 +1062,10 @@ function renderTopNav(){
   if(r !== 'admin' && r !== 'cb'){
     btns.push({ id:'units', icon:'units', label:'Подразделения' });
   }
-  if(canSeeDashboard(r)){
+  if(canSeeDashboard()){
     btns.push({ id:'dashboard', icon:'dashboard', label:'Дашборд' });
   }
-  if(r === 'admin' || r === 'cb'){
+  if(canSeeAdmin()){
     btns.push({ id:'admin', icon:'admin', label:'Админка' });
   }
 
@@ -2929,16 +2949,31 @@ function openAdminPanel(){
 }
 
 function renderAdminPanel(){
-  var tabs = [
-    { id:'users', icon:'users', label:'Пользователи' },
-    { id:'archive', icon:'archive', label:'Архив' },
+  // Какие вкладки видны — по конструктору ролей и доступов (админка → «Роли
+  // и доступы»), не по жёстко зашитой роли. Сам конструктор — исключение:
+  // admin-only, редактирование прав всей компании не выдаётся правом.
+  var allTabs = [
+    { id:'users', icon:'users', label:'Пользователи', cap:'users:view' },
+    { id:'archive', icon:'archive', label:'Архив', cap:'users:view' },
     // Число подразделений было вписано в подпись строкой «(326)» — оно
     // разъедется, как только оргструктуру поменяют. Берём из данных.
-    { id:'divisions', icon:'units', label:'Оргструктура' + (S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : '') },
-    { id:'dict', icon:'book', label:'Справочники' },
-    { id:'period', icon:'clock', label:'Период сбора' },
-    { id:'tools', icon:'wrench', label:'Сервис и Журнал' }
+    { id:'divisions', icon:'units', label:'Оргструктура' + (S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : ''), cap:'divisions:view' },
+    { id:'dict', icon:'book', label:'Справочники', cap:'dictionary:view' },
+    { id:'period', icon:'clock', label:'Период сбора', cap:'period:view' },
+    { id:'tools', icon:'wrench', label:'Сервис и Журнал', cap:'service:view' },
+    { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
+  var tabs = allTabs.filter(function(t){
+    return t.adminOnly ? S.data.user.role === 'admin' : hasCap(t.cap);
+  });
+
+  if(!tabs.length){
+    $('body').innerHTML = '<div class="err">Нет доступа ни к одному разделу администратора.</div>';
+    return;
+  }
+  if(!S.adminTab || !tabs.some(function(t){ return t.id === S.adminTab; })){
+    S.adminTab = tabs[0].id;
+  }
 
   var h = '<div class="sub-tabs sub-tabs--sticky">'+ tabs.map(function(t){
     var on = S.adminTab === t.id ? ' on' : '';
@@ -2961,6 +2996,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'dict') renderAdminDict();
   else if(S.adminTab === 'period') renderAdminPeriod();
   else if(S.adminTab === 'tools') renderAdminTools();
+  else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
 // ─── Вкладка: Пользователи ───
@@ -4155,6 +4191,100 @@ function runMaintenanceTool(type, title){
       toast('Нет связи', 'no');
     });
   });
+}
+
+// ─── Вкладка: Роли и доступы (admin-only) ───
+/**
+ * Конструктор ролей и доступов — матрица «право × роль» поверх фиксированных
+ * ролей (admin/cb/hrbp/dir_head/head/user). Роли сами не создаются и не
+ * переименовываются — это осознанное сужение масштаба: каскадная логика
+ * dir_head/head в других экранах завязана на точные названия ролей, и делать
+ * их произвольными означало бы переписывать эту логику. Настраивается только
+ * доступ к разделам админки (просмотр/редактирование/добавление).
+ * 'admin' — защищённая роль, здесь не редактируется, сервер и так даёт ей
+ * все права всегда (requireCapability пропускает её без обращения к таблице).
+ */
+var ROLE_LABELS_RU = { cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Рук. направления', head:'Рук. отдела', user:'Сотрудник' };
+
+function loadAdminRoles(){
+  call('apiAdminGetRoleCapabilities', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки прав доступа')+'</div>';
+      return;
+    }
+    S.roleCaps = { catalog: r.capabilities, roles: r.roles, matrix: r.matrix };
+    renderAdminRoles();
+  }).catch(function(){
+    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminRoles(){
+  var data = S.roleCaps;
+  if(!data) return;
+  var roles = data.roles, caps = data.catalog, matrix = data.matrix;
+
+  // Группировка прав по разделу, с сохранением порядка каталога.
+  var groups = [], byRes = {};
+  caps.forEach(function(c){
+    if(!byRes[c.resource]){ byRes[c.resource] = { label: c.resourceLabel, items: [] }; groups.push(byRes[c.resource]); }
+    byRes[c.resource].items.push(c);
+  });
+
+  var h = '<p class="step-hint">Права каждой роли на разделы админки — просмотр, редактирование, добавление. '+
+    'У «Администратора» права всегда полные и здесь не настраиваются.</p>';
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">';
+  h += '<thead><tr><th>Право</th><th class="num">Админ</th>'+
+    roles.map(function(r){ return '<th class="num">'+esc(ROLE_LABELS_RU[r] || r)+'</th>'; }).join('')+
+  '</tr></thead><tbody>';
+
+  groups.forEach(function(g){
+    h += '<tr><td colspan="'+(2+roles.length)+'" style="background:var(--card-2);font-weight:700;'+
+      'font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">'+esc(g.label)+'</td></tr>';
+    g.items.forEach(function(c){
+      h += '<tr><td>'+esc(c.label)+'</td>'+
+        '<td class="num" style="color:var(--ok)">'+ic('check',14)+'</td>'+
+        roles.map(function(r){
+          var checked = (matrix[r] || []).indexOf(c.id) >= 0;
+          return '<td class="num"><input type="checkbox" data-role="'+r+'" data-cap="'+c.id+'"'+(checked?' checked':'')+'></td>';
+        }).join('')+
+      '</tr>';
+    });
+  });
+
+  h += '</tbody></table></div>';
+  h += '<div style="height:16px"></div><button id="rolesSave" class="btn-primary">Сохранить права</button>';
+
+  $('adminContent').innerHTML = h;
+
+  $('adminContent').querySelectorAll('input[type=checkbox][data-role]').forEach(function(box){
+    box.onchange = function(){
+      var role = this.dataset.role, cap = this.dataset.cap;
+      var arr = matrix[role] = matrix[role] || [];
+      var i = arr.indexOf(cap);
+      if(this.checked){ if(i < 0) arr.push(cap); }
+      else if(i >= 0) arr.splice(i, 1);
+    };
+  });
+
+  $('rolesSave').onclick = function(){
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    Promise.all(roles.map(function(r){
+      return call('apiAdminSaveRoleCapabilities', S.token, { role: r, capabilities: matrix[r] || [] });
+    })).then(function(results){
+      btn.disabled = false; btn.textContent = 'Сохранить права';
+      if(results.some(function(r){ return !r || !r.ok; })){
+        toast('Не удалось сохранить часть прав', 'no');
+      } else {
+        toast('Права сохранены', 'ok');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить права';
+      toast('Нет связи с сервером', 'no');
+    });
+  };
 }
 
 // ═══════════════════════════════════════════════════════════

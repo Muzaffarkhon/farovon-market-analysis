@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
 const { benefitsToList } = require('./surveyController');
+const { CAPABILITIES } = require('../config/capabilities');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
@@ -213,6 +214,22 @@ async function getUserPayload(user) {
   const selfAssignRoles = ['dir_head', 'head'];
   const canSelfPick = !selfAssignRoles.includes(user.role);
 
+  // Права из конструктора ролей и доступов — фронт по ним показывает/прячет
+  // разделы админки (та же граница, что requireCapability проверяет на
+  // сервере на каждом запросе; здесь — только для отрисовки навигации).
+  // 'admin' получает полный список без обращения к таблице.
+  let capabilities = [];
+  if (user.role === 'admin') {
+    capabilities = CAPABILITIES.map(c => c.id);
+  } else {
+    try {
+      const capRows = await queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]);
+      capabilities = capRows.map(r => r.capability);
+    } catch (e) {
+      console.error('Права доступа недоступны:', e.message);
+    }
+  }
+
   return {
     user: {
       login: user.login,
@@ -223,7 +240,8 @@ async function getUserPayload(user) {
       // Сырой список назначенных подразделений (не обогащённый прогрессом) —
       // нужен фронту dir_head, чтобы понять, каким направлением он управляет,
       // и построить экран «Назначить ответственных» по его отделам.
-      units: unitsList
+      units: unitsList,
+      capabilities
     },
     period,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
