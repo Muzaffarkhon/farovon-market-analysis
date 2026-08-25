@@ -361,6 +361,14 @@ document.addEventListener('keydown', function(e){
   if(x) x.click(); else top.remove();
 }, false);
 
+/** Иконка в .search-wrap стоит справа и кликабельна — просто фокусирует поле рядом. */
+document.addEventListener('click', function(e){
+  var icon = e.target.closest('.search-wrap svg');
+  if(!icon) return;
+  var input = icon.parentElement.querySelector('input');
+  if(input) input.focus();
+});
+
 /**
  * Внутреннее окно подтверждения вместо confirm().
  * Браузерное показывает домен googleusercontent.com и читается как
@@ -1130,7 +1138,7 @@ function openProfile(){
 
   el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
   el.querySelector('#prTg').onclick = function(){ el.remove(); openTelegramLink(); };
-  el.querySelector('#prHelp').onclick = function(){ el.remove(); openHelp(); };
+  el.querySelector('#prHelp').onclick = function(){ openHelp(); };
   el.querySelector('#prUnits').onclick = function(){ el.remove(); switchView('units'); };
   var prAssign = el.querySelector('#prAssign');
   if(prAssign) prAssign.onclick = function(){ el.remove(); openDeptAssign(); };
@@ -1501,7 +1509,7 @@ function setTop(title, sub, back, icon){
   window.scrollTo(0,0);
 }
 $('btnBack').onclick = function(){
-  var go = function(){ S.dirty = false; renderUnits(); };
+  var go = function(){ S.dirty = false; (S.backTo || renderUnits)(); };
   if(!S.dirty){ go(); return; }
   askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
 };
@@ -1509,7 +1517,8 @@ $('btnBack').onclick = function(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: подразделение (две вкладки)
 // ═══════════════════════════════════════════════════════════
-function openUnit(unit){
+function openUnit(unit, backTo){
+  S.backTo = backTo || renderUnits;
   S.unit = unit;
   S.tab = 'comp';
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
@@ -1704,7 +1713,6 @@ function rowCard(r, i, isNew){
        (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
        esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
   if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
   if(locked) h += '<div class="row-meta" style="color:var(--warn)">'+ic('lock',12)+'изменяет '+esc(r.by)+'</div>';
   if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
   h += '</div>';
@@ -1715,6 +1723,10 @@ function rowCard(r, i, isNew){
       return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
         ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
     }).join('')+'</div>';
+
+  // «требует уточнения» стоит ПОСЛЕ строки кнопок, а не до неё: иначе
+  // кнопка, только что нажатая, уезжает вниз под курсором.
+  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
 
   h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
   h += '<div class="more hidden">';
@@ -1756,15 +1768,15 @@ function bindRows(){
                                    r.actual==='уточнить'?'st-ask':'');
         card.querySelectorAll('.seg button').forEach(function(x){
           x.classList.toggle('on', x.dataset.v === r.actual); });
-        // подпись «не считается проверенной» появляется и исчезает сразу
-        var head = card.querySelector('.row-head');
-        var mark = head.querySelector('.row-ask');
+        // подпись «не считается проверенной» стоит после строки кнопок —
+        // если поставить её раньше, только что нажатая кнопка уезжает вниз.
+        var seg = card.querySelector('.seg');
+        var mark = card.querySelector('.row-ask');
         if(r.actual === 'уточнить' && !mark){
           var d = document.createElement('div');
           d.className = 'row-ask';
           d.textContent = 'не считается проверенной';
-          var prev = head.querySelector('.row-note-preview');
-          if(prev) head.insertBefore(d, prev); else head.appendChild(d);
+          seg.insertAdjacentElement('afterend', d);
         } else if(r.actual !== 'уточнить' && mark){ mark.remove(); }
         markDirty(); updateProgress(); return;
       }
@@ -4137,6 +4149,7 @@ function runMaintenanceTool(type, title){
 // СВОДКА ПО HR BP (быстрый вид)
 // ═══════════════════════════════════════════════════════════
 function openDash(){
+  S.backTo = null;
   setTop('Сводка по подразделениям', userLabel(), true);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
@@ -4217,7 +4230,7 @@ function openDash(){
       $('dashSumTblBox').onclick = function(e){
         var tr = e.target.closest('tr[data-u]');
         if(!tr) return;
-        openUnit(tr.dataset.u);
+        openUnit(tr.dataset.u, openDash);
       };
     }
     drawTable();

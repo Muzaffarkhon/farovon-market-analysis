@@ -945,12 +945,12 @@ label.lbl {
 }
 
 .row-head {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .row-name {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.3;
   color: var(--text);
   word-break: break-word;
@@ -982,15 +982,15 @@ label.lbl {
 
 .seg {
   display: flex;
-  gap: 6px;
-  padding: 0 14px 12px;
+  gap: 5px;
+  padding: 0 12px 10px;
 }
 
 .seg button {
   flex: 1;
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--line);
   background: var(--card-2);
@@ -1937,15 +1937,22 @@ label.lbl {
 
 .search-wrap svg {
   position: absolute;
-  left: 11px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--subtle);
-  pointer-events: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 8px;
+}
+
+.search-wrap svg:hover {
+  color: var(--text);
+  background: var(--hover, rgba(0,0,0,0.04));
 }
 
 .search-wrap input {
-  padding-left: 34px;
+  padding-right: 36px;
 }
 
 .dash-filters .search-wrap {
