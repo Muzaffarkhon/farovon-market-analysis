@@ -3128,10 +3128,13 @@ function renderSalariesTab(positions){
   var h = '<div class="sec-title">Зарплатные вилки по должностям ('+positions.length+')</div>';
 
   h += '<div class="fork-grid">' + positions.map(function(pos, idx){
-    var maxVal = Math.max(pos.max, 1);
-    var p25Pct = pos.min > 0 ? Math.round((pos.p25 / maxVal) * 100) : 0;
-    var p75Pct = pos.min > 0 ? Math.round((pos.p75 / maxVal) * 100) : 0;
-    var medPct = pos.min > 0 ? Math.round((pos.median / maxVal) * 100) : 0;
+    var minVal = pos.min || 0;
+    var maxVal = Math.max(pos.max || 1, minVal + 1);
+    var range = maxVal - minVal;
+
+    var p25Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p25 - minVal) / range) * 100))) : 0;
+    var p75Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p75 - minVal) / range) * 100))) : 100;
+    var medPct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.median - minVal) / range) * 100))) : 50;
     var wPct = Math.max(p75Pct - p25Pct, 4);
 
     var cardId = 'posCard_' + idx;

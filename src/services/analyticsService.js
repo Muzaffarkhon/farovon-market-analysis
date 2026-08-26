@@ -1,26 +1,34 @@
 const { queryAll, queryOne } = require('../db/database');
 
-function calculatePercentiles(samples) {
-  const s = [...samples].sort((a, b) => a - b);
-  const n = s.length;
+function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
+  const n = midSamples.length;
   if (n === 0) return { min: 0, p25: 0, median: 0, p75: 0, max: 0, avg: 0, spread: 0 };
 
-  const min = s[0];
-  const max = s[n - 1];
-  const avg = Math.round(s.reduce((acc, v) => acc + v, 0) / n);
+  const validFroms = fromSamples.filter(v => v > 0);
+  const validTos = toSamples.filter(v => v > 0);
+
+  // Реальные границы рынка (стандарт C&B)
+  const min = validFroms.length ? Math.min(...validFroms) : (validTos.length ? Math.min(...validTos) : Math.min(...midSamples));
+  const max = validTos.length ? Math.max(...validTos) : (validFroms.length ? Math.max(...validFroms) : Math.max(...midSamples));
+
+  // Среднее значение
+  const avg = Math.round(midSamples.reduce((acc, v) => acc + v, 0) / n);
+
+  // Перцентили и медиана
+  const s = [...midSamples].sort((a, b) => a - b);
+  const i50 = (n - 1) * 0.5;
+  const l50 = Math.floor(i50);
+  const median = Math.round(s[l50] + (s[Math.min(l50 + 1, n - 1)] - s[l50]) * (i50 - l50));
 
   const i25 = (n - 1) * 0.25;
   const l25 = Math.floor(i25);
   const p25 = Math.round(s[l25] + (s[Math.min(l25 + 1, n - 1)] - s[l25]) * (i25 - l25));
 
-  const i50 = (n - 1) * 0.5;
-  const l50 = Math.floor(i50);
-  const median = Math.round(s[l50] + (s[Math.min(l50 + 1, n - 1)] - s[l50]) * (i50 - l50));
-
   const i75 = (n - 1) * 0.75;
   const l75 = Math.floor(i75);
   const p75 = Math.round(s[l75] + (s[Math.min(l75 + 1, n - 1)] - s[l75]) * (i75 - l75));
 
+  // Реальный размах рынка от Мин до Макс
   const spread = (min > 0 && max > min) ? Math.round(((max - min) / min) * 100) : 0;
 
   return { min, p25, median, p75, max, avg, spread };
@@ -123,6 +131,8 @@ async function getExtendedAnalytics(filters = {}) {
         posMap[posOur] = {
           pos: posOur,
           count: 0,
+          fromSamples: [],
+          toSamples: [],
           salarySamples: [],
           companies: []
         };
@@ -132,6 +142,8 @@ async function getExtendedAnalytics(filters = {}) {
       let avgPay = 0;
       if (pFrom > 0 || pTo > 0) {
         recordsWithSalary++;
+        if (pFrom > 0) posMap[posOur].fromSamples.push(pFrom);
+        if (pTo > 0) posMap[posOur].toSamples.push(pTo);
         avgPay = (pFrom > 0 && pTo > 0) ? Math.round((pFrom + pTo) / 2) : (pFrom || pTo);
         posMap[posOur].salarySamples.push(avgPay);
       }
@@ -158,7 +170,7 @@ async function getExtendedAnalytics(filters = {}) {
   // Расчет перцентилей по должностям
   const positionsList = Object.keys(posMap).map(k => {
     const item = posMap[k];
-    const stats = calculatePercentiles(item.salarySamples);
+    const stats = calculateSalaryForkStats(item.fromSamples, item.toSamples, item.salarySamples);
     return {
       pos: k,
       count: item.count,
