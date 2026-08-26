@@ -81,9 +81,12 @@
     <div id="topNav" class="nav-tabs hidden"></div>
     <div class="wrap" id="body"></div>
     <div class="bar hidden" id="bar">
-      <div class="bar-in">
+      <div class="bar-in" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div class="prog"><b id="progT"></b><i id="progS"></i></div>
-        <button id="btnSave" class="btn-primary" style="width:auto">Сохранить</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="btnNext" class="btn-line" style="width:auto;min-height:32px;font-size:12.5px;padding:0 14px">Перейти к шагу 2 →</button>
+          <button id="btnSave" class="btn-primary" style="width:auto;min-height:32px;font-size:12.5px;padding:0 16px">Сохранить</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2723,6 +2726,17 @@ function updateProgress(){
     t2.innerHTML = '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 2</span></div>'+
       '<div class="tab-main-row"><span class="tab-title">Данные по рынку</span><span class="tab-count">'+svLabel()+'</span></div>';
     t2.classList.toggle('done', S.surveys.length > 0);
+  }
+
+  var nextBtn = $('btnNext');
+  if(nextBtn){
+    if(S.tab === 'comp'){
+      nextBtn.classList.remove('hidden');
+      nextBtn.textContent = 'Перейти к шагу 2 →';
+      nextBtn.onclick = function(){ S.tab = 'survey'; renderUnit(); };
+    } else {
+      nextBtn.classList.add('hidden');
+    }
   }
 
   $('btnSave').classList.toggle('hidden', S.ro || !S.dirty);
