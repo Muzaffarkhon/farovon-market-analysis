@@ -1,51 +1,74 @@
 /* Farovon Market Analysis - Apple HIG & Linear Design System */
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-  --bg: #f6f8fb;
+  --color-canvas-white: #ffffff;
+  --color-paper-mist: #f5f5f5;
+  --color-ash: #e5e5e5;
+  --color-smoke: #d4d4d4;
+  --color-pebble: #c8c8c8;
+  --color-midnight-ink: #0a0a0a;
+  --color-charcoal: #171717;
+  --color-graphite: #262626;
+  --color-slate: #404040;
+  --color-steel: #525252;
+  --color-fog: #737373;
+  --color-silver: #a3a3a3;
+  --color-electric-blue: #2563eb;
+  --color-deep-sapphire: #1e40af;
+  --color-soft-mint: #dcfce7;
+  --color-vivid-green: #16a34a;
+  --color-emerald-vivid: #10b981;
+  --color-tangerine: #ea580c;
+  --color-lavender: #7c3aed;
+
+  --bg: #ffffff;
   --card: #ffffff;
-  --card-hover: #f1f5f9;
-  --card-2: #f1f5f9;
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
-  /* Текст: вторичный был #64748b — на белом это 4.7:1, читается как выцветший.
-     Подтянут до #475569 (7.5:1), третичный до #64748b. Ощущение «серости»
-     интерфейса шло отсюда, а не от шрифта. */
-  --text: #0b1220;
-  --muted: #475569;
-  --subtle: #64748b;
-  
+  --card-hover: #f5f5f5;
+  --card-2: #f5f5f5;
+  --line: #e5e5e5;
+  --line-strong: #d4d4d4;
+  --text: #171717;
+  --muted: #525252;
+  --subtle: #737373;
+
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-soft: #eff6ff;
   --accent-border: #bfdbfe;
-  
-  --ok: #059669;
-  --ok-hover: #047857;
-  --ok-soft: #ecfdf5;
-  --ok-border: #a7f3d0;
-  
-  --no: #e11d48;
-  --no-hover: #be123c;
-  --no-soft: #fff1f2;
-  --no-border: #fecdd3;
-  
-  --warn: #d97706;
-  --warn-hover: #b45309;
-  --warn-soft: #fffbeb;
-  --warn-border: #fde68a;
-  
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
+
+  --ok: #16a34a;
+  --ok-hover: #15803d;
+  --ok-soft: #dcfce7;
+  --ok-border: #bbf7d0;
+
+  --no: #dc2626;
+  --no-hover: #b91c1c;
+  --no-soft: #fee2e2;
+  --no-border: #fecaca;
+
+  --warn: #ea580c;
+  --warn-hover: #c2410c;
+  --warn-soft: #ffedd5;
+  --warn-border: #fed7aa;
+
+  --radius-tags: 9999px;
+  --radius-cards: 8px;
+  --radius-inputs: 6px;
+  --radius-buttons: 6px;
+  --radius-largecards: 12px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
   --radius-full: 9999px;
-  
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
-  
-  --tap: 42px;
-  font-size: 15px;
+
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+  --tap: 36px;
+  font-size: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -109,6 +132,30 @@ html, body {
   letter-spacing: -0.006em;
 }
 
+/* ─── Универсальная полоса прокрутки (SaaS Scrollbars) ─── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-smoke) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-smoke);
+  border-radius: var(--radius-tags);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-steel);
+}
+
 /* Заголовки — единая шкала на весь интерфейс, чтобы одни и те же по смыслу
    надписи не набирались в каждом экране своим размером. */
 h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
@@ -117,36 +164,50 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
 
 .hidden { display: none !important; }
 
-/* ─── Боковая навигация (только десктоп, см. ниже) ─── */
+/* ─── Каркас приложения (#app) ─── */
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.app-main {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-canvas-white);
+}
+
+/* ─── Боковая навигация (скрыта на мобильных, видна от 1024px) ─── */
 .rail { display: none; }
 
-/* ─── Шапка и Каркас ─── */
+/* ─── Шапка и Каркас (Flat Page Header) ─── */
 .top {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--line);
-  padding: 10px 16px;
+  background: var(--color-canvas-white);
+  border-bottom: 1px solid var(--color-ash);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 58px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .top {
-    background: rgba(17, 24, 39, 0.85);
-  }
+  min-height: 52px;
+  flex: none;
 }
 
 .top h1 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 550;
+  color: var(--color-midnight-ink);
   flex: 1;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,10 +215,10 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
 }
 
 .top .sub {
-  font-size: 12.5px;
-  color: var(--muted);
-  font-weight: 500;
-  margin-left: 4px;
+  font-size: 13px;
+  color: var(--color-fog);
+  font-weight: 400;
+  margin-left: 8px;
 }
 
 #topPeriodBadge {
@@ -169,35 +230,33 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--card-2);
-  border: 1px solid var(--line);
-  padding: 4px 10px;
-  border-radius: 20px;
+  background: var(--color-paper-mist);
+  border: 1px solid var(--color-ash);
+  padding: 3px 10px;
+  border-radius: var(--radius-tags);
   font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-right: 10px;
+  font-weight: 500;
+  color: var(--color-charcoal);
+  margin-right: 8px;
   white-space: nowrap;
   flex: none;
 }
 
 .top-period-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--color-emerald-vivid);
   display: inline-block;
-  box-shadow: 0 0 0 2px var(--ok-soft);
 }
 
 .top-period-pill.is-closed {
-  color: var(--no);
-  border-color: var(--no-border);
+  color: var(--color-tangerine);
+  border-color: var(--color-ash);
 }
 
 .top-period-pill.is-closed .top-period-dot {
-  background: var(--no);
-  box-shadow: 0 0 0 2px var(--no-soft);
+  background: var(--color-tangerine);
 }
 
 @media (max-width: 640px) {
@@ -208,36 +267,12 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   }
 }
 
-/* Каркас приложения: прокручивается только .wrap, шапка и панель сохранения
-   остаются на месте.
-
-   Это уже было починено 24.08.2026, но правило лежало ВНУТРИ @media
-   (min-width: 1024px) — то есть только для десктопа. Ниже 1024px у #app
-   по-прежнему не было высоты, `height: calc(100% - 58px)` у .wrap считался
-   от родителя с высотой auto и сам становился auto: .wrap вырастал под
-   контент, а всё, что не помещалось в экран, обрезалось body{overflow:hidden}
-   и было недостижимо — длинные списки просто не пролистывались.
-   min-height:0 обязателен: без него flex-элемент не даёт себя сжать ниже
-   размера содержимого и overflow-y:auto снова не срабатывает. */
-#app {
-  display: flex;
-  height: 100%;
-}
-
-.app-main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .wrap {
   max-width: 880px;
   width: 100%;
   margin: 0 auto;
   padding: 10px 16px;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -245,49 +280,56 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ─── Десктопная раскладка (24.08.2026) ───────────────────────────────────
-   На мобильном ничего не меняется — .rail остаётся display:none (см. выше).
-   Каркас (#app/.app-main/.wrap) теперь общий для всех ширин, см. выше. */
 @media (min-width: 1024px) {
-
   .rail {
     display: flex;
     flex-direction: column;
-    width: 248px;
+    width: 256px;
+    height: 100vh;
     flex: none;
-    border-right: 1px solid var(--line);
-    background: var(--card);
-    padding: 20px 14px;
+    border-right: 1px solid var(--color-ash);
+    background: var(--color-canvas-white);
+    padding: 12px 8px;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .rail-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 4px 8px 22px;
+    padding: 6px 8px 14px;
+    border-bottom: 1px solid var(--color-ash);
+    margin-bottom: 10px;
+    flex: none;
   }
   .rail-brand-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-buttons);
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     flex: none;
   }
   .rail-brand-name {
-    font-weight: 800;
-    font-size: 14.5px;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--color-midnight-ink);
     letter-spacing: -0.01em;
-    line-height: 1.25;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .rail-brand-sub {
-    font-size: 11.5px;
-    color: var(--muted);
-    font-weight: 500;
+    font-size: 11px;
+    color: var(--color-fog);
+    font-weight: 400;
+    white-space: nowrap;
   }
 
   .rail-nav {
@@ -295,97 +337,102 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
     flex-direction: column;
     gap: 2px;
   }
+
+  .rail-sec-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fog);
+    padding: 12px 8px 4px;
+    white-space: nowrap;
+  }
+
   .rail-item {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 10px;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    border: 1px solid transparent;
+    gap: 8px;
+    padding: 6px 10px;
+    min-height: 32px;
+    border-radius: var(--radius-buttons);
+    border: none;
     background: transparent;
-    width: 100%;
+    color: var(--color-charcoal);
+    font-size: 13px;
+    font-weight: 450;
+    cursor: pointer;
     text-align: left;
-    transition: all 0.15s ease;
+    width: 100%;
+    transition: all 0.12s ease;
+    box-shadow: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+
+  .rail-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+  }
+
   .rail-item svg {
     flex: none;
-    opacity: 1;
-    color: var(--accent);
+    width: 16px;
+    height: 16px;
   }
+
   .rail-item:hover {
-    background: var(--card-hover);
-    color: var(--text);
-    border-color: var(--line);
+    background: var(--color-paper-mist);
+    color: var(--color-midnight-ink);
   }
+
   .rail-item.on {
     background: var(--accent-soft);
     color: var(--accent);
-    font-weight: 700;
-    border-color: rgba(37, 99, 235, 0.2);
-  }
-  .rail-item.on svg {
-    opacity: 1;
-    color: var(--accent);
+    font-weight: 600;
   }
 
-  .rail-sec-label {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 14px 10px 6px;
-    margin-top: 6px;
-    border-top: 1px solid var(--line);
-    text-align: left;
+  .rail-item.on svg {
+    color: var(--accent);
   }
 
   .rail-foot {
     margin-top: auto;
-    padding: 14px 10px 0;
-    border-top: 1px solid var(--line);
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    min-height: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-ash);
     display: flex;
     align-items: center;
-    justify-content: flex-start;
     gap: 10px;
-    width: 100%;
-    text-align: left;
+    padding: 8px;
+    border-radius: var(--radius-buttons);
     cursor: pointer;
+    flex: none;
   }
   .rail-foot:hover {
-    background: var(--card-2);
+    background: var(--color-paper-mist);
   }
   .rail-av {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-full);
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-weight: 800;
-    font-size: 12.5px;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-tags);
+    background: var(--color-paper-mist);
+    border: 1px solid var(--color-ash);
+    color: var(--color-charcoal);
+    font-weight: 600;
+    font-size: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex: none;
   }
-  .rail-who b { display: block; font-size: 12.5px; font-weight: 700; line-height: 1.3; }
-  .rail-who span { font-size: 11px; color: var(--muted); }
+  .rail-who b { display: block; font-size: 12.5px; font-weight: 550; line-height: 1.2; color: var(--color-charcoal); white-space: nowrap; }
+  .rail-who span { font-size: 11px; color: var(--color-fog); white-space: nowrap; }
 
-
-  /* Мобильная горизонтальная полоска вкладок дублирует то, что теперь делает
-     боковая панель — прячем её, а не только саму панель показываем. */
   #topNav {
     display: none !important;
   }
@@ -393,18 +440,26 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   .wrap {
     max-width: 100%;
     margin: 0;
-    padding: 10px 24px;
+    padding: 16px 28px 16px;
     height: 100%;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Блокируем внешний скролл только на страницах с полноэкранными таблицами DataGrid */
+  .wrap:has(> .tblwrap--page),
+  .wrap:has(#dictBox),
+  .wrap:has(.u-tblwrap) {
     overflow: hidden;
   }
 
   #unitsContainer {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 12px;
   }
 
@@ -2387,228 +2442,74 @@ label.lbl {
 
 .sub-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-
-/* Вкладки админки и дашборда закреплены встык к шапке: .wrap скроллится сам,
-   поэтому sticky считается от него. Отрицательные поля растягивают подложку
-   на всю ширину .wrap, иначе при прокрутке содержимое видно в щели по бокам.
-   Смещения завязаны на padding у .wrap (16px здесь, 24/32px на десктопе):
-   Chrome считает залипание от границы content box, то есть уже ниже шапки, и
-   без компенсации между шапкой и вкладками оставался просвет, сквозь который
-   проезжал текст. При точном совпадении исходное и закреплённое положение
-   одинаковы — при прокрутке нет скачка. */
-.sub-tabs--sticky {
-  position: sticky;
-  top: 0;
-  z-index: 25;
-  margin: 0 0 10px 0;
-  padding: 0 0 8px 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
-}
-
-@media (min-width: 1024px) {
-  .sub-tabs--sticky {
-    top: 0;
-    margin: 0 0 10px 0;
-    padding: 0 0 8px 0;
-  }
-}
-
-.sub-tab {
-  min-height: 36px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--muted);
-  box-shadow: var(--shadow-xs);
-  transition: all 0.15s ease-out;
-}
-
-.sub-tab:hover {
-  background: var(--card-hover);
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-.sub-tab.on {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent);
-  box-shadow: 0 2px 6px 0 rgba(37, 99, 235, 0.3);
-}
-
-/* ─── Фильтры и Поиск ─── */
-.dash-filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-
-.dash-filters input, .dash-filters select {
+  align-items: center;
+  gap: 18px;
   min-height: 38px;
-  font-size: 13.5px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--color-ash);
+  background: transparent;
+  box-shadow: none;
+  flex: none;
 }
 
-.dash-filters input {
-  flex: 2;
-  min-width: 180px;
-}
-
-.dash-filters select {
-  flex: 1;
-  min-width: 140px;
-}
-
-/* ─── Поле поиска с иконкой (замена эмодзи-плейсхолдеров на SVG) ───
-   Иконка живёт вне <input> — placeholder не может содержать разметку. */
-.search-wrap {
-  position: relative;
-}
-
-.search-wrap svg {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--subtle);
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 8px;
-}
-
-.search-wrap svg:hover {
-  color: var(--text);
-  background: var(--hover, rgba(0,0,0,0.04));
-}
-
-.search-wrap input {
-  padding-right: 36px;
-}
-
-.dash-filters .search-wrap {
-  flex: 2;
-  min-width: 180px;
-}
-
-/* ─── Карточки пользователей и подразделений ─── */
-.u-card, .div-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  box-shadow: var(--shadow-xs);
-  transition: all 0.15s ease-out;
-}
-
-.u-card:hover, .div-card:hover {
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-sm);
-}
-
-.u-hd, .div-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.u-fio, .div-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-
-.u-meta, .div-meta {
+.sub-tab,
+.sub-tabs--inner .sub-tab {
+  min-height: 36px;
+  margin: 0 0 -1px;
+  padding: 0 2px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fog);
   font-size: 13px;
-  color: var(--muted);
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-
-.u-acts, .div-acts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.u-acts button, .div-acts button {
-  min-height: 32px;
-  font-size: 12.5px;
-  padding: 0 10px;
-  width: auto;
-}
-
-/* ─── Заголовки секций ─── */
-.sec-title {
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  margin: 18px 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* ─── Оповещения и Сообщения ─── */
-.err {
-  background: var(--no-soft);
-  color: var(--no);
-  border: 1px solid var(--no-border);
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13.5px;
-  font-weight: 600;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sp {
-  padding: 24px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
   font-weight: 500;
+  box-shadow: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-.sp i {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--line);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  vertical-align: middle;
-  margin-right: 8px;
+.sub-tab:hover,
+.sub-tabs--inner .sub-tab:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-charcoal);
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.sub-tab.on,
+.sub-tabs--inner .sub-tab.on {
+  border-bottom: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
 }
 
-/* ─── Таблицы ─── */
+/* ─── Таблицы (Flat Dense SaaS DataGrid) ─── */
 .tblwrap {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: var(--color-canvas-white);
+  border: 1px solid var(--color-ash);
+  border-radius: var(--radius-cards);
   overflow-x: auto;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-xs);
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.tblwrap--page {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  background: var(--color-canvas-white);
+  border: 1px solid var(--color-ash);
+  border-radius: var(--radius-cards);
+  overflow-y: auto;
+  overflow-x: auto;
+  margin-bottom: 0;
+  box-shadow: none;
 }
 
 .co-tbl {
@@ -2618,21 +2519,27 @@ label.lbl {
   text-align: left;
 }
 
-.co-tbl th {
-  background: var(--card-2);
-  color: var(--muted);
-  font-weight: 700;
-  font-size: 12px;
+.co-tbl th,
+.co-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-paper-mist);
+  color: var(--color-steel);
+  font-weight: 500;
+  font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-ash);
+  white-space: nowrap;
 }
 
 .co-tbl td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-  color: var(--text);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-ash);
+  color: var(--color-charcoal);
+  vertical-align: middle;
 }
 
 .co-tbl tr:last-child td {
@@ -2640,7 +2547,7 @@ label.lbl {
 }
 
 .co-tbl tr:hover td {
-  background: var(--card-hover);
+  background: #fafafa;
 }
 
 /* ─── Таблица пользователей (только десктоп; ниже 1024px показываются .u-cards) ───
@@ -3501,3 +3408,424 @@ html.compact { font-size: 13.5px; }
 .compact .page-head-act { margin-left: 0; }
 .compact .sheet-in { padding: 14px; }
 .compact .row { padding: 11px 12px; }
+
+/* ─── Admin Page Header & Breadcrumbs ─── */
+.admin-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 2px 0 12px;
+  border-bottom: 1px solid var(--color-ash);
+  margin-bottom: 12px;
+  flex: none;
+}
+
+.admin-page-kicker {
+  margin-bottom: 2px;
+  color: var(--color-fog);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-page-header h2 {
+  color: var(--color-midnight-ink);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.admin-page-header p {
+  margin-top: 2px;
+  color: var(--color-steel);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.admin-primary-tabs {
+  margin-bottom: 12px;
+}
+
+.sub-tabs--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-canvas-white);
+}
+
+/* ─── Row Menu Trigger & Overflow Menu ─── */
+.row-menu-trigger {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-inputs);
+  background: transparent;
+  color: var(--color-fog);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.row-menu-trigger:hover,
+.row-menu-trigger:focus-visible {
+  background: var(--color-paper-mist);
+  color: var(--color-midnight-ink);
+}
+
+.row-menu-pop {
+  position: fixed;
+  z-index: 90;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid var(--color-ash);
+  border-radius: var(--radius-cards);
+  background: var(--color-canvas-white);
+  box-shadow: var(--shadow-lg);
+}
+
+.row-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-inputs);
+  background: transparent;
+  color: var(--color-charcoal);
+  font-size: 13px;
+  font-weight: 500;
+  justify-content: flex-start;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.row-menu-item svg { margin-right: 8px; color: var(--color-fog); }
+.row-menu-item:hover { background: var(--color-paper-mist); }
+.row-menu-item.danger,
+.row-menu-item.danger svg { color: var(--no); }
+.row-menu-item.danger:hover { background: var(--no-soft); }
+
+.row-menu-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--color-ash);
+}
+
+/* ─── Toast Notifications ─── */
+.toast-msg {
+  flex: 1;
+  font-size: 13px;
+}
+
+.toast-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.toast-close {
+  cursor: pointer;
+  color: var(--color-fog);
+}
+
+/* ─── Mobile User Cards ─── */
+.u-cards { display: flex; flex-direction: column; gap: 10px; }
+.u-card {
+  background: var(--color-canvas-white);
+  border: 1px solid var(--color-ash);
+  border-radius: var(--radius-cards);
+  padding: 12px;
+}
+.u-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.u-fio { font-weight: 600; font-size: 14px; color: var(--color-charcoal); }
+.u-meta { font-size: 12px; color: var(--color-fog); margin-bottom: 8px; }
+.u-acts { display: flex; gap: 6px; align-items: center; }
+
+@media (min-width: 1024px) {
+  .u-cards { display: none; }
+}
+
+/* ─── Layout контейнеров админки ─── */
+#adminContent {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#adminContent:has(> .card),
+#adminContent:has(> .svc-grid),
+#adminContent:has(> .perm-matrix) {
+  overflow-y: auto;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-period-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-paper-mist);
+  border: 1px solid var(--color-ash);
+  padding: 3px 10px;
+  border-radius: var(--radius-tags);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-charcoal);
+  margin-right: 8px;
+  white-space: nowrap;
+  flex: none;
+}
+
+.top-period-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-emerald-vivid);
+  display: inline-block;
+}
+
+.unit-step-tabs {
+  margin-bottom: 12px;
+}
+
+
+/* ─── Подвкладки и Шаги (Flat SaaS Sub-navigation) ─── */
+.sub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 38px;
+  margin: 0 0 14px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--color-ash);
+  background: transparent;
+  box-shadow: none;
+  flex: none;
+  overflow-x: auto;
+}
+
+.sub-tab,
+.sub-tabs--inner .sub-tab {
+  min-height: 36px;
+  margin: 0 0 -1px;
+  padding: 0 2px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fog);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.sub-tab:hover,
+.sub-tabs--inner .sub-tab:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-charcoal);
+}
+
+.sub-tab.on,
+.sub-tabs--inner .sub-tab.on {
+  border-bottom: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sub-tabs--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-canvas-white);
+}
+
+.sub-tabs--inner {
+  margin-bottom: 12px;
+}
+
+/* ─── Закрепленная шапка подразделения (Sticky Step & Toolbar) ─── */
+.unit-sticky-bar {
+  position: sticky;
+  top: -16px;
+  z-index: 25;
+  background: var(--color-canvas-white);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-ash);
+  margin-top: -16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.unit-step-tabs {
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  min-height: 32px;
+  gap: 14px;
+}
+
+.unit-step-tabs .sub-tab {
+  min-height: 32px;
+  padding-bottom: 4px;
+}
+
+.unit-head-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 260px;
+}
+
+/* ─── Всплывающие уведомления (Toast Stack - внизу справа) ─── */
+.toast-stack {
+  position: fixed !important;
+  top: auto !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  flex-direction: column-reverse !important;
+  gap: 8px !important;
+  pointer-events: none !important;
+  max-width: 420px !important;
+  width: calc(100vw - 48px) !important;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-canvas-white);
+  color: var(--color-midnight-ink);
+  padding: 10px 14px;
+  border-radius: var(--radius-buttons);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-ash);
+  border-left: 4px solid var(--accent);
+  font-size: 13px;
+  line-height: 1.35;
+  animation: toastSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+
+.toast.t-ok {
+  border-left-color: var(--color-emerald-vivid);
+}
+
+.toast.t-ok .toast-ic {
+  color: var(--color-emerald-vivid);
+}
+
+.toast.t-no {
+  border-left-color: var(--color-crimson-vivid);
+}
+
+.toast.t-no .toast-ic {
+  color: var(--color-crimson-vivid);
+}
+
+.toast-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--accent);
+}
+
+.toast-msg {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  font-weight: 450;
+}
+
+.toast-action {
+  background: var(--color-paper-mist);
+  border: 1px solid var(--color-ash);
+  border-radius: var(--radius-tags);
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-charcoal);
+  flex: none;
+}
+
+.toast-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-tags);
+  border: none;
+  background: transparent;
+  color: var(--color-fog);
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+  transition: all 0.1s ease;
+}
+
+.toast-close:hover {
+  background: var(--color-paper-mist);
+  color: var(--color-midnight-ink);
+}
+
+@media (max-width: 640px) {
+  .toast-stack {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}

@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryOne, queryAll, run } = require('../db/database');
 const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('../services/telegramService');
@@ -6,6 +7,7 @@ const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('..
 const LINK_TTL_MINUTES = 10;
 
 const HELP_TEXT = 'Доступные команды:\n' +
+  '/login — получить логин и пароль для входа\n' +
   '/status — мои подразделения и прогресс заполнения\n' +
   '/unlink — отвязать этот Telegram от аккаунта\n' +
   '/link — привязать по номеру телефона\n' +
@@ -91,6 +93,70 @@ const REMOVE_KEYBOARD = { reply_markup: { remove_keyboard: true } };
  * токене не останавливаемся на ошибке, а сразу предлагаем более надёжный
  * способ — поделиться номером телефона одной кнопкой.
  */
+/** Генерация читаемого и надёжного временного пароля */
+function generateTempPassword() {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[crypto.randomInt(0, chars.length)];
+  }
+  return 'Fv-' + code;
+}
+
+/** Запрос логина и генерация нового пароля после привязки Telegram */
+async function handleLogin(chatId) {
+  const user = await queryOne(
+    'SELECT id, login, fio, role FROM users WHERE telegram_chat_id = ? AND archived_at IS NULL AND active = 1',
+    [String(chatId)]
+  );
+  if (!user) {
+    await sendTelegramMessage(chatId, NOT_LINKED_MSG, REMOVE_KEYBOARD);
+    return;
+  }
+
+  // Защита системного администратора
+  if (user.login === 'admin') {
+    await sendTelegramMessage(
+      chatId,
+      '⚠️ Пароль системного администратора не может быть сброшен через Telegram-бота. Обратитесь к системному инженеру.'
+    );
+    return;
+  }
+
+  const tempPassword = generateTempPassword();
+  const newHash = bcrypt.hashSync(tempPassword, 10);
+  const now = new Date().toISOString();
+
+  await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
+    newHash,
+    now,
+    user.id
+  ]);
+
+  await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+    user.login,
+    'сброс пароля telegram',
+    `Пользователь ${user.fio} запросил данные для входа через Telegram (chat_id: ${chatId})`
+  ]);
+
+  const platformUrl = config.webappUrl || 'https://farovon-market-analysis.onrender.com';
+
+  const msg = `🔐 <b>Данные для входа в систему «Обзор рынка»:</b>\n\n` +
+    `👤 <b>Логин:</b> <code>${user.login}</code>\n` +
+    `🔑 <b>Временный пароль:</b> <code>${tempPassword}</code>\n\n` +
+    `⚠️ <i>Рекомендуем сменить этот пароль в профиле сразу после входа.</i>\n\n` +
+    `🌐 <b>Ссылка на платформу:</b>\n${platformUrl}`;
+
+  await sendTelegramMessage(chatId, msg, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🚀 Открыть «Обзор рынка»', url: platformUrl }]
+      ]
+    }
+  });
+}
+
 async function handleStart(chatId, token) {
   if (token) {
     const user = await queryOne(
@@ -260,6 +326,7 @@ exports.webhook = async (req, res) => {
     // Ручной запасной путь — если диплинк из приложения не подставил
     // /start в поле ввода, человек всё равно может набрать /link сам.
     if (/^\/link\b/i.test(text)) { await handleStart(chatId, null); return; }
+    if (/^\/(login|creds|password|pass|dostup)\b/i.test(text)) { await handleLogin(chatId); return; }
     if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
     if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
     if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }

@@ -40,9 +40,10 @@ async function getBotUsername() {
 // кода при каждом сообщении — обновляется только явным вызовом setMyCommands.
 const BOT_COMMANDS = [
   { command: 'start', description: 'Привязать аккаунт' },
-  { command: 'link', description: 'Привязать по номеру телефона' },
+  { command: 'login', description: 'Получить логин и пароль для входа' },
   { command: 'status', description: 'Мои подразделения и прогресс' },
   { command: 'unlink', description: 'Отвязать этот Telegram от аккаунта' },
+  { command: 'link', description: 'Привязать по номеру телефона' },
   { command: 'help', description: 'Список команд' }
 ];
 

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=20260826_1248">
+  <link rel="stylesheet" href="/style.css?v=1787782703062">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -191,6 +191,7 @@ var ICONS = {
   download: '<path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   megaphone: '<path d="M3 10v4a1 1 0 001 1h2l7 4V5l-7 4H4a1 1 0 00-1 1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M17 9a4 4 0 010 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M19.5 6.5a8 8 0 010 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   pencil: '<path d="M4 20l1-4.5L16.5 4l3 3L8 18.5 4 20z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 6.5l3 3" stroke="currentColor" stroke-width="1.8"/>',
+  more: '<circle cx="5" cy="12" r="1.45" fill="currentColor"/><circle cx="12" cy="12" r="1.45" fill="currentColor"/><circle cx="19" cy="12" r="1.45" fill="currentColor"/>',
   block: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
   undo: '<path d="M4 12a8 8 0 108-8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 5v5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   broom: '<path d="M14 3l-9 9-2 5 5-2 9-9-3-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 16l-1.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
@@ -375,12 +376,13 @@ function call(fn){
   return Promise.reject(new Error('Неизвестный метод: ' + fn));
 }
 
-var toastTimer;
+var toastSeq = 0;
 /**
- * Уведомление справа под шапкой. kind: 'ok' | 'no' | undefined (нейтральное).
- * Успех висит дольше нейтрального — его читают как подтверждение действия.
+ * Неблокирующая очередь уведомлений. В отличие от старого одиночного toast,
+ * быстрые последовательные действия больше не затирают предыдущий результат.
+ * opts.action оставлен для безопасных локальных действий (например «Повторить»).
  */
-function toast(msg, kind){
+function toast(msg, kind, opts){
   if(msg){
     msg = humanError(msg);
     if(typeof msg === 'string'){
@@ -389,13 +391,38 @@ function toast(msg, kind){
       });
     }
   }
-  var t = document.querySelector('.toast');
-  if(!t){ t = document.createElement('div'); document.body.appendChild(t); }
-  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : (kind === 'no' || kind === 'err' || kind === 'error') ? ' t-no' : '');
+  opts = opts || {};
+  var host = document.querySelector('.toast-stack');
+  if(!host){
+    host = document.createElement('div');
+    host.className = 'toast-stack';
+    host.setAttribute('aria-live', 'polite');
+    host.setAttribute('aria-relevant', 'additions');
+    document.body.appendChild(host);
+  }
+  var isError = kind === 'no' || kind === 'err' || kind === 'error';
+  while(host.children.length >= 3){ host.removeChild(host.firstElementChild); }
+  var t = document.createElement('div');
+  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : isError ? ' t-no' : '');
+  t.id = 'toast_' + (++toastSeq);
+  t.setAttribute('role', isError ? 'alert' : 'status');
   var mark = kind === 'ok' ? 'check' : (kind === 'no' || kind === 'err' || kind === 'error') ? 'close' : 'info';
-  t.innerHTML = '<span class="toast-ic">'+icBare(mark, 16)+'</span><span>'+esc(msg)+'</span>';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ t.remove(); }, kind === 'ok' ? 3400 : 3000);
+  t.innerHTML = '<span class="toast-ic">'+icBare(mark, 16)+'</span>'+
+    '<span class="toast-msg">'+esc(msg)+'</span>'+
+    (opts.action ? '<button class="toast-action" type="button">'+esc(opts.action.label)+'</button>' : '')+
+    '<button class="toast-close" type="button" aria-label="Закрыть уведомление">'+icBare('close',14)+'</button>';
+  host.appendChild(t);
+  var close = function(){
+    if(!t.parentNode) return;
+    t.classList.add('is-leaving');
+    setTimeout(function(){ if(t.parentNode) t.remove(); }, 140);
+  };
+  t.querySelector('.toast-close').onclick = close;
+  if(opts.action){
+    t.querySelector('.toast-action').onclick = function(){ close(); opts.action.run(); };
+  }
+  var duration = opts.duration == null ? (isError ? 5000 : kind === 'ok' ? 3400 : 4000) : opts.duration;
+  if(duration > 0){ setTimeout(close, duration); }
 }
 
 /**
@@ -438,7 +465,7 @@ document.addEventListener('click', function(e){
 function ask(opts){
   return new Promise(function(resolve){
     var el = document.createElement('div');
-    el.className = 'sheet';
+    el.className = 'sheet sheet--dialog';
     el.innerHTML = '<div class="sheet-in dlg">'+
       '<b class="dlg-t">'+esc(opts.title || 'Подтвердите')+'</b>'+
       '<p class="dlg-x">'+(opts.html || '')+'</p>'+
@@ -480,7 +507,7 @@ function ask(opts){
 function askText(opts){
   return new Promise(function(resolve){
     var el = document.createElement('div');
-    el.className = 'sheet';
+    el.className = 'sheet sheet--dialog';
     el.innerHTML = '<div class="sheet-in dlg">'+
       '<b class="dlg-t">'+esc(opts.title || '')+'</b>'+
       (opts.html ? '<p class="dlg-x">'+opts.html+'</p>' : '<div style="height:12px"></div>')+
@@ -1771,31 +1798,26 @@ function renderUnit(){
   var c = counts();
   var step1done = c.all > 0 && c.done === c.all;
 
-  var cls = function(tab, done){
-    return (S.tab===tab ? 'on' : '') + (done ? ' done' : '');
-  };
-
   var h = '<div class="unit-content-wrap">'+
-    '<div class="tabs">'+
-    '<button data-tab="comp" class="'+cls('comp', step1done)+'">'+
-      '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 1'+(step1done ? ' ✓' : '')+'</span>'+
-      (c.ask ? '<span class="tab-ask-tag">?'+c.ask+' на уточнении</span>' : '')+'</div>'+
-      '<div class="tab-main-row"><span class="tab-title">Участники рынка</span><span class="tab-count">'+c.done+'/'+c.all+'</span></div>'+
-    '</button>'+
-    '<button data-tab="survey" class="'+cls('survey', S.surveys.length>0)+'">'+
-      '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 2</span></div>'+
-      '<div class="tab-main-row"><span class="tab-title">Данные по рынку</span><span class="tab-count">'+svLabel()+'</span></div>'+
-    '</button>'+
+    '<div class="unit-sticky-bar">'+
+      '<div class="sub-tabs unit-step-tabs">'+
+        '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'">'+
+          'Шаг 1. Участники рынка'+
+          ' <span class="badge '+(step1done?'b-active':'b-dim')+'" style="margin-left:4px">'+c.done+'/'+c.all+'</span>'+
+          (c.ask ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">?'+c.ask+' на уточнении</span>' : '')+
+        '</button>'+
+        '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'">'+
+          'Шаг 2. Данные по рынку'+
+          ' <span class="badge '+(S.surveys.length>0?'b-active':'b-dim')+'" style="margin-left:4px">'+svLabel()+'</span>'+
+        '</button>'+
+      '</div>'+
+      '<div id="unitHeadToolbar" class="unit-head-toolbar"></div>'+
     '</div>'+
-    '<p class="step-hint">'+ (S.tab==='comp'
-      ? 'Отметьте по каждой компании, релевантна она для сравнения или нет. Не уверены — «Уточнить»: такие останутся в работе.'
-      : 'Внесите оклады, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.'
-    ) +'</p>'+
     '<div id="tabBody"></div>'+
-    '</div>';
+  '</div>';
   $('body').innerHTML = h;
 
-  $('body').querySelector('.tabs').onclick = function(e){
+  $('body').querySelector('.unit-step-tabs').onclick = function(e){
     var b = e.target.closest('button[data-tab]');
     if(!b || b.dataset.tab === S.tab) return;
     S.tab = b.dataset.tab;
@@ -1814,25 +1836,31 @@ function renderTabComp(){
   var c = counts();
   var h = '';
 
+  var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
+
+  var tbHtml = '<div class="search-wrap" style="max-width:240px;width:100%;min-width:160px">'+icBare('search')+
+      '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>'+
+    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:12px">' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + '</span>'+
+    (!S.ro && S.rows.length > 0 ? '<button type="button" class="btn-ghost toolbar-act" id="btnMarkAllActual" style="font-size:12px;padding:0 8px;min-height:30px;white-space:nowrap">' +
+         (isAllActual ? ic('close', 13) + 'Снять отметку' : ic('check', 13) + 'Отметить все «Актуально»') + '</button>' : '');
+  var tbSlot = $('unitHeadToolbar');
+  if(tbSlot) tbSlot.innerHTML = tbHtml;
+
   // Отложенные на уточнение показываем отдельно — иначе они теряются в общем списке
   if(c.ask){
-    h += '<div class="note">Требует уточнения: <b>'+c.ask+'</b>. '+
+    h += '<div class="note" style="margin-bottom:10px">Требует уточнения: <b>'+c.ask+'</b>. '+
       'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
   }
 
-  // Смежная группа (см. currentUnitGroup) — компании, которые уже отметили
-  // на других площадках этой же группы, но здесь ещё не добавлены. Не
-  // дублирует их автоматически (оценка «актуально/не актуально» у каждой
-  // площадки может отличаться) — только подсказка в один клик вместо
-  // повторного набора названия.
+  // Смежная группа
   var group = currentUnitGroup();
   if(group && S.data.companiesByGroup && S.data.companiesByGroup[group] && !S.ro){
     var known = {};
     S.rows.concat(S.added).forEach(function(r){ known[norm(r.company)] = true; });
     var groupSuggestions = S.data.companiesByGroup[group].filter(function(c){ return !known[norm(c)]; });
     if(groupSuggestions.length){
-      h += '<div class="note">Есть на других площадках этой группы, но не добавлены здесь — добавить в один клик:</div>';
-      h += '<div class="chips" style="margin:8px 0 16px">'+
+      h += '<div class="note" style="margin-bottom:10px">Есть на других площадках этой группы, но не добавлены здесь — добавить в один клик:</div>';
+      h += '<div class="chips" style="margin:6px 0 12px">'+
         groupSuggestions.map(function(c){
           return '<button type="button" data-add-group-company="'+esc(c)+'">+ '+esc(c)+'</button>';
         }).join('')+
@@ -1840,47 +1868,24 @@ function renderTabComp(){
     }
   }
 
-  var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
-
-  h += '<div class="card batch-card-wrap" style="padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs);margin-bottom:14px">';
-
-  h += '<div class="batch-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px;position:sticky;top:54px;background:var(--card);z-index:15">';
-  h += '<div>';
-  h += '<b style="font-size:15.5px">Компании подразделения</b>';
-  h += '<div style="font-size:12px;color:var(--muted);margin-top:1px">Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</div>';
-  h += '</div>';
-  if(!S.ro && S.rows.length > 0){
-    var btnIcon = isAllActual ? ic('close', 13) : ic('check', 13);
-    var btnText = isAllActual ? 'Снять отметку со всех' : 'Отметить все как «Актуально»';
-    var btnColorStyle = isAllActual ? 'color:var(--no);border-color:var(--no-border)' : '';
-    h += '<button type="button" class="btn-ghost" id="btnMarkAllActual" style="font-size:12px;padding:4px 8px;min-height:28px;white-space:nowrap;' + btnColorStyle + '">' +
-         btnIcon + btnText + '</button>';
-  }
-  h += '</div>';
-
-  if(S.rows.length > 6){
-    h += '<div class="search-wrap" style="margin-bottom:8px">'+icBare('search')+
-      '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>';
-  }
-
-  h += '<div id="rows" class="batch-list" style="margin:6px 0">';
+  h += '<div id="rows" class="batch-list" style="margin:4px 0">';
   h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
        '<div class="empty">Список пуст</div>';
   h += '</div>';
 
   if(S.added.length){
-    h += '<div class="sec-title" style="margin:12px 0 6px">Добавленные компании</div><div id="adds" class="batch-list" style="margin:6px 0">';
+    h += '<div class="sec-title" style="margin:12px 0 6px">Добавленные компании</div><div id="adds" class="batch-list" style="margin:4px 0">';
     h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
     h += '</div>';
   } else { h += '<div id="adds" class="batch-list" style="margin:0"></div>'; }
 
   if(!S.ro){
-    h += '<button id="btnAdd" class="btn-line" style="margin-top:6px;min-height:32px;font-size:12.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
+    h += '<button id="btnAdd" class="btn-line" style="margin-top:8px;min-height:34px;font-size:12.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
   }
 
-  h += '<div style="margin-top:8px">';
-  h += '<label class="lbl" style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Комментарий по подразделению</label>';
-  h += '<textarea id="unitNote" style="min-height:42px;height:42px;padding:6px 10px;font-size:12.5px;resize:vertical;margin-bottom:0" placeholder="Что важно знать о рынке труда вашего подразделения"'+
+  h += '<div style="margin-top:14px">';
+  h += '<label class="lbl" style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Комментарий по подразделению</label>';
+  h += '<textarea id="unitNote" style="min-height:44px;height:44px;padding:6px 10px;font-size:12.5px;resize:vertical;margin-bottom:0" placeholder="Что важно знать о рынке труда вашего подразделения"'+
        (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
   h += '</div>';
 
@@ -2215,6 +2220,20 @@ function renderTabSurvey(){
   var G = survGroups();
   var mc = svMatrixCounts();
   var h = '';
+
+  var tbSlot = $('unitHeadToolbar');
+  if(tbSlot){
+    if(mc.totalSlots > 0){
+      tbSlot.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-fog);white-space:nowrap">'+
+        '<span>Заполнено <b>' + mc.filledCount + '</b> из <b>' + mc.totalSlots + '</b> (' + mc.pct + '%)</span>'+
+        '<div class="u-bar-track" style="width:120px;height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:0">'+
+          '<i style="display:block;height:100%;width:' + mc.pct + '%;background:' + (mc.pct>=100?'var(--ok)':'var(--accent)') + ';transition:width .2s"></i>'+
+        '</div>'+
+      '</div>';
+    } else {
+      tbSlot.innerHTML = '';
+    }
+  }
 
   if(!G.штатка.length && !S.surveys.length){
     h += '<div class="empty"><b>Здесь пока пусто</b><br><br>' +
@@ -3465,7 +3484,7 @@ function openAdminPanel(){
   S.appView = 'admin';
   S.unit = null;
   renderTopNav();
-  setTop('Панель Администратора', userLabel(), false, 'admin');
+  setTop('Администрирование', userLabel(), false, 'admin');
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   renderAdminPanel();
@@ -3499,12 +3518,30 @@ function renderAdminPanel(){
     S.adminTab = tabs[0].id;
   }
 
-  var h = '<div class="sub-tabs sub-tabs--sticky">'+ tabs.map(function(t){
+  var activeTab = tabs.filter(function(t){ return t.id === S.adminTab; })[0];
+  var pageCopy = {
+    users: 'Учётные записи, роли и доступ к подразделениям.',
+    archive: 'Архивированные учётные записи и их восстановление.',
+    divisions: 'Направления, подразделения и ответственные.',
+    dict: 'Единые справочники для сбора и анализа рынка.',
+    period: 'Статус и параметры текущего периода сбора.',
+    tools: 'Сервисные операции и контроль состояния данных.',
+    audit: 'История критических действий в системе.',
+    roles: 'Матрица прав для рабочих ролей системы.'
+  };
+
+  var h = '<div class="admin-page-header">'+
+    '<div><div class="admin-page-kicker">Администрирование</div>'+
+      '<h2>'+esc(activeTab.label.replace(/ \\([0-9]+\\)$/, ''))+'</h2>'+
+      '<p>'+esc(pageCopy[S.adminTab] || '')+'</p></div>'+
+    '</div>';
+
+  h += '<div class="sub-tabs sub-tabs--sticky admin-primary-tabs">'+ tabs.map(function(t){
     var on = S.adminTab === t.id ? ' on' : '';
-    return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
+    return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+esc(t.label)+'</button>';
   }).join('') +'</div>';
 
-  h += '<div id="adminContent" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden"><div class="sp"><i></i> Загрузка…</div></div>';
+  h += '<div id="adminContent"><div class="sp"><i></i> Загрузка…</div></div>';
   $('body').innerHTML = h;
 
   $('body').querySelectorAll('button[data-atab]').forEach(function(btn){
@@ -3548,19 +3585,7 @@ function userActs(u, compact){
   var locked = u.role === 'admin' || String(u.login).toLowerCase() === me;
 
   if(compact){
-    // Таблица (десктоп): 4 текстовых кнопки не влезали в колонку без
-    // горизонтального скролла — только иконки с подсказкой в title.
-    var why = u.role === 'admin'
-      ? 'Учётную запись администратора отключить нельзя'
-      : 'Нельзя отключить собственную учётную запись';
-    return '<button class="btn-icon" title="Изменить" onclick="openUserModal(\''+login+'\')">'+icBare('pencil',15)+'</button>'+
-      '<button class="btn-icon" title="Сбросить пароль" onclick="adminResetPwd(\''+login+'\')">'+icBare('key',15)+'</button>'+
-      (locked
-        ? '<span class="btn-icon is-locked" title="'+esc(why)+'">'+icBare('shield',15)+'</span>'
-        : '<button class="btn-icon '+(u.active?'btn-danger':'')+'" title="'+(u.active?'Заблокировать':'Активировать')+'" onclick="adminToggleUser(\''+login+'\','+(!u.active)+')">'+
-            (u.active ? icBare('block',15) : icBare('check',15))+
-          '</button>'+
-          '<button class="btn-icon btn-danger" title="В архив" onclick="adminArchiveUser(\''+login+'\')">'+icBare('archive',15)+'</button>');
+    return '<button class="row-menu-trigger" title="Действия" aria-label="Действия с пользователем" onclick="openUserActions(event, \''+login+'\')">'+icBare('more',16)+'</button>';
   }
   return '<button class="btn-line" onclick="openUserModal(\''+login+'\')">'+ic('pencil')+'Изменить</button>'+
     '<button class="btn-line" onclick="adminResetPwd(\''+login+'\')">'+ic('key')+'Сбросить пароль</button>'+
@@ -3569,6 +3594,70 @@ function userActs(u, compact){
         (u.active ? ic('block')+'Заблокировать' : ic('check')+'Активировать')+
       '</button>'+
       '<button class="btn-line btn-danger" onclick="adminArchiveUser(\''+login+'\')">'+ic('archive')+'В архив</button>');
+}
+
+/** Одно контекстное меню убирает постоянный шум из столбца действий.
+ *  Доступные операции и защита admin/self остаются теми же, что раньше. */
+function closeOverflowMenus(){
+  document.querySelectorAll('.row-menu-pop').forEach(function(menu){ menu.remove(); });
+}
+
+function openOverflowMenu(e, actions){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  closeOverflowMenus();
+  var anchor = e && (e.currentTarget || e.target.closest('button'));
+  if(!anchor) return;
+
+  var menu = document.createElement('div');
+  menu.className = 'row-menu-pop';
+  menu.setAttribute('role', 'menu');
+  actions.forEach(function(action){
+    if(action.divider){
+      var divider = document.createElement('div');
+      divider.className = 'row-menu-divider';
+      menu.appendChild(divider);
+      return;
+    }
+    var item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'row-menu-item' + (action.danger ? ' danger' : '');
+    item.setAttribute('role', 'menuitem');
+    item.innerHTML = (action.icon ? icBare(action.icon, 15) : '') + '<span>'+esc(action.label)+'</span>';
+    item.onclick = function(){ closeOverflowMenus(); action.run(); };
+    menu.appendChild(item);
+  });
+  menu.onclick = function(evt){ evt.stopPropagation(); };
+  document.body.appendChild(menu);
+  var rect = anchor.getBoundingClientRect();
+  menu.style.top = Math.min(window.innerHeight - menu.offsetHeight - 8, rect.bottom + 4) + 'px';
+  menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth)) + 'px';
+  setTimeout(function(){ document.addEventListener('click', closeOverflowMenus, { once:true }); }, 0);
+}
+
+function openUserActions(e, login){
+  var u = (S.adminUsers || []).filter(function(item){ return item.login === login; })[0];
+  if(!u) return;
+  var me = S.data && S.data.user ? String(S.data.user.login).toLowerCase() : '';
+  var locked = u.role === 'admin' || String(u.login).toLowerCase() === me;
+  var actions = [
+    { label:'Редактировать', icon:'pencil', run:function(){ openUserModal(login); } },
+    { label:'Сбросить пароль', icon:'key', run:function(){ adminResetPwd(login); } }
+  ];
+  if(!locked){
+    actions.push({ divider:true });
+    actions.push({ label:u.active ? 'Заблокировать' : 'Активировать', icon:u.active ? 'block' : 'check', danger:!!u.active,
+      run:function(){ adminToggleUser(login, !u.active); } });
+    actions.push({ label:'В архив', icon:'archive', danger:true, run:function(){ adminArchiveUser(login); } });
+  }
+  openOverflowMenu(e, actions);
+}
+
+function openDictActions(e, name){
+  openOverflowMenu(e, [
+    { label:'Редактировать', icon:'pencil', run:function(){ openDictItem(name); } },
+    { divider:true },
+    { label:'Удалить', icon:'trash', danger:true, run:function(){ removeDictItem(name); } }
+  ]);
 }
 
 function renderAdminUsers(){
@@ -3972,7 +4061,7 @@ function renderAdminDivisions(){
         '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
         '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
         '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-        '<td><button class="btn-ghost" data-u="'+esc(d.unit)+'" style="border:1px solid var(--line);min-height:32px;font-size:12px">'+ic('pencil')+'Назначить</button></td>'+
+        '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:12px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
       '</tr>';
     }).join('')+
   '</tbody></table></div>';
@@ -4295,7 +4384,7 @@ function renderAdminDict(){
     return '<button class="sub-tab'+(S.dictKind === k.id ? ' on' : '')+'" data-dk="'+k.id+'">'+
       esc(k.label)+'</button>';
   }).join('') +'</div>'+
-  '<div id="dictBox"><div class="sp"><i></i> Загрузка справочника…</div></div>';
+  '<div id="dictBox" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden"><div class="sp"><i></i> Загрузка справочника…</div></div>';
 
   $('adminContent').innerHTML = h;
   $('adminContent').querySelectorAll('button[data-dk]').forEach(function(b){
@@ -4363,8 +4452,7 @@ function drawDict(){
     }).join('') +'</tr></thead><tbody>'+
     items.map(function(it){
       var acts = '<td class="u-acts">'+
-        '<button class="btn-icon" data-edit="'+esc(it.name)+'" title="Изменить">'+icBare('pencil',15)+'</button>'+
-        '<button class="btn-icon btn-danger" data-del="'+esc(it.name)+'" title="Удалить">'+icBare('trash',15)+'</button>'+
+        '<button class="row-menu-trigger" data-dict-act="'+esc(it.name)+'" title="Действия" aria-label="Действия со справочной записью">'+icBare('more',16)+'</button>'+
       '</td>';
       var used = '<td class="num">'+(it.used
         ? '<b>'+it.used+'</b>'
@@ -4391,11 +4479,8 @@ function drawDict(){
   $('dictBox').innerHTML = h;
   bindDictBar();
 
-  $('dictBox').querySelectorAll('button[data-edit]').forEach(function(b){
-    b.onclick = function(){ openDictItem(this.dataset.edit); };
-  });
-  $('dictBox').querySelectorAll('button[data-del]').forEach(function(b){
-    b.onclick = function(){ removeDictItem(this.dataset.del); };
+  $('dictBox').querySelectorAll('button[data-dict-act]').forEach(function(b){
+    b.onclick = function(e){ openDictActions(e, this.dataset.dictAct); };
   });
 }
 
