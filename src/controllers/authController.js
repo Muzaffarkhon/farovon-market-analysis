@@ -411,13 +411,20 @@ async function getUserPayload(user) {
 }
 
 exports.login = async (req, res) => {
-  const { login, password } = req.body;
+  const rawLogin = req.body && req.body.login;
+  const rawPass = req.body && req.body.password;
+  if (rawLogin === undefined || rawLogin === null || rawPass === undefined || rawPass === null) {
+    return res.status(400).json({ ok: false, error: 'Введите логин и пароль' });
+  }
+
+  const login = String(rawLogin).trim();
+  const password = String(rawPass);
   if (!login || !password) {
     return res.status(400).json({ ok: false, error: 'Введите логин и пароль' });
   }
 
   try {
-    const user = await queryOne("SELECT * FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL", [login.trim()]);
+    const user = await queryOne("SELECT * FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL", [login]);
 
     if (!user) {
       return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
@@ -469,7 +476,10 @@ exports.resume = async (req, res) => {
 };
 
 exports.changePassword = async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
+  const rawOld = req.body && req.body.oldPassword;
+  const rawNew = req.body && req.body.newPassword;
+  const oldPassword = String(rawOld || '');
+  const newPassword = String(rawNew || '').trim();
   if (!oldPassword || !newPassword || newPassword.length < 6) {
     return res.status(400).json({ ok: false, error: 'Новый пароль должен содержать минимум 6 символов' });
   }
@@ -502,8 +512,13 @@ exports.changePassword = async (req, res) => {
 };
 
 exports.setUnits = async (req, res) => {
-  const { units } = req.body;
+  const units = req.body && req.body.units;
   if (!Array.isArray(units) || !units.length) {
+    return res.status(400).json({ ok: false, error: 'Выберите хотя бы одно подразделение' });
+  }
+
+  const cleanedUnits = units.map(u => String(u || '').trim()).filter(Boolean);
+  if (!cleanedUnits.length) {
     return res.status(400).json({ ok: false, error: 'Выберите хотя бы одно подразделение' });
   }
 
@@ -519,7 +534,7 @@ exports.setUnits = async (req, res) => {
   }
 
   try {
-    const unitsStr = units.join('; ');
+    const unitsStr = cleanedUnits.join('; ');
     await run('UPDATE users SET units = ? WHERE id = ?', [unitsStr, req.user.id]);
 
     const updatedUser = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);

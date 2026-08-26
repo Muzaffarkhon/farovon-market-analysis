@@ -1,5 +1,23 @@
 const { queryOne, queryAll, run, batch } = require('../db/database');
 
+const ALLOWED_CURRENCIES = ['сомони', 'usd', 'rub', 'eur', 'доллар', 'рубль', 'евро', 'tjs'];
+const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в смену', 'в год', 'в день'];
+
+function cleanNumber(val, fieldName) {
+  if (val === undefined || val === null || val === '') return 0;
+  const num = Number(String(val).replace(/\s+/g, '').replace(',', '.'));
+  if (!Number.isFinite(num) || isNaN(num)) {
+    throw new Error(`Поле "${fieldName}" должно быть корректным числом`);
+  }
+  if (num < 0) {
+    throw new Error(`Поле "${fieldName}" не может быть отрицательным (${num})`);
+  }
+  if (num > 1000000000) {
+    throw new Error(`Поле "${fieldName}" превышает максимально допустимое значение 1 000 000 000`);
+  }
+  return num;
+}
+
 /**
  * Если у подразделения несколько ответственных («Ответственный за обзор»
  * допускает несколько ФИО), нельзя, чтобы один затирал уже сохранённые
@@ -26,7 +44,7 @@ function isOwnedByOther(existingOwner, user) {
  * что у units и dirs.
  */
 function benefitsToText(v) {
-  if (Array.isArray(v)) return v.filter(Boolean).join(';');
+  if (Array.isArray(v)) return v.filter(Boolean).map(s => String(s).trim()).filter(Boolean).join(';');
   return String(v == null ? '' : v);
 }
 
@@ -40,7 +58,7 @@ exports.benefitsToList = benefitsToList;
 
 exports.saveSurveyData = async (req, res) => {
   const { unit, rows, added, note, submit } = req.body;
-  if (!unit) {
+  if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
 
@@ -56,7 +74,7 @@ exports.saveSurveyData = async (req, res) => {
 
     // 1. Обновляем существующие строки конкурентов — но только те, что не
     // заняты другим ответственным (см. isOwnedByOther выше).
-    const editIds = (rows || []).filter(r => r.id).map(r => r.id);
+    const editIds = (rows || []).filter(r => r && r.id).map(r => r.id);
     const ownerByCid = {};
     if (editIds.length) {
       const placeholders = editIds.map(() => '?').join(',');
@@ -68,7 +86,7 @@ exports.saveSurveyData = async (req, res) => {
 
     const blocked = [];
     (rows || []).forEach(r => {
-      if (!r.id) return;
+      if (!r || !r.id) return;
       const existing = ownerByCid[r.id];
       if (existing && isOwnedByOther(existing.updated_by, req.user)) {
         blocked.push({ id: r.id, company: existing.company, owner: existing.updated_by });
@@ -76,12 +94,20 @@ exports.saveSurveyData = async (req, res) => {
       }
       stmts.push({
         sql: `UPDATE competitors SET actual = ?, note = ?, updated_by = ?, updated_at = ? WHERE cid = ? AND unit = ?`,
-        args: [r.actual || 'уточнить', r.note || '', req.user.fio || req.user.login, now, r.id, unit]
+        args: [r.actual || 'уточнить', String(r.note || '').trim(), req.user.fio || req.user.login, now, r.id, unit]
       });
     });
 
-    // 2. Вставляем добавленные компании
+    // 2. Вставляем добавленные компании (с дедупликацией и фильтрацией пустых)
+    const seenCompanies = new Set();
     (added || []).forEach(a => {
+      if (!a) return;
+      const compName = String(a.company || '').trim();
+      if (!compName) return;
+      const normKey = compName.toLowerCase();
+      if (seenCompanies.has(normKey)) return;
+      seenCompanies.add(normKey);
+
       const cid = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       newIds.push(cid);
       stmts.push({
@@ -90,18 +116,18 @@ exports.saveSurveyData = async (req, res) => {
         args: [
           cid,
           0,
-          a.dir || '',
+          String(a.dir || '').trim(),
           unit,
-          req.user.fio,
+          req.user.fio || req.user.login,
           '',
-          a.company,
-          a.type || '',
-          a.segment || '',
-          a.region || '',
-          a.prio || '',
-          a.status || '',
-          a.src || 'форма',
-          a.note || '',
+          compName,
+          String(a.type || '').trim(),
+          String(a.segment || '').trim(),
+          String(a.region || '').trim(),
+          String(a.prio || '').trim(),
+          String(a.status || '').trim(),
+          String(a.src || 'форма').trim(),
+          String(a.note || '').trim(),
           a.actual || 'актуально',
           req.user.fio || req.user.login,
           now
@@ -115,7 +141,7 @@ exports.saveSurveyData = async (req, res) => {
       args: [
         req.user.login,
         submit ? 'отправка подразделения' : 'сохранение участников рынка',
-        `Подразделение: ${unit}, обновлено строк: ${(rows || []).length}, добавлено: ${(added || []).length}`
+        `Подразделение: ${unit}, обновлено строк: ${(rows || []).length}, добавлено: ${newIds.length}`
       ]
     });
 
@@ -137,8 +163,73 @@ exports.saveSurveyData = async (req, res) => {
 
 exports.saveSurveyDetails = async (req, res) => {
   const { unit, upsert, remove } = req.body;
-  if (!unit) {
+  if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
+  }
+
+  if (upsert !== undefined && upsert !== null && !Array.isArray(upsert)) {
+    return res.status(400).json({ ok: false, error: 'Данные анкет должны быть массивом' });
+  }
+
+  if (remove !== undefined && remove !== null && !Array.isArray(remove)) {
+    return res.status(400).json({ ok: false, error: 'Список на удаление должен быть массивом' });
+  }
+
+  // Предварительная валидация всех элементов ДО вызова базы данных
+  const validatedItems = [];
+  for (let i = 0; i < (upsert || []).length; i++) {
+    const s = upsert[i];
+    if (!s) continue;
+    const compName = String(s.company || '').trim();
+    const posOurName = String(s.posOur || '').trim();
+    if (!compName) {
+      return res.status(400).json({ ok: false, error: `В записи #${i + 1} не указано название компании-конкурента` });
+    }
+    if (!posOurName) {
+      return res.status(400).json({ ok: false, error: `В записи #${i + 1} (${compName}) не указана должность` });
+    }
+
+    let pFrom = 0, pTo = 0;
+    try {
+      pFrom = cleanNumber(s.payFrom, 'Оклад от');
+      pTo = cleanNumber(s.payTo, 'Оклад до');
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+
+    if (pFrom > 0 && pTo > 0 && pFrom > pTo) {
+      return res.status(400).json({
+        ok: false,
+        error: `В записи "${compName}" оклад "от" (${pFrom.toLocaleString('ru-RU')}) не может превышать оклад "до" (${pTo.toLocaleString('ru-RU')})`
+      });
+    }
+
+    let cur = String(s.cur || 'сомони').trim().toLowerCase();
+    if (!ALLOWED_CURRENCIES.includes(cur)) cur = 'сомони';
+
+    let payPer = String(s.payPer || 'в месяц').trim().toLowerCase();
+    if (!ALLOWED_PAY_PERIODS.includes(payPer)) payPer = 'в месяц';
+
+    validatedItems.push({
+      id: s.id,
+      company: compName,
+      posOur: posOurName,
+      posTheir: String(s.posTheir || '').trim(),
+      grade: String(s.grade || '').trim(),
+      pFrom,
+      pTo,
+      cur,
+      payPer,
+      bonHas: String(s.bonHas || 'не знаю').trim(),
+      bonSize: String(s.bonSize || '').trim(),
+      bonType: String(s.bonType || '').trim(),
+      bonPer: String(s.bonPer || '').trim(),
+      benefits: benefitsToText(s.benefits),
+      extra: String(s.extra || '').trim(),
+      source: String(s.source || '').trim(),
+      trust: String(s.trust || '').trim(),
+      note: String(s.note || '').trim()
+    });
   }
 
   try {
@@ -152,11 +243,10 @@ exports.saveSurveyDetails = async (req, res) => {
     const stmts = [];
     const blocked = [];
 
-    // Владельцы существующих записей — и тех, что редактируют, и тех, что
-    // удаляют: правит/удаляет только тот, кто создал запись (или admin/cb).
+    // Владельцы существующих записей
     const touchedSids = ([]).concat(
-      Array.isArray(remove) ? remove : [],
-      (upsert || []).filter(s => s.id && !String(s.id).startsWith('tmp')).map(s => s.id)
+      Array.isArray(remove) ? remove.map(String).filter(Boolean) : [],
+      validatedItems.filter(s => s.id && !String(s.id).startsWith('tmp')).map(s => s.id)
     );
     const ownerBySid = {};
     if (touchedSids.length) {
@@ -183,13 +273,13 @@ exports.saveSurveyDetails = async (req, res) => {
     }
 
     // Вставка / Обновление
-    (upsert || []).forEach(s => {
+    validatedItems.forEach(s => {
       let sid = s.id;
-      if (sid && !sid.startsWith('tmp')) {
+      if (sid && !String(sid).startsWith('tmp')) {
         const existing = ownerBySid[sid];
         if (existing && isOwnedByOther(existing.created_by, req.user)) {
           blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'edit' });
-          newIds.push(sid); // не трогали — фронт просто оставит запись как была
+          newIds.push(sid);
           return;
         }
         stmts.push({
@@ -198,10 +288,10 @@ exports.saveSurveyDetails = async (req, res) => {
                     bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, extra = ?, source = ?, trust = ?, note = ?
                 WHERE sid = ? AND unit = ?`,
           args: [
-            s.company, s.posOur, s.posTheir || '', s.grade || '',
-            Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
-            s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-            benefitsToText(s.benefits), s.extra || '', s.source || '', s.trust || '', s.note || '',
+            s.company, s.posOur, s.posTheir, s.grade,
+            s.pFrom, s.pTo, s.cur, s.payPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.benefits, s.extra, s.source, s.trust, s.note,
             sid, unit
           ]
         });
@@ -213,10 +303,10 @@ exports.saveSurveyDetails = async (req, res) => {
           sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, extra, source, trust, note, created_by, created_at, state, period)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
           args: [
-            sid, unit, s.company, s.posOur, s.posTheir || '', s.grade || '',
-            Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
-            s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-            benefitsToText(s.benefits), s.extra || '', s.source || '', s.trust || '', s.note || '',
+            sid, unit, s.company, s.posOur, s.posTheir, s.grade,
+            s.pFrom, s.pTo, s.cur, s.payPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.benefits, s.extra, s.source, s.trust, s.note,
             req.user.fio || req.user.login, now, period.name
           ]
         });
@@ -228,7 +318,7 @@ exports.saveSurveyDetails = async (req, res) => {
       args: [
         req.user.login,
         'сохранение данных по должностям',
-        `Подразделение: ${unit}, сохранено анкет: ${(upsert || []).length}, удалено: ${(remove || []).length}`
+        `Подразделение: ${unit}, сохранено анкет: ${validatedItems.length}, удалено: ${(remove || []).length}`
       ]
     });
 
@@ -240,8 +330,8 @@ exports.saveSurveyDetails = async (req, res) => {
       ok: true,
       newIds,
       blocked,
-      added: (upsert || []).filter(x => !x.id || x.id.startsWith('tmp')).length,
-      updated: (upsert || []).filter(x => x.id && !x.id.startsWith('tmp')).length,
+      added: validatedItems.filter(x => !x.id || String(x.id).startsWith('tmp')).length,
+      updated: validatedItems.filter(x => x.id && !String(x.id).startsWith('tmp')).length,
       removed: (remove || []).length
     });
   } catch (err) {

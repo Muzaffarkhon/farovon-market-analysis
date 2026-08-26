@@ -112,12 +112,19 @@ exports.saveUser = async (req, res) => {
   const { fio, role, phone, password, active, units } = req.body;
   let { login } = req.body;
 
-  if (!fio || !fio.trim()) {
+  if (!fio || !String(fio).trim()) {
     return res.status(400).json({ ok: false, error: 'Укажите ФИО пользователя' });
   }
 
+  const targetRole = String(role || 'user').trim().toLowerCase();
+  const VALID_ROLES = ['admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'];
+  if (!VALID_ROLES.includes(targetRole)) {
+    return res.status(400).json({ ok: false, error: 'Недопустимая роль пользователя. Допустимы: admin, cb, hrbp, dir_head, head, user' });
+  }
+
   try {
-    const existing = login ? await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [login.trim()]) : null;
+    const cleanLogin = login ? String(login).trim().toLowerCase() : '';
+    const existing = cleanLogin ? await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [cleanLogin]) : null;
 
     // Маршрут пускает по users:create ИЛИ users:edit (см. routes/api.js) —
     // точная граница между «добавить» и «править» зависит от того, нашёлся
@@ -132,7 +139,7 @@ exports.saveUser = async (req, res) => {
 
     if (existing) {
       // Редактирование
-      const newRole = role || 'user';
+      const newRole = targetRole;
 
       // Через карточку админа тоже можно было и разжаловать, и снять галочку
       // «активен» — те же последствия, что и «Заблокировать».
@@ -152,47 +159,46 @@ exports.saveUser = async (req, res) => {
         }
       }
 
-      const hash = password ? hashPassword(password) : null;
+      const hash = (password && String(password).trim()) ? hashPassword(String(password).trim()) : null;
 
       await run(`
         UPDATE users
         SET fio = ?, role = ?, phone = ?, password_hash = COALESCE(?, password_hash), active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [fio.trim(), role || 'user', cleanPhone || null, hash, active !== false ? 1 : 0, unitsStr, existing.id]);
+      `, [String(fio).trim(), newRole, cleanPhone || null, hash, active !== false ? 1 : 0, unitsStr, existing.id]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
         'админ правка пользователя',
-        `Логин: ${existing.login}, ФИО: ${fio}, Роль: ${role}`
+        `Логин: ${existing.login}, ФИО: ${fio}, Роль: ${newRole}`
       ]);
 
       return res.json({ ok: true, login: existing.login, message: 'Пользователь обновлён' });
     } else {
       // Создание
-      if (!login || !login.trim()) {
+      let finalLogin = cleanLogin;
+      if (!finalLogin) {
         const allUsers = await queryAll('SELECT login FROM users');
         const allLogins = {};
         allUsers.forEach(x => { allLogins[x.login.toLowerCase()] = true; });
-        login = makeLogin(fio, allLogins);
-      } else {
-        login = login.trim();
+        finalLogin = makeLogin(String(fio).trim(), allLogins);
       }
 
-      const rawPwd = password || makePassword();
+      const rawPwd = (password && String(password).trim()) ? String(password).trim() : makePassword();
       const hash = hashPassword(rawPwd);
 
       await run(`
         INSERT INTO users (login, password_hash, fio, role, phone, units, active)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [login, hash, fio.trim(), role || 'user', cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
+      `, [finalLogin, hash, String(fio).trim(), targetRole, cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
         'админ создание пользователя',
-        `Логин: ${login}, ФИО: ${fio}, Роль: ${role}`
+        `Логин: ${finalLogin}, ФИО: ${fio}, Роль: ${targetRole}`
       ]);
 
-      return res.json({ ok: true, login, rawPassword: rawPwd, message: 'Пользователь создан' });
+      return res.json({ ok: true, login: finalLogin, rawPassword: rawPwd, message: 'Пользователь создан' });
     }
   } catch (err) {
     console.error('saveUser error:', err);
@@ -351,7 +357,12 @@ exports.getDivisions = async (req, res) => {
 
 exports.saveDivision = async (req, res) => {
   const { unit, dir, head, resp, hrbp, note, group } = req.body;
-  if (!unit) return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
+  if (!unit || !String(unit).trim()) {
+    return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
+  }
+
+  const cleanUnit = String(unit).trim();
+  const cleanDir = dir !== undefined && dir !== null ? String(dir).trim() : null;
 
   try {
     const isAdmin = req.user.role === 'admin' || req.user.role === 'cb';
@@ -365,7 +376,7 @@ exports.saveDivision = async (req, res) => {
       if (req.user.role !== 'dir_head') {
         return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
       }
-      const division = await queryOne('SELECT * FROM divisions WHERE unit = ?', [unit]);
+      const division = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
       if (!division) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
 
       const myDirs = req.user.units || [];
@@ -378,7 +389,7 @@ exports.saveDivision = async (req, res) => {
           error: 'Можно назначать ответственных только по отделам своего направления'
         });
       }
-      if (dir !== undefined && dir !== null && dir !== division.dir) {
+      if (cleanDir !== null && cleanDir !== division.dir) {
         return res.status(403).json({ ok: false, error: 'Менять направление отдела нельзя' });
       }
 
@@ -389,12 +400,12 @@ exports.saveDivision = async (req, res) => {
             note = COALESCE(?, note),
             updated_at = CURRENT_TIMESTAMP
         WHERE unit = ?
-      `, [head, resp, note, unit]);
+      `, [head, resp, note, cleanUnit]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
         'правка подразделения (dir_head)',
-        `Подразделение: ${unit}, Рук: ${head}, Отв: ${resp}`
+        `Подразделение: ${cleanUnit}, Рук: ${head}, Отв: ${resp}`
       ]);
 
       return res.json({ ok: true, message: 'Подразделение обновлено' });
@@ -410,12 +421,12 @@ exports.saveDivision = async (req, res) => {
           group_key = COALESCE(?, group_key),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [dir, head, resp, hrbp, note, group, unit]);
+    `, [cleanDir, head, resp, hrbp, note, group, cleanUnit]);
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'правка подразделения',
-      `Подразделение: ${unit}, Рук: ${head}, Отв: ${resp}, HRBP: ${hrbp}`
+      `Подразделение: ${cleanUnit}, Рук: ${head}, Отв: ${resp}, HRBP: ${hrbp}`
     ]);
 
     res.json({ ok: true, message: 'Подразделение обновлено' });
@@ -429,20 +440,30 @@ exports.saveDivision = async (req, res) => {
 exports.setPeriod = async (req, res) => {
   const { state, name, from, to } = req.body;
 
-  try {
-    const current = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
-    const newName = name || (current ? current.name : 'Обзор рынка');
-    const newState = state || (current ? current.state : 'открыт');
+  const cleanName = (name && String(name).trim()) ? String(name).trim() : 'Обзор рынка';
+  let cleanState = String(state || 'открыт').trim().toLowerCase();
+  if (!['открыт', 'закрыт'].includes(cleanState)) {
+    cleanState = 'открыт';
+  }
 
+  if (from && to && String(from).trim() && String(to).trim()) {
+    const dFrom = new Date(from);
+    const dTo = new Date(to);
+    if (!isNaN(dFrom.getTime()) && !isNaN(dTo.getTime()) && dFrom > dTo) {
+      return res.status(400).json({ ok: false, error: 'Дата начала периода не может быть позже даты окончания' });
+    }
+  }
+
+  try {
     await run(`
       INSERT INTO periods (name, state, from_date, to_date, updated_by, updated_at)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `, [newName, newState, from || null, to || null, req.user.fio || req.user.login]);
+    `, [cleanName, cleanState, from || null, to || null, req.user.fio || req.user.login]);
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'период сбора',
-      `Период: ${newName}, Статус: ${newState}`
+      `Период: ${cleanName}, Статус: ${cleanState}`
     ]);
 
     const updated = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');

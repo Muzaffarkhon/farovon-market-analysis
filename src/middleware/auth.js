@@ -49,10 +49,10 @@ async function authMiddleware(req, res, next) {
 function requireRoles(...roles) {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ ok: false, error: 'AUTH_REQUIRED' });
+      return res.status(401).json({ ok: false, error: 'Требуется авторизация', message: 'Требуется авторизация' });
     }
     if (roles.length && !roles.includes(req.user.role)) {
-      return res.status(403).json({ ok: false, error: 'ACCESS_DENIED', message: 'Недостаточно прав доступа' });
+      return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа', message: 'Недостаточно прав доступа' });
     }
     next();
   };
@@ -90,12 +90,12 @@ async function hasCapability(user, capability) {
 function requireCapability(...capabilities) {
   return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ ok: false, error: 'AUTH_REQUIRED' });
+      return res.status(401).json({ ok: false, error: 'Требуется авторизация', message: 'Требуется авторизация' });
     }
     for (const cap of capabilities) {
       if (await hasCapability(req.user, cap)) return next();
     }
-    return res.status(403).json({ ok: false, error: 'ACCESS_DENIED', message: 'Недостаточно прав доступа' });
+    return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа', message: 'Недостаточно прав доступа' });
   };
 }
 

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=20260826_1248">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -73,6 +73,7 @@
     <div class="top">
       <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
       <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
+      <div id="topPeriodBadge"></div>
       <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
       <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
               aria-label="Меню">⋮</button>
@@ -306,6 +307,41 @@ var API_ROUTES = {
   apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); }
 };
 
+var ERROR_MAP_RU = {
+  'ACCESS_DENIED': 'Недостаточно прав доступа',
+  'AUTH_REQUIRED': 'Требуется авторизация',
+  'UNAUTHORIZED': 'Сессия истекла — войдите снова',
+  'SESSION_EXPIRED': 'Сессия истекла — войдите снова',
+  'TOKEN_EXPIRED': 'Сессия истекла — войдите снова',
+  'USER_NOT_FOUND': 'Пользователь не найден',
+  'USER_BLOCKED': 'Учетная запись заблокирована',
+  'AUTH_INVALID': 'Сессия истекла или недействительна',
+  'FORBIDDEN': 'Действие запрещено',
+  'NOT_FOUND': 'Запись не найдена',
+  'INVALID_CREDENTIALS': 'Неверный логин или пароль',
+  'ACCOUNT_DEACTIVATED': 'Учётная запись отключена',
+  'UNIT_LOCKED': 'Подразделение редактируется другим пользователем',
+  'PERIOD_CLOSED': 'Период сбора данных закрыт',
+  'NO_ACTIVE_PERIOD': 'Нет активного периода опроса',
+  'SERVER_ERROR': 'Внутренняя ошибка сервера',
+  'NETWORK_ERROR': 'Нет связи с сервером',
+  'TIMEOUT': 'Превышено время ожидания ответа',
+  'VALIDATION_FAILED': 'Проверьте правильность заполнения полей',
+  'DUPLICATE_ENTRY': 'Такая запись уже существует'
+};
+
+function humanError(e){
+  if(!e) return 'Произошла ошибка';
+  if(typeof e === 'object'){
+    e = e.message || e.error || e.msg || 'Ошибка';
+  }
+  var s = String(e).trim();
+  if(ERROR_MAP_RU[s]) return ERROR_MAP_RU[s];
+  var upper = s.toUpperCase();
+  if(ERROR_MAP_RU[upper]) return ERROR_MAP_RU[upper];
+  return s;
+}
+
 function fetchJson(url, opts){
   opts = opts || {};
   var headers = { 'Content-Type': 'application/json' };
@@ -318,7 +354,15 @@ function fetchJson(url, opts){
     conf.body = JSON.stringify(opts.body);
   }
   return fetch(url, conf).then(function(res){
-    return res.json().catch(function(){ return { ok: false, error: 'Ошибка ответа сервера' }; });
+    return res.json().then(function(data){
+      if(!res.ok && data){
+        if(data.message) data.error = humanError(data.message);
+        else if(data.error) data.error = humanError(data.error);
+      }
+      return data;
+    }).catch(function(){
+      return { ok: false, error: 'Ошибка ответа сервера' };
+    });
   });
 }
 
@@ -334,13 +378,21 @@ var toastTimer;
  * Успех висит дольше нейтрального — его читают как подтверждение действия.
  */
 function toast(msg, kind){
+  if(msg){
+    msg = humanError(msg);
+    if(typeof msg === 'string'){
+      msg = msg.replace(/\b([A-Z_]{3,})\b/g, function(match){
+        return ERROR_MAP_RU[match] || match;
+      });
+    }
+  }
   var t = document.querySelector('.toast');
   if(!t){ t = document.createElement('div'); document.body.appendChild(t); }
-  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : kind === 'no' ? ' t-no' : '');
-  var mark = kind === 'ok' ? 'check' : kind === 'no' ? 'close' : 'info';
+  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : (kind === 'no' || kind === 'err' || kind === 'error') ? ' t-no' : '');
+  var mark = kind === 'ok' ? 'check' : (kind === 'no' || kind === 'err' || kind === 'error') ? 'close' : 'info';
   t.innerHTML = '<span class="toast-ic">'+icBare(mark, 16)+'</span><span>'+esc(msg)+'</span>';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ t.remove(); }, kind === 'ok' ? 3400 : 2800);
+  toastTimer = setTimeout(function(){ t.remove(); }, kind === 'ok' ? 3400 : 3000);
 }
 
 /**
@@ -545,12 +597,19 @@ function pickField(id, value, placeholder, need){
  * того, вспомнили ли о нём в каждой из десяти render-функций.
  */
 function fitTables(){
-  document.querySelectorAll('.tblwrap--page').forEach(function(el){
+  var tables = document.querySelectorAll('.tblwrap--page');
+  if(tables.length === 1){
+    var el = tables[0];
     var top = el.getBoundingClientRect().top;
-    if(!top) return;
-    var avail = window.innerHeight - top - 20;
-    el.style.maxHeight = Math.max(260, avail) + 'px';
-  });
+    if(top){
+      var avail = window.innerHeight - top - 28;
+      el.style.maxHeight = Math.max(480, avail) + 'px';
+    }
+  } else {
+    tables.forEach(function(el){
+      el.style.maxHeight = 'min(78vh, 760px)';
+    });
+  }
 }
 
 var fitPending = false;
@@ -700,7 +759,15 @@ function openPicker(opts){
   var body = el.querySelector('#pkBody');
   var wideOn = false;                      // показан ли полный список холдинга
 
-  function current(){ return (wideOn ? opts.wide : opts.list) || []; }
+  function getList(x){
+    if(typeof x === 'function') x = x();
+    return Array.isArray(x) ? x : [];
+  }
+
+  function current(){
+    var raw = wideOn ? (opts.wide || opts.list) : (opts.list || opts.wide);
+    return getList(raw);
+  }
 
   function draw(){
     var s = q.value.trim().toLowerCase();
@@ -718,12 +785,6 @@ function openPicker(opts){
       }).join('') +'</div>';
       if(list.length > 300) h += '<div class="pk-empty">Показаны первые 300 — уточните поиск</div>';
     } else {
-      // Текст «для вашего подразделения должности ещё не заведены» был
-      // зашит здесь безусловно — этот пикер общий для компаний, должностей
-      // и (с недавних пор) ФИО в назначении ответственных, и всем остальным
-      // показывал то же самое про должности. opts.emptyLabel — точный текст
-      // под конкретный вызов, дефолт остаётся про должности только там, где
-      // это тот самый пикер (addUnit).
       h += '<div class="pk-empty">'+
         (s ? 'Совпадений нет'
            : (wideOn ? 'Справочник пока пуст'
@@ -731,11 +792,12 @@ function openPicker(opts){
     }
 
     // Переключатель на полный список холдинга
-    if(opts.wide && opts.wide.length){
+    var wideList = getList(opts.wide);
+    if(wideList && wideList.length){
       h += '<div class="pk-add"><button type="button" class="btn-line" id="pkWide">'+
         (wideOn ? '← Только должности моего подразделения'
                 : (opts.wideLabel || 'Показать все должности холдинга')+
-                  ' ('+opts.wide.length+')')+'</button></div>';
+                  ' ('+wideList.length+')')+'</button></div>';
     }
 
     // Нет точного совпадения — предлагаем добавить своё значение
@@ -756,7 +818,7 @@ function openPicker(opts){
   function done(v){ el.remove(); opts.onPick(v); }
 
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target === el || e.target.dataset.x || e.target.closest('[data-x]')){ el.remove(); return; }
 
     if(e.target.closest('#pkWide')){
       wideOn = !wideOn;
@@ -817,7 +879,7 @@ function openPicker(opts){
 
   // На телефоне клавиатура закрывает половину экрана — фокус даём не сразу,
   // чтобы человек сначала увидел список целиком
-  if((opts.list || []).length > 12){
+  if(getList(opts.list).length > 12){
     setTimeout(function(){ try{ q.focus(); }catch(e){} }, 120);
   }
 }
@@ -1031,24 +1093,56 @@ function renderRail(){
   if(canSeeDashboard()){
     items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
   }
-  if(canSeeAdmin()){
-    items.push({ id:'admin', view:'admin', label:'Админка', icon: ICONS.admin });
-  }
   if(r === 'hrbp'){
     items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon: ICONS.clipboard });
   }
-  // Отдельный пункт, чтобы dir_head сразу видел, куда идти назначать
-  // ответственных по своим отделам — не только через меню профиля.
   if(r === 'dir_head'){
     items.push({ id:'dept_assign', view:null, label:'Назначить ответственных', icon: ICONS.clipboard });
   }
 
-  $('railNav').innerHTML = items.map(function(it){
+  var adminItems = [];
+  if(canSeeAdmin()){
+    var allAdmin = [
+      { id:'users', atab:'users', label:'Пользователи', icon: ICONS.users, cap:'users:view' },
+      { id:'archive', atab:'archive', label:'Архив', icon: ICONS.archive, cap:'users:view' },
+      { id:'divisions', atab:'divisions', label:'Оргструктура', icon: ICONS.units, cap:'divisions:view' },
+      { id:'dict', atab:'dict', label:'Справочники', icon: ICONS.book, cap:'dictionary:view' },
+      { id:'period', atab:'period', label:'Период сбора', icon: ICONS.clock, cap:'period:view' },
+      { id:'tools', atab:'tools', label:'Сервисные утилиты', icon: ICONS.wrench, cap:'service:view' },
+      { id:'audit', atab:'audit', label:'Журнал действий', icon: ICONS.clipboard, cap:'service:view' },
+      { id:'roles', atab:'roles', label:'Роли и доступы', icon: ICONS.shield, adminOnly:true }
+    ];
+    adminItems = allAdmin.filter(function(t){
+      return t.adminOnly ? S.data.user.role === 'admin' : hasCap(t.cap);
+    });
+  }
+
+  var h = items.map(function(it){
     var on = (S.appView === it.view && S.unit === null) ? ' on' : '';
     return '<button class="rail-item'+on+'" data-rail="'+it.id+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg>'+esc(it.label)+'</button>';
   }).join('');
 
+  if(adminItems.length){
+    h += '<div class="rail-sec-label" style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding:12px 10px 4px;margin-top:8px;border-top:1px solid var(--line)">Администрирование</div>';
+    h += adminItems.map(function(it){
+      var on = (S.appView === 'admin' && S.adminTab === it.atab) ? ' on' : '';
+      return '<button class="rail-item'+on+'" data-rail-atab="'+it.atab+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg>'+esc(it.label)+'</button>';
+    }).join('');
+  }
+
+  $('railNav').innerHTML = h;
+
   $('railNav').onclick = function(e){
+    var atabBtn = e.target.closest('button[data-rail-atab]');
+    if(atabBtn){
+      var atab = atabBtn.dataset.railAtab;
+      S.appView = 'admin';
+      S.adminTab = atab;
+      S.unit = null;
+      renderTopNav();
+      openAdminPanel();
+      return;
+    }
     var b = e.target.closest('button[data-rail]');
     if(!b) return;
     var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
@@ -1522,12 +1616,15 @@ function renderUnitCards(list){
     var pct = x.total ? Math.round(x.done/x.total*100) : 0;
     var askPct = x.total ? Math.round((x.ask||0)/x.total*100) : 0;
     var sv = x.surveys || 0;
+    var pu = (S.data.positionsByUnit && S.data.positionsByUnit[x.unit]) || [];
+    var totalSlots = x.total * (pu.length || 0);
+    var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
     return '<div class="unit" data-u="'+esc(x.unit)+'">'+
       '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
       '<div class="u-dir">'+esc(x.dir)+'</div>'+
       '<div class="u-bars">'+
         bar2('Участники рынка', x.done, x.total, pct, askPct) +
-        bar2('Данные по рынку', sv, null, sv ? 100 : 0, 0) +
+        bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
       '</div>'+
       ((x.ask||0) ? '<div class="u-ask">'+ic('warn')+'требует уточнения: '+x.ask+'</div>' : '')+
       '</div>'+
@@ -1578,9 +1675,22 @@ function ring(pct, askPct){
   return h + '</svg><b>'+pct+'%</b></div>';
 }
 
+function updateTopPeriodBadge(){
+  var el = $('topPeriodBadge');
+  if(!el) return;
+  var p = (S.data && S.data.period) || {};
+  var name = p.name || 'Обзор рынка — август 2026 г.';
+  var closed = p.state === 'закрыт';
+  el.innerHTML = '<span class="top-period-pill ' + (closed ? 'is-closed' : '') + '">' +
+    '<i class="top-period-dot"></i>' +
+    '<span>' + esc(name) + (p.to ? ' · до ' + esc(p.to) : '') + '</span>' +
+    '</span>';
+}
+
 function setTop(title, sub, back, icon){
   $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
   $('btnBack').classList.toggle('hidden', !back);
+  updateTopPeriodBadge();
   window.scrollTo(0,0);
 }
 $('btnBack').onclick = function(){
@@ -1608,17 +1718,27 @@ function openUnit(unit, backTo){
   }
   if(!d){ renderUnit(); return; }
 
+  var draftDone = (d.rows||[]).filter(function(r){ return r.actual && r.actual !== 'не проверено'; }).length + (d.added||[]).length;
+  var draftSurveys = (d.surveys||[]).length;
+  var draftTime = d.savedAt ? fmtDateTime(d.savedAt) : '';
+
   ask({
-    title: 'Найден черновик',
-    html: 'По подразделению <b>'+esc(unit)+'</b> остались правки, которые не были ' +
-          'отправлены в таблицу — например, вкладку закрыли до сохранения.',
-    ok: 'Восстановить',
+    title: 'Продолжить с последнего места?',
+    html: 'В подразделении <b>'+esc(unit)+'</b> сохранён локальный черновик'+(draftTime ? ' от ' + esc(draftTime) : '')+':<br><br>'+
+          '• Проверено компаний: <b>'+draftDone+'</b><br>'+
+          '• Заполнено по рынку: <b>'+draftSurveys+'</b> записей<br><br>'+
+          'Хотите продолжить работу с сохранённого места?',
+    ok: 'Продолжить работу',
     cancel: 'Начать заново'
   }).then(function(yes){
     if(yes){
-      S.rows = d.rows || S.rows; S.added = d.added || [];
-      S.surveys = d.surveys || S.surveys; S.removed = d.removed || [];
-      S.note = d.note || ''; S.dirty = true;
+      S.rows = d.rows || S.rows;
+      S.added = d.added || [];
+      S.surveys = d.surveys || S.surveys;
+      S.removed = d.removed || [];
+      S.note = d.note || '';
+      S.dirty = true;
+      S.tab = d.tab || 'comp';
     } else {
       store.del(LS_DRAFT+unit);
     }
@@ -1652,19 +1772,24 @@ function renderUnit(){
     return (S.tab===tab ? 'on' : '') + (done ? ' done' : '');
   };
 
-  var h = periodBanner();
-  h += '<div class="tabs">'+
+  var h = '<div class="unit-content-wrap">'+
+    '<div class="tabs">'+
     '<button data-tab="comp" class="'+cls('comp', step1done)+'">'+
-      '<small>Шаг 1</small>Участники рынка · '+c.done+'/'+c.all+
-      (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '')+'</button>'+
+      '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 1'+(step1done ? ' ✓' : '')+'</span>'+
+      (c.ask ? '<span class="tab-ask-tag">?'+c.ask+' на уточнении</span>' : '')+'</div>'+
+      '<div class="tab-main-row"><span class="tab-title">Участники рынка</span><span class="tab-count">'+c.done+'/'+c.all+'</span></div>'+
+    '</button>'+
     '<button data-tab="survey" class="'+cls('survey', S.surveys.length>0)+'">'+
-      '<small>Шаг 2</small>Данные по рынку · '+svLabel()+'</button>'+
-    '</div>';
-  h += '<p class="step-hint">'+ (S.tab==='comp'
+      '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 2</span></div>'+
+      '<div class="tab-main-row"><span class="tab-title">Данные по рынку</span><span class="tab-count">'+svLabel()+'</span></div>'+
+    '</button>'+
+    '</div>'+
+    '<p class="step-hint">'+ (S.tab==='comp'
       ? 'Отметьте по каждой компании, релевантна она для сравнения или нет. Не уверены — «Уточнить»: такие останутся в работе.'
       : 'Внесите оклады, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.'
-    ) +'</p>';
-  h += '<div id="tabBody"></div>';
+    ) +'</p>'+
+    '<div id="tabBody"></div>'+
+    '</div>';
   $('body').innerHTML = h;
 
   $('body').querySelector('.tabs').onclick = function(e){
@@ -1712,53 +1837,80 @@ function renderTabComp(){
     }
   }
 
-  h += '<div class="sec-title">Компании в вашей карте</div>';
-  // Список компаний подразделения доходит до нескольких десятков, и найти в нём
-  // нужную можно было только глазами. Фильтр — на клиенте, по названию,
-  // сегменту и региону; сами карточки не перерисовываются, только скрываются,
-  // поэтому уже проставленные отметки не теряются.
+  var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
+
+  h += '<div class="card batch-card-wrap" style="padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs);margin-bottom:14px">';
+
+  h += '<div class="batch-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px;position:sticky;top:54px;background:var(--card);z-index:15">';
+  h += '<div>';
+  h += '<b style="font-size:15.5px">Компании подразделения</b>';
+  h += '<div style="font-size:12px;color:var(--muted);margin-top:1px">Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</div>';
+  h += '</div>';
+  if(!S.ro && S.rows.length > 0){
+    var btnIcon = isAllActual ? ic('close', 13) : ic('check', 13);
+    var btnText = isAllActual ? 'Снять отметку со всех' : 'Отметить все как «Актуально»';
+    var btnColorStyle = isAllActual ? 'color:var(--no);border-color:var(--no-border)' : '';
+    h += '<button type="button" class="btn-ghost" id="btnMarkAllActual" style="font-size:12px;padding:4px 8px;min-height:28px;white-space:nowrap;' + btnColorStyle + '">' +
+         btnIcon + btnText + '</button>';
+  }
+  h += '</div>';
+
   if(S.rows.length > 6){
-    h += '<div class="search-wrap" style="margin-bottom:10px">'+icBare('search')+
+    h += '<div class="search-wrap" style="margin-bottom:8px">'+icBare('search')+
       '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>';
   }
-  h += tblCount(S.rows.length, null, ['компания', 'компании', 'компаний']);
-  h += '<div id="rows" class="row-grid">';
+
+  h += '<div id="rows" class="batch-list" style="margin:6px 0">';
   h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
        '<div class="empty">Список пуст</div>';
   h += '</div>';
 
   if(S.added.length){
-    h += '<div class="sec-title">Добавленные, ещё не сохранены</div><div id="adds" class="row-grid">';
+    h += '<div class="sec-title" style="margin:12px 0 6px">Добавленные компании</div><div id="adds" class="batch-list" style="margin:6px 0">';
     h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
     h += '</div>';
-  } else { h += '<div id="adds" class="row-grid"></div>'; }
-
-  if(!S.ro) h += '<button id="btnAdd" class="btn-line" style="margin-top:6px">+ Добавить компанию</button>';
-
-  h += '<label class="lbl" style="margin-top:22px">Комментарий по подразделению</label>';
-  h += '<textarea id="unitNote" placeholder="Что важно знать о рынке труда вашего подразделения"'+
-       (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
+  } else { h += '<div id="adds" class="batch-list" style="margin:0"></div>'; }
 
   if(!S.ro){
-    h += '<div class="next-step">';
-    h += '<p>'+ (c.left
-        ? 'Осталось отметить компаний: '+c.left+
-          (c.ask ? ', плюс '+c.ask+' на уточнении' : '')+
-          '. Можно перейти к шагу 2 и вернуться позже.'
-        : (c.ask
-            ? 'Все компании отмечены, но '+c.ask+' ждут уточнения. Дальше — зарплаты и льготы.'
-            : 'Шаг 1 пройден. Дальше — самое важное: зарплаты и льготы.')) +'</p>';
-    h += '<button id="btnNext" class="btn-primary">Перейти к шагу 2 · Данные по рынку →</button>';
-    h += '<div style="height:10px"></div>';
-    h += '<button id="btnSubmit" class="btn-line" style="color:var(--ok);border-color:var(--ok)">'+
-         'Всё готово — отправить</button>';
+    h += '<button id="btnAdd" class="btn-line" style="margin-top:6px;min-height:32px;font-size:12.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
+  }
+
+  h += '<div style="margin-top:8px">';
+  h += '<label class="lbl" style="margin:0 0 3px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Комментарий по подразделению</label>';
+  h += '<textarea id="unitNote" style="min-height:42px;height:42px;padding:6px 10px;font-size:12.5px;resize:vertical;margin-bottom:0" placeholder="Что важно знать о рынке труда вашего подразделения"'+
+       (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
+  h += '</div>';
+
+  if(!S.ro){
+    h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">';
+    h += '<button id="btnNext" class="btn-primary" style="width:100%;min-height:38px;font-size:13.5px;font-weight:600">'+
+         'Перейти к Шагу 2: Заполнение данных по рынку →</button>';
     h += '</div>';
   }
+
+  h += '</div>';
 
   $('tabBody').innerHTML = h;
   bindRows();
   $('unitNote').oninput = function(){ S.note = this.value; markDirty(); };
   if($('btnAdd')) $('btnAdd').onclick = openAddSheet;
+
+  if($('btnMarkAllActual')){
+    $('btnMarkAllActual').onclick = function(){
+      var allCurrentlyActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
+      if(allCurrentlyActual){
+        S.rows.forEach(function(r){ r.actual = 'не проверено'; });
+        markDirty();
+        renderUnit();
+        toast('Отметки со всех компаний сняты');
+      } else {
+        S.rows.forEach(function(r){ r.actual = 'актуально'; });
+        markDirty();
+        renderUnit();
+        toast('Все компании (' + S.rows.length + ' шт.) отмечены как «Актуально»', 'ok');
+      }
+    };
+  }
 
   $('tabBody').querySelectorAll('button[data-add-group-company]').forEach(function(btn){
     btn.onclick = function(){
@@ -1775,23 +1927,15 @@ function renderTabComp(){
   if($('compSearch')){
     $('compSearch').oninput = function(){
       var q = norm(this.value);
-      var shown = 0;
-      $('rows').querySelectorAll('.row').forEach(function(node){
+      $('rows').querySelectorAll('.batch-card').forEach(function(node){
         var r = S.rows[+node.dataset.i] || {};
         var hit = !q || norm(r.company).indexOf(q) >= 0 ||
                   norm(r.seg).indexOf(q) >= 0 || norm(r.region).indexOf(q) >= 0;
         node.classList.toggle('hidden', !hit);
-        if(hit) shown++;
       });
-      var cnt = $('tabBody').querySelector('.tbl-count');
-      if(cnt){
-        cnt.innerHTML = '<b>'+shown+'</b> '+declOfNum(shown, ['компания','компании','компаний'])+
-          (q ? '<span class="tbl-count-of">из '+S.rows.length+'</span>' : '');
-      }
     };
   }
   if($('btnNext')) $('btnNext').onclick = function(){ S.tab = 'survey'; renderUnit(); };
-  if($('btnSubmit')) $('btnSubmit').onclick = function(){ save(true); };
 }
 
 /**
@@ -1815,33 +1959,36 @@ function rowCard(r, i, isNew){
   var meta = [r.seg, r.region].filter(String).join(' · ');
   var name = r.company || '(название не заполнено в таблице)';
   var locked = isLockedForMe(r.by);
-  var h = '<div class="row '+st+(locked?' row-locked':'')+'" data-i="'+i+'">';
-  h += '<div class="row-head"><div class="row-name"'+
-       (r.company?'':' style="color:var(--muted);font-weight:400;font-style:italic"')+'>'+
-       esc(name)+(isNew?' <span class="pill p-ok">новая</span>':'')+'</div>';
-  if(meta) h += '<div class="row-meta">'+esc(meta)+'</div>';
-  if(locked) h += '<div class="row-meta" style="color:var(--warn)">'+ic('lock',12)+'изменяет '+esc(r.by)+'</div>';
-  if(r.note) h += '<div class="row-note-preview">'+esc(r.note)+'</div>';
+  var isDone = r.actual && r.actual !== 'не проверено';
+
+  var h = '<div class="batch-card '+(isDone?'is-filled ':'')+st+(locked?' row-locked':'')+'" data-i="'+i+'">';
+  h += '<div class="batch-card-inner">';
+  
+  h += '<div class="b-co-left">';
+  h += '<div class="batch-co-title">' + ic('units', 13) + '<b>' + esc(name) + '</b>' + (isNew?' <span class="pill p-ok">новая</span>':'') + '</div>';
+  if(meta) h += '<span class="b-co-meta">· ' + esc(meta) + '</span>';
+  if(locked) h += '<span class="b-co-lock">' + ic('lock',11) + esc(r.by) + '</span>';
+  if(r.note) h += '<span class="b-co-note" title="' + esc(r.note) + '">' + ic('pencil', 11) + esc(r.note) + '</span>';
+  h += '<button type="button" class="btn-more-chip" data-act="more" title="Параметры">' + ic('wrench', 11) + '<span>Параметры</span><span class="b-arr">' + ic('chevron', 10) + '</span></button>';
   h += '</div>';
 
-  h += '<div class="seg">'+
-    [['актуально','✓ Актуально'],['не актуально','✕ Не актуально'],['уточнить','? Уточнить']].map(function(pair){
-      var v = pair[0], lbl = pair[1];
-      return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
-        ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
-    }).join('')+'</div>';
+  h += '<div class="b-co-actions">';
+  h += '<div class="seg">';
+  h += [['актуально','Актуально'],['не актуально','Не актуально'],['уточнить','Уточнить']].map(function(pair){
+    var v = pair[0], lbl = pair[1];
+    return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
+      ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
+  }).join('') + '</div>';
+  h += '</div>';
 
-  // «требует уточнения» стоит ПОСЛЕ строки кнопок, а не до неё: иначе
-  // кнопка, только что нажатая, уезжает вниз под курсором.
-  if(r.actual === 'уточнить') h += '<div class="row-ask">'+ic('warn')+'требует уточнения</div>';
+  h += '</div>';
 
-  h += '<button class="toggle-more" data-act="more">Подробнее ▾</button>';
-  h += '<div class="more hidden">';
-  h += '<div style="font-size:12px;color:var(--muted);margin:8px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
+  h += '<div class="more hidden batch-more-panel">';
+  h += '<div style="font-size:11.5px;color:var(--muted);margin:4px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
   h += chips('type', S.data.ref.types, r.type, false);
-  h += '<div style="font-size:12px;color:var(--muted);margin:12px 0 5px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
+  h += '<div style="font-size:11.5px;color:var(--muted);margin:8px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
   h += chips('prio', S.data.ref.priorities, r.prio, false);
-  h += '<label class="lbl">Комментарий'+
+  h += '<label class="lbl" style="margin-top:8px">Комментарий'+
        (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
   h += '<textarea data-act="note" placeholder="'+
        (r.actual === 'уточнить' ? 'Что нужно выяснить и у кого' : 'Почему важен / что учесть')+
@@ -1857,7 +2004,8 @@ function bindRows(){
     box.addEventListener('click', function(e){
       var b = e.target.closest('button');
       if(!b) return;
-      var card = b.closest('.row');
+      var card = b.closest('.batch-card');
+      if(!card) return;
       var arr = zone === 'rows' ? S.rows : S.added;
       var r = arr[+card.dataset.i];
       var act = b.dataset.act;
@@ -1865,41 +2013,54 @@ function bindRows(){
       if(act === 'more'){
         var m = card.querySelector('.more');
         var closed = m.classList.toggle('hidden');
-        b.textContent = closed ? 'Подробнее ▾' : 'Свернуть ▴';
+        b.classList.toggle('open', !closed);
         return;
       }
       if(S.ro || card.classList.contains('row-locked')) return;
       if(act === 'actual'){
         r.actual = (r.actual === b.dataset.v) ? 'не проверено' : b.dataset.v;
-        card.className = 'row ' + (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':
-                                   r.actual==='уточнить'?'st-ask':'');
+        card.className = 'batch-card ' + (r.actual && r.actual !== 'не проверено' ? 'is-filled ' : '') +
+          (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':r.actual==='уточнить'?'st-ask':'');
         card.querySelectorAll('.seg button').forEach(function(x){
-          x.classList.toggle('on', x.dataset.v === r.actual); });
-        // подпись «не считается проверенной» стоит после строки кнопок —
-        // если поставить её раньше, только что нажатая кнопка уезжает вниз.
-        var seg = card.querySelector('.seg');
-        var mark = card.querySelector('.row-ask');
-        if(r.actual === 'уточнить' && !mark){
-          var d = document.createElement('div');
-          d.className = 'row-ask';
-          d.textContent = 'не считается проверенной';
-          seg.insertAdjacentElement('afterend', d);
-        } else if(r.actual !== 'уточнить' && mark){ mark.remove(); }
-        markDirty(); updateProgress(); return;
-      }
-      if(act === 'type' || act === 'prio'){
-        r[act] = (r[act] === b.dataset.v) ? '' : b.dataset.v;
-        b.parentNode.querySelectorAll('button').forEach(function(x){
-          x.classList.toggle('on', x.dataset.v === r[act]); });
-        markDirty(); return;
+          x.classList.toggle('on', x.dataset.v === r.actual);
+        });
+
+        // Обновляем бейдж статуса в заголовке карточки
+        var stTag = r.actual === 'актуально'
+          ? '<span class="batch-st-tag ok">' + ic('check', 11) + 'Актуально</span>'
+          : r.actual === 'не актуально'
+            ? '<span class="batch-st-tag none" style="color:var(--no);background:var(--no-soft)">' + ic('close', 11) + 'Не актуально</span>'
+            : r.actual === 'уточнить'
+              ? '<span class="batch-st-tag none" style="color:var(--warn);background:var(--warn-soft)">' + ic('warn', 11) + 'Уточнить</span>'
+              : '<span class="batch-st-tag none">' + ic('clock', 11) + 'Не проверено</span>';
+        var hdTag = card.querySelector('.batch-st-tag');
+        if(hdTag) hdTag.outerHTML = stTag;
+
+        markDirty();
+        updateProgress();
       }
     });
+
     box.addEventListener('input', function(e){
-      if(e.target.dataset.act !== 'note') return;
-      var card = e.target.closest('.row');
-      if(card.classList.contains('row-locked')) return;
+      if(e.target.dataset.act === 'note'){
+        var card = e.target.closest('.batch-card');
+        var arr = zone === 'rows' ? S.rows : S.added;
+        arr[+card.dataset.i].note = e.target.value;
+        markDirty();
+      }
+    });
+
+    box.addEventListener('click', function(e){
+      var chip = e.target.closest('.chips button');
+      if(!chip) return;
+      var card = chip.closest('.batch-card');
       var arr = zone === 'rows' ? S.rows : S.added;
-      arr[+card.dataset.i].note = e.target.value;
+      var r = arr[+card.dataset.i];
+      var act = chip.dataset.act, v = chip.dataset.v;
+      r[act] = (r[act] === v) ? '' : v;
+      chip.parentNode.querySelectorAll('button').forEach(function(x){
+        x.classList.toggle('on', x.dataset.v === r[act]);
+      });
       markDirty();
     });
   });
@@ -1918,11 +2079,15 @@ function currentUnitGroup(){
   return u && u.group ? u.group : '';
 }
 
+function norm(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim(); }
+
+/** Льготы к списку: в базе они текстом, в форме — массивом. */
+function benList(v){
+  if(Array.isArray(v)) return v.filter(Boolean);
+  return String(v == null ? '' : v).split(/[;,]/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+
 function survGroups(){
-  // Для подразделения без группы — штатка как раньше, только своя. Для
-  // группы — объединённый уникальный список по всей группе (см. комментарий
-  // к positionsByGroup в authController.js): не заставляет вносить одну и ту
-  // же должность отдельно для каждой площадки.
   var group = currentUnitGroup();
   var штатка = group && S.data.positionsByGroup && S.data.positionsByGroup[group]
     ? S.data.positionsByGroup[group]
@@ -1947,125 +2112,7 @@ function survGroups(){
   return { groups: groups.concat(tail), штатка: штатка };
 }
 
-function norm(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim(); }
-
-/** Льготы к списку: в базе они текстом, в форме — массивом. */
-function benList(v){
-  if(Array.isArray(v)) return v.filter(Boolean);
-  return String(v == null ? '' : v).split(/[;,]/).map(function(s){ return s.trim(); }).filter(Boolean);
-}
-
-/** Подпись на вкладке шага 2: «закрыто/всего» по штатке, иначе просто число записей. */
-function svLabel(){
-  var g = survGroups();
-  if(!g.groups.length) return String(S.surveys.length);
-  var closed = g.groups.filter(function(x){ return x.items.length; }).length;
-  return closed + '/' + g.groups.length;
-}
-
-function renderTabSurvey(){
-  var G = survGroups();
-  var h = '';
-
-  if(!G.штатка.length && !S.surveys.length){
-    h += '<div class="empty"><b>Здесь пока пусто</b><br><br>' +
-         'Для этого подразделения штатка не заведена.<br>' +
-         'Добавьте должность кнопкой ниже — она попадёт и в справочник.<br><br>' +
-         'Одна запись = одна должность в одной компании.</div>';
-  } else {
-    var closed = G.groups.filter(function(g){ return g.items.length; }).length;
-    h += '<div class="sec-title">Должности подразделения · закрыто ' + closed +
-         ' из ' + G.groups.length + '</div>';
-
-    if(currentUnitGroup()){
-      h += '<p class="step-hint">Список объединён по всем площадкам смежной группы — '+
-           'должность вносится один раз, не по каждой площадке отдельно.</p>';
-    }
-
-    h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
-      var n = g.items.length;
-      var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
-      var cls = 'pos' + (n ? ' pos-done' : '');
-
-      var x = '<div class="'+cls+'">';
-      x += '<div class="pos-head" data-toggle="'+gi+'">';
-      x += '<div class="pos-body"><div class="pos-name">'+esc(g.pos)+
-           (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
-      x += '<div class="pos-sub">'+ (n
-            ? esc(cos.slice(0,3).join(', ')) + (cos.length > 3 ? ' и ещё ' + (cos.length-3) : '')
-            : 'данных нет') +'</div></div>';
-      x += '<div class="pos-cnt">'+(n ? n : '—')+'</div>';
-      if(n) x += '<div class="pos-chev">▾</div>';
-      x += '</div>';
-
-      // записи по должности — скрыты, пока не раскроют
-      x += '<div class="pos-items hidden" data-items="'+gi+'">';
-      x += g.items.map(function(i){ return svCard(S.surveys[i], i); }).join('');
-      if(!S.ro){
-        x += '<button class="btn-line" data-add="'+gi+'" style="margin-top:2px">'+
-             '+ Ещё компания по этой должности</button>';
-      }
-      x += '</div>';
-
-      if(!n && !S.ro){
-        x += '<button class="btn-line pos-go" data-add="'+gi+'">Внести данные</button>';
-      }
-      x += '</div>';
-      return x;
-    }).join('') + '</div>';
-  }
-
-  if(!S.ro){
-    h += '<button id="btnAddSv" class="btn-line" style="margin-top:14px">'+
-         '+ Должность, которой нет в списке</button>';
-  }
-  $('tabBody').innerHTML = h;
-
-  $('tabBody').onclick = function(e){
-    // раскрыть или свернуть должность
-    var head = e.target.closest('.pos-head');
-    if(head && !e.target.closest('button')){
-      var box = $('tabBody').querySelector('[data-items="'+head.dataset.toggle+'"]');
-      if(box && box.children.length){
-        var closedNow = box.classList.toggle('hidden');
-        var chev = head.querySelector('.pos-chev');
-        if(chev) chev.textContent = closedNow ? '▾' : '▴';
-      }
-      return;
-    }
-    // внести данные по конкретной должности — она подставится в форму
-    var add = e.target.closest('button[data-add]');
-    if(add){
-      openSurveySheet(-1, G.groups[+add.dataset.add].pos);
-      return;
-    }
-    var b = e.target.closest('button[data-sv]');
-    if(!b) return;
-    var i = +b.dataset.i;
-    if(b.dataset.sv === 'edit') openSurveySheet(i);
-    if(b.dataset.sv === 'del'){
-      var r = S.surveys[i];
-      ask({
-        title: 'Удалить запись?',
-        html: '<b>'+esc(r.posOur || '(должность не указана)')+'</b>'+
-              (r.company ? ' · '+esc(r.company) : ''),
-        ok: 'Удалить',
-        danger: true
-      }).then(function(yes){
-        if(!yes) return;
-        if(r.id && r.id.indexOf('tmp') !== 0) S.removed.push(r.id);
-        S.surveys.splice(i,1);
-        markDirty();
-        renderUnit();
-        toast('Запись удалена. Нажмите «Сохранить», чтобы применить в таблице.');
-      });
-    }
-  };
-  if($('btnAddSv')) $('btnAddSv').onclick = function(){ openSurveySheet(-1); };
-}
-
 function money(r){
-  // значения приходят и как «5 500», и как «5500.5» — сначала приводим к числу
   var num = function(x){
     var s = String(x == null ? '' : x).replace(/[\s ]/g,'').replace(',','.');
     if(!s) return '';
@@ -2079,257 +2126,539 @@ function money(r){
   return s + (r.cur ? ' ' + r.cur : '') + (r.payPer ? ' ' + r.payPer : '');
 }
 
-function svCard(r, i){
-  var h = '<div class="sv">';
-  h += '<div class="sv-pos">'+esc(r.posOur || '(должность не указана)')+
-       (r.posTheir ? ' <span style="color:var(--muted);font-weight:400">→ '+esc(r.posTheir)+'</span>' : '')+'</div>';
-  h += '<div class="sv-co">'+esc(r.company || '(компания не указана)')+
-       (r.grade ? ' · '+esc(r.grade) : '')+'</div>';
-  var m = money(r);
-  if(m) h += '<div class="sv-pay">'+esc(m)+'</div>';
-  if(r.bonHas === 'да'){
-    h += '<div class="sv-line">Бонус: '+esc([r.bonSize, r.bonType, r.bonPer].filter(String).join(' · ') || 'есть')+'</div>';
-  } else if(r.bonHas === 'нет'){
-    h += '<div class="sv-line">Бонусов нет</div>';
+/** Список актуальных компаний текущего подразделения (с шага 1) */
+function getUnitActualCompanies(){
+  var cos = [];
+  var seen = {};
+  // Компании с отметкой «актуально» или «уточнить»
+  S.rows.concat(S.added).forEach(function(r){
+    var c = (r.company || '').trim();
+    if(!c) return;
+    if(r.actual === 'актуально' || r.actual === 'уточнить'){
+      if(!seen[norm(c)]){
+        seen[norm(c)] = true;
+        cos.push(c);
+      }
+    }
+  });
+  // Если отметки ещё не проставлены, берём все компании подразделения кроме «не актуально»
+  if(!cos.length){
+    S.rows.concat(S.added).forEach(function(r){
+      var c = (r.company || '').trim();
+      if(!c || r.actual === 'не актуально') return;
+      if(!seen[norm(c)]){
+        seen[norm(c)] = true;
+        cos.push(c);
+      }
+    });
   }
-  if(r.extra) h += '<div class="sv-line">Прочее: '+esc(r.extra)+'</div>';
-  // Льготы приходят массивом, но записи, сохранённые до нормализации поля,
-  // лежат в базе строкой. На строке slice(0,3) вернёт «Опл», а .map у строки
-  // нет — исключение прерывало отрисовку всего шага 2, и экран оставался
-  // пустым при живых данных. Приводим к списку здесь, а не полагаемся на то,
-  // что сервер уже всё починил.
-  var ben = benList(r.benefits);
-  if(ben.length){
-    var vis = ben.slice(0,3), rest = ben.length - vis.length;
-    h += '<div class="sv-tags">'+vis.map(function(b){ return '<span>'+esc(b)+'</span>'; }).join('')+
-         (rest>0 ? '<span>+'+rest+'</span>' : '')+'</div>';
-  }
-  if(r.note) h += '<div class="sv-line" style="font-style:italic">'+esc(r.note)+'</div>';
-  var meta = [r.source, r.trust ? 'достоверность: '+r.trust : ''].filter(String).join(' · ');
-  if(meta) h += '<div class="sv-by">'+esc(meta)+'</div>';
-  if(r.by) h += '<div class="sv-by">'+esc(r.by)+(r.at ? ' · '+esc(fmtDateTime(r.at)) : '')+'</div>';
-  var locked = isLockedForMe(r.by);
-  if(!S.ro){
-    h += locked
-      ? '<div class="sv-locked">'+ic('lock',12)+'изменить может только '+esc(r.by)+'</div>'
-      : '<div class="sv-act">'+
-        '<button data-sv="edit" data-i="'+i+'">Изменить</button>'+
-        '<button data-sv="del" data-i="'+i+'" class="btn-danger">Удалить</button></div>';
-  }
-  h += '</div>';
-  return h;
+  return cos;
 }
 
-/** Форма добавления/правки записи. i = -1 — новая. */
-function openSurveySheet(i, presetPos){
-  var isNew = i < 0;
-  var r = isNew
-    ? { id:'', unit:S.unit, company:'', posOur: presetPos || '', posTheir:'', grade:'',
-        payFrom:'', payTo:'', cur:'сомони', payPer:'в месяц',
-        bonHas:'', bonSize:'', bonType:'', bonPer:'',
-        benefits:[], extra:'', source:'', trust:'', note:'' }
-    : JSON.parse(JSON.stringify(S.surveys[i]));
+/** Расчёт матрицы N x M: (Актуальные компании) x (Должности штатки) */
+function svMatrixCounts(){
+  var G = survGroups();
+  var actualCos = getUnitActualCompanies();
+  var totalPositions = G.groups.length;
+  var totalCos = actualCos.length;
+  var totalSlots = totalPositions * totalCos;
 
-  // Форма работает с льготами как со списком (indexOf/splice/push по чипам).
-  // У записи из базы это может быть строка — тогда push молча ничего не даёт,
-  // а выбранные льготы теряются при сохранении.
-  r.benefits = benList(r.benefits);
-  // Снимок «как было» — часть полей (chips/пикеры) пишутся прямо в r по ходу
-  // правки, часть (обычные поля) читаются из DOM только при сохранении;
-  // isDirty ниже сравнивает и то, и другое с этим снимком.
-  var orig = JSON.parse(JSON.stringify(r));
+  var filledCount = 0;
+  var posMap = {};
+  G.groups.forEach(function(g){
+    posMap[norm(g.pos)] = { total: totalCos, filled: 0, cosFilled: {} };
+  });
 
-  var ref = S.data.ref;
-  var coList = S.rows.map(function(x){ return x.company; })
-    .concat(S.added.map(function(x){ return x.company; }))
-    .filter(function(v,k,a){ return v && a.indexOf(v) === k; });
-  if(r.company && coList.indexOf(r.company) < 0) coList.unshift(r.company);
-
-  var el = document.createElement('div');
-  el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in">'+
-    '<div class="sheet-hd"><b>'+(isNew?'Новая запись':'Изменить запись')+'</b>'+
-      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-
-    // Был нативный <select> со всем списком компаний подразделения: без поиска,
-    // а системный дропдаун на телефоне ещё и обрезает длинные названия.
-    // Тот же выбор с поиском, что уже используется для должностей.
-    '<label class="lbl" style="margin-top:6px">Компания</label>'+
-    pickField('fCo', r.company, 'Выберите компанию', true)+
-
-    '<label class="lbl">Должность у нас</label>'+
-    pickField('fPosOur', r.posOur, 'Выберите должность', true)+
-
-    '<label class="lbl">Как эта должность называется у них</label>'+
-    pickField('fPosTheir', r.posTheir, 'Выберите или добавьте', false)+
-
-    '<label class="lbl">Уровень / грейд (необязательно)</label>'+
-    '<input id="fGrade" value="'+esc(r.grade)+'">'+
-
-    '<label class="lbl">Оклад</label>'+
-    '<div class="two"><div><input id="fFrom" inputmode="decimal" placeholder="от" value="'+esc(r.payFrom)+'"></div>'+
-      '<div><input id="fTo" inputmode="decimal" placeholder="до" value="'+esc(r.payTo)+'"></div></div>'+
-    '<div style="height:8px"></div>'+ chips('cur', ref.currencies, r.cur, false, true) +
-    '<div style="height:6px"></div>'+ chips('payPer', ref.payPeriods, r.payPer, false, true) +
-
-    '<label class="lbl">Бонусы и премии</label>'+
-    chips('bonHas', ['да','нет','не знаю'], r.bonHas, false) +
-    '<div id="bonBox" class="'+(r.bonHas==='да'?'':'hidden')+'">'+
-      '<label class="lbl">Размер бонуса</label>'+
-      '<input id="fBonSize" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(r.bonSize)+'">'+
-      '<div style="height:8px"></div>'+ chips('bonType', ref.bonusTypes, r.bonType, false) +
-      '<div style="height:6px"></div>'+ chips('bonPer', ref.bonusPeriods, r.bonPer, false) +
-    '</div>'+
-
-    '<label class="lbl">Льготы и соцпакет</label>'+
-    chips('benefits', S.data.benefits || [], r.benefits, true) +
-
-    '<label class="lbl">Прочие выплаты (необязательно)</label>'+
-    '<input id="fExtra" placeholder="13-я зарплата, доплата за стаж…" value="'+esc(r.extra)+'">'+
-
-    '<label class="lbl">Откуда данные</label>'+ chips('source', ref.sources, r.source, false) +
-    '<label class="lbl">Насколько данные надёжны</label>'+ chips('trust', ref.trust, r.trust, false) +
-
-    '<label class="lbl">Комментарий</label>'+
-    '<textarea id="fNote">'+esc(r.note)+'</textarea>'+
-
-    '<div style="height:16px"></div>'+
-    '<button id="fGo" class="btn-primary">'+(isNew?'Добавить':'Сохранить изменения')+'</button>'+
-    '<div style="height:10px"></div></div>';
-
-  document.body.appendChild(el);
-
-  var coBtn = el.querySelector('#fCo');
-
-  // Должности и компания — строгий выбор из справочника, с поиском.
-  // «У нас» — только должности своего подразделения, добавление пишется туда же.
-  // «В компании» — весь холдинг: у них своя штатка, нашей её ограничивать нельзя.
-  var bindPick = function(id, field, opt){
-    var btn = el.querySelector('#'+id);
-    btn.onclick = function(){
-      openPicker({
-        title: opt.title,
-        list: opt.list(),
-        wide: opt.wide ? opt.wide() : null,
-        wideLabel: opt.wideLabel,
-        addUnit: opt.addUnit ? S.unit : null,
-        block: opt.block || null,
-        value: r[field],
-        onPick: function(v){
-          r[field] = v;
-          btn.querySelector('span').textContent = v;
-          btn.querySelector('span').className = '';
-          btn.classList.remove('need');
+  S.surveys.forEach(function(s){
+    var posKey = norm(s.posOur);
+    var coKey = norm(s.company);
+    var isFilled = !!(s.payFrom || s.payTo || s.bonSize || (s.benefits && s.benefits.length) || s.extra || s.note);
+    if(isFilled){
+      if(posMap[posKey]){
+        if(!posMap[posKey].cosFilled[coKey]){
+          posMap[posKey].cosFilled[coKey] = true;
+          posMap[posKey].filled++;
+          filledCount++;
         }
-      });
-    };
+      } else {
+        filledCount++;
+      }
+    }
+  });
+
+  var pct = totalSlots > 0 ? Math.min(100, Math.round((filledCount / totalSlots) * 100)) : (filledCount > 0 ? 100 : 0);
+
+  return {
+    actualCos: actualCos,
+    totalCos: totalCos,
+    totalPositions: totalPositions,
+    totalSlots: totalSlots,
+    filledCount: filledCount,
+    pct: pct,
+    posMap: posMap
   };
-  bindPick('fPosOur', 'posOur', {
-    title: 'Должность у нас',
+}
+
+/** Подпись на вкладке шага 2: матрица X из Y карточек */
+function svLabel(){
+  var mc = svMatrixCounts();
+  if(mc.totalSlots > 0){
+    return mc.filledCount + '/' + mc.totalSlots;
+  }
+  return String(S.surveys.length);
+}
+
+function renderTabSurvey(){
+  var G = survGroups();
+  var mc = svMatrixCounts();
+  var h = '';
+
+  if(!G.штатка.length && !S.surveys.length){
+    h += '<div class="empty"><b>Здесь пока пусто</b><br><br>' +
+         'Для этого подразделения штатка не заведена.<br>' +
+         'Добавьте должность кнопкой ниже — она попадёт и в справочник.<br><br>' +
+         'Вносите данные пакетом сразу по всем компаниям.</div>';
+  } else {
+    var titleText = mc.totalSlots > 0
+      ? 'Данные по рынку · заполнено ' + mc.filledCount + ' из ' + mc.totalSlots + ' карточек (' + mc.pct + '%)'
+      : 'Должности подразделения · ' + S.surveys.length + ' записей';
+
+    h += '<div class="sec-title">' + titleText + '</div>';
+
+    if(mc.totalSlots > 0){
+      h += '<div class="u-bar-track" style="margin: 0 0 14px; height: 6px; background: var(--line); border-radius: 4px; overflow: hidden;">' +
+        '<i style="display:block; height:100%; width:' + mc.pct + '%; background:' + (mc.pct>=100?'var(--ok)':'var(--accent)') + '; transition:width .2s"></i>' +
+      '</div>';
+    }
+
+    if(currentUnitGroup()){
+      h += '<p class="step-hint">Список объединён по всем площадкам смежной группы — '+
+           'должность вносится один раз, не по каждой площадке отдельно.</p>';
+    }
+
+    h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
+      var pInfo = mc.posMap[norm(g.pos)];
+      var filled = pInfo ? pInfo.filled : g.items.length;
+      var total = pInfo ? pInfo.total : mc.totalCos;
+      var isAll = total > 0 && filled >= total;
+      var isPart = filled > 0 && !isAll;
+      var bClass = isAll ? 'pos-badge-ok' : (isPart ? 'pos-badge-part' : 'pos-badge-none');
+      var bText = total > 0 ? (filled + ' / ' + total + ' компаний') : (filled + ' записей');
+
+      var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
+      var cls = 'pos' + (isAll ? ' pos-done' : '');
+
+      var x = '<div class="'+cls+'">';
+      x += '<div class="pos-head" data-open-pos="'+esc(g.pos)+'">';
+      x += '<div class="pos-body"><div class="pos-name">'+esc(g.pos)+
+           (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
+      x += '<div class="pos-sub">'+ (cos.length
+            ? esc(cos.slice(0,3).join(', ')) + (cos.length > 3 ? ' и ещё ' + (cos.length-3) : '')
+            : 'данных пока нет') +'</div></div>';
+      x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
+      x += '<button type="button" class="btn-ghost" style="padding:4px 8px;min-height:30px;font-size:12.5px" data-open-pos="'+esc(g.pos)+'">'+
+             ic('pencil', 14) + (filled ? 'Править' : 'Внести') + '</button>';
+      x += '</div>';
+      x += '</div>';
+      return x;
+    }).join('') + '</div>';
+  }
+
+  if(!S.ro){
+    h += '<button id="btnAddSv" class="btn-line" style="margin-top:14px">'+
+         '+ Должность, которой нет в списке</button>';
+  }
+  $('tabBody').innerHTML = h;
+
+  $('tabBody').onclick = function(e){
+    var trigger = e.target.closest('[data-open-pos]');
+    if(trigger){
+      openBatchSurveySheet(trigger.dataset.openPos);
+      return;
+    }
+  };
+  if($('btnAddSv')) $('btnAddSv').onclick = function(){ openCustomPositionSheet(); };
+}
+
+function openCustomPositionSheet(){
+  openPicker({
+    title: 'Добавить должность',
     list: function(){ return S.data.positions || []; },
     wide: function(){ return S.data.positionsAll || []; },
     wideLabel: 'Показать все должности холдинга',
-    addUnit: true
+    addUnit: S.unit,
+    onPick: function(posName){
+      if(!posName) return;
+      openBatchSurveySheet(posName);
+    }
   });
-  // «Должность в компании» — то, как её называют у участника рынка. Своего
-  // варианта здесь раньше добавить было нельзя: ни block, ни addUnit не
-  // передавались, поэтому кнопка «+ Добавить» в пикере не появлялась вообще, и
-  // при незнакомом названии заполнить поле было нечем. Именно здесь чужое
-  // название нужно чаще всего — у других компаний своя номенклатура.
-  bindPick('fPosTheir', 'posTheir', {
-    title: 'Должность в компании',
-    list: function(){ return S.data.positionsAll || []; },
-    block: 'positions'
+}
+
+/**
+ * Пакетный ввод по должности: открывает карточки сразу всех актуальных компаний
+ * для выбранной должности, позволяя заполнить всё в один заход.
+ */
+function openBatchSurveySheet(posName){
+  var actualCos = getUnitActualCompanies();
+  // Добавляем также любые компании, которые уже были сохранены для этой должности
+  S.surveys.forEach(function(s){
+    if(norm(s.posOur) === norm(posName) && s.company){
+      if(!actualCos.some(function(c){ return norm(c) === norm(s.company); })){
+        actualCos.push(s.company);
+      }
+    }
   });
 
-  // Компании подразделения (шаг 1) — основной список; весь справочник холдинга
-  // доступен вторым списком, если нужной компании в подразделении ещё нет.
-  bindPick('fCo', 'company', {
-    title: 'Компания',
-    list: function(){ return coList; },
-    wide: function(){
-      return (S.data.companies || []).map(function(c){ return c && c.name ? c.name : c; });
-    },
-    wideLabel: 'Показать все компании справочника'
-  });
+  if(!actualCos.length){
+    toast('Сначала добавьте компании на Шаге 1');
+    return;
+  }
 
-  var isDirty = function(){
-    var cur = {
-      company: r.company, posOur: r.posOur, posTheir: r.posTheir,
-      grade: el.querySelector('#fGrade').value.trim(),
-      payFrom: el.querySelector('#fFrom').value.trim(),
-      payTo: el.querySelector('#fTo').value.trim(),
-      cur: r.cur, payPer: r.payPer,
-      bonHas: r.bonHas, bonSize: el.querySelector('#fBonSize').value.trim(),
-      bonType: r.bonType, bonPer: r.bonPer,
-      benefits: (r.benefits||[]).slice().sort().join(','),
-      extra: el.querySelector('#fExtra').value.trim(),
-      source: r.source, trust: r.trust,
-      note: el.querySelector('#fNote').value.trim()
+  var ref = S.data.ref || {};
+  var currencies = ref.currencies || ['сомони', 'USD', 'RUB'];
+  var payPeriods = ref.payPeriods || ['в месяц', 'в день', 'в час'];
+  var bonusTypes = ref.bonusTypes || ['ежемесячный', 'квартальный', 'годовой', 'KPI'];
+  var bonusPeriods = ref.bonusPeriods || ['в месяц', 'в квартал', 'в год'];
+  var sources = ref.sources || ['собеседования', 'бывшие сотрудники', 'сайты вакансий', 'знакомые'];
+  var trustList = ref.trust || ['высокая', 'средняя', 'низкая'];
+  var benefitsList = S.data.benefits || ['ДМС', 'Питание', 'Связь', 'ГСМ', 'Транспорт'];
+
+  // Формируем состояние записей по каждой компании
+  var entries = actualCos.map(function(co){
+    var exist = S.surveys.find(function(s){
+      return norm(s.posOur) === norm(posName) && norm(s.company) === norm(co);
+    });
+    return {
+      co: co,
+      id: exist ? exist.id : '',
+      exist: !!exist,
+      payFrom: exist ? (exist.payFrom || '') : '',
+      payTo: exist ? (exist.payTo || '') : '',
+      cur: exist ? (exist.cur || 'сомони') : 'сомони',
+      payPer: exist ? (exist.payPer || 'в месяц') : 'в месяц',
+      posTheir: exist ? (exist.posTheir || '') : '',
+      grade: exist ? (exist.grade || '') : '',
+      bonHas: exist ? (exist.bonHas || '') : '',
+      bonSize: exist ? (exist.bonSize || '') : '',
+      bonType: exist ? (exist.bonType || '') : '',
+      bonPer: exist ? (exist.bonPer || '') : '',
+      benefits: exist ? benList(exist.benefits) : [],
+      extra: exist ? (exist.extra || '') : '',
+      source: exist ? (exist.source || '') : '',
+      trust: exist ? (exist.trust || '') : '',
+      note: exist ? (exist.note || '') : ''
     };
-    return cur.company !== (orig.company||'') || cur.posOur !== (orig.posOur||'') ||
-      cur.posTheir !== (orig.posTheir||'') || cur.grade !== String(orig.grade||'') ||
-      cur.payFrom !== String(orig.payFrom||'') || cur.payTo !== String(orig.payTo||'') ||
-      cur.cur !== orig.cur || cur.payPer !== orig.payPer || cur.bonHas !== (orig.bonHas||'') ||
-      cur.bonSize !== String(orig.bonSize||'') || cur.bonType !== (orig.bonType||'') ||
-      cur.bonPer !== (orig.bonPer||'') ||
-      cur.benefits !== (orig.benefits||[]).slice().sort().join(',') ||
-      cur.extra !== String(orig.extra||'') || cur.source !== (orig.source||'') ||
-      cur.trust !== (orig.trust||'') || cur.note !== String(orig.note||'');
-  };
+  });
 
+  var el = document.createElement('div');
+  el.className = 'sheet';
+
+  function getSurveyItemCompleteness(item){
+    var points = 0;
+    var totalPoints = 11;
+
+    // 1. Оклад от
+    if(item.payFrom && String(item.payFrom).trim()) points++;
+    // 2. Оклад до
+    if(item.payTo && String(item.payTo).trim()) points++;
+    // 3. Должность у них
+    if(item.posTheir && String(item.posTheir).trim()) points++;
+    // 4. Грейд / Уровень
+    if(item.grade && String(item.grade).trim()) points++;
+    // 5. Наличие бонусов
+    if(item.bonHas && String(item.bonHas).trim()) points++;
+    // 6. Размер/параметры бонуса (или если бонусов нет)
+    if(item.bonHas === 'нет' || (item.bonHas === 'да' && item.bonSize && String(item.bonSize).trim())) points++;
+    // 7. Льготы и соцпакет
+    if(item.benefits && item.benefits.length > 0) points++;
+    // 8. Прочие выплаты
+    if(item.extra && String(item.extra).trim()) points++;
+    // 9. Откуда данные
+    if(item.source && String(item.source).trim()) points++;
+    // 10. Надёжность данных
+    if(item.trust && String(item.trust).trim()) points++;
+    // 11. Комментарий
+    if(item.note && String(item.note).trim()) points++;
+
+    if(points === 0) return { pct: 0, status: 'none', label: 'Не заполнено' };
+    var pct = Math.round((points / totalPoints) * 100);
+    if(pct >= 100){
+      return { pct: 100, status: 'ok', label: 'Заполнено 100%' };
+    } else {
+      return { pct: pct, status: 'part', label: 'Частично (' + pct + '%)' };
+    }
+  }
+
+  function renderSurveyStTag(comp){
+    if(comp.status === 'ok'){
+      return '<span class="batch-st-tag ok">' + ic('check', 12) + 'Заполнено 100%</span>';
+    } else if(comp.status === 'part'){
+      return '<span class="batch-st-tag part">' + ic('clock', 12) + 'Частично (' + comp.pct + '%)</span>';
+    } else {
+      return '<span class="batch-st-tag none">' + ic('clock', 12) + 'Не заполнено</span>';
+    }
+  }
+
+  function updateCardCompleteness(card, item){
+    var comp = getSurveyItemCompleteness(item);
+    var pFrom = item.payFrom ? Number(String(item.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
+    var pTo = item.payTo ? Number(String(item.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
+    var isForkInverted = (pFrom > 0 && pTo > 0 && pFrom > pTo);
+
+    var hd = card.querySelector('.batch-hd');
+    if(hd){
+      var oldTag = hd.querySelector('.batch-st-tag');
+      if(oldTag) oldTag.remove();
+      var temp = document.createElement('div');
+      if(isForkInverted){
+        temp.innerHTML = '<span class="batch-st-tag part" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">' + ic('warn', 12) + 'От > До!</span>';
+      } else {
+        temp.innerHTML = renderSurveyStTag(comp);
+      }
+      hd.appendChild(temp.firstChild);
+    }
+    card.classList.toggle('is-filled', comp.status === 'ok' && !isForkInverted);
+    card.classList.toggle('is-part', comp.status === 'part' || isForkInverted);
+  }
+
+  function renderSheetContent(){
+    var cardsHtml = entries.map(function(item, idx){
+      var comp = getSurveyItemCompleteness(item);
+      var stTag = renderSurveyStTag(comp);
+      var cls = comp.status === 'ok' ? 'is-filled' : (comp.status === 'part' ? 'is-part' : '');
+
+      return '<div class="batch-card '+cls+'" data-idx="'+idx+'">'+
+        '<div class="batch-hd">'+
+          '<div class="batch-co-title">' + ic('units', 14) + '<span>' + esc(item.co) + '</span></div>'+
+          stTag+
+        '</div>'+
+        '<div class="batch-row-main">'+
+          '<div>'+
+            '<label class="lbl">Оклад ('+esc(item.cur)+')</label>'+
+            '<div class="two">'+
+              '<div><input class="b-pay-from" inputmode="decimal" placeholder="от" value="'+esc(item.payFrom)+'"></div>'+
+              '<div><input class="b-pay-to" inputmode="decimal" placeholder="до" value="'+esc(item.payTo)+'"></div>'+
+            '</div>'+
+          '</div>'+
+          '<div>'+
+            '<label class="lbl">Валюта и период</label>'+
+            '<div class="two">'+
+              '<div><select class="b-cur">'+currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(item.cur===c?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+'</select></div>'+
+              '<div><select class="b-pay-per">'+payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(item.payPer===p?' selected':'')+'>'+esc(p)+'</option>'; }).join('')+'</select></div>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+
+        '<button type="button" class="batch-toggle-more" data-act="toggle-more">'+
+          '<span>' + ic('wrench', 13) + 'Параметры (должность у них, бонусы, льготы, источник)</span>'+
+          '<span class="b-arr">' + ic('chevron', 12) + '</span>'+
+        '</button>'+
+
+        '<div class="batch-more-panel hidden">'+
+          '<label class="lbl">Как эта должность называется у них</label>'+
+          '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>' + ic('chevron', 12) + '</i></div>'+
+
+          '<label class="lbl">Грейд / Уровень</label>'+
+          '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">'+
+
+          '<label class="lbl">Бонусы и премии</label>'+
+          chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
+          '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
+            '<label class="lbl">Размер бонуса</label>'+
+            '<input class="b-bon-size" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(item.bonSize)+'">'+
+            '<div style="height:6px"></div>'+chips('bonType', bonusTypes, item.bonType, false)+
+            '<div style="height:6px"></div>'+chips('bonPer', bonusPeriods, item.bonPer, false)+
+          '</div>'+
+
+          '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
+          chips('benefits', benefitsList, item.benefits, true)+
+
+          '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
+          '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
+
+          '<div class="two" style="margin-top:10px">'+
+            '<div><label class="lbl">Откуда данные</label>'+chips('source', sources, item.source, false)+'</div>'+
+            '<div><label class="lbl">Надёжность</label>'+chips('trust', trustList, item.trust, false)+'</div>'+
+          '</div>'+
+
+          '<label class="lbl" style="margin-top:10px">Комментарий</label>'+
+          '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    el.innerHTML = '<div class="sheet-in batch-sheet">'+
+      '<div class="sheet-hd">'+
+        '<div>'+
+          '<b>Должность: '+esc(posName)+'</b>'+
+          '<div style="font-size:12px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
+        '</div>'+
+        '<button class="btn-ghost" data-x="1">Закрыть</button>'+
+      '</div>'+
+
+      '<div class="batch-list">'+cardsHtml+'</div>'+
+
+      '<div style="height:10px"></div>'+
+      '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
+      '<div style="height:8px"></div>'+
+    '</div>';
+  }
+
+  renderSheetContent();
+  document.body.appendChild(el);
+
+  // Обработчик событий внутри пакетной формы
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.dataset.x){
-      if(!isDirty()){ el.remove(); return; }
-      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+      el.remove();
       return;
     }
-    var b = e.target.closest('.chips button');
-    if(!b) return;
-    var box = b.parentNode, act = b.dataset.act, v = b.dataset.v;
-    if(box.dataset.multi){
-      var k = r.benefits.indexOf(v);
-      if(k >= 0) r.benefits.splice(k,1); else r.benefits.push(v);
-      b.classList.toggle('on', k < 0);
-    } else {
-      // обязательные группы (валюта, период оклада) снять нельзя — только переключить
-      r[act] = (r[act] === v && !box.dataset.req) ? '' : v;
-      box.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x.dataset.v === r[act]); });
-      if(act === 'bonHas') el.querySelector('#bonBox').classList.toggle('hidden', r.bonHas !== 'да');
+
+    var moreBtn = e.target.closest('[data-act="toggle-more"]');
+    if(moreBtn){
+      var card = moreBtn.closest('.batch-card');
+      var panel = card.querySelector('.batch-more-panel');
+      panel.classList.toggle('hidden');
+      moreBtn.classList.toggle('open');
+      return;
+    }
+
+    var card = e.target.closest('.batch-card');
+    if(!card) return;
+    var idx = +card.dataset.idx;
+    var item = entries[idx];
+
+    // Пикер должности у конкурента
+    var pickTheir = e.target.closest('.b-pick-their');
+    if(pickTheir){
+      openPicker({
+        title: 'Должность в компании ' + item.co,
+        list: function(){ return S.data.positionsAll || []; },
+        block: 'positions',
+        value: item.posTheir,
+        onPick: function(v){
+          item.posTheir = v;
+          pickTheir.querySelector('span').textContent = v || 'Выберите или добавьте';
+          pickTheir.querySelector('span').className = v ? '' : 'ph';
+          updateCardCompleteness(card, item);
+        }
+      });
+      return;
+    }
+
+    // Чипы
+    var chip = e.target.closest('.chips button');
+    if(chip){
+      var box = chip.parentNode;
+      var act = chip.dataset.act;
+      var v = chip.dataset.v;
+      if(box.dataset.multi){
+        var k = item.benefits.indexOf(v);
+        if(k >= 0) item.benefits.splice(k, 1);
+        else item.benefits.push(v);
+        chip.classList.toggle('on', k < 0);
+      } else {
+        item[act] = (item[act] === v && !box.dataset.req) ? '' : v;
+        box.querySelectorAll('button').forEach(function(b){
+          b.classList.toggle('on', b.dataset.v === item[act]);
+        });
+        if(act === 'bonHas'){
+          var bBox = card.querySelector('.b-bon-box');
+          if(bBox) bBox.classList.toggle('hidden', item.bonHas !== 'да');
+        }
+      }
+      updateCardCompleteness(card, item);
     }
   });
 
-  el.querySelector('#fGo').onclick = function(){
-    var co = r.company;
-    if(!co){
-      toast('Выберите компанию');
-      coBtn.classList.add('need');
-      coBtn.scrollIntoView({block:'center'});
-      return;
-    }
-    if(!r.posOur){
-      toast('Выберите должность у нас');
-      el.querySelector('#fPosOur').classList.add('need');
-      el.querySelector('#fPosOur').scrollIntoView({block:'center'});
-      return;
-    }
+  // Синхронизация полей ввода
+  el.addEventListener('input', function(e){
+    var card = e.target.closest('.batch-card');
+    if(!card) return;
+    var idx = +card.dataset.idx;
+    var item = entries[idx];
 
-    r.company   = co;
-    r.grade     = el.querySelector('#fGrade').value.trim();
-    r.payFrom   = el.querySelector('#fFrom').value.trim();
-    r.payTo     = el.querySelector('#fTo').value.trim();
-    r.bonSize   = el.querySelector('#fBonSize').value.trim();
-    r.extra     = el.querySelector('#fExtra').value.trim();
-    r.note      = el.querySelector('#fNote').value.trim();
-    if(r.bonHas !== 'да'){ r.bonSize=''; r.bonType=''; r.bonPer=''; }
+    if(e.target.classList.contains('b-pay-from')) item.payFrom = e.target.value.replace(/[^0-9\s,.]/g, '');
+    if(e.target.classList.contains('b-pay-to')) item.payTo = e.target.value.replace(/[^0-9\s,.]/g, '');
+    if(e.target.classList.contains('b-grade')) item.grade = e.target.value;
+    if(e.target.classList.contains('b-bon-size')) item.bonSize = e.target.value;
+    if(e.target.classList.contains('b-extra')) item.extra = e.target.value;
+    if(e.target.classList.contains('b-note')) item.note = e.target.value;
+    updateCardCompleteness(card, item);
+  });
 
-    if(isNew){ r.id = uid(); S.surveys.push(r); }
-    else { S.surveys[i] = r; }
+  el.addEventListener('change', function(e){
+    var card = e.target.closest('.batch-card');
+    if(!card) return;
+    var idx = +card.dataset.idx;
+    var item = entries[idx];
+
+    if(e.target.classList.contains('b-cur')) item.cur = e.target.value;
+    if(e.target.classList.contains('b-pay-per')) item.payPer = e.target.value;
+    updateCardCompleteness(card, item);
+  });
+
+  // Сохранение всей должности
+  el.querySelector('#batchSaveBtn').onclick = function(){
+    // Валидация диапазонов окладов перед сохранением
+    for(var i = 0; i < entries.length; i++){
+      var it = entries[i];
+      var pF = it.payFrom ? Number(String(it.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
+      var pT = it.payTo ? Number(String(it.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
+      if(pF > 0 && pT > 0 && pF > pT){
+        toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
+        return;
+      }
+    }
+    entries.forEach(function(item){
+      var isFilled = !!(item.payFrom.trim() || item.payTo.trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
+
+      var existIndex = S.surveys.findIndex(function(s){
+        return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
+      });
+
+      if(isFilled){
+        var record = {
+          id: item.id || uid(),
+          unit: S.unit,
+          company: item.co,
+          posOur: posName,
+          posTheir: item.posTheir.trim(),
+          grade: item.grade.trim(),
+          payFrom: item.payFrom.trim(),
+          payTo: item.payTo.trim(),
+          cur: item.cur,
+          payPer: item.payPer,
+          bonHas: item.bonHas,
+          bonSize: item.bonHas === 'да' ? item.bonSize.trim() : '',
+          bonType: item.bonHas === 'да' ? item.bonType : '',
+          bonPer: item.bonHas === 'да' ? item.bonPer : '',
+          benefits: item.benefits,
+          extra: item.extra.trim(),
+          source: item.source,
+          trust: item.trust,
+          note: item.note.trim()
+        };
+
+        if(existIndex >= 0){
+          S.surveys[existIndex] = record;
+        } else {
+          S.surveys.push(record);
+        }
+      } else if(existIndex >= 0){
+        // Если запись была, но пользователь всё стёр
+        var removedRec = S.surveys[existIndex];
+        if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
+          S.removed.push(removedRec.id);
+        }
+        S.surveys.splice(existIndex, 1);
+      }
+    });
 
     el.remove();
     markDirty();
     renderUnit();
-    toast(isNew ? 'Запись добавлена. Не забудьте «Сохранить».' : 'Изменено. Не забудьте «Сохранить».');
+    toast('Данные по должности «' + posName + '» внесены. Не забудьте «Сохранить».', 'ok');
   };
 
   setTimeout(function(){ el.querySelector('.sheet-in').scrollTop = 0; }, 30);
@@ -2343,9 +2672,14 @@ function markDirty(){
   var was = S.dirty;
   S.dirty = true;
   store.set(LS_DRAFT+S.unit, JSON.stringify({
-    rows:S.rows, added:S.added, surveys:S.surveys, removed:S.removed, note:S.note }));
-  // Вернуть кнопку сразу при первом изменении после сохранения — не дожидаясь
-  // ближайшей перерисовки, иначе изменения уже есть, а сохранить нечем.
+    rows: S.rows,
+    added: S.added,
+    surveys: S.surveys,
+    removed: S.removed,
+    note: S.note,
+    tab: S.tab || 'comp',
+    savedAt: new Date().toISOString()
+  }));
   if(!was){
     var b = $('btnSave');
     if(b) b.classList.toggle('hidden', S.ro);
@@ -2365,14 +2699,11 @@ function updateProgress(){
       $('progS').textContent = (c.all && c.done === c.all) ? 'всё проверено' : 'проверено компаний';
     }
   } else {
-    // Ориентир — закрытые должности штатки, а не число записей:
-    // так у человека виден финиш, а не бесконечный список.
-    var g = survGroups();
-    if(g.groups.length){
-      var closed = g.groups.filter(function(x){ return x.items.length; }).length;
-      $('progT').textContent = closed + ' из ' + g.groups.length;
+    var mc = svMatrixCounts();
+    if(mc.totalSlots > 0){
+      $('progT').textContent = mc.filledCount + ' из ' + mc.totalSlots;
       $('progS').className = '';
-      $('progS').textContent = (closed === g.groups.length) ? 'все должности закрыты' : 'должностей закрыто';
+      $('progS').textContent = 'карточек заполнено (' + mc.pct + '%)';
     } else {
       $('progT').textContent = S.surveys.length + (S.removed.length ? ' (−'+S.removed.length+')' : '');
       $('progS').className = '';
@@ -2380,23 +2711,20 @@ function updateProgress(){
     }
   }
 
-  // счётчики на вкладках должны меняться сразу, а не после сохранения
   var t1 = document.querySelector('.tabs button[data-tab="comp"]');
   var t2 = document.querySelector('.tabs button[data-tab="survey"]');
   if(t1){
-    t1.innerHTML = '<small>Шаг 1</small>Участники рынка · ' + c.done + '/' + c.all +
-      (c.ask ? ' <span style="color:var(--warn)">?'+c.ask+'</span>' : '');
+    t1.innerHTML = '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 1'+(c.all > 0 && c.done === c.all ? ' ✓' : '')+'</span>'+
+      (c.ask ? '<span class="tab-ask-tag">?'+c.ask+' на уточнении</span>' : '')+'</div>'+
+      '<div class="tab-main-row"><span class="tab-title">Участники рынка</span><span class="tab-count">'+c.done+'/'+c.all+'</span></div>';
     t1.classList.toggle('done', c.all > 0 && c.done === c.all);
   }
   if(t2){
-    t2.innerHTML = '<small>Шаг 2</small>Данные по рынку · ' + svLabel();
+    t2.innerHTML = '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 2</span></div>'+
+      '<div class="tab-main-row"><span class="tab-title">Данные по рынку</span><span class="tab-count">'+svLabel()+'</span></div>';
     t2.classList.toggle('done', S.surveys.length > 0);
   }
 
-  // Кнопка «Сохранить» показывается только когда есть что сохранять: после
-  // успешного сохранения S.dirty сбрасывается и кнопка уходит, при первом же
-  // изменении возвращается (см. markDirty). Без этого она висела всегда и не
-  // отличала «сохранено» от «есть несохранённое».
   $('btnSave').classList.toggle('hidden', S.ro || !S.dirty);
   $('btnSave').textContent = 'Сохранить';
 }
@@ -2652,17 +2980,51 @@ function openDashboard(){
   setTop('Аналитический Дашборд', userLabel(), false, 'dashboard');
   $('bar').classList.add('hidden');
   $('body').onclick = null;
-  $('body').innerHTML = '<div class="sp"><i></i> Загрузка аналитики рынка…</div>';
+  fetchDashboard(false);
+}
 
-  call('apiCBDashboardExtended', S.token, S.dashFilters).then(function(r){
+function renderKpiFrame(sm){
+  return '<span><span style="color:var(--muted);font-size:11.5px">Охват:</span> <b>'+(sm.completedDivisions||0)+'/'+(sm.totalDivisions||0)+'</b> <small style="color:var(--muted)">('+(sm.divCompletionPct||0)+'%)</small></span>'+
+    '<span style="color:var(--line)">|</span>'+
+    '<span><span style="color:var(--muted);font-size:11.5px">Связей:</span> <b>'+(sm.checkedCompetitorLinks||0)+'/'+(sm.totalCompetitorLinks||0)+'</b> <small style="color:var(--muted)">('+(sm.compCompletionPct||0)+'%)</small></span>'+
+    '<span style="color:var(--line)">|</span>'+
+    '<span><span style="color:var(--muted);font-size:11.5px">Рынок:</span> <b>'+(sm.totalSurveyRecords||0)+'</b> <small style="color:var(--muted)">(оклад: '+(sm.recordsWithSalary||0)+')</small></span>'+
+    '<span style="color:var(--line)">|</span>'+
+    '<span><span style="color:var(--muted);font-size:11.5px">Вилок:</span> <b>'+(sm.positionsCount||0)+'</b></span>';
+}
+
+function renderCurrentDashTab(){
+  var d = S.dashData || {};
+  if(S.dashTab === 'salaries'){
+    return renderSalariesTab(d.positions || []);
+  } else if(S.dashTab === 'progress'){
+    return renderProgressTab(d.hrbpProgress || [], d.dirProgress || []);
+  } else if(S.dashTab === 'benefits'){
+    return renderBenefitsTab(d.topBenefits || [], d.bonuses || {}, d.topCompetitors || []);
+  }
+  return '';
+}
+
+function fetchDashboard(quiet){
+  if(!quiet){
+    $('body').innerHTML = '<div class="sp"><i></i> Загрузка аналитики рынка…</div>';
+  }
+  return call('apiCBDashboardExtended', S.token, S.dashFilters).then(function(r){
     if(!r || !r.ok){
-      $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить данные дашборда')+'</div>';
+      if(!quiet) $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить данные дашборда')+'</div>';
+      else toast((r&&r.error)||'Ошибка загрузки', 'no');
       return;
     }
     S.dashData = r;
-    renderDashboard();
+    if(quiet && $('dashTabContent') && $('dashKpiFrame')){
+      $('dashKpiFrame').innerHTML = renderKpiFrame(r.summary || {});
+      $('dashTabContent').innerHTML = renderCurrentDashTab();
+    } else {
+      renderDashboard();
+    }
   }).catch(function(){
-    $('body').innerHTML = '<div class="err">Нет связи с сервером. Попробуйте обновить.</div>';
+    if(!quiet) $('body').innerHTML = '<div class="err">Нет связи с сервером. Попробуйте обновить.</div>';
+    else toast('Нет связи с сервером', 'no');
   });
 }
 
@@ -2671,75 +3033,49 @@ function renderDashboard(){
   var d = S.dashData;
   var sm = d.summary || {};
 
-  // 1. KPI Карточки
-  var h = '<div class="kpi-grid">'+
-    '<div class="kpi-card">'+
-      '<div class="kpi-t">Охват отделов</div>'+
-      '<div class="kpi-v">'+sm.completedDivisions+' <span style="font-size:15px;color:var(--muted)">/ '+sm.totalDivisions+'</span></div>'+
-      '<div class="kpi-s">Завершено <b>'+sm.divCompletionPct+'%</b></div>'+
-    '</div>'+
-    '<div class="kpi-card">'+
-      '<div class="kpi-t">Проверено связей</div>'+
-      '<div class="kpi-v">'+sm.checkedCompetitorLinks+' <span style="font-size:15px;color:var(--muted)">/ '+sm.totalCompetitorLinks+'</span></div>'+
-      '<div class="kpi-s">Актуализировано <b>'+sm.compCompletionPct+'%</b></div>'+
-    '</div>'+
-    '<div class="kpi-card">'+
-      '<div class="kpi-t">Записей по рынку</div>'+
-      '<div class="kpi-v">'+sm.totalSurveyRecords+'</div>'+
-      '<div class="kpi-s">С окладом: <b>'+sm.recordsWithSalary+'</b></div>'+
-    '</div>'+
-    '<div class="kpi-card">'+
-      '<div class="kpi-t">Должностей с вилкой</div>'+
-      '<div class="kpi-v">'+sm.positionsCount+'</div>'+
-      '<div class="kpi-s">Сформировано перцентилей</div>'+
-    '</div>'+
-  '</div>';
-
-  // 2. Вкладки Дашборда
+  // 1. Вкладки Дашборда и Метрики в одной строке
   var tabs = [
     { id:'salaries', icon:'wallet', label:'Зарплатные вилки' },
     { id:'progress', icon:'target', label:'Прогресс по HR BP' },
     { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
   ];
-  h += '<div class="sub-tabs sub-tabs--sticky">'+ tabs.map(function(t){
-    var on = S.dashTab === t.id ? ' on' : '';
-    return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
-  }).join('') +'</div>';
+  var h = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+      tabs.map(function(t){
+        var on = S.dashTab === t.id ? ' on' : '';
+        return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
+      }).join('')+
+    '</div>'+
+    '<div id="dashKpiFrame" class="kpi-group-frame">'+
+      renderKpiFrame(sm)+
+    '</div>'+
+  '</div>';
 
-  // 3. Панель фильтров
+  // 2. Компактная панель фильтров в 1 аккуратную строку
   var allDirs = (d.dirProgress || []).map(function(x){ return x.dir; }).filter(function(x){ return x && x !== 'Без направления'; });
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
 
-  h += '<div class="dash-filters">'+
-    '<div class="search-wrap">'+icBare('search')+
+  h += '<div class="toolbar" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
+    '<div class="search-wrap" style="flex:1 1 180px;min-width:160px;max-width:320px">'+icBare('search')+
       '<input id="dashSearch" placeholder="Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'"></div>'+
-    '<select id="dashDir">'+
+    '<select id="dashDir" style="flex:none;width:auto;min-width:130px;max-width:165px">'+
       '<option value="">Все направления</option>'+
       allDirs.map(function(dir){
         return '<option value="'+esc(dir)+'"'+(S.dashFilters.dir===dir?' selected':'')+'>'+esc(dir)+'</option>';
       }).join('')+
     '</select>'+
-    '<select id="dashHrbp">'+
+    '<select id="dashHrbp" style="flex:none;width:auto;min-width:120px;max-width:145px">'+
       '<option value="">Все HR BP</option>'+
       allHrbps.map(function(h){
         return '<option value="'+esc(h)+'"'+(S.dashFilters.hrbp===h?' selected':'')+'>'+esc(h)+'</option>';
       }).join('')+
     '</select>'+
+    '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
+    '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'Экспорт в CSV</button>'+
   '</div>';
 
-  h += '<div class="dash-actions">'+
-    '<button id="btnDashReset" class="btn-ghost" style="border:1px solid var(--line);min-height:36px">Сбросить фильтры</button>'+
-    '<button id="btnDashExport" class="btn-line" style="width:auto;margin-left:auto;min-height:36px;color:var(--accent)">'+ic('download')+'Экспорт в CSV</button>'+
-  '</div>';
-
-  // 4. Контент выбранной вкладки
-  if(S.dashTab === 'salaries'){
-    h += renderSalariesTab(d.positions || []);
-  } else if(S.dashTab === 'progress'){
-    h += renderProgressTab(d.hrbpProgress || [], d.dirProgress || []);
-  } else if(S.dashTab === 'benefits'){
-    h += renderBenefitsTab(d.topBenefits || [], d.bonuses || {}, d.topCompetitors || []);
-  }
+  // 3. Контент выбранной вкладки в отдельном контейнере
+  h += '<div id="dashTabContent" style="flex:1;min-height:0;display:flex;flex-direction:column">' + renderCurrentDashTab() + '</div>';
 
   $('body').innerHTML = h;
 
@@ -2747,7 +3083,9 @@ function renderDashboard(){
   $('body').querySelectorAll('button[data-dtab]').forEach(function(btn){
     btn.onclick = function(){
       S.dashTab = this.dataset.dtab;
-      renderDashboard();
+      $('body').querySelectorAll('button[data-dtab]').forEach(function(b){ b.classList.remove('on'); });
+      this.classList.add('on');
+      $('dashTabContent').innerHTML = renderCurrentDashTab();
     };
   });
 
@@ -2755,28 +3093,28 @@ function renderDashboard(){
   var timer = null;
   searchIn.oninput = function(){
     clearTimeout(timer);
-    var pos = searchIn.selectionStart;
     timer = setTimeout(function(){
       S.dashFilters.search = searchIn.value.trim();
-      openDashboard();
-      var again = $('dashSearch');
-      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
-    }, 400);
+      fetchDashboard(true);
+    }, 250);
   };
 
   $('dashDir').onchange = function(){
     S.dashFilters.dir = this.value;
-    openDashboard();
+    fetchDashboard(true);
   };
 
   $('dashHrbp').onchange = function(){
     S.dashFilters.hrbp = this.value;
-    openDashboard();
+    fetchDashboard(true);
   };
 
   $('btnDashReset').onclick = function(){
     S.dashFilters = { dir:'', hrbp:'', search:'' };
-    openDashboard();
+    if($('dashSearch')) $('dashSearch').value = '';
+    if($('dashDir')) $('dashDir').value = '';
+    if($('dashHrbp')) $('dashHrbp').value = '';
+    fetchDashboard(true);
   };
 
   $('btnDashExport').onclick = exportDashboardCSV;
@@ -2905,22 +3243,52 @@ function progressTable(list, whoLabel, whoOf, unitsLabel, withSurveys){
 }
 
 function renderProgressTab(hrbpList, dirList){
-  var h = '<div class="sec-title">Прогресс сбора по HR BP</div>';
+  S.dashProgSubTab = S.dashProgSubTab || 'hrbp';
+  var isHrbp = (S.dashProgSubTab === 'hrbp');
+
+  var h = '<div class="toolbar" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
+    '<div class="seg" style="margin:0;padding:0;gap:4px">'+
+      '<button class="seg-btn'+(isHrbp?' on':'')+'" data-progtab="hrbp">' + ic('users', 14) + 'По HR BP ('+hrbpList.length+')</button>'+
+      '<button class="seg-btn'+(!isHrbp?' on':'')+'" data-progtab="dirs">' + ic('units', 14) + 'По Дирекциям ('+dirList.length+')</button>'+
+    '</div>';
 
   if(S.data && (S.data.user.role === 'admin' || S.data.user.role === 'cb')){
-    h += '<div style="margin-bottom:14px">'+
-      '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:13.5px;min-height:38px">'+
-        ic('megaphone')+'Напомнить всем должникам в Telegram'+
+    h += '<div style="margin-left:auto;display:flex;align-items:center;gap:6px">'+
+      '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:12.5px;min-height:32px;padding:0 12px;white-space:nowrap">'+
+        ic('megaphone', 14)+'Напомнить всем должникам в Telegram'+
       '</button>'+
     '</div>';
   }
+  h += '</div>';
 
-  h += progressTable(hrbpList, 'HR BP', function(x){ return x.hrbp; }, 'Подразделений', true);
-
-  h += '<div class="sec-title" style="margin-top:24px">Прогресс сбора по Дирекциям</div>';
-  h += progressTable(dirList, 'Дирекция', function(x){ return x.dir; }, 'Отделов', false);
+  h += '<div id="dashProgSubContent" style="flex:1;min-height:0;display:flex;flex-direction:column">';
+  if(isHrbp){
+    h += progressTable(hrbpList, 'HR BP', function(x){ return x.hrbp; }, 'Подразделений', true);
+  } else {
+    h += progressTable(dirList, 'Дирекция', function(x){ return x.dir; }, 'Отделов', false);
+  }
+  h += '</div>';
 
   setTimeout(function(){
+    var container = $('dashTabContent');
+    if(container){
+      container.querySelectorAll('button[data-progtab]').forEach(function(btn){
+        btn.onclick = function(){
+          S.dashProgSubTab = this.dataset.progtab;
+          container.querySelectorAll('button[data-progtab]').forEach(function(b){ b.classList.remove('on'); });
+          this.classList.add('on');
+          var subBox = $('dashProgSubContent');
+          if(subBox){
+            if(S.dashProgSubTab === 'hrbp'){
+              subBox.innerHTML = progressTable(hrbpList, 'HR BP', function(x){ return x.hrbp; }, 'Подразделений', true);
+            } else {
+              subBox.innerHTML = progressTable(dirList, 'Дирекция', function(x){ return x.dir; }, 'Отделов', false);
+            }
+          }
+        };
+      });
+    }
+
     var b = $('btnMassReminder');
     if(b){
       b.onclick = function(){
@@ -2932,73 +3300,104 @@ function renderProgressTab(hrbpList, dirList){
           if(!yes) return;
           b.disabled = true; b.textContent = 'Отправляем…';
           call('apiSendMassReminder', S.token).then(function(res){
-            b.disabled = false; b.innerHTML = ic('megaphone')+'Напомнить всем должникам в Telegram';
+            b.disabled = false; b.innerHTML = ic('megaphone', 14)+'Напомнить всем должникам в Telegram';
             if(res && res.ok){
               toast('Успешно отправлено напоминаний: ' + res.sent);
             } else {
               toast((res && res.error) || 'Ошибка отправки');
             }
           }).catch(function(){
-            b.disabled = false; b.innerHTML = ic('megaphone')+'Напомнить всем должникам в Telegram';
+            b.disabled = false; b.innerHTML = ic('megaphone', 14)+'Напомнить всем должникам в Telegram';
             toast('Нет связи');
           });
         });
       };
     }
-  }, 100);
+  }, 50);
 
   return h;
 }
 
 function renderBenefitsTab(benefits, bonuses, topComps){
-  var h = '<div class="sec-title">Рейтинг популярности льгот и бенефитов</div>';
+  S.dashBenefitsSubTab = S.dashBenefitsSubTab || 'benefits';
+  var curTab = S.dashBenefitsSubTab;
 
-  if(!benefits.length){
-    h += '<div class="empty">Нет данных о льготах</div>';
-  } else {
-    h += tblCount(benefits.length, null, ['льгота', 'льготы', 'льгот']);
-    h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
-        '<th>Льгота</th><th class="num">Охват рынка</th><th class="num">Упоминаний</th>'+
-      '</tr></thead><tbody>'+
-      benefits.map(function(b){
-        return '<tr>'+
-          '<td><b>'+esc(b.name)+'</b>'+
-            '<div class="prog-bar-bg" style="margin-top:6px">'+
-              '<div class="prog-bar-fill" style="width:'+b.pct+'%"></div>'+
-            '</div></td>'+
-          '<td class="num"><span class="pill p-ok">'+b.pct+'%</span></td>'+
-          '<td class="num">'+b.count+'</td>'+
-        '</tr>';
-      }).join('')+
-    '</tbody></table></div>';
-  }
-
-  // Бонусы
-  h += '<div class="sec-title" style="margin-top:24px">Структура премирования и бонусов</div>';
-  var bTotal = (bonuses.hasBonus || 0) + (bonuses.noBonus || 0) + (bonuses.unknown || 0);
-  var hasPct = bTotal ? Math.round((bonuses.hasBonus / bTotal) * 100) : 0;
-  var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
-
-  h += '<div class="card" style="margin-bottom:16px">'+
-    '<div style="font-weight:700;font-size:15px;margin-bottom:8px">Наличие премий в компаниях</div>'+
-    '<div class="fork-nums">'+
-      '<span style="color:var(--ok)">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
-      '<span style="color:var(--no)">Без премий: <b>'+(bonuses.noBonus||0)+' ('+noPct+'%)</b></span>'+
-    '</div>'+
-    '<div class="prog-bar-bg" style="height:12px;margin:8px 0">'+
-      '<div class="prog-bar-fill" style="width:'+hasPct+'%;background:var(--ok)"></div>'+
+  var h = '<div class="toolbar" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
+    '<div class="seg" style="margin:0;padding:0;gap:4px">'+
+      '<button class="seg-btn'+(curTab==='benefits'?' on':'')+'" data-bentab="benefits">' + ic('medal', 14) + 'Популярность льгот ('+benefits.length+')</button>'+
+      '<button class="seg-btn'+(curTab==='bonuses'?' on':'')+'" data-bentab="bonuses">' + ic('wallet', 14) + 'Премии и бонусы</button>'+
+      '<button class="seg-btn'+(curTab==='comps'?' on':'')+'" data-bentab="comps">' + ic('units', 14) + 'Топ компаний ('+topComps.length+')</button>'+
     '</div>'+
   '</div>';
 
-  // Топ конкурентов
-  h += '<div class="sec-title" style="margin-top:24px">Топ упоминаемых компаний</div>';
-  h += tblCount(topComps.length, null, ['компания', 'компании', 'компаний']);
-  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
-    '<thead><tr><th>Компания</th><th class="num">Записей в анкетах</th></tr></thead><tbody>'+
-    topComps.map(function(c){
-      return '<tr><td><b>'+esc(c.company)+'</b></td><td class="num">'+c.count+'</td></tr>';
-    }).join('')+
-  '</tbody></table></div>';
+  function renderSubContent(tab){
+    if(tab === 'benefits'){
+      if(!benefits.length) return '<div class="empty">Нет данных о льготах</div>';
+      var out = tblCount(benefits.length, null, ['льгота', 'льготы', 'льгот']);
+      out += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+          '<th>Льгота</th><th class="num">Охват рынка</th><th class="num">Упоминаний</th>'+
+        '</tr></thead><tbody>'+
+        benefits.map(function(b){
+          return '<tr>'+
+            '<td><b>'+esc(b.name)+'</b>'+
+              '<div class="prog-bar-bg" style="margin-top:6px">'+
+                '<div class="prog-bar-fill" style="width:'+b.pct+'%"></div>'+
+              '</div></td>'+
+            '<td class="num"><span class="pill p-ok">'+b.pct+'%</span></td>'+
+            '<td class="num">'+b.count+'</td>'+
+          '</tr>';
+        }).join('')+
+      '</tbody></table></div>';
+      return out;
+    } else if(tab === 'bonuses'){
+      var bTotal = (bonuses.hasBonus || 0) + (bonuses.noBonus || 0) + (bonuses.unknown || 0);
+      var hasPct = bTotal ? Math.round((bonuses.hasBonus / bTotal) * 100) : 0;
+      var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
+      var unkPct = bTotal ? Math.round((bonuses.unknown / bTotal) * 100) : 0;
+
+      return '<div class="card" style="margin-bottom:12px;padding:20px 24px">'+
+        '<div style="font-weight:700;font-size:15px;margin-bottom:10px">Наличие премий и бонусов в компаниях рынка</div>'+
+        '<div class="fork-nums" style="margin-bottom:10px;font-size:13px">'+
+          '<span style="color:var(--ok)">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
+          '<span style="color:var(--no)">Без премий: <b>'+(bonuses.noBonus||0)+' ('+noPct+'%)</b></span>'+
+          (bonuses.unknown ? '<span style="color:var(--muted)">Не указано: <b>'+bonuses.unknown+' ('+unkPct+'%)</b></span>' : '')+
+        '</div>'+
+        '<div class="prog-bar-bg" style="height:12px;margin:8px 0">'+
+          '<div class="prog-bar-fill" style="width:'+hasPct+'%;background:var(--ok)"></div>'+
+        '</div>'+
+      '</div>';
+    } else if(tab === 'comps'){
+      if(!topComps.length) return '<div class="empty">Нет данных о компаниях</div>';
+      var out = tblCount(topComps.length, null, ['компания', 'компании', 'компаний']);
+      out += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        '<thead><tr><th>Компания</th><th class="num">Записей в анкетах</th></tr></thead><tbody>'+
+        topComps.map(function(c){
+          return '<tr><td><b>'+esc(c.company)+'</b></td><td class="num"><b>'+c.count+'</b></td></tr>';
+        }).join('')+
+      '</tbody></table></div>';
+      return out;
+    }
+    return '';
+  }
+
+  h += '<div id="dashBenefitsSubContent" style="flex:1;min-height:0;display:flex;flex-direction:column">' + renderSubContent(curTab) + '</div>';
+
+  setTimeout(function(){
+    var container = $('dashTabContent');
+    if(container){
+      container.querySelectorAll('button[data-bentab]').forEach(function(btn){
+        btn.onclick = function(){
+          S.dashBenefitsSubTab = this.dataset.bentab;
+          container.querySelectorAll('button[data-bentab]').forEach(function(b){ b.classList.remove('on'); });
+          this.classList.add('on');
+          var subBox = $('dashBenefitsSubContent');
+          if(subBox){
+            subBox.innerHTML = renderSubContent(S.dashBenefitsSubTab);
+          }
+        };
+      });
+    }
+  }, 50);
 
   return h;
 }
@@ -3066,7 +3465,8 @@ function renderAdminPanel(){
     { id:'divisions', icon:'units', label:'Оргструктура' + (S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : ''), cap:'divisions:view' },
     { id:'dict', icon:'book', label:'Справочники', cap:'dictionary:view' },
     { id:'period', icon:'clock', label:'Период сбора', cap:'period:view' },
-    { id:'tools', icon:'wrench', label:'Сервис и Журнал', cap:'service:view' },
+    { id:'tools', icon:'wrench', label:'Сервисные утилиты', cap:'service:view' },
+    { id:'audit', icon:'clipboard', label:'Журнал действий', cap:'service:view' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var tabs = allTabs.filter(function(t){
@@ -3086,7 +3486,7 @@ function renderAdminPanel(){
     return '<button class="sub-tab'+on+'" data-atab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
   }).join('') +'</div>';
 
-  h += '<div id="adminContent"><div class="sp"><i></i> Загрузка…</div></div>';
+  h += '<div id="adminContent" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden"><div class="sp"><i></i> Загрузка…</div></div>';
   $('body').innerHTML = h;
 
   $('body').querySelectorAll('button[data-atab]').forEach(function(btn){
@@ -3102,6 +3502,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'dict') renderAdminDict();
   else if(S.adminTab === 'period') renderAdminPeriod();
   else if(S.adminTab === 'tools') renderAdminTools();
+  else if(S.adminTab === 'audit') renderAdminAudit();
   else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
@@ -4174,49 +4575,64 @@ function removeDictItem(name){
   }).catch(function(){ toast('Нет связи с сервером', 'no'); });
 }
 
-// ─── Вкладка: Сервис и Журнал ───
+// ─── Вкладка: Сервисные утилиты ───
 function renderAdminTools(){
-  var h = '<div class="sec-title">Состояние данных</div>'+
+  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px">'+
+    '<div class="sec-title">Состояние данных</div>'+
     '<div id="dataStatus"><div class="sp"><i></i> Считаем…</div></div>'+
-    '<div class="sec-title" style="margin-top:22px">Сервисные утилиты обслуживания</div>'+
-    '<div class="kpi-grid" style="grid-template-columns:1fr;margin-bottom:20px">'+
-      '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">'+ic('broom',15)+'Нормализация справочника компаний</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает в справочник компании, которых там ещё нет. Показывает, сколько строк затронуто.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника\')">Запустить нормализацию</button>'+
+    '<div class="sec-title" style="margin-top:16px">Сервисные утилиты обслуживания</div>'+
+    '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px;margin-bottom:16px">'+
+      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('broom',15)+'Нормализация справочника компаний</div>'+
+          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает недостающие компании.</div>'+
+        '</div>'+
+        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника\')">'+ic('wrench',14)+'Запустить нормализацию</button>'+
       '</div>'+
-      '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Проверка привязки к оргструктуре</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Компании привязаны к подразделению по названию. Если название разошлось с оргструктурой, строка перестаёт быть видна кому-либо. Утилита обновляет направление/ответственного/HR BP по оргструктуре и перечисляет подразделения, которых в ней не нашлось.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки\')">Проверить привязки</button>'+
+      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('link',15)+'Проверка привязки к оргструктуре</div>'+
+          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Обновляет направление, ответственного и HR BP по оргструктуре и выявляет подразделения с несовпадающими названиями.</div>'+
+        '</div>'+
+        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки\')">'+ic('search',14)+'Проверить привязки</button>'+
       '</div>'+
-      '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">'+ic('units',15)+'Загрузить штатное расписание</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Заводит должности по каждому подразделению из штатного расписания (1340 пар «должность × отдел» по 285 отделам) и проставляет подразделениям коды. До этой загрузки привязки должности к отделу в базе нет вообще, и шаг 2 пишет «штатка не заведена» для любого подразделения. Повторный запуск безопасен.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')">Загрузить штатку</button>'+
+      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('units',15)+'Загрузить штатное расписание</div>'+
+          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Заводит должности по каждому подразделению из штатного расписания (1340 пар по 285 отделам) и проставляет коды. Безопасно для повторного запуска.</div>'+
+        '</div>'+
+        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')">'+ic('download',14)+'Загрузить штатку</button>'+
       '</div>'+
-      '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">'+ic('book',15)+'Сверить компании с листом участников рынка</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие. Сегмент и регион, если их уже заполнили руками, не перезаписываются.</div>'+
-        '<button class="btn-line" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">Сверить компании</button>'+
+      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('book',15)+'Сверить компании с рынком</div>'+
+          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие без перезаписи ручных полей.</div>'+
+        '</div>'+
+        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">'+ic('refresh',14)+'Сверить компании</button>'+
       '</div>'+
-      '<div class="card">'+
-        '<div style="font-weight:700;font-size:15px">'+ic('link',15)+'Раздать компании по направлениям</div>'+
-        '<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">В листе «Конкуренты» у каждого направления есть базовый набор компаний — строки, заведённые на самом направлении (4–18 компаний). Кнопка выдаёт этот набор подразделениям того же направления, у которых сейчас нет ни одной компании. Отделы, где компании уже заведены, не затрагиваются — там выбор сделан вручную. Сначала показывается точный расклад, данные меняются только после подтверждения.</div>'+
-        '<button class="btn-line" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')">Раздать по направлениям</button>'+
-        '<div style="height:8px"></div>'+
-        '<button class="btn-line btn-danger" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу по направлениям\')">Отменить раздачу</button>'+
-        '<div style="font-size:12px;color:var(--muted);margin-top:8px">Отмена убирает только строки с меткой «по направлению», которых никто не касался. Если по компании уже отметили актуальность или оставили комментарий — строка останется.</div>'+
+      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('link',15)+'Раздать компании по направлениям</div>'+
+          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Выдаёт базовый набор компаний тем отделам направления, где ещё нет ни одной строки. Не затрагивает отделы с ручным заполнением.</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          '<button class="btn-primary" style="flex:1;min-height:32px;font-size:12px;padding:0 8px;white-space:nowrap" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')">'+ic('check',13)+'Раздать</button>'+
+          '<button class="btn-danger" style="flex:1;min-height:32px;font-size:12px;padding:0 8px;white-space:nowrap" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу\')">'+ic('block',13)+'Отменить</button>'+
+        '</div>'+
       '</div>'+
-    '</div>';
-
-  h += '<div class="sec-title">Журнал последних действий (Audit Log)</div>'+
-    '<div id="auditLogBox"><div class="sp"><i></i> Загрузка журнала…</div></div>';
+    '</div>'+
+  '</div>';
 
   $('adminContent').innerHTML = h;
   loadDataStatus();
+}
 
-  call('apiAdminGetAuditLog', S.token, 60).then(function(r){
+// ─── Вкладка: Журнал действий (Audit Log) ───
+function renderAdminAudit(){
+  var h = '<div id="auditLogBox" style="flex:1;min-height:0;display:flex;flex-direction:column"><div class="sp"><i></i> Загрузка журнала…</div></div>';
+  $('adminContent').innerHTML = h;
+
+  call('apiAdminGetAuditLog', S.token, 200).then(function(r){
     if(!r || !r.ok){
       $('auditLogBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить журнал')+'</div>';
       return;
@@ -4226,20 +4642,74 @@ function renderAdminTools(){
       $('auditLogBox').innerHTML = '<div class="empty">Журнал пуст</div>';
       return;
     }
-    var logH = tblCount(logs.length, null, ['запись', 'записи', 'записей']);
-    logH += '<div class="tblwrap"><table class="co-tbl">'+
-      '<thead><tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr></thead><tbody>'+
-      logs.map(function(l){
-        var act = String(l.action || '').trim() || '—';
-        return '<tr>'+
-          '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(fmtDateTime(l.dt))+'</td>'+
-          '<td><b>'+esc(l.login)+'</b></td>'+
-          '<td><span class="log-act'+(act === '—' ? ' log-act--none' : '')+'">'+esc(act)+'</span></td>'+
-          '<td style="font-size:12.5px;color:var(--muted)">'+esc(l.detail)+'</td>'+
-        '</tr>';
-      }).join('')+
-      '</tbody></table></div>';
-    $('auditLogBox').innerHTML = logH;
+
+    var actions = [];
+    logs.forEach(function(l){
+      var a = String(l.action || '').trim();
+      if(a && actions.indexOf(a) < 0) actions.push(a);
+    });
+    actions.sort();
+
+    function drawLogs(filterSearch, filterAct){
+      var q = (filterSearch || '').toLowerCase();
+      var filtered = logs.filter(function(l){
+        var matchQ = !q || (l.login && l.login.toLowerCase().indexOf(q) >= 0) || (l.detail && l.detail.toLowerCase().indexOf(q) >= 0);
+        var matchA = !filterAct || (l.action === filterAct);
+        return matchQ && matchA;
+      });
+
+      var logH = '<div class="toolbar" style="margin-bottom:8px;flex:none">'+
+        '<div class="search-wrap">'+icBare('search')+
+          '<input id="auditSearch" placeholder="Поиск по логину или деталям…" value="'+esc(filterSearch||'')+'"></div>'+
+        '<select id="auditAction" style="flex:none;width:auto;min-width:180px">'+
+          '<option value="">Все действия ('+logs.length+')</option>'+
+          actions.map(function(act){
+            return '<option value="'+esc(act)+'"'+(filterAct===act?' selected':'')+'>'+esc(act)+'</option>';
+          }).join('')+
+        '</select>'+
+        tblCount(filtered.length, logs.length, ['запись', 'записи', 'записей'])+
+        '<button id="btnAuditReload" class="btn-line toolbar-act" style="min-height:32px;font-size:12.5px;padding:0 12px">'+ic('refresh',14)+'Обновить</button>'+
+      '</div>';
+
+      logH += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        '<thead><tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr></thead><tbody>'+
+        filtered.map(function(l){
+          var act = String(l.action || '').trim() || '—';
+          return '<tr>'+
+            '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(fmtDateTime(l.dt))+'</td>'+
+            '<td><b>'+esc(l.login)+'</b></td>'+
+            '<td><span class="log-act'+(act === '—' ? ' log-act--none' : '')+'">'+esc(act)+'</span></td>'+
+            '<td style="font-size:12.5px;color:var(--muted)">'+esc(l.detail)+'</td>'+
+          '</tr>';
+        }).join('')+
+        '</tbody></table></div>';
+
+      $('auditLogBox').innerHTML = logH;
+
+      var sIn = $('auditSearch');
+      var aSel = $('auditAction');
+      var rBtn = $('btnAuditReload');
+
+      if(sIn){
+        sIn.oninput = function(){
+          drawLogs(sIn.value, aSel ? aSel.value : '');
+        };
+      }
+      if(aSel){
+        aSel.onchange = function(){
+          drawLogs(sIn ? sIn.value : '', aSel.value);
+        };
+      }
+      if(rBtn){
+        rBtn.onclick = function(){
+          renderAdminAudit();
+        };
+      }
+    }
+
+    drawLogs('', '');
+  }).catch(function(){
+    $('auditLogBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
 }
 
@@ -4442,7 +4912,7 @@ function renderAdminRoles(){
 // ═══════════════════════════════════════════════════════════
 function openDash(){
   S.backTo = null;
-  setTop('Сводка по подразделениям', userLabel(), true);
+  setTop('Сводка по подразделениям', '', true);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
@@ -4482,17 +4952,14 @@ function openDash(){
         : '<button id="btnPeriod" class="btn-line btn-danger page-head-act">Закрыть период</button>')+
       '</div>';
 
-    // Готовность по направлениям — тот же визуальный язык, что у прогресса
-    // HR BP на «Дашборде» (.prog-bar-bg/.prog-bar-fill), но по направлениям
-    // и на этом экране: 326 отдельных подразделений одними барами не
-    // показать, а ~26 направлений — можно, и это ровно тот срез, который
-    // просил пользователь.
+    // Группировка готовности по направлениям
     var byDir = {};
     r.rows.forEach(function(x){
       var dir = x.dir || '(без направления)';
-      if(!byDir[dir]) byDir[dir] = { dir: dir, total: 0, done: 0 };
+      if(!byDir[dir]) byDir[dir] = { dir: dir, total: 0, done: 0, units: 0 };
       byDir[dir].total += x.total;
       byDir[dir].done += x.done;
+      byDir[dir].units += 1;
     });
     var dirBars = Object.keys(byDir).map(function(k){
       var d = byDir[k];
@@ -4500,53 +4967,104 @@ function openDash(){
       return d;
     }).sort(function(a, b){ return a.pct - b.pct; });
 
-    h += '<div class="card" style="margin-bottom:16px">'+
-      '<div class="sec-title" style="margin-top:0">Готовность по направлениям</div>'+
-      dirBars.map(function(d){
-        var isDone = d.pct >= 100;
-        return '<button type="button" data-dir="'+esc(d.dir)+'" style="'+
-            'display:block;width:100%;text-align:left;background:none;border:none;padding:0;'+
-            'margin-bottom:10px;box-shadow:none;min-height:0;cursor:pointer">'+
-          '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;color:var(--text)">'+
-            '<span>'+esc(d.dir)+'</span>'+
-            '<span style="color:var(--muted)">'+d.done+'/'+d.total+' · '+d.pct+'%</span>'+
-          '</div>'+
-          '<div class="prog-bar-bg"><div class="prog-bar-fill" style="width:'+d.pct+'%;'+
-            'background:'+(isDone ? 'var(--ok)' : 'var(--accent)')+'"></div></div>'+
-        '</button>';
-      }).join('')+
+    S.dashSumTab = S.dashSumTab || 'units';
+
+    // Вкладки разделов
+    var sumTabs = [
+      { id: 'units', icon: 'units', label: 'По подразделениям (' + r.rows.length + ')' },
+      { id: 'dirs', icon: 'target', label: 'По направлениям (' + dirBars.length + ')' }
+    ];
+
+    h += '<div class="toolbar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+      '<div style="display:flex;gap:6px;flex:none">'+
+        sumTabs.map(function(t){
+          var on = S.dashSumTab === t.id ? ' on' : '';
+          return '<button class="sub-tab'+on+'" data-sumtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
+        }).join('')+
+      '</div>'+
+      '<div id="dashSumSearchBox" class="search-wrap" style="flex:1;min-width:220px;'+(S.dashSumTab==='dirs'?'display:none;':'')+'">'+
+        icBare('search')+
+        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…">'+
+      '</div>'+
+      '<div id="dashSumCount" style="'+(S.dashSumTab==='dirs'?'display:none;':'')+'"></div>'+
     '</div>';
 
-    h += '<div class="toolbar">'+
-      '<div class="search-wrap">'+icBare('search')+
-        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…"></div>'+
-      '<div id="dashSumCount"></div>'+
-    '</div>';
-    h += '<div id="dashSumTblBox"></div>';
+    h += '<div id="dashSumTabBody"></div>';
     $('body').innerHTML = h;
 
-    // Клик по бару направления — фильтрует таблицу ниже тем же поиском,
-    // что и обычный ввод текста, без отдельного состояния фильтра.
-    $('body').querySelectorAll('button[data-dir]').forEach(function(btn){
+    var sInput = $('dashSumSearch');
+    if(sInput){
+      sInput.oninput = function(){ drawTable(); };
+    }
+
+    $('body').querySelectorAll('button[data-sumtab]').forEach(function(btn){
       btn.onclick = function(){
-        $('dashSumSearch').value = this.dataset.dir === '(без направления)' ? '' : this.dataset.dir;
-        drawTable();
-        $('dashSumTblBox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+        S.dashSumTab = this.dataset.sumtab;
+        $('body').querySelectorAll('button[data-sumtab]').forEach(function(b){ b.classList.remove('on'); });
+        this.classList.add('on');
+        var isUnits = S.dashSumTab === 'units';
+        if($('dashSumSearchBox')) $('dashSumSearchBox').style.display = isUnits ? '' : 'none';
+        if($('dashSumCount')) $('dashSumCount').style.display = isUnits ? '' : 'none';
+        renderSumTab();
       };
     });
 
+    function renderSumTab(){
+      var box = $('dashSumTabBody');
+      if(!box) return;
+
+      if(S.dashSumTab === 'dirs'){
+        var dh = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+          '<thead><tr><th>Направление</th><th class="num">Готовность</th><th class="num">Подразделений</th><th class="num">Заполнено связей</th></tr></thead><tbody>';
+        dh += dirBars.map(function(d){
+          var isDone = d.pct >= 100;
+          var cls = isDone ? 'p-ok' : (d.pct > 0 ? 'p-mid' : 'p-no');
+          return '<tr class="dash-row" data-d="'+esc(d.dir)+'" style="cursor:pointer">'+
+            '<td><b>'+esc(d.dir)+'</b>'+
+              '<div class="prog-bar-bg" style="margin-top:6px">'+
+                '<div class="prog-bar-fill" style="width:'+d.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
+              '</div>'+
+            '</td>'+
+            '<td class="num"><span class="pill '+cls+'">'+d.pct+'%</span></td>'+
+            '<td class="num">'+d.units+'</td>'+
+            '<td class="num">'+d.done+' / '+d.total+'</td>'+
+          '</tr>';
+        }).join('');
+        dh += '</tbody></table></div>';
+        box.innerHTML = dh;
+
+        box.querySelectorAll('tr[data-d]').forEach(function(tr){
+          tr.onclick = function(){
+            var dName = this.dataset.d;
+            S.dashSumTab = 'units';
+            $('body').querySelectorAll('button[data-sumtab]').forEach(function(b){
+              b.classList.toggle('on', b.dataset.sumtab === 'units');
+            });
+            if($('dashSumSearchBox')) $('dashSumSearchBox').style.display = '';
+            if($('dashSumCount')) $('dashSumCount').style.display = '';
+            renderSumTab();
+            var sin = $('dashSumSearch');
+            if(sin){ sin.value = dName === '(без направления)' ? '' : dName; drawTable(); }
+          };
+        });
+      } else {
+        box.innerHTML = '<div id="dashSumTblBox"></div>';
+        drawTable();
+      }
+    }
+
     function drawTable(){
-      var q = ($('dashSumSearch').value || '').trim().toLowerCase();
+      var q = ($('dashSumSearch') ? $('dashSumSearch').value : '').trim().toLowerCase();
       var rows = !q ? r.rows : r.rows.filter(function(x){
         return (x.unit||'').toLowerCase().indexOf(q) >= 0 ||
                (x.resp||'').toLowerCase().indexOf(q) >= 0 ||
                (x.hrbp||'').toLowerCase().indexOf(q) >= 0 ||
                (x.dir||'').toLowerCase().indexOf(q) >= 0;
       });
-      // Счётчик живёт в панели рядом с поиском, а не отдельной строкой над
-      // таблицей — иначе он снова отодвигает её вниз.
-      $('dashSumCount').innerHTML = tblCount(rows.length, r.rows.length,
-        ['подразделение', 'подразделения', 'подразделений']);
+      if($('dashSumCount')){
+        $('dashSumCount').innerHTML = tblCount(rows.length, r.rows.length,
+          ['подразделение', 'подразделения', 'подразделений']);
+      }
       var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Подразделение</th><th>Ответственный</th><th class="num">Компании</th>'+
         '<th class="num">Уточнить</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
@@ -4562,16 +5080,18 @@ function openDash(){
           '<td class="num" style="font-size:12px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
       }).join('') : '<tr><td colspan="6"><div class="empty">Ничего не найдено</div></td></tr>';
       t += '</tbody></table></div>';
-      $('dashSumTblBox').innerHTML = t;
+      if($('dashSumTblBox')) $('dashSumTblBox').innerHTML = t;
 
-      $('dashSumTblBox').onclick = function(e){
-        var tr = e.target.closest('tr[data-u]');
-        if(!tr) return;
-        openUnit(tr.dataset.u, openDash);
-      };
+      if($('dashSumTblBox')){
+        $('dashSumTblBox').onclick = function(e){
+          var tr = e.target.closest('tr[data-u]');
+          if(!tr) return;
+          openUnit(tr.dataset.u, openDash);
+        };
+      }
     }
-    drawTable();
-    $('dashSumSearch').oninput = drawTable;
+
+    renderSumTab();
 
     $('btnPeriod').onclick = function(){
       var btn = this;
