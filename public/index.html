@@ -3195,6 +3195,7 @@ function renderAdminUsers(){
       '<td class="u-t-login">'+esc(u.login)+
         (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
       '</td>'+
+      '<td class="u-t-dim">'+esc(u.phone || '—')+'</td>'+
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
       '<td>'+(u.units?u.units.length:0)+'</td>'+
@@ -3223,7 +3224,7 @@ function renderAdminUsers(){
 
   h += '<div class="tblwrap tblwrap--page u-tblwrap"><table class="co-tbl u-tbl">'+
     '<thead><tr>'+
-      '<th>ФИО</th><th>Логин</th><th>Роль</th><th>Статус</th>'+
+      '<th>ФИО</th><th>Логин</th><th>Телефон</th><th>Роль</th><th>Статус</th>'+
       '<th>Подразделений</th><th>Вход</th><th>Действия</th>'+
     '</tr></thead>'+
     '<tbody>'+rows+'</tbody>'+
