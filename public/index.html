@@ -2730,12 +2730,13 @@ function updateProgress(){
 
   var nextBtn = $('btnNext');
   if(nextBtn){
+    nextBtn.classList.remove('hidden');
     if(S.tab === 'comp'){
-      nextBtn.classList.remove('hidden');
-      nextBtn.textContent = 'Перейти к шагу 2 →';
+      nextBtn.textContent = 'Перейти к шагу 2: Оклады →';
       nextBtn.onclick = function(){ S.tab = 'survey'; renderUnit(); };
     } else {
-      nextBtn.classList.add('hidden');
+      nextBtn.textContent = '← Назад к шагу 1: Конкуренты';
+      nextBtn.onclick = function(){ S.tab = 'comp'; renderUnit(); };
     }
   }
 
