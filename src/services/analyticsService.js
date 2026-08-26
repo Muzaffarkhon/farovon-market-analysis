@@ -278,6 +278,7 @@ async function getExtendedAnalytics(filters = {}) {
 }
 
 module.exports = {
-  calculatePercentiles,
+  calculateSalaryForkStats,
+  calculatePercentiles: calculateSalaryForkStats,
   getExtendedAnalytics
 };
