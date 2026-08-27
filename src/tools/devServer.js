@@ -59,8 +59,14 @@ app.all(['/api', '/api/*', '/health'], async (req, res) => {
   res.status(502).json({ ok: false, error: 'Сервер Render просыпается (cold start). Повторите через 5-10 секунд: ' + lastError?.message });
 });
 
-// Отдаём локальный статический фронтенд из public/
-app.use(express.static(path.join(__dirname, '../../public')));
+// Отдаём локальный статический фронтенд из public/ с запретом кэширования для dev-сервера
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+app.use(express.static(path.join(__dirname, '../../public'), { etag: false, maxAge: 0 }));
 
 // SPA fallback
 app.get('*', (req, res) => {
