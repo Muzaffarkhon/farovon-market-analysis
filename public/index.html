@@ -3764,7 +3764,7 @@ function renderAdminUsers(){
     else if(u.role === 'hrbp') rBadge = 'b-hrbp';
     else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
 
-    rows += '<tr id="urow_'+esc(u.login)+'">'+
+    rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
       '<td class="u-t-login">'+esc(u.login)+
         (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
@@ -3777,7 +3777,7 @@ function renderAdminUsers(){
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
 
-    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'">'+
+    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<div class="u-hd">'+
         '<div class="u-fio">'+esc(u.fio)+'</div>'+
         '<div>'+
@@ -3807,6 +3807,15 @@ function renderAdminUsers(){
   h += '<div class="u-cards">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
+
+  // Двойной клик на строку таблицы или карточку для быстрого открытия редактирования
+  $('adminContent').querySelectorAll('tr[data-login], .u-card[data-login]').forEach(function(el){
+    el.ondblclick = function(e){
+      if(e.target.closest('button, a, input, select')) return;
+      var login = this.dataset.login;
+      if(login) openUserModal(login);
+    };
+  });
 
   $('uSearch').oninput = function(){
     var pos = this.selectionStart;
