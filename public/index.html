@@ -1955,24 +1955,10 @@ function renderTabComp(){
 
   h += '<div class="card batch-card-wrap" style="padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs);margin-bottom:14px">';
 
-  h += '<div class="batch-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px;position:sticky;top:54px;background:var(--card);z-index:15">';
-  h += '<div>';
-  h += '<b style="font-size:15.5px">Компании подразделения</b>';
+  h += '<div class="batch-card-header" style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)">';
+  h += '<b style="font-size:15px">Компании подразделения</b>';
   h += '<div style="font-size:12px;color:var(--muted);margin-top:1px">Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</div>';
   h += '</div>';
-  if(!S.ro && S.rows.length > 0){
-    var btnIcon = isAllActual ? ic('close', 13) : ic('check', 13);
-    var btnText = isAllActual ? 'Снять отметку со всех' : 'Отметить все как «Актуально»';
-    var btnColorStyle = isAllActual ? 'color:var(--no);border-color:var(--no-border)' : '';
-    h += '<button type="button" class="btn-ghost" id="btnMarkAllActual" style="font-size:12px;padding:4px 8px;min-height:28px;white-space:nowrap;' + btnColorStyle + '">' +
-         btnIcon + btnText + '</button>';
-  }
-  h += '</div>';
-
-  if(S.rows.length > 6){
-    h += '<div class="search-wrap" style="margin-bottom:8px">'+icBare('search')+
-      '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>';
-  }
 
   h += '<div class="co-list-scroll">';
   h += '<div id="rows" class="batch-list" style="margin:4px 0">';
