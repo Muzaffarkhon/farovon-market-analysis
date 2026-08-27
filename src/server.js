@@ -103,13 +103,14 @@ if (require.main === module) {
 
     // Keep-Alive пинг для предотвращения засыпания Render в рабочее время (каждые 9 мин)
     if (config.nodeEnv === 'production' || process.env.RENDER) {
+      const http = require('http');
       const PING_INTERVAL = 9 * 60 * 1000;
-      setInterval(async () => {
+      setInterval(() => {
         try {
-          await fetch(`http://127.0.0.1:${config.port}/health`);
-        } catch (e) {
-          // Игнорируем сетевые ошибки локального пинга
-        }
+          http.get(`http://127.0.0.1:${config.port}/health`, (res) => {
+            res.resume();
+          }).on('error', () => {});
+        } catch (e) {}
       }, PING_INTERVAL).unref();
     }
   });
