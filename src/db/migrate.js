@@ -62,6 +62,13 @@ async function migrate() {
   // должности и компании по нескольку раз для каждой площадки отдельно.
   await ensureColumn('divisions', 'group_key', 'TEXT');
 
+  // Родительский отдел (Уровень 3→4): если подразделение является подотделом
+  // другого отдела, а не напрямую направления. Например: «Отдел оценки и
+  // вознаграждения» подчиняется «Управлению по работе с персоналом», которое
+  // в свою очередь относится к «Департаменту развития».
+  // NULL = прямое подчинение направлению (dir), без промежуточного родителя.
+  await ensureColumn('divisions', 'parent_unit', 'TEXT DEFAULT NULL');
+
   await run(`CREATE TABLE IF NOT EXISTS dictionary_segments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL

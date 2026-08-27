@@ -4382,22 +4382,44 @@ function promptAssignStaffToUnit(fio, targetUnit){
   });
 }
 
-function confirmMoveDivision(unit, targetDir, oldDir){
+function confirmMoveDivision(unit, targetDir, oldDir, parentUnit){
+  // parentUnit: если указан — отдел становится подотделом (Ур. 4);
+  //             null — прямое подчинение направлению (Ур. 3)
+  parentUnit = parentUnit || null;
+  var isSubunit = !!parentUnit;
+
+  var dlgHtml = isSubunit
+    ? 'Прикрепить подразделение <b>«' + esc(unit) + '»</b><br>как подотдел внутри <b>«' + esc(parentUnit) + '»</b>?<br><span style="font-size:12px;color:var(--muted)">Направление останется: <b>«' + esc(targetDir) + '»</b></span><br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-top:8px"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>'
+    : 'Перенести подразделение <b>«' + esc(unit) + '»</b><br>из направления <b>«' + esc(oldDir || 'Без направления') + '»</b><br>в направление <b>«' + esc(targetDir) + '»</b>?<br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-top:8px"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>';
+
   ask({
-    title: 'Переместить подразделение?',
-    html: 'Перенести подразделение <b>«' + esc(unit) + '»</b><br>из направления <b>«' + esc(oldDir || 'Без направления') + '»</b><br>в направление <b>«' + esc(targetDir) + '»</b>?<br><br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>',
-    ok: 'Переместить'
+    title: isSubunit ? 'Прикрепить как подотдел?' : 'Переместить подразделение?',
+    html: dlgHtml,
+    ok: isSubunit ? 'Прикрепить' : 'Переместить'
   }).then(function(yes){
     if(!yes) return;
     var chk = document.getElementById('chkCascadeComp');
     var cascade = chk ? chk.checked : true;
-    call('apiAdminMoveDivision', S.token, { unit: unit, targetDir: targetDir, cascadeCompetitors: cascade }).then(function(res){
+    call('apiAdminMoveDivision', S.token, { unit: unit, targetDir: targetDir, parentUnit: parentUnit, cascadeCompetitors: cascade }).then(function(res){
       if(res && res.ok){
-        toast('Подразделение «' + unit + '» перенесено в «' + targetDir + '»', 'ok');
+        var msg = isSubunit
+          ? 'Подразделение «' + unit + '» прикреплено под «' + parentUnit + '»'
+          : 'Подразделение «' + unit + '» перенесено в «' + targetDir + '»';
+        toast(msg, 'ok');
+        // Обновляем локальный кэш adminDivs
         (S.adminDivs || []).forEach(function(d){
-          if(d.unit === unit) d.dir = targetDir;
+          if(d.unit === unit){
+            d.dir = targetDir;
+            d.parent_unit = parentUnit;
+          }
         });
-        S.expandedDir = targetDir;
+        if(isSubunit){
+          // Раскрыть целевой отдел, чтобы показать подотдел
+          S.expandedUnit = parentUnit;
+          S.expandedDir = targetDir;
+        } else {
+          S.expandedDir = targetDir;
+        }
         saveNavState();
         renderAdminDivisions();
       } else {
@@ -4614,48 +4636,42 @@ function renderAdminDivisions(){
 
     h += '</div>'; // org-dirs-level-row end
 
-    // Уровень 3: Отделы выбранного направления (непрерывно привязаны к родительскому направлению)
-    var activeDirUnits = (S.expandedDir && dirGroups[S.expandedDir]) ? dirGroups[S.expandedDir] : [];
+    // Уровень 3: Отделы выбранного направления
+    // Показываем только отделы, прямо подчинённые направлению (parent_unit = NULL или пусто)
+    var activeDirUnits = (S.expandedDir && dirGroups[S.expandedDir])
+      ? dirGroups[S.expandedDir].filter(function(d){ return !d.parent_unit; })
+      : [];
     if(activeDirUnits.length > 0){
-      h += '<div class="org-level-section org-level-3-section">'+
-        '<div class="org-arrow-down-stem"></div>'+
-        '<div class="org-child-units-row">';
+      h += '<div class="org-level-section org-level-3-section">'+'<div class="org-arrow-down-stem"></div>'+'<div class="org-child-units-row">';
 
       activeDirUnits.forEach(function(d){
         var isUnitExpanded = (S.expandedUnit === d.unit);
         var isUnitActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'unit' && S.selectedOrgNode.unit === d.unit) || isUnitExpanded;
         var headOrResp = d.head || d.resp || d.hrbp || '';
 
+        // Считаем количество подотделов (Ur. 4) для этого отдела
+        var subunitsCount = (S.adminDivs || []).filter(function(x){ return x.parent_unit === d.unit; }).length;
+
         var unitStaffList = (S.adminUsers || []).filter(function(u){
           return u.unit && u.unit.toLowerCase() === d.unit.toLowerCase();
         });
 
-        h += '<div class="org-child-unit-col">'+
-          '<div class=\'org-card-box' + (isUnitActive ? ' is-active-card is-expanded-unit' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(d.unit)+'" data-dir="'+esc(d.dir || '')+'" style="width:245px" title="Зажмите для переноса в другое направление или на Уровень 1">'+
-            '<div class="org-card-title">'+esc(d.unit)+'</div>'+
-            '<div class="org-card-profile">'+
-              '<div class="org-avatar-circle" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">'+getInitials(headOrResp || d.unit)+'</div>'+
-              '<div class="org-card-profile-info">'+
-                '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
-                '<div class="org-card-role">'+(d.head ? 'Руководитель' : (d.resp ? 'Ответственный' : (d.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
-              '</div>'+
-            '</div>'+
-            '<div class="org-card-footer">'+
-              '<span>' + (unitStaffList.length ? (unitStaffList.length + ' сотр.') : 'Ответственный') + '</span>'+
-              '<span class="org-expand-tag" style="'+(isUnitExpanded?'background:#0284c7;color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' +
-                (isUnitExpanded ? 'Состав ⌃' : 'Состав ⌄') +
-              '</span>'+
-            '</div>'+
-          '</div>'+
-        '</div>';
+        h += '<div class="org-child-unit-col">'+'<div class=\'org-card-box' + (isUnitActive ? ' is-active-card is-expanded-unit' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(d.unit)+'" data-dir="'+esc(d.dir || '')+'" style="width:245px" title="Зажмите для переноса">'+'<div class="org-card-title">'+esc(d.unit)+'</div>'+'<div class="org-card-profile">'+'<div class="org-avatar-circle" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">'+getInitials(headOrResp || d.unit)+'</div>'+'<div class="org-card-profile-info">'+'<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+'<div class="org-card-role">'+(d.head ? 'Руководитель' : (d.resp ? 'Ответственный' : (d.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+'</div>'+'</div>'+'<div class="org-card-footer">'+'<span>' + (subunitsCount ? subunitsCount + ' подотд.' : (unitStaffList.length ? unitStaffList.length + ' сотр.' : 'Назначить')) + '</span>'+'<span class="org-expand-tag" style="'+(isUnitExpanded?'background:#0284c7;color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' + (isUnitExpanded ? (subunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) + '</span>'+'</div>'+'</div>'+'</div>';
       });
 
       h += '</div></div>'; // org-child-units-row, org-level-section end
     }
 
-    // Уровень 4: Состав и сотрудники выбранного отдела (привязаны к родительскому отделу)
+    // Уровень 4: Подотделы + состав выбранного отдела
     if(S.expandedUnit){
       var activeUnitObj = (S.adminDivs || []).find(function(x){ return x.unit === S.expandedUnit; });
+
+      // Подотделы (другие divisions с parent_unit = activeUnitObj.unit)
+      var subunits = (S.adminDivs || []).filter(function(x){
+        return x.parent_unit && x.parent_unit === S.expandedUnit;
+      });
+
+      // Состав отдела (руководитель, ответственный, HRBP, сотрудники)
       var level4Items = [];
       if(activeUnitObj){
         if(activeUnitObj.head) level4Items.push({ fio: activeUnitObj.head, role: 'Руководитель отдела', badge: 'head', bg: '#0284c7' });
@@ -4672,30 +4688,28 @@ function renderAdminDivisions(){
         });
       }
 
-      if(!level4Items.length){
-        level4Items.push({ fio: 'Сотрудники не назначены', role: 'Перетащите из панели справа', badge: 'empty', bg: '#94a3b8' });
+      // Если есть подотделы — рендерим их на Уровне 4 карточками отделов
+      if(subunits.length > 0){
+        h += '<div class="org-level-section org-level-4-section">'+'<div class="org-arrow-down-stem"></div>'+'<div class="org-grandchild-staff-row">';
+        subunits.forEach(function(su){
+          var isSubActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'unit' && S.selectedOrgNode.unit === su.unit);
+          var suHead = su.head || su.resp || su.hrbp || '';
+          h += '<div class="org-grandchild-col">'+'<div class=\'org-card-box' + (isSubActive ? ' is-active-card' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(su.unit)+'" data-dir="'+esc(su.dir || '')+'" style="width:230px" title="Подотдел">'+'<div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px">Подотдел</div>'+'<div class="org-card-title" style="font-size:12.5px">'+esc(su.unit)+'</div>'+'<div class="org-card-profile" style="margin-top:4px">'+'<div class="org-avatar-circle" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);width:26px;height:26px;font-size:10px">'+getInitials(suHead || su.unit)+'</div>'+'<div class="org-card-profile-info">'+'<div class="org-card-name" style="font-size:11.5px">'+(suHead ? esc(suHead) : 'Не назначен')+'</div>'+'<div class="org-card-role" style="font-size:10.5px">'+(su.head ? 'Руководитель' : (su.resp ? 'Ответственный' : 'Назначить'))+'</div>'+'</div>'+'</div>'+'</div>'+'</div>';
+        });
+        h += '</div></div>'; // org-grandchild-staff-row, org-level-section end
+
+      } else if(level4Items.length || !activeUnitObj){
+        // Подотделов нет — показываем сотрудников
+        if(!level4Items.length){
+          level4Items.push({ fio: 'Сотрудники не назначены', role: 'Перетащите из панели справа', badge: 'empty', bg: '#94a3b8' });
+        }
+        h += '<div class="org-level-section org-level-4-section">'+'<div class="org-arrow-down-stem"></div>'+'<div class="org-grandchild-staff-row">';
+        level4Items.forEach(function(st){
+          var isStaffActive = S.selectedOrgNode && S.selectedOrgNode.type === 'staff' && S.selectedOrgNode.fio === st.fio;
+          h += '<div class="org-grandchild-col">'+'<div class=\'org-card-box' + (isStaffActive ? ' is-active-card' : '') + '\' data-org-type="staff" data-fio="'+esc(st.fio)+'" data-u="'+esc(S.expandedUnit)+'" style="width:215px;padding:10px 12px">'+'<div style="display:flex;align-items:center;gap:8px">'+'<div class="org-avatar-circle" style="background:'+st.bg+';width:30px;height:30px;font-size:11px">'+getInitials(st.fio)+'</div>'+'<div style="flex:1;overflow:hidden">'+'<div style="font-size:11.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.fio)+'</div>'+'<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.role)+'</div>'+'</div>'+'</div>'+'</div>'+'</div>';
+        });
+        h += '</div></div>'; // org-grandchild-staff-row, org-level-section end
       }
-
-      h += '<div class="org-level-section org-level-4-section">'+
-        '<div class="org-arrow-down-stem"></div>'+
-        '<div class="org-grandchild-staff-row">';
-
-      level4Items.forEach(function(st){
-        var isStaffActive = S.selectedOrgNode && S.selectedOrgNode.type === 'staff' && S.selectedOrgNode.fio === st.fio;
-        h += '<div class="org-grandchild-col">'+
-          '<div class=\'org-card-box' + (isStaffActive ? ' is-active-card' : '') + '\' data-org-type="staff" data-fio="'+esc(st.fio)+'" data-u="'+esc(S.expandedUnit)+'" style="width:215px;padding:10px 12px">'+
-            '<div style="display:flex;align-items:center;gap:8px">'+
-              '<div class="org-avatar-circle" style="background:'+st.bg+';width:30px;height:30px;font-size:11px">'+getInitials(st.fio)+'</div>'+
-              '<div style="flex:1;overflow:hidden">'+
-                '<div style="font-size:11.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.fio)+'</div>'+
-                '<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.role)+'</div>'+
-              '</div>'+
-            '</div>'+
-          '</div>'+
-        '</div>';
-      });
-
-      h += '</div></div>'; // org-grandchild-staff-row, org-level-section end
     }
 
     h += '</div></div>'; // org-tree-flow, org-chart-canvas-wrap end
@@ -5295,11 +5309,23 @@ function renderAdminDivisions(){
         return;
       }
 
-      // 2. Перемещение подразделения (Уровень 3)
+      // 2. Перемещение подразделения (Drag-and-Drop)
       if(p.type === 'unit'){
-        var destDir = (targetType === 'dir') ? targetDir : (targetDir || targetUnit);
-        if(destDir && destDir !== p.oldDir){
-          confirmMoveDivision(p.val, destDir, p.oldDir);
+        // Сценарий A: сброшен на карточку НАПРАВЛЕНИЯ (Уровень 2)
+        // → переносить отдел напрямую в это направление (без родительского отдела)
+        if(targetType === 'dir' && targetDir && targetDir !== p.oldDir){
+          confirmMoveDivision(p.val, targetDir, p.oldDir, null);
+          return;
+        }
+        // Сценарий B: сброшен на карточку другого ОТДЕЛА (Уровень 3 → 4)
+        // → отдел становится подотделом, наследует dir целевого отдела
+        if(targetType === 'unit' && targetUnit && targetUnit !== p.val){
+          var targetDivObj = (S.adminDivs || []).find(function(x){ return x.unit === targetUnit; });
+          var parentDir = targetDivObj ? (targetDivObj.dir || targetUnit) : targetUnit;
+          if(parentDir){
+            confirmMoveDivision(p.val, parentDir, p.oldDir, targetUnit);
+          }
+          return;
         }
         return;
       }

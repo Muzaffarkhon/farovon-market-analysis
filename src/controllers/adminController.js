@@ -445,13 +445,14 @@ exports.saveDivision = async (req, res) => {
 };
 
 exports.moveDivisionCascade = async (req, res) => {
-  const { unit, targetDir, cascadeCompetitors } = req.body;
+  const { unit, targetDir, parentUnit, cascadeCompetitors } = req.body;
   if (!unit || !targetDir) {
     return res.status(400).json({ ok: false, error: 'Укажите подразделение и целевое направление' });
   }
 
   const cleanUnit = String(unit).trim();
   const cleanTargetDir = String(targetDir).trim();
+  const cleanParentUnit = parentUnit ? String(parentUnit).trim() : null;
 
   try {
     const existing = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
@@ -460,9 +461,11 @@ exports.moveDivisionCascade = async (req, res) => {
     }
 
     const oldDir = existing.dir;
+    const oldParentUnit = existing.parent_unit || null;
 
-    // 1. Обновляем divisions
-    await run('UPDATE divisions SET dir = ?, updated_at = CURRENT_TIMESTAMP WHERE unit = ?', [cleanTargetDir, cleanUnit]);
+    // 1. Обновляем divisions: dir и parent_unit
+    await run('UPDATE divisions SET dir = ?, parent_unit = ?, updated_at = CURRENT_TIMESTAMP WHERE unit = ?',
+      [cleanTargetDir, cleanParentUnit, cleanUnit]);
 
     // 2. Каскадное обновление в competitors (если включено или по умолчанию)
     let compUpdated = 0;
@@ -472,18 +475,26 @@ exports.moveDivisionCascade = async (req, res) => {
     }
 
     // 3. Запись в аудит-лог
+    const hierarchyStr = cleanParentUnit
+      ? `Уровень 4: подотдел "${cleanUnit}" внутри "${cleanParentUnit}" (напр.: "${cleanTargetDir}")`
+      : `Перенос "${cleanUnit}" из "${oldDir || 'Без направления'}" в напр.: "${cleanTargetDir}".Связей участников: ${compUpdated}`;
+
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'каскадный перенос подразделения',
-      `Подразделение "${cleanUnit}" перенесено из направления "${oldDir}" в "${cleanTargetDir}". Обновлено связей участников: ${compUpdated}`
+      hierarchyStr
     ]);
 
     res.json({
       ok: true,
-      message: `Подразделение "${cleanUnit}" перенесено в "${cleanTargetDir}"`,
+      message: cleanParentUnit
+        ? `Подразделение «${cleanUnit}» прикреплено под «${cleanParentUnit}»`
+        : `Подразделение «${cleanUnit}» перенесено в «${cleanTargetDir}»`,
       unit: cleanUnit,
       oldDir,
+      oldParentUnit,
       newDir: cleanTargetDir,
+      newParentUnit: cleanParentUnit,
       competitorsUpdated: compUpdated
     });
   } catch (err) {
