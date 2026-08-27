@@ -13,9 +13,12 @@ exports.getCBDashboard = async (req, res) => {
 
 exports.getHRBPDashboard = async (req, res) => {
   try {
-    const divisions = await queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions');
-    const competitors = await queryAll('SELECT unit, actual, updated_at FROM competitors');
-    const surveys = await queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена'");
+    const [divisions, competitors, surveys, periodRaw] = await Promise.all([
+      queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
+      queryAll('SELECT unit, actual, updated_at FROM competitors'),
+      queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена'"),
+      queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')
+    ]);
 
     const compMap = {};
     const lastMap = {};
@@ -60,7 +63,7 @@ exports.getHRBPDashboard = async (req, res) => {
 
     out.sort((a, b) => (a.done / (a.total || 1)) - (b.done / (b.total || 1)));
 
-    const period = (await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')) || { name: 'Обзор рынка', state: 'открыт' };
+    const period = periodRaw || { name: 'Обзор рынка', state: 'открыт' };
 
     res.json({
       ok: true,

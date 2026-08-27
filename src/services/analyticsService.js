@@ -39,8 +39,14 @@ async function getExtendedAnalytics(filters = {}) {
   const filterHrbp = (filters.hrbp || '').trim();
   const searchPos = (filters.search || '').trim().toLowerCase();
 
+  // Параллельный запуск всех запросов к БД в 1 сетевом раунде
+  const [divisions, competitors, surveys] = await Promise.all([
+    queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
+    queryAll('SELECT unit, actual FROM competitors'),
+    queryAll("SELECT * FROM surveys WHERE state != 'удалена'")
+  ]);
+
   // 1. Оргструктура
-  const divisions = await queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions');
   const unitMap = {};
   divisions.forEach(d => {
     unitMap[d.unit] = {
@@ -56,7 +62,6 @@ async function getExtendedAnalytics(filters = {}) {
   });
 
   // 2. Конкуренты
-  const competitors = await queryAll('SELECT unit, actual FROM competitors');
   competitors.forEach(c => {
     if (unitMap[c.unit]) {
       unitMap[c.unit].totalComp++;
@@ -68,9 +73,6 @@ async function getExtendedAnalytics(filters = {}) {
       }
     }
   });
-
-  // 3. Данные по рынку (Анкеты)
-  const surveys = await queryAll("SELECT * FROM surveys WHERE state != 'удалена'");
 
   let totalRecords = 0;
   let recordsWithSalary = 0;

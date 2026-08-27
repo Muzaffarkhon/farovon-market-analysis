@@ -93,15 +93,25 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
-  // Схему доводим до актуальной до того, как примем первый запрос. Ошибку не
-  // проглатываем молча, но и сервер не роняем: без миграции работает всё, кроме
-  // новых справочников, и это лучше, чем недоступное приложение у 111 человек.
+  // Схему доводим до актуальной до того, как примем первый запрос.
   migrate().catch(err => console.error('❌ Миграция не выполнена:', err.message));
 
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
     console.log(`📁 База данных: ${config.dbPath}`);
     console.log(`🌐 Окружение: ${config.nodeEnv}\n`);
+
+    // Keep-Alive пинг для предотвращения засыпания Render в рабочее время (каждые 9 мин)
+    if (config.nodeEnv === 'production' || process.env.RENDER) {
+      const PING_INTERVAL = 9 * 60 * 1000;
+      setInterval(async () => {
+        try {
+          await fetch(`http://127.0.0.1:${config.port}/health`);
+        } catch (e) {
+          // Игнорируем сетевые ошибки локального пинга
+        }
+      }, PING_INTERVAL).unref();
+    }
   });
 }
 

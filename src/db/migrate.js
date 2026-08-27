@@ -115,6 +115,13 @@ async function migrate() {
     }
     console.log('🔧 Миграция: конструктор ролей заполнен правами по умолчанию');
   }
+
+  // Составные индексы для мгновенной выборки и ускорения работы
+  await run('CREATE INDEX IF NOT EXISTS idx_competitors_unit_actual ON competitors(unit, actual)');
+  await run('CREATE INDEX IF NOT EXISTS idx_surveys_unit_state ON surveys(unit, state)');
+  await run('CREATE INDEX IF NOT EXISTS idx_divisions_dir ON divisions(dir)');
+  await run('CREATE INDEX IF NOT EXISTS idx_dict_companies_name ON dictionary_companies(name)');
+  await run('CREATE INDEX IF NOT EXISTS idx_dict_positions_name ON dictionary_positions(name)');
 }
 
 module.exports = { migrate, ensureColumn };
