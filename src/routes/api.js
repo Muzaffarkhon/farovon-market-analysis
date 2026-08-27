@@ -52,6 +52,8 @@ router.post('/admin/users/:login/restore', requireCapability('users:edit'), admi
 
 router.get('/admin/divisions', requireCapability('divisions:view'), adminController.getDivisions);
 router.post('/admin/divisions', requireCapability('divisions:edit'), adminController.saveDivision);
+router.post('/admin/divisions/move', requireCapability('divisions:edit'), adminController.moveDivisionCascade);
+router.post('/admin/divisions/batch-assign', requireCapability('divisions:edit'), adminController.batchAssignCascade);
 
 router.get('/admin/dictionary/:kind', requireCapability('dictionary:view'), dictionaryController.list);
 router.get('/admin/dictionary/:kind/usage', requireCapability('dictionary:edit'), dictionaryController.usage);

@@ -400,6 +400,11 @@ exports.saveDivision = async (req, res) => {
         WHERE unit = ?
       `, [head, resp, note, cleanUnit]);
 
+      // Сквозное обновление подразделения сотрудника в таблице пользователей
+      if (resp || head) {
+        await run('UPDATE users SET unit = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(fio) = LOWER(?)', [cleanUnit, resp || head]);
+      }
+
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
         'правка подразделения (dir_head)',
@@ -416,10 +421,15 @@ exports.saveDivision = async (req, res) => {
           resp = COALESCE(?, resp),
           hrbp = COALESCE(?, hrbp),
           note = COALESCE(?, note),
-          group_key = COALESCE(?, group_key),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [cleanDir, head, resp, hrbp, note, group, cleanUnit]);
+    `, [cleanDir, head, resp, hrbp, note, cleanUnit]);
+
+    // Сквозное обновление подразделения сотрудника в таблице пользователей
+    const assignedPerson = resp || head || hrbp;
+    if (assignedPerson) {
+      await run('UPDATE users SET unit = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(fio) = LOWER(?)', [cleanUnit, assignedPerson]);
+    }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
@@ -431,6 +441,94 @@ exports.saveDivision = async (req, res) => {
   } catch (err) {
     console.error('saveDivision error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка сохранения подразделения' });
+  }
+};
+
+exports.moveDivisionCascade = async (req, res) => {
+  const { unit, targetDir, cascadeCompetitors } = req.body;
+  if (!unit || !targetDir) {
+    return res.status(400).json({ ok: false, error: 'Укажите подразделение и целевое направление' });
+  }
+
+  const cleanUnit = String(unit).trim();
+  const cleanTargetDir = String(targetDir).trim();
+
+  try {
+    const existing = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
+    if (!existing) {
+      return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
+    }
+
+    const oldDir = existing.dir;
+
+    // 1. Обновляем divisions
+    await run('UPDATE divisions SET dir = ?, updated_at = CURRENT_TIMESTAMP WHERE unit = ?', [cleanTargetDir, cleanUnit]);
+
+    // 2. Каскадное обновление в competitors (если включено или по умолчанию)
+    let compUpdated = 0;
+    if (cascadeCompetitors !== false) {
+      const compResult = await run('UPDATE competitors SET dir = ? WHERE unit = ?', [cleanTargetDir, cleanUnit]);
+      compUpdated = (compResult && compResult.changes) || 0;
+    }
+
+    // 3. Запись в аудит-лог
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'каскадный перенос подразделения',
+      `Подразделение "${cleanUnit}" перенесено из направления "${oldDir}" в "${cleanTargetDir}". Обновлено связей участников: ${compUpdated}`
+    ]);
+
+    res.json({
+      ok: true,
+      message: `Подразделение "${cleanUnit}" перенесено в "${cleanTargetDir}"`,
+      unit: cleanUnit,
+      oldDir,
+      newDir: cleanTargetDir,
+      competitorsUpdated: compUpdated
+    });
+  } catch (err) {
+    console.error('moveDivisionCascade error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка перемещения подразделения' });
+  }
+};
+
+exports.batchAssignCascade = async (req, res) => {
+  const { dir, roleType, personName } = req.body;
+  if (!dir || !roleType || personName === undefined) {
+    return res.status(400).json({ ok: false, error: 'Укажите направление, тип роли (head/hrbp/resp) и ФИО сотрудника' });
+  }
+
+  const cleanDir = String(dir).trim();
+  const cleanPerson = String(personName || '').trim();
+
+  try {
+    let divResult;
+    if (roleType === 'hrbp') {
+      divResult = await run('UPDATE divisions SET hrbp = ?, updated_at = CURRENT_TIMESTAMP WHERE dir = ?', [cleanPerson, cleanDir]);
+      // Каскадно обновляем competitors
+      await run('UPDATE competitors SET hrbp = ? WHERE dir = ?', [cleanPerson, cleanDir]);
+    } else if (roleType === 'head') {
+      divResult = await run('UPDATE divisions SET head = ?, updated_at = CURRENT_TIMESTAMP WHERE dir = ?', [cleanPerson, cleanDir]);
+    } else if (roleType === 'resp') {
+      divResult = await run('UPDATE divisions SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE dir = ?', [cleanPerson, cleanDir]);
+    } else {
+      return res.status(400).json({ ok: false, error: 'Неизвестный тип роли' });
+    }
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'каскадное назначение роли',
+      `Направление "${cleanDir}": ${roleType} -> "${cleanPerson || 'Сброшено'}" (подразделений: ${(divResult && divResult.changes) || 0})`
+    ]);
+
+    res.json({
+      ok: true,
+      message: `Роль успешно назначена на направление "${cleanDir}"`,
+      affectedDivisions: (divResult && divResult.changes) || 0
+    });
+  } catch (err) {
+    console.error('batchAssignCascade error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка каскадного назначения' });
   }
 };
 

@@ -79,34 +79,92 @@
     --line: #1e293b;
     --line-strong: #334155;
     --text: #f8fafc;
-    --muted: #a8b6c8;
-    --subtle: #7c8da3;
+    --muted: #94a3b8;
+    --subtle: #64748b;
     
+    --color-canvas-white: #0f172a;
+    --color-paper-mist: #1e293b;
+    --color-ash: #334155;
+    --color-smoke: #475569;
+    --color-pebble: #64748b;
+    --color-midnight-ink: #f8fafc;
+    --color-charcoal: #f1f5f9;
+    --color-graphite: #e2e8f0;
+    --color-slate: #cbd5e1;
+    --color-steel: #94a3b8;
+    --color-fog: #94a3b8;
+    --color-silver: #64748b;
+
     --accent: #3b82f6;
     --accent-hover: #60a5fa;
-    --accent-soft: rgba(59, 130, 246, 0.12);
-    --accent-border: rgba(59, 130, 246, 0.28);
+    --accent-soft: rgba(59, 130, 246, 0.15);
+    --accent-border: rgba(59, 130, 246, 0.35);
     
     --ok: #10b981;
     --ok-hover: #34d399;
-    --ok-soft: rgba(16, 185, 129, 0.12);
-    --ok-border: rgba(16, 185, 129, 0.28);
+    --ok-soft: rgba(16, 185, 129, 0.15);
+    --ok-border: rgba(16, 185, 129, 0.35);
     
     --no: #f43f5e;
     --no-hover: #fb7185;
-    --no-soft: rgba(244, 63, 94, 0.12);
-    --no-border: rgba(244, 63, 94, 0.28);
+    --no-soft: rgba(244, 63, 94, 0.15);
+    --no-border: rgba(244, 63, 94, 0.35);
     
     --warn: #f59e0b;
     --warn-hover: #fbbf24;
-    --warn-soft: rgba(245, 158, 11, 0.12);
-    --warn-border: rgba(245, 158, 11, 0.28);
+    --warn-soft: rgba(245, 158, 11, 0.15);
+    --warn-border: rgba(245, 158, 11, 0.35);
     
     --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
   }
+}
+
+html.dark, body.dark, [data-theme="dark"] {
+  --bg: #090d16;
+  --card: #111827;
+  --card-hover: #1f2937;
+  --card-2: #1e293b;
+  --line: #1e293b;
+  --line-strong: #334155;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --subtle: #64748b;
+  
+  --color-canvas-white: #0f172a;
+  --color-paper-mist: #1e293b;
+  --color-ash: #334155;
+  --color-smoke: #475569;
+  --color-pebble: #64748b;
+  --color-midnight-ink: #f8fafc;
+  --color-charcoal: #f1f5f9;
+  --color-graphite: #e2e8f0;
+  --color-slate: #cbd5e1;
+  --color-steel: #94a3b8;
+  --color-fog: #94a3b8;
+  --color-silver: #64748b;
+
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --accent-border: rgba(59, 130, 246, 0.35);
+  
+  --ok: #10b981;
+  --ok-hover: #34d399;
+  --ok-soft: rgba(16, 185, 129, 0.15);
+  --ok-border: rgba(16, 185, 129, 0.35);
+  
+  --no: #f43f5e;
+  --no-hover: #fb7185;
+  --no-soft: rgba(244, 63, 94, 0.15);
+  --no-border: rgba(244, 63, 94, 0.35);
+  
+  --warn: #f59e0b;
+  --warn-hover: #fbbf24;
+  --warn-soft: rgba(245, 158, 11, 0.15);
+  --warn-border: rgba(245, 158, 11, 0.35);
 }
 
 * {
@@ -292,14 +350,23 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  padding: 10px 20px 14px;
+  padding: 0 12px 6px 12px;
   min-height: 0;
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.wrap.is-scrollable {
+  overflow-y: auto;
 }
 
 body.has-bar .wrap {
-  padding-bottom: 110px;
+  padding-bottom: 80px;
 }
 
 .wrap::-webkit-scrollbar {
@@ -499,10 +566,15 @@ body.has-bar .wrap {
   .wrap {
     max-width: 100%;
     margin: 0;
-    padding: 10px 24px 14px;
+    padding: 0 16px 12px 16px;
     min-height: 0;
+    height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
+    flex: 1;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   #unitsContainer {
@@ -1940,62 +2012,7 @@ label.lbl {
   min-width: 140px;
 }
 
-/* ─── Уведомления и Модальные окна ───
-   Уведомление стоит справа под шапкой, а не по центру внизу: снизу его
-   перекрывала панель сохранения, и подтверждение сохранения было не видно
-   ровно в тот момент, когда оно нужно. */
-.toast {
-  position: fixed;
-  top: 70px;
-  right: 16px;
-  z-index: 80;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  font-size: 13.5px;
-  font-weight: 500;
-  line-height: 1.45;
-  max-width: min(360px, calc(100vw - 32px));
-  box-shadow: var(--shadow-lg);
-  animation: toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
 
-.toast.t-ok { border-left-color: var(--ok); }
-.toast.t-no { border-left-color: var(--no); }
-
-.toast-ic {
-  flex: none;
-  margin-top: 1px;
-  color: var(--accent);
-}
-
-.toast.t-ok .toast-ic { color: var(--ok); }
-.toast.t-no .toast-ic { color: var(--no); }
-
-@keyframes toast-in {
-  from { opacity: 0; transform: translateX(16px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toast { animation: none; }
-}
-
-/* На узком экране шапка ниже, а места справа нет — растягиваем на ширину. */
-@media (max-width: 640px) {
-  .toast {
-    top: 66px;
-    left: 12px;
-    right: 12px;
-    max-width: none;
-  }
-}
 
 .err {
   background: var(--no-soft);
@@ -2569,14 +2586,14 @@ label.lbl {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-ash);
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
 .co-tbl td {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-ash);
-  color: var(--color-charcoal);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
   vertical-align: middle;
 }
 
@@ -2586,7 +2603,7 @@ label.lbl {
 }
 
 .co-tbl tr:hover td {
-  background: #fafafa;
+  background: var(--card-hover);
 }
 
 .dept-quick-select, .dept-pick-btn {
@@ -3017,7 +3034,7 @@ label.lbl {
    (326 подразделений, 110 пользователей, журнал аудита) скроллятся внутри
    себя с закреплённой шапкой, а короткие остаются как были. */
 .tblwrap {
-  max-height: min(78vh, 780px);
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
 }
 
@@ -3382,8 +3399,9 @@ label.lbl {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  height: calc(100vh - 185px);
-  max-height: calc(100vh - 185px);
+  height: calc(100vh - 110px) !important;
+  min-height: calc(100vh - 110px) !important;
+  max-height: calc(100vh - 110px) !important;
   overflow-y: auto;
   overflow-x: auto;
   margin-bottom: 0;
@@ -3392,14 +3410,15 @@ label.lbl {
 
 #dictBox .tblwrap--page,
 #dashSumTabBody .tblwrap--page {
-  height: calc(100vh - 225px);
-  max-height: calc(100vh - 225px);
+  height: calc(100vh - 140px) !important;
+  min-height: calc(100vh - 140px) !important;
+  max-height: calc(100vh - 140px) !important;
 }
 
 @media (max-width: 700px) {
   .page-head-act, .toolbar-act { margin-left: 0; }
   .page-head-stats { gap: 16px; }
-  .tblwrap--page { min-height: 50vh; max-height: min(68vh, 720px); }
+  .tblwrap--page { min-height: 50vh; max-height: min(85vh, 720px); }
 }
 
 /* ═══ Множественный выбор (направления и т.п.) ═══════════════════════════
@@ -3579,7 +3598,18 @@ label.lbl {
    ═══════════════════════════════════════════════════════════ */
 html.compact { font-size: 13.5px; }
 
-.compact .wrap { padding: 12px 12px 110px; }
+.compact .wrap {
+  padding: 0 12px 12px 12px;
+  height: calc(100vh - 48px);
+  max-height: calc(100vh - 48px);
+  flex: 1;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.compact body.has-bar .wrap {
+  padding-bottom: 80px;
+}
 
 .compact .top {
   min-height: 48px;
@@ -3939,12 +3969,12 @@ html.compact { font-size: 13.5px; }
   min-width: 260px;
 }
 
-/* ─── Всплывающие уведомления (Toast Stack - внизу справа) ─── */
+/* ─── Всплывающие уведомления (Toast Stack - в самом низу справа) ─── */
 .toast-stack {
   position: fixed !important;
   top: auto !important;
-  bottom: 24px !important;
-  right: 24px !important;
+  bottom: 16px !important;
+  right: 16px !important;
   left: auto !important;
   z-index: 99999 !important;
   display: flex !important;
@@ -3952,7 +3982,7 @@ html.compact { font-size: 13.5px; }
   gap: 8px !important;
   pointer-events: none !important;
   max-width: 420px !important;
-  width: calc(100vw - 48px) !important;
+  width: auto !important;
 }
 
 .toast {
@@ -3964,7 +3994,7 @@ html.compact { font-size: 13.5px; }
   color: var(--color-midnight-ink);
   padding: 10px 14px;
   border-radius: var(--radius-buttons);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--color-ash);
   border-left: 4px solid var(--accent);
   font-size: 13px;
@@ -4055,9 +4085,749 @@ html.compact { font-size: 13.5px; }
 
 @media (max-width: 640px) {
   .toast-stack {
-    bottom: 16px;
-    right: 16px;
-    left: 16px;
-    width: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
+    left: auto !important;
+    max-width: calc(100vw - 32px) !important;
   }
+  body.has-bar .toast-stack {
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ─── Валидация полей ввода и обязательные поля ─── */
+.is-invalid {
+  border-color: var(--color-crimson-vivid, #dc2626) !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+  background-color: rgba(220, 38, 38, 0.02) !important;
+}
+
+.chips.is-invalid {
+  border: 1px solid var(--color-crimson-vivid, #dc2626) !important;
+  border-radius: var(--radius-elements, 8px) !important;
+  padding: 4px !important;
+  background-color: rgba(220, 38, 38, 0.03) !important;
+}
+
+.req-star {
+  color: var(--color-crimson-vivid, #dc2626);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.b-clear-card,
+.b-clear-their {
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.b-clear-card:hover,
+.b-clear-their:hover {
+  color: var(--color-crimson-vivid, #dc2626) !important;
+}
+
+/* ─── Интерактивная иерархическая оргструктура (Enterprise Org-Chart) ─── */
+.org-tree-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.org-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-elements, 10px);
+  flex-shrink: 0;
+}
+
+.org-tree-wrapper .tblwrap--page {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.org-workspace-root {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  background-color: #f8fafc;
+  border-radius: var(--radius-elements, 12px);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+/* Верхняя панель управления оргструктурой */
+.org-tree-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--card, #ffffff);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  z-index: 10;
+  gap: 12px;
+}
+
+.org-tree-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.org-top-pill-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.org-tree-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-hover, #f8fafc);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.org-tree-search-wrap input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  width: 190px;
+}
+
+.org-workspace-body {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+/* Плавающий фиксированный нижний виджет зума (привязан к рабочей области) */
+.org-bottom-zoom-pill {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  padding: 5px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+}
+
+/* Плавающая кнопка открытия правой панели, когда она скрыта */
+.org-drawer-toggle-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.org-drawer-toggle-btn:hover {
+  background: var(--card-hover, #f1f5f9);
+  transform: translateY(-1px);
+}
+
+.org-zoom-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.org-zoom-btn:hover {
+  background-color: var(--card-hover, #f1f5f9);
+}
+
+.org-zoom-pct {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 42px;
+  text-align: center;
+}
+
+/* Основной холст со связями */
+.org-chart-canvas-wrap {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 28px 40px 30px 40px;
+  position: relative;
+  cursor: grab;
+}
+
+.org-chart-canvas-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.org-chart-canvas-wrap::-webkit-scrollbar-track {
+  background: var(--card-hover, rgba(0,0,0,0.02));
+  border-radius: 4px;
+}
+.org-chart-canvas-wrap::-webkit-scrollbar-thumb {
+  background: var(--line-focus, #cbd5e1);
+  border-radius: 4px;
+}
+
+.org-chart-canvas-wrap.is-dragging-canvas {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.org-tree-flow {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100%;
+  width: max-content;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* Уровень 1: Корневой узел компании (Холдинг / Правление) */
+.org-root-level-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+  align-self: flex-start;
+}
+
+.org-root-card {
+  width: 290px;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-root-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  border-color: #38bdf8;
+}
+
+.org-root-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.org-root-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.org-root-sub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.org-root-arrow-stem {
+  width: 2px;
+  height: 32px;
+  background: #0284c7;
+  position: relative;
+  margin: 0 auto;
+}
+
+.org-root-arrow-stem::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #0284c7;
+}
+
+/* Уровень 2: Строка всех направлений/департаментов */
+/* Уровень 2: Строка всех направлений/департаментов (фиксированная ширина и отступы) */
+.org-dirs-level-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  position: relative;
+  padding-top: 24px;
+  margin-bottom: 20px;
+}
+
+.org-dirs-level-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 135px;
+  right: 135px;
+  height: 2px;
+  background: #38bdf8;
+}
+
+.org-dir-col-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 270px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.org-dir-col-item::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #38bdf8;
+}
+
+/* Секция уровня отделов / сотрудников (непрерывная древовидная цепочка) */
+.org-level-section,
+.org-level-3-section,
+.org-level-4-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+/* Направляющая стрелка вниз от конкретной родительской карточки */
+.org-arrow-down-stem {
+  width: 2px;
+  height: 28px;
+  background: #0284c7;
+  position: relative;
+  margin: 0;
+}
+
+.org-arrow-down-stem::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #0284c7;
+}
+
+/* Уровень 3: Подразделения раскрытого направления */
+.org-child-units-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  padding-top: 24px;
+}
+
+.org-child-units-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 122px;
+  right: 122px;
+  height: 2px;
+  background: #38bdf8;
+}
+
+.org-child-unit-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 245px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.org-child-unit-col::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #38bdf8;
+}
+
+/* Уровень 4: Сотрудники и ключевые должности отдела */
+.org-grandchild-staff-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+  padding-top: 24px;
+}
+
+.org-grandchild-staff-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 107px;
+  right: 107px;
+  height: 2px;
+  background: #38bdf8;
+}
+
+.org-grandchild-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 215px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.org-grandchild-col::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #38bdf8;
+}
+
+.org-constructor-box {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drop-target-hover {
+  outline: 2px dashed #0284c7 !important;
+  outline-offset: 2px;
+  background: rgba(2, 132, 199, 0.08) !important;
+}
+
+.org-grandchild-col::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #38bdf8;
+}
+
+/* Карточки подразделений */
+.org-card-box {
+  width: 100%;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.org-card-box:hover {
+  border-color: #38bdf8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(56, 189, 248, 0.12);
+}
+
+.org-card-box.is-expanded-dir {
+  border-color: #38bdf8;
+}
+
+.org-card-box.is-active-card {
+  border: 2px solid #0284c7 !important;
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15) !important;
+}
+
+.org-card-box.drop-target-hover {
+  border: 2px dashed #0284c7 !important;
+  background-color: rgba(2, 132, 199, 0.04) !important;
+}
+
+.org-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.org-card-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.org-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.org-card-profile-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.org-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.org-card-role {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.org-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.org-expand-tag {
+  background: rgba(2, 132, 199, 0.08);
+  color: #0284c7;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Правая выдвижная панель (Right Drawer) */
+.org-right-drawer {
+  width: 340px;
+  height: 100%;
+  background: var(--card, #ffffff);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.04);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.org-drawer-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.org-drawer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.org-drawer-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.org-stat-pill {
+  background: var(--card-hover, #f1f5f9);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.org-stat-pill b {
+  color: var(--text);
+  margin-left: 4px;
+}
+
+.org-drawer-search {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.org-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.org-section-lbl {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.org-staff-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-staff-row:hover {
+  border-color: #38bdf8;
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.1);
+}
+
+.org-staff-row.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.org-badge-role {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.org-role-select-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.org-role-select-card:hover {
+  background: var(--card-2);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }

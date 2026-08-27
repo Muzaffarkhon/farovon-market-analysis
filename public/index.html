@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=1787782703062">
+  <link rel="stylesheet" href="/style.css?v=1788000000000">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -147,7 +147,7 @@ var S = {
   surveys:[], removed:[],            // данные по должностям
   note:'', dirty:false, saving:false, ro:false
 };
-var LS_TOKEN = 'фаровон_токен', LS_DRAFT = 'фаровон_черновик_', LS_OB = 'фаровон_подсказка';
+var LS_TOKEN = 'фаровон_токен', LS_DRAFT = 'фаровон_черновик_', LS_OB = 'фаровон_подсказка', LS_NAV = 'фаровон_навигация';
 
 /** Хранилище с запасным вариантом: в некоторых браузерах localStorage запрещён. */
 var mem = {};
@@ -156,6 +156,52 @@ var store = {
   set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k] = v; } },
   del: function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
+
+function saveNavState(){
+  try {
+    var nav = {
+      appView: S.appView,
+      unit: S.unit,
+      tab: S.tab,
+      dashTab: S.dashTab,
+      dashSumTab: S.dashSumTab,
+      adminTab: S.adminTab,
+      adminDivsView: S.adminDivsView,
+      expandedDir: S.expandedDir,
+      expandedUnit: S.expandedUnit,
+      selectedOrgNode: S.selectedOrgNode,
+      orgZoom: S.orgZoom,
+      orgDrawerCollapsed: !!S.orgDrawerCollapsed,
+      orgScroll: S.orgScroll || null
+    };
+    store.set(LS_NAV, JSON.stringify(nav));
+  } catch(e){}
+}
+
+function restoreNavState(){
+  try {
+    var raw = store.get(LS_NAV);
+    if(!raw) return false;
+    var nav = JSON.parse(raw);
+    if(nav && typeof nav === 'object'){
+      if(nav.appView) S.appView = nav.appView;
+      if(nav.unit) S.unit = nav.unit;
+      if(nav.tab) S.tab = nav.tab;
+      if(nav.dashTab) S.dashTab = nav.dashTab;
+      if(nav.dashSumTab) S.dashSumTab = nav.dashSumTab;
+      if(nav.adminTab) S.adminTab = nav.adminTab;
+      if(nav.adminDivsView) S.adminDivsView = nav.adminDivsView;
+      if(nav.expandedDir) S.expandedDir = nav.expandedDir;
+      if(nav.expandedUnit) S.expandedUnit = nav.expandedUnit;
+      if(nav.selectedOrgNode) S.selectedOrgNode = nav.selectedOrgNode;
+      if(nav.orgZoom) S.orgZoom = nav.orgZoom;
+      if(nav.orgDrawerCollapsed !== undefined) S.orgDrawerCollapsed = nav.orgDrawerCollapsed;
+      if(nav.orgScroll) S.orgScroll = nav.orgScroll;
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
@@ -301,6 +347,8 @@ var API_ROUTES = {
   apiAdminRestoreUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/restore', { method:'POST', token:args[0] }); },
   apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminBatchAssignDivision: function(args){ return fetchJson('/api/admin/divisions/batch-assign', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGetRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'GET', token:args[0] }); },
   apiAdminSaveRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'POST', token:args[0], body:args[1] }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
@@ -1563,17 +1611,19 @@ function onLoaded(data){
   S.data = data;
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
-  // Admin/CB не заполняют анкеты сами, поэтому у них нет экрана «Мои
-  // подразделения» — на нём они увидели бы только «не назначены».
-  // Дефолт при первом входе — дашборд; как только пользователь сам
-  // переключится на другой раздел, S.appView уже не 'units', и это
-  // условие больше не сработает в текущей сессии.
-  if(isElevated && S.appView === 'units') S.appView = 'dashboard';
+
+  restoreNavState();
+
+  if(isElevated && (!S.appView || S.appView === 'units')) S.appView = 'dashboard';
   show('app');
   renderTopNav();
+
   if(data.needsUnitPick) renderUnitPicker();
   else if(data.needsAssignment) renderNeedsAssignment();
+  else if(S.appView === 'unit' && S.unit) openUnit(S.unit);
   else if(S.appView === 'dashboard') openDashboard();
+  else if(S.appView === 'dash_hrbp') openDash();
+  else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
 }
@@ -1658,7 +1708,10 @@ function renderUnitPicker(){
 // ЭКРАН: список подразделений
 // ═══════════════════════════════════════════════════════════
 function renderUnits(){
-  S.unit = null; S.dirty = false;
+  S.appView = 'units';
+  S.unit = null;
+  S.dirty = false;
+  saveNavState();
   setTop('Мои подразделения', userLabel(), false);
   $('bar').classList.add('hidden');
 
@@ -1816,8 +1869,10 @@ $('btnBack').onclick = function(){
 // ═══════════════════════════════════════════════════════════
 function openUnit(unit, backTo){
   S.backTo = backTo || renderUnits;
+  S.appView = 'unit';
   S.unit = unit;
   S.tab = 'comp';
+  saveNavState();
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
                       .map(function(r){ return JSON.parse(JSON.stringify(r)); });
   S.surveys = S.data.surveys.filter(function(r){ return r.unit === unit; })
@@ -3151,6 +3206,7 @@ window.addEventListener('beforeunload', function(e){
 function openDashboard(){
   S.appView = 'dashboard';
   S.unit = null;
+  saveNavState();
   renderTopNav();
   setTop('Аналитический Дашборд', userLabel(), false, 'dashboard');
   $('bar').classList.add('hidden');
@@ -3624,6 +3680,7 @@ function declOfNum(n, titles){
 function openAdminPanel(){
   S.appView = 'admin';
   S.unit = null;
+  saveNavState();
   renderTopNav();
   setTop('Администрирование', userLabel(), false, 'admin');
   $('bar').classList.add('hidden');
@@ -3659,10 +3716,11 @@ function renderAdminPanel(){
     S.adminTab = tabs[0].id;
   }
 
+  saveNavState();
   var curTab = tabs.filter(function(t){ return t.id === S.adminTab; })[0];
   setTop(curTab ? curTab.label : 'Панель Администратора', userLabel(), false, curTab ? curTab.icon : 'admin');
 
-  $('body').innerHTML = '<div id="adminContent" style="flex:1;min-height:0;display:flex;flex-direction:column"><div class="sp"><i></i> Загрузка…</div></div>';
+  $('body').innerHTML = '<div id="adminContent" style="flex:1;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden"><div class="sp"><i></i> Загрузка…</div></div>';
 
   if(S.adminTab === 'users') loadAdminUsers();
   else if(S.adminTab === 'archive') loadAdminArchive();
@@ -4161,45 +4219,1100 @@ function ensureAdminUsers(){
   }).catch(function(){});
 }
 
+function promptAssignStaffToDir(fio, targetDir){
+  var el = document.createElement('div');
+  el.className = 'sheet sheet--dialog';
+
+  var roles = [
+    {
+      type: 'hrbp',
+      title: 'Закрепить как HR BP всего направления',
+      desc: 'Каскадно назначит сотрудника HR BP во все отделы направления «' + targetDir + '»'
+    },
+    {
+      type: 'head',
+      title: 'Назначить руководителем направления',
+      desc: 'Каскадно назначит сотрудника руководителем всех отделов направления «' + targetDir + '»'
+    }
+  ];
+
+  var h = '<div class="sheet-in dlg" style="max-width:480px">'+
+    '<div class="sheet-hd" style="margin-bottom:8px">'+
+      '<b style="font-size:16px;font-weight:700">Назначить на направление?</b>'+
+      '<button class="btn-ghost" data-x="1" style="padding:4px 8px;min-height:auto">' + ic('close', 14) + '</button>'+
+    '</div>'+
+    '<div style="background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'+
+      '<div class="org-avatar-circle" style="background:#0284c7;width:34px;height:34px;font-size:12px;flex:none">'+getInitials(fio)+'</div>'+
+      '<div style="min-width:0;flex:1">'+
+        '<div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(fio)+'</div>'+
+        '<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Направление: <b>'+esc(targetDir)+'</b></div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Выберите назначаемую роль:</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
+      roles.map(function(r){
+        return '<button type="button" class="org-role-select-card" data-role="'+r.type+'" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%">'+
+          '<div style="font-weight:600;font-size:13px;color:var(--accent)">' + esc(r.title) + '</div>'+
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;white-space:normal">' + esc(r.desc) + '</div>'+
+        '</button>';
+      }).join('')+
+    '</div>'+
+    '<div style="display:flex;justify-content:flex-end">'+
+      '<button type="button" class="btn-line" data-x="1" style="min-height:34px;font-size:13px;padding:0 16px">Отмена</button>'+
+    '</div>'+
+  '</div>';
+
+  el.innerHTML = h;
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x || e.target.closest('[data-x]')){
+      el.remove();
+      return;
+    }
+    var card = e.target.closest('button[data-role]');
+    if(!card) return;
+    var roleType = card.dataset.role;
+    el.remove();
+
+    call('apiAdminBatchAssignDivision', S.token, { dir: targetDir, roleType: roleType, personName: fio }).then(function(res){
+      if(res && res.ok){
+        var roleTitle = roleType === 'hrbp' ? 'HR BP' : 'руководителем';
+        toast('Сотрудник «' + fio + '» назначен ' + roleTitle + ' направления «' + targetDir + '»', 'ok');
+        (S.adminDivs || []).forEach(function(d){ if(d.dir === targetDir) d[roleType] = fio; });
+        saveNavState();
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка назначения', 'err');
+      }
+    }).catch(function(){
+      toast('Нет связи с сервером', 'err');
+    });
+  });
+}
+
+function promptAssignStaffToUnit(fio, targetUnit){
+  var d = (S.adminDivs || []).find(function(x){ return x.unit === targetUnit; });
+  if(!d) return;
+
+  var el = document.createElement('div');
+  el.className = 'sheet sheet--dialog';
+
+  var roles = [
+    {
+      type: 'resp',
+      title: 'Ответственный за обзор рынка (resp)',
+      curr: d.resp,
+      desc: 'Отвечает за заполнение данных по рынку и проверку участников'
+    },
+    {
+      type: 'head',
+      title: 'Руководитель отдела (head)',
+      curr: d.head,
+      desc: 'Курирует подразделение и видит прогресс команды'
+    },
+    {
+      type: 'hrbp',
+      title: 'Закреплённый HR BP (hrbp)',
+      curr: d.hrbp,
+      desc: 'Курирует C&B процессы и методологию'
+    }
+  ];
+
+  var h = '<div class="sheet-in dlg" style="max-width:480px">'+
+    '<div class="sheet-hd" style="margin-bottom:8px">'+
+      '<b style="font-size:16px;font-weight:700">Назначить сотрудника в отдел?</b>'+
+      '<button class="btn-ghost" data-x="1" style="padding:4px 8px;min-height:auto">' + ic('close', 14) + '</button>'+
+    '</div>'+
+    '<div style="background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'+
+      '<div class="org-avatar-circle" style="background:#0284c7;width:34px;height:34px;font-size:12px;flex:none">'+getInitials(fio)+'</div>'+
+      '<div style="min-width:0;flex:1">'+
+        '<div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(fio)+'</div>'+
+        '<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Отдел: <b>'+esc(targetUnit)+'</b></div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Выберите назначаемую роль:</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
+      roles.map(function(r){
+        var repl = r.curr ? ('<div style="font-size:11px;color:var(--warn);margin-top:4px;white-space:normal;line-height:1.3">Заменит текущего: <b>' + esc(r.curr) + '</b></div>') : '';
+        return '<button type="button" class="org-role-select-card" data-role="'+r.type+'" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%">'+
+          '<div style="font-weight:600;font-size:13px;color:var(--accent)">' + esc(r.title) + '</div>'+
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;white-space:normal">' + esc(r.desc) + '</div>'+
+          repl +
+        '</button>';
+      }).join('')+
+    '</div>'+
+    '<div style="display:flex;justify-content:flex-end">'+
+      '<button type="button" class="btn-line" data-x="1" style="min-height:34px;font-size:13px;padding:0 16px">Отмена</button>'+
+    '</div>'+
+  '</div>';
+
+  el.innerHTML = h;
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x || e.target.closest('[data-x]')){
+      el.remove();
+      return;
+    }
+    var card = e.target.closest('button[data-role]');
+    if(!card) return;
+    var field = card.dataset.role;
+    el.remove();
+
+    var payload = { unit: targetUnit };
+    payload[field] = fio;
+    call('apiAdminSaveDivision', S.token, payload).then(function(res){
+      if(res && res.ok){
+        toast('Сотрудник «' + fio + '» назначен в отдел «' + targetUnit + '»', 'ok');
+        d[field] = fio;
+        (S.adminUsers || []).forEach(function(u){
+          if(u.fio && u.fio.toLowerCase() === fio.toLowerCase()){
+            u.unit = targetUnit;
+          }
+        });
+        saveNavState();
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка назначения', 'err');
+      }
+    }).catch(function(){
+      toast('Нет связи с сервером', 'err');
+    });
+  });
+}
+
+function confirmMoveDivision(unit, targetDir, oldDir){
+  ask({
+    title: 'Переместить подразделение?',
+    html: 'Перенести подразделение <b>«' + esc(unit) + '»</b><br>из направления <b>«' + esc(oldDir || 'Без направления') + '»</b><br>в направление <b>«' + esc(targetDir) + '»</b>?<br><br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>',
+    ok: 'Переместить'
+  }).then(function(yes){
+    if(!yes) return;
+    var chk = document.getElementById('chkCascadeComp');
+    var cascade = chk ? chk.checked : true;
+    call('apiAdminMoveDivision', S.token, { unit: unit, targetDir: targetDir, cascadeCompetitors: cascade }).then(function(res){
+      if(res && res.ok){
+        toast('Подразделение «' + unit + '» перенесено в «' + targetDir + '»', 'ok');
+        (S.adminDivs || []).forEach(function(d){
+          if(d.unit === unit) d.dir = targetDir;
+        });
+        S.expandedDir = targetDir;
+        saveNavState();
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка перемещения', 'err');
+      }
+    }).catch(function(){
+      toast('Нет связи с сервером', 'err');
+    });
+  });
+}
+
+function confirmPromoteToDir(unit){
+  ask({
+    title: 'Сделать направлением (Уровень 2)?',
+    html: 'Преобразовать подразделение <b>«' + esc(unit) + '»</b> в самостоятельное направление компании верхнего уровня?<br><br><span style="font-size:12px;color:var(--muted)">Оно появится на 2-м уровне оргструктуры и сможет содержать собственные отделы.</span>',
+    ok: 'Преобразовать'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminSaveDivision', S.token, { unit: unit, dir: unit }).then(function(res){
+      if(res && res.ok){
+        toast('Подразделение «' + unit + '» стало направлением', 'ok');
+        var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
+        if(d) d.dir = unit;
+        S.expandedDir = unit;
+        saveNavState();
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка преобразования', 'err');
+      }
+    }).catch(function(){
+      toast('Нет связи с сервером', 'err');
+    });
+  });
+}
+
+function confirmDemoteDirToUnit(dir, targetDir){
+  ask({
+    title: 'Переместить как отдел?',
+    html: 'Переместить направление <b>«' + esc(dir) + '»</b> и сделать его отделом внутри направления <b>«' + esc(targetDir) + '»</b>?<br><br><span style="font-size:12px;color:var(--muted)">Все отделы этого направления также будут объединены в «' + esc(targetDir) + '».</span>',
+    ok: 'Переместить'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminMoveDivision', S.token, { unit: dir, targetDir: targetDir, cascadeCompetitors: true }).then(function(res){
+      if(res && res.ok){
+        toast('Направление «' + dir + '» перемещено в «' + targetDir + '»', 'ok');
+        (S.adminDivs || []).forEach(function(d){
+          if(d.unit === dir || d.dir === dir) d.dir = targetDir;
+        });
+        S.expandedDir = targetDir;
+        saveNavState();
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка перемещения', 'err');
+      }
+    }).catch(function(){
+      toast('Нет связи с сервером', 'err');
+    });
+  });
+}
+
+function batchAssignDirection(dir, roleType){
+  var title = roleType === 'hrbp' ? 'Закрепить HR BP за направлением «' + dir + '»' : 'Назначить руководителя направления «' + dir + '»';
+  var allUsers = S.adminUsers || [];
+  var options = allUsers.filter(function(u){ return u.active !== false; }).map(function(u){
+    return '<option value="' + esc(u.fio) + '">' + esc(u.fio) + ' (' + esc(u.role) + ')</option>';
+  }).join('');
+
+  ask({
+    title: title,
+    html: '<p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Назначение применится ко всем отделам направления <b>«' + esc(dir) + '»</b> каскадно.</p>' +
+      '<select id="batchPersonSelect" style="width:100%;height:36px;font-size:13px;border-radius:6px;border:1px solid var(--line);padding:0 8px">' +
+        '<option value="">-- Выберите сотрудника --</option>' + options +
+      '</select>',
+    ok: 'Применить ко всем отделам'
+  }).then(function(yes){
+    if(!yes) return;
+    var sel = document.getElementById('batchPersonSelect');
+    var fio = sel ? sel.value : '';
+    if(!fio) return;
+
+    call('apiAdminBatchAssignDivision', S.token, { dir: dir, roleType: roleType, personName: fio }).then(function(res){
+      if(res && res.ok){
+        toast('Направление «' + dir + '» обновлено (' + fio + ')', 'ok');
+        (S.adminDivs || []).forEach(function(d){
+          if(d.dir === dir) d[roleType] = fio;
+        });
+        renderAdminDivisions();
+      } else {
+        toast((res && res.error) || 'Ошибка назначения', 'err');
+      }
+    });
+  });
+}
+
+function getInitials(name){
+  if(!name) return '—';
+  var p = name.trim().split(/\s+/);
+  if(p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
+  return (p[0][0] || '—').toUpperCase();
+}
+
 function renderAdminDivisions(){
+  var oldVp = $('orgViewport');
+  var prevScrollLeft = oldVp ? oldVp.scrollLeft : (S.orgScroll ? S.orgScroll.left : null);
+  var prevScrollTop = oldVp ? oldVp.scrollTop : (S.orgScroll ? S.orgScroll.top : null);
+
   var divs = S.adminDivs || [];
   var search = ($('divSearch') ? $('divSearch').value : '').toLowerCase();
+  var staffSearch = ($('staffSearch') ? $('staffSearch').value : '').toLowerCase();
+  var curView = S.adminDivsView || 'tree';
 
   var filtered = divs.filter(function(d){
     return !search || d.unit.toLowerCase().indexOf(search) >= 0 || d.dir.toLowerCase().indexOf(search) >= 0 ||
-      d.resp.toLowerCase().indexOf(search) >= 0 || d.hrbp.toLowerCase().indexOf(search) >= 0;
+      (d.resp && d.resp.toLowerCase().indexOf(search) >= 0) || (d.hrbp && d.hrbp.toLowerCase().indexOf(search) >= 0) ||
+      (d.head && d.head.toLowerCase().indexOf(search) >= 0);
   });
 
-  var h = '<div class="toolbar">'+
-    '<div class="search-wrap">'+icBare('search')+
-      '<input id="divSearch" placeholder="Поиск по отделу, направлению, ответственным…" value="'+esc(search)+'"></div>'+
-    tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+
-  '</div>';
+  // Группировка по направлениям
+  var dirGroups = {};
+  filtered.forEach(function(d){
+    var dirName = d.dir || 'Без направления';
+    if(!dirGroups[dirName]) dirGroups[dirName] = [];
+    dirGroups[dirName].push(d);
+  });
 
-  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
-    '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
-    filtered.map(function(d){
-      return '<tr>'+
-        '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
-        '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
-        '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-        '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:12px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
-      '</tr>';
-    }).join('')+
-  '</tbody></table></div>';
+  var dirNames = Object.keys(dirGroups).sort(function(a, b){
+    if(a === 'Без направления') return 1;
+    if(b === 'Без направления') return -1;
+    return a.localeCompare(b, 'ru');
+  });
+
+  // Выбранное направление и отдел
+  if(!S.expandedDir && dirNames.length > 0){
+    S.expandedDir = dirNames[0];
+  }
+  if(!S.expandedUnit && dirGroups[S.expandedDir] && dirGroups[S.expandedDir][0]){
+    S.expandedUnit = dirGroups[S.expandedDir][0].unit;
+  }
+  if(!S.selectedOrgNode && filtered.length > 0){
+    var firstUnit = dirGroups[S.expandedDir] && dirGroups[S.expandedDir][0] ? dirGroups[S.expandedDir][0] : filtered[0];
+    S.selectedOrgNode = { type: 'unit', unit: firstUnit.unit, dir: firstUnit.dir, resp: firstUnit.resp, head: firstUnit.head, hrbp: firstUnit.hrbp };
+  }
+
+  S.orgZoom = S.orgZoom || 0.85;
+
+  var h = '';
+
+  if(curView === 'tree'){
+    h += '<div class="org-workspace-root">'+
+      // 1. Верхняя панель управления оргструктурой
+      '<div class="org-tree-header-bar">'+
+        '<div class="org-tree-header-left">'+
+          '<div class="org-top-pill-title">' + ic('units', 16) + '<span>Структура компании</span></div>'+
+          '<div class="org-tree-search-wrap">'+
+            icBare('search', 14)+
+            '<input id="divSearch" placeholder="Поиск подразделения…" value="'+esc(search)+'">'+
+          '</div>'+
+        '</div>'+
+        '<div class="seg">'+
+          '<button class="seg-btn on" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
+          '<button class="seg-btn" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
+        '</div>'+
+      '</div>'+
+
+      // 2. Рабочее пространство (холст + правая панель)
+      '<div class="org-workspace-body">'+
+        '<div class="org-chart-canvas-wrap" id="orgViewport">'+
+          '<div class="org-tree-flow" style="transform:scale('+S.orgZoom+')">'+
+            // Уровень 1: Корневой узел компании
+            // Уровень 1: Корневой узел компании
+            '<div class="org-root-level-wrap">'+
+              '<div class="org-root-card" data-org-type="root" data-drop-root="true" title="Перетащите сюда подразделение, чтобы сделать его самостоятельным направлением (Уровень 2)">'+
+                '<div class="org-root-avatar">' + ic('units', 18) + '</div>'+
+                '<div>'+
+                  '<div class="org-root-title">Farovon Holding</div>'+
+                  '<div class="org-root-sub">Правление компании • '+dirNames.length+' направлений</div>'+
+                '</div>'+
+              '</div>'+
+              '<div class="org-root-arrow-stem"></div>'+
+            '</div>'+
+
+            // Уровень 2: Все направления в один фиксированный ряд (не раздвигается)
+            '<div class="org-dirs-level-row">';
+
+    dirNames.forEach(function(dir){
+      var dList = dirGroups[dir] || [];
+      var dirHead = '';
+      var dirHrbp = '';
+      dList.forEach(function(x){
+        if(!dirHead && x.head) dirHead = x.head;
+        if(!dirHrbp && x.hrbp) dirHrbp = x.hrbp;
+      });
+
+      var isDirExpanded = (S.expandedDir === dir);
+      var isDirActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'dir' && S.selectedOrgNode.dir === dir) || isDirExpanded;
+
+      h += '<div class="org-dir-col-item">'+
+        '<div class=\'org-card-box' + (isDirActive ? ' is-active-card is-expanded-dir' : '') + '\' draggable="true" data-org-type="dir" data-dir="'+esc(dir)+'" data-drop-dir="'+esc(dir)+'" style="width:270px" title="Зажмите для перемещения или кликните для раскрытия отделов">'+
+          '<div class="org-card-title">'+esc(dir)+'</div>'+
+          '<div class="org-card-profile">'+
+            '<div class="org-avatar-circle">'+getInitials(dirHead || dirHrbp || dir)+'</div>'+
+            '<div class="org-card-profile-info">'+
+              '<div class="org-card-name">'+(dirHead ? esc(dirHead) : (dirHrbp ? esc(dirHrbp) : 'Руководитель не назначен'))+'</div>'+
+              '<div class="org-card-role">'+(dirHead ? 'Руководитель' : (dirHrbp ? 'HR BP' : 'Направление'))+'</div>'+
+            '</div>'+
+          '</div>'+
+          '<div class="org-card-footer">'+
+            '<span>Подчинённые: '+dList.length+' отделов</span>'+
+            '<span class="org-expand-tag" style="'+(isDirExpanded?'background:#0284c7;color:#fff':'')+'">'+dList.length+' отделов ' + (isDirExpanded ? '⌃' : '⌄') + '</span>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    });
+
+    h += '</div>'; // org-dirs-level-row end
+
+    // Уровень 3: Отделы выбранного направления (непрерывно привязаны к родительскому направлению)
+    var activeDirUnits = (S.expandedDir && dirGroups[S.expandedDir]) ? dirGroups[S.expandedDir] : [];
+    if(activeDirUnits.length > 0){
+      h += '<div class="org-level-section org-level-3-section">'+
+        '<div class="org-arrow-down-stem"></div>'+
+        '<div class="org-child-units-row">';
+
+      activeDirUnits.forEach(function(d){
+        var isUnitExpanded = (S.expandedUnit === d.unit);
+        var isUnitActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'unit' && S.selectedOrgNode.unit === d.unit) || isUnitExpanded;
+        var headOrResp = d.head || d.resp || d.hrbp || '';
+
+        var unitStaffList = (S.adminUsers || []).filter(function(u){
+          return u.unit && u.unit.toLowerCase() === d.unit.toLowerCase();
+        });
+
+        h += '<div class="org-child-unit-col">'+
+          '<div class=\'org-card-box' + (isUnitActive ? ' is-active-card is-expanded-unit' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(d.unit)+'" data-dir="'+esc(d.dir || '')+'" style="width:245px" title="Зажмите для переноса в другое направление или на Уровень 1">'+
+            '<div class="org-card-title">'+esc(d.unit)+'</div>'+
+            '<div class="org-card-profile">'+
+              '<div class="org-avatar-circle" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">'+getInitials(headOrResp || d.unit)+'</div>'+
+              '<div class="org-card-profile-info">'+
+                '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
+                '<div class="org-card-role">'+(d.head ? 'Руководитель' : (d.resp ? 'Ответственный' : (d.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
+              '</div>'+
+            '</div>'+
+            '<div class="org-card-footer">'+
+              '<span>' + (unitStaffList.length ? (unitStaffList.length + ' сотр.') : 'Ответственный') + '</span>'+
+              '<span class="org-expand-tag" style="'+(isUnitExpanded?'background:#0284c7;color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' +
+                (isUnitExpanded ? 'Состав ⌃' : 'Состав ⌄') +
+              '</span>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      });
+
+      h += '</div></div>'; // org-child-units-row, org-level-section end
+    }
+
+    // Уровень 4: Состав и сотрудники выбранного отдела (привязаны к родительскому отделу)
+    if(S.expandedUnit){
+      var activeUnitObj = (S.adminDivs || []).find(function(x){ return x.unit === S.expandedUnit; });
+      var level4Items = [];
+      if(activeUnitObj){
+        if(activeUnitObj.head) level4Items.push({ fio: activeUnitObj.head, role: 'Руководитель отдела', badge: 'head', bg: '#0284c7' });
+        if(activeUnitObj.resp && activeUnitObj.resp !== activeUnitObj.head) level4Items.push({ fio: activeUnitObj.resp, role: 'Ответственный за обзор', badge: 'resp', bg: '#0ea5e9' });
+        if(activeUnitObj.hrbp && activeUnitObj.hrbp !== activeUnitObj.head && activeUnitObj.hrbp !== activeUnitObj.resp) level4Items.push({ fio: activeUnitObj.hrbp, role: 'HR BP отдела', badge: 'hrbp', bg: '#38bdf8' });
+
+        var uStaff = (S.adminUsers || []).filter(function(u){
+          return u.unit && u.unit.toLowerCase() === activeUnitObj.unit.toLowerCase();
+        });
+        uStaff.forEach(function(u){
+          if(!level4Items.some(function(item){ return item.fio.toLowerCase() === u.fio.toLowerCase(); })){
+            level4Items.push({ fio: u.fio, role: u.role || 'Сотрудник', badge: 'staff', bg: '#64748b' });
+          }
+        });
+      }
+
+      if(!level4Items.length){
+        level4Items.push({ fio: 'Сотрудники не назначены', role: 'Перетащите из панели справа', badge: 'empty', bg: '#94a3b8' });
+      }
+
+      h += '<div class="org-level-section org-level-4-section">'+
+        '<div class="org-arrow-down-stem"></div>'+
+        '<div class="org-grandchild-staff-row">';
+
+      level4Items.forEach(function(st){
+        var isStaffActive = S.selectedOrgNode && S.selectedOrgNode.type === 'staff' && S.selectedOrgNode.fio === st.fio;
+        h += '<div class="org-grandchild-col">'+
+          '<div class=\'org-card-box' + (isStaffActive ? ' is-active-card' : '') + '\' data-org-type="staff" data-fio="'+esc(st.fio)+'" data-u="'+esc(S.expandedUnit)+'" style="width:215px;padding:10px 12px">'+
+            '<div style="display:flex;align-items:center;gap:8px">'+
+              '<div class="org-avatar-circle" style="background:'+st.bg+';width:30px;height:30px;font-size:11px">'+getInitials(st.fio)+'</div>'+
+              '<div style="flex:1;overflow:hidden">'+
+                '<div style="font-size:11.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.fio)+'</div>'+
+                '<div style="font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(st.role)+'</div>'+
+              '</div>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      });
+
+      h += '</div></div>'; // org-grandchild-staff-row, org-level-section end
+    }
+
+    h += '</div></div>'; // org-tree-flow, org-chart-canvas-wrap end
+
+    // 3. Плавающий фиксированный виджет зума (неподвижен при скролле и зуме)
+    h += '<div class="org-bottom-zoom-pill">'+
+      '<button class="btn-ghost" id="btnFindMe" style="padding:2px 8px;min-height:26px;font-size:11.5px;font-weight:600;color:var(--accent)">Найти меня</button>'+
+      '<div style="width:1px;height:16px;background:var(--line);margin:0 2px"></div>'+
+      '<button class="org-zoom-btn" id="btnZoomOut" title="Уменьшить">−</button>'+
+      '<span class="org-zoom-pct" id="btnZoomReset" title="Сбросить к 100%">'+Math.round(S.orgZoom * 100)+'%</span>'+
+      '<button class="org-zoom-btn" id="btnZoomIn" title="Увеличить">+</button>'+
+    '</div>';
+
+    // 4. Правая панель (или кнопка разворачивания, если скрыта)
+    if(S.orgDrawerCollapsed){
+      h += '<button class="org-drawer-toggle-btn" id="btnToggleDrawer" title="Показать панель состава">' +
+        ic('users', 14) + ' <span>Панель состава</span>' +
+      '</button>';
+    } else {
+      var selNode = S.selectedOrgNode || (filtered.length ? { type: 'unit', unit: filtered[0].unit, dir: filtered[0].dir, resp: filtered[0].resp, head: filtered[0].head, hrbp: filtered[0].hrbp } : null);
+      var selTitle = selNode ? (selNode.unit || selNode.dir || selNode.fio || 'Подразделение') : 'Подразделение';
+
+      var allStaff = (S.adminUsers || []).filter(function(u){
+        return !staffSearch || u.fio.toLowerCase().indexOf(staffSearch) >= 0 || (u.role && u.role.toLowerCase().indexOf(staffSearch) >= 0);
+      });
+
+      var leaders = [];
+      if(selNode && selNode.head){
+        leaders.push({ fio: selNode.head, role: 'Руководитель отдела', badge: 'Руководитель' });
+      }
+      if(selNode && selNode.hrbp && selNode.hrbp !== selNode.head){
+        leaders.push({ fio: selNode.hrbp, role: 'HR BP направления', badge: 'HR BP' });
+      }
+      if(selNode && selNode.resp && selNode.resp !== selNode.head && selNode.resp !== selNode.hrbp){
+        leaders.push({ fio: selNode.resp, role: 'Ответственный за рынок', badge: 'Ответственный' });
+      }
+
+      h += '<div class="org-right-drawer">'+
+        '<div class="org-drawer-header">'+
+          '<div>'+
+            '<div class="org-drawer-title">'+esc(selTitle)+'</div>'+
+            '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+esc(selNode && selNode.dir ? selNode.dir : 'Направление')+ '</div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:4px">'+
+            '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:4px 8px;min-height:28px">' + ic('pencil', 13) + '</button>'+
+            '<button class="btn-ghost" id="btnToggleDrawer" title="Скрыть панель" style="padding:4px 8px;min-height:28px;color:var(--muted)">' + ic('close', 13) + '</button>'+
+          '</div>'+
+        '</div>'+
+
+        // Блок конструктора структуры
+        '<div class="org-constructor-box">'+
+          '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Конструктор структуры</div>'+
+          (selNode && selNode.type === 'unit' ?
+            '<div style="font-size:12px;color:var(--text)">Текущий уровень: <b style="color:var(--accent)">Уровень 3 (Отдел)</b></div>'+
+            '<button type="button" class="btn-line" data-act="promote-unit" data-u="'+esc(selNode.unit)+'" style="font-size:12px;min-height:30px;padding:0 8px;width:100%;justify-content:center">' +
+              ic('units', 13) + ' Сделать направлением (Уровень 2)' +
+            '</button>'+
+            '<div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">'+
+              '<label style="font-size:11px;color:var(--muted)">Перенести в направление:</label>'+
+              '<select id="selChangeDir" style="height:30px;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 6px;width:100%">'+
+                dirNames.map(function(d){ return '<option value="'+esc(d)+'"'+(d===selNode.dir?' selected':'')+'>'+esc(d)+'</option>'; }).join('')+
+              '</select>'+
+            '</div>'
+          :
+            '<div style="font-size:12px;color:var(--text)">Текущий уровень: <b style="color:var(--accent)">Уровень 2 (Направление)</b></div>'+
+            '<div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">'+
+              '<label style="font-size:11px;color:var(--muted)">Переместить как отдел в:</label>'+
+              '<select id="selDemoteDir" style="height:30px;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:0 6px;width:100%">'+
+                '<option value="">-- Выберите родительское направление --</option>'+
+                dirNames.filter(function(d){ return d !== (selNode ? selNode.dir : ''); }).map(function(d){ return '<option value="'+esc(d)+'">'+esc(d)+'</option>'; }).join('')+
+              '</select>'+
+            '</div>'
+          )+
+        '</div>'+
+
+        '<div class="org-drawer-stats">'+
+          '<div class="org-stat-pill">Всего сотрудников <b>'+allStaff.length+'</b></div>'+
+          '<div class="org-stat-pill">Руководителей <b>'+leaders.length+'</b></div>'+
+        '</div>'+
+
+        '<div class="org-drawer-search">'+
+          '<div class="search-wrap" style="width:100%">'+icBare('search', 13)+
+            '<input id="staffSearch" placeholder="Найти по имени или должности…" value="'+esc(staffSearch)+'" style="height:32px;font-size:12px"></div>'+
+        '</div>'+
+
+        '<div class="org-drawer-body">'+
+          // Руководители
+          (leaders.length ?
+            '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители ' + leaders.length + '</div>'+
+            leaders.map(function(ldr){
+              return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" title="Зажмите и перетащите на карточку">'+
+                '<div class="org-avatar-circle" style="background:#0284c7">'+getInitials(ldr.fio)+'</div>'+
+                '<div style="flex:1;overflow:hidden">'+
+                  '<div style="font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
+                    esc(ldr.fio)+
+                    '<span class="org-badge-role">'+esc(ldr.badge)+'</span>'+
+                  '</div>'+
+                  '<div style="font-size:11px;color:var(--muted)">'+esc(ldr.role)+'</div>'+
+                '</div>'+
+                '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
+              '</div>';
+            }).join('') : '')+
+
+          // Подчинённые / Все сотрудники
+          '<div class="org-section-lbl" style="margin-top:8px">' + ic('users', 14) + 'Сотрудники для назначения (' + allStaff.length + ')</div>'+
+          (allStaff.length ? allStaff.map(function(u){
+            return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или направления">'+
+              '<div class="org-avatar-circle" style="background:#64748b">'+getInitials(u.fio)+'</div>'+
+              '<div style="flex:1;overflow:hidden">'+
+                '<div style="font-size:12px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
+                '<div style="font-size:11px;color:var(--muted)">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
+              '</div>'+
+              '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
+            '</div>';
+          }).join('') : '<p style="padding:12px;color:var(--muted);font-size:12px;text-align:center">Сотрудники не найдены</p>')+
+
+        '</div>'+
+      '</div>'; // org-drawer-body, org-right-drawer end
+    }
+
+    h += '</div></div>'; // org-workspace-body, org-workspace-root end
+
+  } else {
+    // Режим таблицы
+    h += '<div class="org-tree-wrapper">'+
+      '<div class="org-tree-toolbar">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+          '<div class="search-wrap">'+icBare('search')+
+            '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'"></div>'+
+          '<div class="seg">'+
+            '<button class="seg-btn" id="btnOrgTree">' + ic('units', 14) + ' Схема оргструктуры</button>'+
+            '<button class="seg-btn on" id="btnOrgTable">' + ic('book', 14) + ' Таблица</button>'+
+          '</div>'+
+        '</div>'+
+        '<div>'+tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
+      '</div>'+
+      '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
+        filtered.map(function(d){
+          return '<tr>'+
+            '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
+            '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
+            '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
+            '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:12px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
+          '</tr>';
+        }).join('')+
+      '</tbody></table></div></div>';
+  }
 
   $('adminContent').innerHTML = h;
-  $('divSearch').oninput = function(){
-    var pos = this.selectionStart;
-    renderAdminDivisions();
-    var again = $('divSearch');
-    if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
-  };
+
+  // ─── Авто-выравнивание неразрывных ветвей: идеальное центрирование под родителем ───
+  function alignOrgBranches(){
+    var vpEl = $('orgViewport');
+    var tFlow = vpEl ? vpEl.querySelector('.org-tree-flow') : null;
+    if(!vpEl || !tFlow) return;
+
+    var rootWrap = tFlow.querySelector('.org-root-level-wrap');
+    var dirsRow = tFlow.querySelector('.org-dirs-level-row');
+    var l3Section = tFlow.querySelector('.org-level-3-section');
+    var l3Row = l3Section ? l3Section.querySelector('.org-child-units-row') : null;
+    var l3Stem = l3Section ? l3Section.querySelector('.org-arrow-down-stem') : null;
+
+    var l4Section = tFlow.querySelector('.org-level-4-section');
+    var l4Row = l4Section ? l4Section.querySelector('.org-grandchild-staff-row') : null;
+    var l4Stem = l4Section ? l4Section.querySelector('.org-arrow-down-stem') : null;
+
+    if(!dirsRow) return;
+
+    var activeDirCard = dirsRow.querySelector('.org-card-box.is-expanded-dir') || dirsRow.querySelector('.org-card-box.is-active-card');
+    var dRelCenter = 0;
+    var zoom = S.orgZoom || 0.85;
+
+    if(activeDirCard){
+      var dirCardRect = activeDirCard.getBoundingClientRect();
+      var dirsRowRect = dirsRow.getBoundingClientRect();
+      dRelCenter = ((dirCardRect.left + dirCardRect.width / 2) - dirsRowRect.left) / zoom;
+    }
+
+    var w3 = l3Row ? l3Row.offsetWidth : 0;
+    var w3Center = w3 / 2;
+
+    // Расчёт смещения для 100% совпадения центров Департамента и его Отделов
+    var r2Offset = 0;
+    var r3Offset = 0;
+
+    if(l3Row && activeDirCard){
+      if(w3Center > dRelCenter){
+        r2Offset = w3Center - dRelCenter;
+        r3Offset = 0;
+      } else {
+        r2Offset = 0;
+        r3Offset = dRelCenter - w3Center;
+      }
+    }
+
+    // Расчёт смещения для Уровня 4 (Сотрудники выбранного отдела)
+    var r4Offset = 0;
+    var activeUnitCard = l3Row ? (l3Row.querySelector('.org-card-box.is-expanded-unit') || l3Row.querySelector('.org-card-box.is-active-card')) : null;
+    if(l4Row && activeUnitCard){
+      var uCardRect = activeUnitCard.getBoundingClientRect();
+      var l3RowRect = l3Row.getBoundingClientRect();
+      var uRelCenter = ((uCardRect.left + uCardRect.width / 2) - l3RowRect.left) / zoom;
+      var uAbsCenter = r3Offset + uRelCenter;
+      var w4 = l4Row.offsetWidth;
+      var w4Center = w4 / 2;
+
+      if(w4Center > uAbsCenter){
+        var shiftAll = w4Center - uAbsCenter;
+        r2Offset += shiftAll;
+        r3Offset += shiftAll;
+        r4Offset = 0;
+      } else {
+        r4Offset = uAbsCenter - w4Center;
+      }
+    }
+
+    // Применение вычисленных отступов
+    dirsRow.style.marginLeft = Math.round(r2Offset) + 'px';
+    if(l3Row) l3Row.style.marginLeft = Math.round(r3Offset) + 'px';
+    if(l4Row) l4Row.style.marginLeft = Math.round(r4Offset) + 'px';
+
+    // Выравнивание Уровня 1 (Холдинг) строго по вертикальной оси активного направления
+    var finalDirCenter = r2Offset + (activeDirCard ? dRelCenter : (dirsRow.offsetWidth / 2));
+    if(rootWrap){
+      rootWrap.style.marginLeft = Math.round(finalDirCenter) + 'px';
+      rootWrap.style.transform = 'translateX(-50%)';
+    }
+
+    // Позиционирование стрелок-стволов строго по центрам родительских карточек
+    if(l3Stem && activeDirCard){
+      l3Stem.style.marginLeft = Math.round(finalDirCenter) + 'px';
+      l3Stem.style.transform = 'translateX(-50%)';
+    }
+    if(l4Stem && activeUnitCard){
+      var uCardRect2 = activeUnitCard.getBoundingClientRect();
+      var l3RowRect2 = l3Row.getBoundingClientRect();
+      var uRelCenter2 = ((uCardRect2.left + uCardRect2.width / 2) - l3RowRect2.left) / zoom;
+      var finalUnitCenter = r3Offset + uRelCenter2;
+      l4Stem.style.marginLeft = Math.round(finalUnitCenter) + 'px';
+      l4Stem.style.transform = 'translateX(-50%)';
+    }
+  }
+
+  alignOrgBranches();
+
+  // Поиск подразделений
+  var searchInp = $('divSearch');
+  if(searchInp){
+    searchInp.oninput = function(){
+      var pos = this.selectionStart;
+      renderAdminDivisions();
+      var again = $('divSearch');
+      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+    };
+  }
+
+  // Поиск сотрудников
+  var staffInp = $('staffSearch');
+  if(staffInp){
+    staffInp.oninput = function(){
+      var pos = this.selectionStart;
+      renderAdminDivisions();
+      var again = $('staffSearch');
+      if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+    };
+  }
+
+  var btnTree = $('btnOrgTree');
+  if(btnTree) btnTree.onclick = function(){ S.adminDivsView = 'tree'; saveNavState(); renderAdminDivisions(); };
+  var btnTable = $('btnOrgTable');
+  if(btnTable) btnTable.onclick = function(){ S.adminDivsView = 'table'; saveNavState(); renderAdminDivisions(); };
+
+  // Конструктор: смена направления через выпадающий список
+  var selChangeDir = $('selChangeDir');
+  if(selChangeDir && S.selectedOrgNode && S.selectedOrgNode.unit){
+    selChangeDir.onchange = function(){
+      var newDir = this.value;
+      if(newDir && newDir !== S.selectedOrgNode.dir){
+        confirmMoveDivision(S.selectedOrgNode.unit, newDir, S.selectedOrgNode.dir);
+      }
+    };
+  }
+
+  var selDemoteDir = $('selDemoteDir');
+  if(selDemoteDir && S.selectedOrgNode && S.selectedOrgNode.dir){
+    selDemoteDir.onchange = function(){
+      var parentDir = this.value;
+      if(parentDir && parentDir !== S.selectedOrgNode.dir){
+        confirmDemoteDirToUnit(S.selectedOrgNode.dir, parentDir);
+      }
+    };
+  }
+
+  // Масштабирование зума (Pointer-Centered Zoom)
+  var treeEl = $('adminContent').querySelector('.org-tree-flow');
+  var vp = $('orgViewport');
+  if(vp && prevScrollLeft !== null){
+    vp.scrollLeft = prevScrollLeft;
+    vp.scrollTop = prevScrollTop;
+  }
+  var lastMouseX = null, lastMouseY = null;
+  var zoomRafId = null;
+
+  function setZoomAt(newVal, clientX, clientY){
+    var oldZoom = S.orgZoom || 0.85;
+    var targetZoom = Math.max(0.3, Math.min(2.0, Math.round(newVal * 100) / 100));
+    if(Math.abs(targetZoom - oldZoom) < 0.005 || !vp || !treeEl) return;
+
+    var treeRect = treeEl.getBoundingClientRect();
+    var vpRect = vp.getBoundingClientRect();
+
+    var mx = (clientX != null) ? clientX : (lastMouseX != null ? lastMouseX : (vpRect.left + vpRect.width / 2));
+    var my = (clientY != null) ? clientY : (lastMouseY != null ? lastMouseY : (vpRect.top + vpRect.height / 2));
+
+    var pointInTreeX = (mx - treeRect.left) / oldZoom;
+    var pointInTreeY = (my - treeRect.top) / oldZoom;
+    var shiftX = pointInTreeX * (targetZoom - oldZoom);
+    var shiftY = pointInTreeY * (targetZoom - oldZoom);
+
+    S.orgZoom = targetZoom;
+    saveNavState();
+
+    if(zoomRafId) cancelAnimationFrame(zoomRafId);
+    zoomRafId = requestAnimationFrame(function(){
+      treeEl.style.transform = 'scale(' + S.orgZoom + ')';
+      alignOrgBranches();
+      vp.scrollLeft += shiftX;
+      vp.scrollTop += shiftY;
+      S.orgScroll = { left: vp.scrollLeft, top: vp.scrollTop };
+      saveNavState();
+      var bReset = $('btnZoomReset');
+      if(bReset) bReset.textContent = Math.round(S.orgZoom * 100) + '%';
+    });
+  }
+
+  if(vp){
+    var isPanning = false;
+    var startPanX = 0, startPanY = 0;
+    var startScrollLeft = 0, startScrollTop = 0;
+
+    vp.addEventListener('scroll', function(){
+      S.orgScroll = { left: vp.scrollLeft, top: vp.scrollTop };
+      saveNavState();
+    }, { passive: true });
+
+    vp.addEventListener('mousedown', function(e){
+      if(e.target.closest('.org-card-box') || e.target.closest('.org-root-card') || e.target.closest('.org-tree-header-bar') || e.target.closest('.org-bottom-zoom-pill') || e.target.closest('button') || e.target.closest('input')) return;
+      isPanning = true;
+      startPanX = e.clientX;
+      startPanY = e.clientY;
+      startScrollLeft = vp.scrollLeft;
+      startScrollTop = vp.scrollTop;
+      vp.classList.add('is-dragging-canvas');
+    });
+
+    window.addEventListener('mousemove', function(e){
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      if(!isPanning) return;
+      var dx = e.clientX - startPanX;
+      var dy = e.clientY - startPanY;
+      vp.scrollLeft = startScrollLeft - dx;
+      vp.scrollTop = startScrollTop - dy;
+      S.orgScroll = { left: vp.scrollLeft, top: vp.scrollTop };
+    });
+
+    window.addEventListener('mouseup', function(){
+      if(isPanning){
+        isPanning = false;
+        vp.classList.remove('is-dragging-canvas');
+        S.orgScroll = { left: vp.scrollLeft, top: vp.scrollTop };
+        saveNavState();
+      }
+    });
+
+    vp.addEventListener('wheel', function(e){
+      if(e.ctrlKey || e.metaKey){
+        e.preventDefault();
+        var factor = e.deltaY < 0 ? 1.12 : 0.88;
+        setZoomAt((S.orgZoom || 0.85) * factor, e.clientX, e.clientY);
+      }
+    }, { passive: false });
+  }
+
+  var btnZoomIn = $('btnZoomIn');
+  if(btnZoomIn) btnZoomIn.onclick = function(){ setZoomAt((S.orgZoom || 0.85) + 0.15); };
+  var btnZoomOut = $('btnZoomOut');
+  if(btnZoomOut) btnZoomOut.onclick = function(){ setZoomAt((S.orgZoom || 0.85) - 0.15); };
+  var btnZoomReset = $('btnZoomReset');
+  if(btnZoomReset) btnZoomReset.onclick = function(){ setZoomAt(1.0); };
+
+  var btnFindMe = $('btnFindMe');
+  if(btnFindMe && vp){
+    btnFindMe.onclick = function(){
+      var activeCard = vp.querySelector('.is-active-card');
+      if(activeCard){
+        activeCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      } else {
+        vp.scrollTo({ left: vp.scrollWidth / 4, behavior: 'smooth' });
+      }
+    };
+  }
+
+  // Клики по карточкам и выбор подразделения (с фиксацией положения на экране)
   $('adminContent').onclick = function(e){
-    var btn = e.target.closest('button[data-u]');
-    if(!btn) return;
-    openDivisionModal(btn.dataset.u);
+    var card = e.target.closest('.org-card-box');
+    if(card){
+      var oldVp = $('orgViewport');
+      var vpRect = oldVp ? oldVp.getBoundingClientRect() : null;
+      var cardRect = card.getBoundingClientRect();
+      var cardRelX = vpRect ? (cardRect.left - vpRect.left) : null;
+      var cardRelY = vpRect ? (cardRect.top - vpRect.top) : null;
+
+      var uName = card.dataset.u;
+      var dirName = card.dataset.dir;
+      var fio = card.dataset.fio;
+      var type = card.dataset.orgType || 'unit';
+      var cardKey = (type === 'unit' ? uName : (type === 'dir' ? dirName : fio));
+
+      if(type === 'unit'){
+        var found = (S.adminDivs || []).find(function(x){ return x.unit === uName; });
+        S.expandedUnit = (S.expandedUnit === uName) ? '' : uName; // переключение уровня 4
+        S.selectedOrgNode = {
+          type: 'unit',
+          unit: uName,
+          dir: dirName,
+          resp: found ? found.resp : '',
+          head: found ? found.head : '',
+          hrbp: found ? found.hrbp : ''
+        };
+      } else if(type === 'staff'){
+        S.selectedOrgNode = {
+          type: 'staff',
+          fio: fio,
+          unit: uName
+        };
+      } else {
+        S.expandedDir = (S.expandedDir === dirName) ? '' : dirName; // переключение уровня 3
+        S.expandedUnit = '';
+        S.selectedOrgNode = {
+          type: 'dir',
+          dir: dirName
+        };
+      }
+      saveNavState();
+      renderAdminDivisions();
+
+      // Фиксация положения: карточка остаётся ровно на тех же координатах экрана
+      var newVp = $('orgViewport');
+      if(newVp && vpRect && cardKey && cardRelX !== null){
+        var newCards = newVp.querySelectorAll('.org-card-box');
+        var newCard = null;
+        for(var i = 0; i < newCards.length; i++){
+          var c = newCards[i];
+          if(type === 'unit' && c.dataset.u === uName){ newCard = c; break; }
+          if(type === 'dir' && c.dataset.dir === dirName){ newCard = c; break; }
+          if(type === 'staff' && c.dataset.fio === fio){ newCard = c; break; }
+        }
+        if(newCard){
+          var newRect = newCard.getBoundingClientRect();
+          var newVpRect = newVp.getBoundingClientRect();
+          var newRelX = newRect.left - newVpRect.left;
+          var newRelY = newRect.top - newVpRect.top;
+          newVp.scrollLeft += (newRelX - cardRelX);
+          newVp.scrollTop += (newRelY - cardRelY);
+          S.orgScroll = { left: newVp.scrollLeft, top: newVp.scrollTop };
+          saveNavState();
+        }
+      }
+      return;
+    }
+
+    var promoteBtn = e.target.closest('[data-act="promote-unit"]');
+    if(promoteBtn){
+      var pUnit = promoteBtn.dataset.u || (S.selectedOrgNode && S.selectedOrgNode.unit);
+      if(pUnit) confirmPromoteToDir(pUnit);
+      return;
+    }
+
+    var toggleDrawerBtn = e.target.closest('#btnToggleDrawer');
+    if(toggleDrawerBtn){
+      S.orgDrawerCollapsed = !S.orgDrawerCollapsed;
+      saveNavState();
+      renderAdminDivisions();
+      return;
+    }
+
+    var editSelectedBtn = e.target.closest('[data-act="edit-selected-node"]');
+    if(editSelectedBtn && S.selectedOrgNode){
+      if(S.selectedOrgNode.unit){
+        openDivisionModal(S.selectedOrgNode.unit);
+      } else if(S.selectedOrgNode.dir){
+        batchAssignDirection(S.selectedOrgNode.dir, 'hrbp');
+      }
+      return;
+    }
+
+    var editBtn = e.target.closest('button[data-u]:not([data-act])');
+    if(editBtn){
+      openDivisionModal(editBtn.dataset.u);
+      return;
+    }
   };
+
+  // ─── Drag-and-Drop: Конструктор уровней и назначение сотрудников ───
+  var dragPayload = null; // { type: 'unit'|'dir'|'staff', val: string, oldDir: string }
+
+  $('adminContent').querySelectorAll('.org-card-box[draggable="true"]').forEach(function(el){
+    el.addEventListener('dragstart', function(e){
+      var isDir = (this.dataset.orgType === 'dir');
+      var key = isDir ? this.dataset.dir : this.dataset.u;
+      dragPayload = {
+        type: isDir ? 'dir' : 'unit',
+        val: key,
+        oldDir: this.dataset.dir || ''
+      };
+      e.dataTransfer.setData('text/plain', key);
+      e.dataTransfer.effectAllowed = 'move';
+      this.classList.add('is-dragging');
+    });
+    el.addEventListener('dragend', function(){
+      this.classList.remove('is-dragging');
+      dragPayload = null;
+    });
+  });
+
+  $('adminContent').querySelectorAll('.org-staff-row[draggable="true"]').forEach(function(el){
+    el.addEventListener('dragstart', function(e){
+      dragPayload = {
+        type: 'staff',
+        val: this.dataset.dragStaff
+      };
+      e.dataTransfer.setData('text/plain', this.dataset.dragStaff);
+      e.dataTransfer.effectAllowed = 'copy';
+      this.classList.add('is-dragging');
+    });
+    el.addEventListener('dragend', function(){
+      this.classList.remove('is-dragging');
+      dragPayload = null;
+    });
+  });
+
+  // Drop на корень компании (Уровень 1) -> Сделать самостоятельным направлением
+  var rootCard = $('adminContent').querySelector('.org-root-card');
+  if(rootCard){
+    rootCard.addEventListener('dragover', function(e){
+      if(dragPayload && (dragPayload.type === 'unit' || dragPayload.type === 'dir')){
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drop-target-hover');
+      }
+    });
+    rootCard.addEventListener('dragleave', function(){
+      this.classList.remove('drop-target-hover');
+    });
+    rootCard.addEventListener('drop', function(e){
+      e.preventDefault();
+      this.classList.remove('drop-target-hover');
+      if(dragPayload && dragPayload.val){
+        var item = dragPayload.val;
+        dragPayload = null;
+        confirmPromoteToDir(item);
+      }
+    });
+  }
+
+  // Drop на карточки оргструктуры
+  $('adminContent').querySelectorAll('.org-card-box').forEach(function(targetEl){
+    targetEl.addEventListener('dragover', function(e){
+      if(!dragPayload) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = (dragPayload.type === 'staff') ? 'copy' : 'move';
+      this.classList.add('drop-target-hover');
+    });
+    targetEl.addEventListener('dragleave', function(){
+      this.classList.remove('drop-target-hover');
+    });
+    targetEl.addEventListener('drop', function(e){
+      e.preventDefault();
+      this.classList.remove('drop-target-hover');
+      if(!dragPayload) return;
+
+      var targetDir = this.dataset.dir;
+      var targetUnit = this.dataset.u;
+      var targetType = this.dataset.orgType || 'unit';
+      var p = dragPayload;
+      dragPayload = null;
+
+      // 1. Назначение сотрудника
+      if(p.type === 'staff'){
+        if(targetUnit){
+          promptAssignStaffToUnit(p.val, targetUnit);
+        } else if(targetDir){
+          promptAssignStaffToDir(p.val, targetDir);
+        }
+        return;
+      }
+
+      // 2. Перемещение подразделения (Уровень 3)
+      if(p.type === 'unit'){
+        var destDir = (targetType === 'dir') ? targetDir : (targetDir || targetUnit);
+        if(destDir && destDir !== p.oldDir){
+          confirmMoveDivision(p.val, destDir, p.oldDir);
+        }
+        return;
+      }
+
+      // 3. Перемещение направления (Уровень 2)
+      if(p.type === 'dir'){
+        if(targetType === 'dir' && targetDir && targetDir !== p.val){
+          confirmDemoteDirToUnit(p.val, targetDir);
+        }
+        return;
+      }
+    });
+  });
 }
 
 /**
@@ -4351,6 +5464,9 @@ function openDivisionModal(unit, opts){
  * за этим руководителем администратором (см. getDivisions/saveDivision).
  */
 function openDeptAssign(){
+  S.appView = 'dept_assign';
+  S.unit = null;
+  saveNavState();
   S.backTo = null;
   setTop('Назначить ответственных', userLabel(), true);
   $('bar').classList.add('hidden');
@@ -5396,10 +6512,13 @@ function renderAdminRoles(){
     byRes[c.resource].items.push(c);
   });
 
-  var h = '<p class="step-hint">Права каждой роли на разделы админки — просмотр, редактирование, добавление. '+
-    'У «Администратора» права всегда полные и здесь не настраиваются.</p>';
+  var h = '<div style="flex:1;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px 0;flex-shrink:0">'+
+      '<p class="step-hint" style="margin:0;flex:1">Права каждой роли на разделы админки — просмотр, редактирование, добавление. У «Администратора» права всегда полные.</p>'+
+      '<button id="rolesSave" class="btn-primary" style="min-height:34px;padding:0 18px;font-size:12.5px;flex-shrink:0">' + ic('check', 14) + ' Сохранить права</button>'+
+    '</div>';
 
-  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">';
+  h += '<div class="tblwrap tblwrap--page" style="flex:1;min-height:0;height:calc(100vh - 120px);max-height:calc(100vh - 120px)"><table class="co-tbl co-tbl--pin">';
   h += '<thead><tr><th>Право</th><th class="num">Админ</th>'+
     roles.map(function(r){ return '<th class="num">'+esc(ROLE_LABELS_RU[r] || r)+'</th>'; }).join('')+
   '</tr></thead><tbody>';
@@ -5418,8 +6537,7 @@ function renderAdminRoles(){
     });
   });
 
-  h += '</tbody></table></div>';
-  h += '<div style="height:16px"></div><button id="rolesSave" class="btn-primary">Сохранить права</button>';
+  h += '</tbody></table></div></div>';
 
   $('adminContent').innerHTML = h;
 
@@ -5456,6 +6574,9 @@ function renderAdminRoles(){
 // СВОДКА ПО HR BP (быстрый вид)
 // ═══════════════════════════════════════════════════════════
 function openDash(){
+  S.appView = 'dash_hrbp';
+  S.unit = null;
+  saveNavState();
   S.backTo = null;
   setTop('Сводка по подразделениям', '', true);
   $('bar').classList.add('hidden');
