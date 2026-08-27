@@ -356,7 +356,7 @@ exports.getDivisions = async (req, res) => {
 };
 
 exports.saveDivision = async (req, res) => {
-  const { unit, dir, head, resp, hrbp, note, group } = req.body;
+  const { unit, dir, head, resp, hrbp, note, group, org_role, is_survey_target } = req.body;
   if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
   }
@@ -421,9 +421,11 @@ exports.saveDivision = async (req, res) => {
           resp = COALESCE(?, resp),
           hrbp = COALESCE(?, hrbp),
           note = COALESCE(?, note),
+          org_role = COALESCE(?, org_role),
+          is_survey_target = COALESCE(?, is_survey_target),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [cleanDir, head, resp, hrbp, note, cleanUnit]);
+    `, [cleanDir, head, resp, hrbp, note, org_role, is_survey_target, cleanUnit]);
 
     // Сквозное обновление подразделения сотрудника в таблице пользователей
     const assignedPerson = resp || head || hrbp;

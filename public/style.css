@@ -418,6 +418,12 @@ body.has-bar .wrap {
     padding: 12px 8px;
     overflow-y: auto;
     overflow-x: hidden;
+    transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s ease;
+  }
+
+  .rail.is-collapsed {
+    width: 60px;
+    padding: 12px 6px;
   }
 
   .rail-brand {
@@ -428,7 +434,50 @@ body.has-bar .wrap {
     border-bottom: 1px solid var(--color-ash);
     margin-bottom: 10px;
     flex: none;
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--radius-buttons);
+    transition: background 0.12s ease;
   }
+
+  .rail-brand:hover {
+    background: var(--color-paper-mist);
+  }
+
+  .rail.is-collapsed .rail-brand {
+    justify-content: center;
+    padding: 6px 0 14px;
+    gap: 0;
+  }
+
+  .rail.is-collapsed .rail-brand-text {
+    display: none;
+  }
+
+  .rail.is-collapsed .rail-sec-label {
+    display: none;
+  }
+
+  .rail.is-collapsed .rail-item {
+    justify-content: center;
+    padding: 8px 0;
+    gap: 0;
+  }
+
+  .rail.is-collapsed .rail-item span {
+    display: none;
+  }
+
+  .rail.is-collapsed .rail-foot {
+    justify-content: center;
+    padding: 8px 0;
+    gap: 0;
+  }
+
+  .rail.is-collapsed .rail-who {
+    display: none;
+  }
+
   .rail-brand-icon {
     width: 28px;
     height: 28px;
@@ -440,7 +489,13 @@ body.has-bar .wrap {
     align-items: center;
     justify-content: center;
     flex: none;
+    transition: transform 0.15s ease;
   }
+
+  .rail-brand:hover .rail-brand-icon {
+    transform: scale(1.06);
+  }
+
   .rail-brand-name {
     font-weight: 600;
     font-size: 13.5px;
@@ -3966,7 +4021,6 @@ html.compact { font-size: 13.5px; }
   gap: 8px;
   flex: 1;
   justify-content: flex-end;
-  min-width: 260px;
 }
 
 /* ─── Всплывающие уведомления (Toast Stack - в самом низу справа) ─── */
@@ -4300,16 +4354,18 @@ html.compact { font-size: 13.5px; }
   text-align: center;
 }
 
-/* Основной холст со связями */
+/* Основной бесконечный векторный холст со связями (Figma/Miro стиль) */
 .org-chart-canvas-wrap {
   flex: 1;
   width: 100%;
   height: 100%;
   overflow-x: auto;
   overflow-y: auto;
-  padding: 28px 40px 30px 40px;
   position: relative;
   cursor: grab;
+  background-color: var(--card);
+  background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
 }
 
 .org-chart-canvas-wrap::-webkit-scrollbar {
@@ -4333,32 +4389,150 @@ html.compact { font-size: 13.5px; }
 .org-tree-flow {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   min-width: 100%;
   width: max-content;
+  padding: 40px 60px 120px 60px;
   transform-origin: 0 0;
   will-change: transform;
 }
 
-/* Уровень 1: Корневой узел компании (Холдинг / Правление) */
+/* Уровень 0 и 1: Корпоративное управление (Farovon Holding -> Совет директоров -> Правление + Служба внутреннего аудита) */
 .org-root-level-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: max-content;
   margin-bottom: 8px;
-  align-self: flex-start;
+  position: relative;
+}
+
+.org-top-holding-card {
+  width: 260px;
+  min-height: 124px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #0284c7, #1e40af);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.15s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.org-holding-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.org-holding-to-board-stem {
+  width: 2px;
+  height: 20px;
+  background: #38bdf8;
+  margin: 0 auto;
+}
+
+.org-board-card {
+  width: 260px;
+  min-height: 124px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #0b1329, #1e1b4b);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  border: 2px solid rgba(167, 139, 250, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.org-board-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3);
+  border-color: #a78bfa;
+}
+
+.org-board-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.org-governance-fork-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  position: relative;
+  padding-top: 24px;
+}
+
+.org-governance-fork-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 130px;
+  right: 130px;
+  height: 2px;
+  background: #7c3aed;
+}
+
+.org-gov-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.org-gov-col::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #7c3aed;
 }
 
 .org-root-card {
-  width: 290px;
+  width: 260px;
+  min-height: 124px;
+  box-sizing: border-box;
   background: linear-gradient(135deg, #0f172a, #1e293b);
   color: #ffffff;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  justify-content: space-between;
   cursor: pointer;
   border: 2px solid transparent;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -4370,13 +4544,27 @@ html.compact { font-size: 13.5px; }
   border-color: #38bdf8;
 }
 
+.org-control-card {
+  width: 260px;
+  min-height: 124px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #18181b, #27272a);
+  border: 2px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.org-control-card:hover {
+  border-color: #ef4444 !important;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25) !important;
+}
+
 .org-root-avatar {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: linear-gradient(135deg, #0284c7, #38bdf8);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -4385,16 +4573,26 @@ html.compact { font-size: 13.5px; }
 }
 
 .org-root-title {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   color: #ffffff;
-  line-height: 1.3;
+  line-height: 1.35;
+  height: 35px;
+  min-height: 35px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .org-root-sub {
   font-size: 11.5px;
   color: #94a3b8;
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .org-root-arrow-stem {
@@ -4418,32 +4616,36 @@ html.compact { font-size: 13.5px; }
 }
 
 /* Уровень 2: Строка всех направлений/департаментов */
-/* Уровень 2: Строка всех направлений/департаментов (фиксированная ширина и отступы) */
 .org-dirs-level-row {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
-  gap: 20px;
+  gap: 16px;
+  width: max-content;
   position: relative;
   padding-top: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .org-dirs-level-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 135px;
-  right: 135px;
+  left: 130px;
+  right: 130px;
   height: 2px;
-  background: #38bdf8;
+  background: #0284c7;
+}
+
+.org-dirs-level-row.has-single-child::before {
+  display: none;
 }
 
 .org-dir-col-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 270px;
+  width: 260px;
   flex-shrink: 0;
   position: relative;
 }
@@ -4456,66 +4658,54 @@ html.compact { font-size: 13.5px; }
   transform: translateX(-50%);
   width: 2px;
   height: 24px;
-  background: #38bdf8;
-}
-
-/* Секция уровня отделов / сотрудников (непрерывная древовидная цепочка) */
-.org-level-section,
-.org-level-3-section,
-.org-level-4-section {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  position: relative;
-  margin-bottom: 20px;
-}
-
-/* Направляющая стрелка вниз от конкретной родительской карточки */
-.org-arrow-down-stem {
-  width: 2px;
-  height: 28px;
   background: #0284c7;
-  position: relative;
-  margin: 0;
 }
 
-.org-arrow-down-stem::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: -4px;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid #0284c7;
+/* Секции уровней отделов / подотделов (выровненные независимые ряды) */
+.org-level-section {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: max-content;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.org-level-3-section,
+.org-level-4-section,
+.org-level-5-section {
+  margin-bottom: 24px;
 }
 
 /* Уровень 3: Подразделения раскрытого направления */
 .org-child-units-row {
   display: flex;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 16px;
   position: relative;
-  padding-top: 24px;
+  padding-top: 28px;
 }
 
 .org-child-units-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 122px;
-  right: 122px;
+  left: 130px;
+  right: 130px;
   height: 2px;
-  background: #38bdf8;
+  background: #0284c7;
+}
+
+.org-child-units-row.has-single-child::before {
+  display: none;
 }
 
 .org-child-unit-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 245px;
+  width: 260px;
   flex-shrink: 0;
   position: relative;
 }
@@ -4523,38 +4713,43 @@ html.compact { font-size: 13.5px; }
 .org-child-unit-col::before {
   content: '';
   position: absolute;
-  top: -24px;
+  top: -28px;
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 24px;
-  background: #38bdf8;
+  height: 28px;
+  background: #0284c7;
 }
 
-/* Уровень 4: Сотрудники и ключевые должности отдела */
+/* Уровень 4 и 5: Подотделы раскрытого отдела */
 .org-grandchild-staff-row {
   display: flex;
+  justify-content: flex-start;
   align-items: flex-start;
-  gap: 14px;
+  gap: 16px;
   position: relative;
-  padding-top: 24px;
+  padding-top: 28px;
 }
 
 .org-grandchild-staff-row::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 107px;
-  right: 107px;
+  left: 130px;
+  right: 130px;
   height: 2px;
-  background: #38bdf8;
+  background: #0284c7;
+}
+
+.org-grandchild-staff-row.has-single-child::before {
+  display: none;
 }
 
 .org-grandchild-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 215px;
+  width: 260px;
   flex-shrink: 0;
   position: relative;
 }
@@ -4562,12 +4757,12 @@ html.compact { font-size: 13.5px; }
 .org-grandchild-col::before {
   content: '';
   position: absolute;
-  top: -24px;
+  top: -28px;
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 24px;
-  background: #38bdf8;
+  height: 28px;
+  background: #0284c7;
 }
 
 .org-constructor-box {
@@ -4587,20 +4782,11 @@ html.compact { font-size: 13.5px; }
   background: rgba(2, 132, 199, 0.08) !important;
 }
 
-.org-grandchild-col::before {
-  content: '';
-  position: absolute;
-  top: -24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2px;
-  height: 24px;
-  background: #38bdf8;
-}
-
 /* Карточки подразделений */
 .org-card-box {
-  width: 100%;
+  width: 260px;
+  min-height: 124px;
+  box-sizing: border-box;
   background: var(--card, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
   border-radius: 10px;
@@ -4611,6 +4797,7 @@ html.compact { font-size: 13.5px; }
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -4622,6 +4809,34 @@ html.compact { font-size: 13.5px; }
 
 .org-card-box.is-expanded-dir {
   border-color: #38bdf8;
+}
+
+.org-card-box.is-expanded-dir::after {
+  content: '';
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #0284c7;
+  z-index: 2;
+}
+
+.org-card-box.is-expanded-unit {
+  border-color: #38bdf8;
+}
+
+.org-card-box.is-expanded-unit::after {
+  content: '';
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 24px;
+  background: #0284c7;
+  z-index: 2;
 }
 
 .org-card-box.is-active-card {

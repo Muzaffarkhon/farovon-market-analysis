@@ -123,10 +123,19 @@ async function migrate() {
     console.log('🔧 Миграция: конструктор ролей заполнен правами по умолчанию');
   }
 
+  // Корпоративная роль подразделения (governance / control / line)
+  // и флаг участия в C&B обзорах рынка (1 — участвует, 0 — исключено)
+  await ensureColumn('divisions', 'org_role', "TEXT DEFAULT 'line'");
+  await ensureColumn('divisions', 'is_survey_target', "INTEGER DEFAULT 1");
+
+  // Автоматическая инициализация роли 'control' для служб внутреннего аудита
+  await run("UPDATE divisions SET org_role = 'control' WHERE (unit LIKE '%аудит%' OR dir LIKE '%аудит%') AND (org_role IS NULL OR org_role = 'line')");
+
   // Составные индексы для мгновенной выборки и ускорения работы
   await run('CREATE INDEX IF NOT EXISTS idx_competitors_unit_actual ON competitors(unit, actual)');
   await run('CREATE INDEX IF NOT EXISTS idx_surveys_unit_state ON surveys(unit, state)');
   await run('CREATE INDEX IF NOT EXISTS idx_divisions_dir ON divisions(dir)');
+  await run('CREATE INDEX IF NOT EXISTS idx_divisions_org_role ON divisions(org_role)');
   await run('CREATE INDEX IF NOT EXISTS idx_dict_companies_name ON dictionary_companies(name)');
   await run('CREATE INDEX IF NOT EXISTS idx_dict_positions_name ON dictionary_positions(name)');
 }
