@@ -2623,10 +2623,115 @@ function openBatchSurveySheet(posName){
   renderSheetContent();
   document.body.appendChild(el);
 
+  var initialSnapshot = JSON.stringify(entries);
+  function isSheetDirty(){
+    return JSON.stringify(entries) !== initialSnapshot;
+  }
+
+  function saveBatchSurvey(){
+    // Валидация диапазонов окладов перед сохранением
+    for(var i = 0; i < entries.length; i++){
+      var it = entries[i];
+      var pF = it.payFrom ? Number(String(it.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
+      var pT = it.payTo ? Number(String(it.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
+      if(pF > 0 && pT > 0 && pF > pT){
+        toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
+        return false;
+      }
+    }
+    entries.forEach(function(item){
+      var isFilled = !!(item.payFrom.trim() || item.payTo.trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
+
+      var existIndex = S.surveys.findIndex(function(s){
+        return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
+      });
+
+      if(isFilled){
+        var record = {
+          id: item.id || uid(),
+          unit: S.unit,
+          company: item.co,
+          posOur: posName,
+          posTheir: item.posTheir.trim(),
+          grade: item.grade.trim(),
+          payFrom: item.payFrom.trim(),
+          payTo: item.payTo.trim(),
+          cur: item.cur,
+          payPer: item.payPer,
+          bonHas: item.bonHas,
+          bonSize: item.bonHas === 'да' ? item.bonSize.trim() : '',
+          bonType: item.bonHas === 'да' ? item.bonType : '',
+          bonPer: item.bonHas === 'да' ? item.bonPer : '',
+          benefits: item.benefits,
+          extra: item.extra.trim(),
+          source: item.source,
+          trust: item.trust,
+          note: item.note.trim()
+        };
+
+        if(existIndex >= 0){
+          S.surveys[existIndex] = record;
+        } else {
+          S.surveys.push(record);
+        }
+      } else if(existIndex >= 0){
+        // Если запись была, но пользователь всё стёр
+        var removedRec = S.surveys[existIndex];
+        if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
+          S.removed.push(removedRec.id);
+        }
+        S.surveys.splice(existIndex, 1);
+      }
+    });
+
+    el.remove();
+    markDirty();
+    renderUnit();
+    toast('Данные по должности «' + posName + '» внесены. Не забудьте «Сохранить».', 'ok');
+    return true;
+  }
+
+  function requestCloseSheet(){
+    if(!isSheetDirty()){
+      el.remove();
+      return;
+    }
+    var cm = document.createElement('div');
+    cm.className = 'sheet';
+    cm.style.zIndex = '9999';
+    cm.innerHTML = '<div class="sheet-in um-modal" style="max-width:440px;box-shadow:var(--shadow-lg)">' +
+      '<div class="sheet-hd"><b style="color:var(--warn);display:flex;align-items:center;gap:6px">' + ic('warn', 18) + 'Несохранённые изменения</b></div>' +
+      '<p style="font-size:13px;color:var(--muted);margin:12px 0 16px;line-height:1.45">' +
+        'Вы изменили данные по должности <b>«' + esc(posName) + '»</b>. Сохранить их перед выходом?' +
+      '</p>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        '<button class="btn-primary" id="cmSave" style="width:100%">' + ic('check', 14) + 'Сохранить и выйти</button>' +
+        '<button class="btn-line btn-danger" id="cmDiscard" style="width:100%">' + ic('trash', 14) + 'Закрыть без сохранения</button>' +
+        '<button class="btn-ghost" id="cmStay" style="width:100%">' + ic('close', 14) + 'Остаться в карточке</button>' +
+      '</div>' +
+    '</div>';
+    document.body.appendChild(cm);
+
+    cm.querySelector('#cmSave').onclick = function(){
+      var ok = saveBatchSurvey();
+      if(ok) cm.remove();
+    };
+    cm.querySelector('#cmDiscard').onclick = function(){
+      cm.remove();
+      el.remove();
+    };
+    cm.querySelector('#cmStay').onclick = function(){
+      cm.remove();
+    };
+    cm.onclick = function(e){
+      if(e.target === cm) cm.remove();
+    };
+  }
+
   // Обработчик событий внутри пакетной формы
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.dataset.x){
-      el.remove();
+      requestCloseSheet();
       return;
     }
 
@@ -2716,65 +2821,7 @@ function openBatchSurveySheet(posName){
 
   // Сохранение всей должности
   el.querySelector('#batchSaveBtn').onclick = function(){
-    // Валидация диапазонов окладов перед сохранением
-    for(var i = 0; i < entries.length; i++){
-      var it = entries[i];
-      var pF = it.payFrom ? Number(String(it.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
-      var pT = it.payTo ? Number(String(it.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
-      if(pF > 0 && pT > 0 && pF > pT){
-        toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
-        return;
-      }
-    }
-    entries.forEach(function(item){
-      var isFilled = !!(item.payFrom.trim() || item.payTo.trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
-
-      var existIndex = S.surveys.findIndex(function(s){
-        return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
-      });
-
-      if(isFilled){
-        var record = {
-          id: item.id || uid(),
-          unit: S.unit,
-          company: item.co,
-          posOur: posName,
-          posTheir: item.posTheir.trim(),
-          grade: item.grade.trim(),
-          payFrom: item.payFrom.trim(),
-          payTo: item.payTo.trim(),
-          cur: item.cur,
-          payPer: item.payPer,
-          bonHas: item.bonHas,
-          bonSize: item.bonHas === 'да' ? item.bonSize.trim() : '',
-          bonType: item.bonHas === 'да' ? item.bonType : '',
-          bonPer: item.bonHas === 'да' ? item.bonPer : '',
-          benefits: item.benefits,
-          extra: item.extra.trim(),
-          source: item.source,
-          trust: item.trust,
-          note: item.note.trim()
-        };
-
-        if(existIndex >= 0){
-          S.surveys[existIndex] = record;
-        } else {
-          S.surveys.push(record);
-        }
-      } else if(existIndex >= 0){
-        // Если запись была, но пользователь всё стёр
-        var removedRec = S.surveys[existIndex];
-        if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
-          S.removed.push(removedRec.id);
-        }
-        S.surveys.splice(existIndex, 1);
-      }
-    });
-
-    el.remove();
-    markDirty();
-    renderUnit();
-    toast('Данные по должности «' + posName + '» внесены. Не забудьте «Сохранить».', 'ok');
+    saveBatchSurvey();
   };
 
   setTimeout(function(){ el.querySelector('.sheet-in').scrollTop = 0; }, 30);
