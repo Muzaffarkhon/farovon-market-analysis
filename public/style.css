@@ -23,14 +23,13 @@
 
   --bg: #ffffff;
   --card: #ffffff;
-  --card-hover: #f5f5f5;
-  --card-2: #f5f5f5;
-  --line: #e5e5e5;
-  --line-strong: #d4d4d4;
-  --text: #171717;
-  --muted: #525252;
-  --subtle: #737373;
-
+  --card-hover: #f1f5f9;
+  --card-2: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --text: #000000;
+  --muted: #1e293b;
+  --subtle: #334155;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-soft: #eff6ff;
@@ -191,6 +190,7 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
 .top {
   position: sticky;
   top: 0;
+  flex: none;
   z-index: 30;
   background: var(--color-canvas-white);
   border-bottom: 1px solid var(--color-ash);
@@ -267,17 +267,76 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   }
 }
 
+/* Каркас приложения: прокручивается только .wrap, шапка и панель сохранения
+   остаются на месте. */
+#app {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
 .wrap {
-  max-width: 880px;
   width: 100%;
-  margin: 0 auto;
-  padding: 10px 16px;
-  flex: 1 1 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 20px 14px;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+body.has-bar .wrap {
+  padding-bottom: 110px;
+}
+
+.wrap::-webkit-scrollbar {
+  width: 10px;
+}
+.wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-left: 1px solid var(--line);
+}
+.wrap::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+.co-list-scroll {
+  max-height: calc(100vh - 380px);
+  min-height: 200px;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.co-list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.co-list-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.co-list-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+}
+.co-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 @media (min-width: 1024px) {
@@ -440,21 +499,10 @@ h1, h2, h3, .sec-title, .fork-pos, .kpi-v {
   .wrap {
     max-width: 100%;
     margin: 0;
-    padding: 16px 28px 16px;
-    height: 100%;
-    flex: 1 1 0;
+    padding: 10px 24px 14px;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Блокируем внешний скролл только на страницах с полноэкранными таблицами DataGrid */
-  .wrap:has(> .tblwrap--page),
-  .wrap:has(#dictBox),
-  .wrap:has(.u-tblwrap) {
-    overflow: hidden;
   }
 
   #unitsContainer {
@@ -2490,23 +2538,9 @@ label.lbl {
 
 /* ─── Таблицы (Flat Dense SaaS DataGrid) ─── */
 .tblwrap {
-  background: var(--color-canvas-white);
-  border: 1px solid var(--color-ash);
-  border-radius: var(--radius-cards);
-  overflow-x: auto;
-  margin-bottom: 0;
-  box-shadow: none;
-}
-
-.tblwrap--page {
-  flex: 1 1 0;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
-  background: var(--color-canvas-white);
-  border: 1px solid var(--color-ash);
-  border-radius: var(--radius-cards);
-  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   overflow-x: auto;
   margin-bottom: 0;
   box-shadow: none;
@@ -2519,15 +2553,19 @@ label.lbl {
   text-align: left;
 }
 
-.co-tbl th,
-.co-tbl thead th {
+.co-tbl--pin thead th {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--color-paper-mist);
-  color: var(--color-steel);
-  font-weight: 500;
-  font-size: 11.5px;
+  background: var(--card-2);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.co-tbl th {
+  background: var(--card-2);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 8px 12px;
@@ -2543,27 +2581,108 @@ label.lbl {
 }
 
 .co-tbl tr:last-child td {
-  border-bottom: none;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
 }
 
 .co-tbl tr:hover td {
   background: #fafafa;
 }
 
-/* ─── Таблица пользователей (только десктоп; ниже 1024px показываются .u-cards) ───
-   Переключение живёт здесь, а не в общем десктопном медиа-запросе выше по файлу:
-   тот идёт раньше и базовое display:none его перебивало бы. */
-.u-tblwrap { display: none; }
+.dept-quick-select, .dept-pick-btn {
+  width: 100%;
+  min-height: 32px;
+  font-size: 12.5px;
+  padding: 0 10px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.dept-quick-select:focus, .dept-pick-btn:hover, .dept-pick-btn:focus {
+  border-color: var(--accent);
+}
 
-@media (min-width: 1024px) {
-  .u-tblwrap {
-    display: flex !important;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-  }
-  .u-cards { display: none; }
+.inline-picker-popover {
+  position: absolute;
+  z-index: 10000;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 8px;
+  max-width: 380px;
+  animation: ippFade 0.15s ease-out;
+}
+@keyframes ippFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ipp-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  margin-bottom: 6px;
+}
+.ipp-search input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+.ipp-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ipp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.ipp-item:hover, .ipp-item:focus {
+  background: var(--card-hover);
+}
+.ipp-item.on {
+  background: rgba(230, 81, 0, 0.1);
+  font-weight: 600;
+  color: var(--accent);
+}
+.ipp-item span {
+  flex: 1;
+}
+.ipp-empty {
+  padding: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.u-cards { display: none; }
+@media (max-width: 1023px) {
+  .u-cards { display: grid; gap: 10px; }
 }
 
 .u-tbl td { vertical-align: middle; }
@@ -2593,8 +2712,34 @@ label.lbl {
 }
 
 .u-t-acts .btn-icon {
-  width: 30px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
   padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.u-t-acts .btn-icon:hover {
+  background: var(--card-hover);
+  color: #000000;
+  border-color: var(--line);
+}
+
+.u-t-acts .btn-icon.btn-danger {
+  color: var(--no);
+  background: transparent;
+  border-color: transparent;
+}
+
+.u-t-acts .btn-icon.btn-danger:hover {
+  background: var(--no-soft);
+  color: var(--no);
+  border-color: var(--no-border);
 }
 
 .u-t-acts .btn-icon svg {
@@ -3045,17 +3190,99 @@ label.lbl {
 .page-head {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 10px 16px;
-  margin-bottom: 12px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
   position: sticky;
   top: -16px;
   z-index: 20;
   box-shadow: var(--shadow-xs);
+}
+
+.sub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  flex: none;
+}
+
+.sub-tabs--sticky {
+  position: relative;
+  z-index: 10;
+  margin-bottom: 8px;
+}
+
+.sub-tabs--inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.sub-tabs--inner .sub-tab {
+  font-size: 12.5px;
+  padding: 3px 10px;
+  min-height: 28px;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+}
+
+.sub-tabs--inner .sub-tab:hover {
+  background: var(--card-hover);
+  color: #000000;
+}
+
+.sub-tabs--inner .sub-tab.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(37, 99, 235, 0.2);
+  font-weight: 700;
+}
+
+.sub-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.sub-tab:hover {
+  background: var(--card-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.sub-tab.on {
+  background: var(--accent);
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.sub-tab.on svg {
+  color: #ffffff;
 }
 
 .page-head-main {
@@ -3116,17 +3343,17 @@ label.lbl {
   flex: none;
   width: auto;
   margin-left: auto;
-  min-height: 36px;
-  padding: 0 16px;
+  min-height: 32px;
+  padding: 0 14px;
 }
 
 /* Поиск и счётчик в одну строку — счётчик больше не занимает свою. */
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .toolbar .search-wrap {
@@ -3149,19 +3376,24 @@ label.lbl {
   font-size: 13.5px;
 }
 
-/* Таблица занимает остаток экрана и заполняет доступную высоту до низа без сдвига страницы */
+/* Таблица занимает остаток экрана до низа страницы */
 .tblwrap--page {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  width: 100%;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  height: calc(100vh - 185px);
+  max-height: calc(100vh - 185px);
   overflow-y: auto;
   overflow-x: auto;
   margin-bottom: 0;
   box-shadow: var(--shadow-xs);
+}
+
+#dictBox .tblwrap--page,
+#dashSumTabBody .tblwrap--page {
+  height: calc(100vh - 225px);
+  max-height: calc(100vh - 225px);
 }
 
 @media (max-width: 700px) {

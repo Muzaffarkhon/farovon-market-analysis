@@ -380,10 +380,8 @@ exports.saveDivision = async (req, res) => {
       if (!division) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
 
       const myDirs = req.user.units || [];
-      const inMyDirection = myDirs.includes(division.dir);
-      // Строка самого направления (unit === dir) — её головные поля
-      // (head/dir) закрепляет администратор, dir_head её не редактирует.
-      if (!inMyDirection || division.unit === division.dir) {
+      const inMyDirection = myDirs.includes(division.dir) || myDirs.includes(division.unit);
+      if (!inMyDirection) {
         return res.status(403).json({
           ok: false,
           error: 'Можно назначать ответственных только по отделам своего направления'
@@ -788,6 +786,96 @@ exports.runMaintenance = async (req, res) => {
     } else if (taskType === 'mass_reminder') {
       const r = await sendMassReminder(req.user.fio);
       message = `Напоминания успешно отправлены: ${r.sent} сотрудникам.`;
+
+    } else if (taskType === 'get_locks') {
+      const compLocks = await queryAll(`
+        SELECT TRIM(updated_by) AS owner, COUNT(*) AS n 
+        FROM competitors 
+        WHERE TRIM(COALESCE(updated_by, '')) <> '' 
+        GROUP BY TRIM(updated_by)
+      `);
+      const survLocks = await queryAll(`
+        SELECT TRIM(created_by) AS owner, COUNT(*) AS n 
+        FROM surveys 
+        WHERE state != 'удалена' AND TRIM(COALESCE(created_by, '')) <> '' 
+        GROUP BY TRIM(created_by)
+      `);
+      const users = await queryAll('SELECT login, fio, role FROM users');
+      const userMap = {};
+      users.forEach(u => {
+        if (u.login) userMap[u.login.toLowerCase()] = u;
+        if (u.fio) userMap[u.fio.toLowerCase()] = u;
+      });
+
+      const combined = {};
+      compLocks.forEach(c => {
+        const key = c.owner;
+        if (!combined[key]) combined[key] = { owner: key, comps: 0, survs: 0, role: 'user' };
+        combined[key].comps = c.n;
+        const u = userMap[key.toLowerCase()];
+        if (u) combined[key].role = u.role;
+        else if (/admin|администратор/i.test(key)) combined[key].role = 'admin';
+        else if (/cb|с&b|c&b/i.test(key)) combined[key].role = 'cb';
+      });
+      survLocks.forEach(s => {
+        const key = s.owner;
+        if (!combined[key]) combined[key] = { owner: key, comps: 0, survs: 0, role: 'user' };
+        combined[key].survs = s.n;
+        const u = userMap[key.toLowerCase()];
+        if (u) combined[key].role = u.role;
+        else if (/admin|администратор/i.test(key)) combined[key].role = 'admin';
+        else if (/cb|с&b|c&b/i.test(key)) combined[key].role = 'cb';
+      });
+
+      return res.json({ ok: true, locks: Object.values(combined) });
+
+    } else if (taskType === 'unlock') {
+      const { targetOwner, targetRole } = req.body;
+      let compSql = '', survSql = '', compArgs = [], survArgs = [];
+
+      if (targetRole) {
+        const usersWithRole = await queryAll('SELECT login, fio FROM users WHERE role = ?', [targetRole]);
+        const identifiers = [];
+        usersWithRole.forEach(u => {
+          if (u.login) identifiers.push(u.login);
+          if (u.fio) identifiers.push(u.fio);
+        });
+        if (targetRole === 'admin') {
+          identifiers.push('admin', 'Администратор', 'Администратор C&B', 'Администратор C&amp;B');
+        } else if (targetRole === 'cb') {
+          identifiers.push('cb', 'C&B', 'С&B');
+        }
+        if (identifiers.length) {
+          const ph = identifiers.map(() => '?').join(',');
+          compSql = `UPDATE competitors SET updated_by = '' WHERE updated_by IN (${ph})`;
+          compArgs = identifiers;
+          survSql = `UPDATE surveys SET created_by = '' WHERE created_by IN (${ph})`;
+          survArgs = identifiers;
+        }
+      } else if (targetOwner && targetOwner !== 'all') {
+        compSql = `UPDATE competitors SET updated_by = '' WHERE updated_by = ?`;
+        compArgs = [targetOwner];
+        survSql = `UPDATE surveys SET created_by = '' WHERE created_by = ?`;
+        survArgs = [targetOwner];
+      } else {
+        // all
+        compSql = `UPDATE competitors SET updated_by = '' WHERE TRIM(COALESCE(updated_by, '')) <> ''`;
+        survSql = `UPDATE surveys SET created_by = '' WHERE TRIM(COALESCE(created_by, '')) <> ''`;
+      }
+
+      let countComp = 0, countSurv = 0;
+      if (compSql) {
+        const resComp = await run(compSql, compArgs);
+        countComp = resComp.rowsAffected || 0;
+      }
+      if (survSql) {
+        const resSurv = await run(survSql, survArgs);
+        countSurv = resSurv.rowsAffected || 0;
+      }
+
+      const targetName = targetRole ? `роли "${targetRole}"` : (targetOwner && targetOwner !== 'all' ? `пользователя "${targetOwner}"` : 'со всех записей');
+      message = `Блокировки ${targetName} успешно сняты. Разблокировано участников рынка: ${countComp}, записей должностей: ${countSurv}.`;
+
     } else {
       return res.status(400).json({ ok: false, error: 'Неизвестная сервисная задача' });
     }
