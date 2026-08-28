@@ -5649,6 +5649,28 @@ function renderAdminDivisions(){
       return;
     }
 
+    var treeBtn = e.target.closest('#btnOrgTree');
+    if(treeBtn){
+      S.adminDivsView = 'tree';
+      saveNavState();
+      renderAdminDivisions();
+      return;
+    }
+
+    var tableBtn = e.target.closest('#btnOrgTable');
+    if(tableBtn){
+      S.adminDivsView = 'table';
+      saveNavState();
+      renderAdminDivisions();
+      return;
+    }
+
+    var undoBtn = e.target.closest('#btnOrgUndo');
+    if(undoBtn){
+      popUndo();
+      return;
+    }
+
     var promoteBtn = e.target.closest('[data-act="promote-unit"]');
     if(promoteBtn){
       var pUnit = promoteBtn.dataset.u || (S.selectedOrgNode && S.selectedOrgNode.unit);
