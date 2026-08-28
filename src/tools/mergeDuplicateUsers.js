@@ -32,24 +32,44 @@ const ROLE_RANK = {
   guest: 1
 };
 
+function areFioMatching(fio1, fio2) {
+  const t1 = getFioTokens(fio1);
+  const t2 = getFioTokens(fio2);
+  if (!t1.length || !t2.length) return false;
+  const common = t1.filter(w => t2.includes(w));
+  return common.length >= 2 || (t1.length === 1 && t2.length === 1 && t1[0] === t2[0]);
+}
+
 async function mergeDuplicateUsers() {
   console.log('🔄 Запуск нормализации и объединения дубликатов пользователей...');
 
   const users = await queryAll('SELECT * FROM users WHERE archived_at IS NULL');
   console.log(`Найдено активных пользователей: ${users.length}`);
 
-  const groups = {};
-  for (const u of users) {
-    const key = getFioKey(u.fio);
-    if (!key) continue;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(u);
+  const processed = new Set();
+  const clusters = [];
+
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    if (processed.has(u.id)) continue;
+    const group = [u];
+    processed.add(u.id);
+
+    for (let j = i + 1; j < users.length; j++) {
+      const other = users[j];
+      if (processed.has(other.id)) continue;
+      if (areFioMatching(u.fio, other.fio)) {
+        group.push(other);
+        processed.add(other.id);
+      }
+    }
+    clusters.push(group);
   }
 
   let mergedCount = 0;
   let updatedFioCount = 0;
 
-  for (const [key, list] of Object.entries(groups)) {
+  for (const list of clusters) {
     if (list.length > 1) {
       // 1. Сортируем: сначала с наивысшей ролью, затем с большим количеством подразделений
       list.sort((a, b) => {
@@ -79,9 +99,8 @@ async function mergeDuplicateUsers() {
       });
       const mergedUnits = Array.from(allUnitsSet).join('; ');
 
-      console.log(`⚡ Объединение группы [${key}]:`);
+      console.log(`⚡ Объединение группы: ${primary.fio} <-> ${duplicates.map(d => d.fio).join(', ')}`);
       console.log(`   Основной: ${primary.login} (${primary.fio}) -> Новое ФИО: ${bestFio}`);
-      duplicates.forEach(d => console.log(`   Архивация дубля: ${d.login} (${d.fio}, роль: ${d.role})`));
 
       // 4. Обновляем основной аккаунт
       await run(
@@ -114,9 +133,7 @@ async function mergeDuplicateUsers() {
 
     const matchFio = (val) => {
       if (!val || typeof val !== 'string') return val;
-      const key = getFioKey(val);
-      if (!key) return val;
-      const matched = activeUsers.find(u => getFioKey(u.fio) === key);
+      const matched = activeUsers.find(u => areFioMatching(val, u.fio));
       return matched ? matched.fio : val;
     };
 
