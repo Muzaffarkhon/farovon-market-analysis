@@ -1940,7 +1940,10 @@ function updateTopPeriodBadge(){
 function setTop(title, sub, back, icon){
   $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
   $('btnBack').classList.toggle('hidden', !back);
-  $('body').classList.remove('has-bar');
+  // has-bar на <body> (не на #body) — CSS-правила отступа под липкую панель и
+  // подъёма тостов написаны как `body.has-bar …`; раньше класс вешался на
+  // #body, правила не срабатывали и панель наезжала на низ контента.
+  document.body.classList.remove('has-bar');
   $('bar').classList.add('hidden');
   updateTopPeriodBadge();
   window.scrollTo(0,0);
@@ -2052,7 +2055,7 @@ function renderUnit(){
   else renderTabSurvey();
 
   $('bar').classList.remove('hidden');
-  $('body').classList.add('has-bar');
+  document.body.classList.add('has-bar');
   updateProgress();
 }
 
