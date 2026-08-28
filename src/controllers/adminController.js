@@ -400,9 +400,17 @@ exports.saveDivision = async (req, res) => {
         WHERE unit = ?
       `, [head, resp, note, cleanUnit]);
 
-      // Сквозное обновление подразделения сотрудника в таблице пользователей
-      if (resp || head) {
-        await run('UPDATE users SET unit = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(fio) = LOWER(?)', [cleanUnit, resp || head]);
+      // Сквозное обновление подразделения сотрудника в таблице пользователей (поле units)
+      const personToAssign = resp || head;
+      if (personToAssign) {
+        const uRow = await queryOne('SELECT id, units FROM users WHERE LOWER(fio) = LOWER(?)', [personToAssign]);
+        if (uRow) {
+          const list = uRow.units ? uRow.units.split(';').map(x => x.trim()).filter(Boolean) : [];
+          if (!list.includes(cleanUnit)) {
+            list.push(cleanUnit);
+            await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), uRow.id]);
+          }
+        }
       }
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
@@ -432,10 +440,17 @@ exports.saveDivision = async (req, res) => {
       WHERE unit = ?
     `, [cleanDir, head, resp, hrbp, note, cleanGroup, cleanOrgRole, cleanSurveyTarget, cleanUnit]);
 
-    // Сквозное обновление подразделения сотрудника в таблице пользователей
+    // Сквозное обновление подразделения сотрудника в таблице пользователей (поле units)
     const assignedPerson = resp || head || hrbp;
     if (assignedPerson) {
-      await run('UPDATE users SET unit = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(fio) = LOWER(?)', [cleanUnit, assignedPerson]);
+      const uRow = await queryOne('SELECT id, units FROM users WHERE LOWER(fio) = LOWER(?)', [assignedPerson]);
+      if (uRow) {
+        const list = uRow.units ? uRow.units.split(';').map(x => x.trim()).filter(Boolean) : [];
+        if (!list.includes(cleanUnit)) {
+          list.push(cleanUnit);
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), uRow.id]);
+        }
+      }
     }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
