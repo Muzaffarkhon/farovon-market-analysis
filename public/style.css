@@ -2647,6 +2647,55 @@ label.lbl {
   margin-top: 10px;
 }
 
+/* ─── Таблица-бенчмарк вилок (вкладка «Зарплатные вилки», под топ-8) ─── */
+.sal-tbl th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sal-tbl th[data-sort]:hover {
+  color: var(--accent);
+}
+
+.sal-row {
+  cursor: pointer;
+}
+
+.sal-row:hover > td {
+  background: var(--card-hover);
+}
+
+.sal-detail > td {
+  background: var(--card-2);
+  padding: 12px 14px;
+}
+
+.sal-bar {
+  position: relative;
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  min-width: 90px;
+}
+
+.sal-bar-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  opacity: 0.35;
+  border-radius: 999px;
+}
+
+.sal-bar-med {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--accent);
+}
+
 /* На десктопе вилки идут в 2 колонки; раскрытая карточка (таблица компаний
    в fork-body) растягивается на всю ширину, иначе 5-колоночная таблица не
    помещается в половину экрана. */
@@ -3004,26 +3053,29 @@ label.lbl {
 }
 
 /* ─── Адаптив «таблица → карточки» (макеты turn-24) ───
-   Пара .rtbl / .rcards на одном экране: ниже 560px (класс .compact) таблица
-   скрывается, показывается карточный список. Ставится точечно — только там,
-   где карточный вариант реально построен (прогресс HR BP, льготы, роли,
-   назначение ответственных). */
+   Пара .rtbl / .rcards на одном экране: на узком экране (≤560px) таблица
+   скрывается, показывается карточный список. Триггер по ширине, а не по
+   классу .compact — .compact включается и меткой .tg (Telegram Web App SDK
+   грузится и в обычном браузере), из-за чего таблицы пропадали бы и на
+   десктопе. Ставится точечно — только там, где карточный вариант построен. */
 .rcards {
   display: none;
 }
 
-.compact .rtbl {
-  display: none;
-}
+@media (max-width: 560px) {
+  .rtbl {
+    display: none;
+  }
 
-.compact .rcards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-  padding-bottom: 12px;
+  .rcards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 12px;
+  }
 }
 
 .rcard {

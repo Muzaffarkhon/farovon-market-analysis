@@ -3463,74 +3463,183 @@ function renderDashboard(){
   $('btnDashExport').onclick = exportDashboardCSV;
 }
 
+/** Строки таблицы «компания / вилка / премии / льготы / примечание» по должности. */
+function salCoRows(pos){
+  return (pos.companies || []).map(function(c){
+    var payStr = (c.pFrom || c.pTo)
+      ? (c.pFrom ? c.pFrom.toLocaleString('ru-RU') : '—') + ' … ' + (c.pTo ? c.pTo.toLocaleString('ru-RU') : '—') + ' ' + esc(c.cur)
+      : 'не указан';
+    var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
+    var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:10.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
+    return '<tr>'+
+      '<td><b>'+esc(c.company)+'</b><br><small style="color:var(--muted)">'+esc(c.unit)+'</small></td>'+
+      '<td>'+payStr+'</td>'+
+      '<td>'+bonStr+'</td>'+
+      '<td>'+(bList || '<span style="color:var(--muted)">—</span>')+'</td>'+
+      '<td><small style="color:var(--muted)">'+esc(c.note || '—')+'</small></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function salCoTable(pos){
+  return '<div class="tblwrap"><table class="co-tbl">'+
+    '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
+    '<tbody>'+salCoRows(pos)+'</tbody></table></div>';
+}
+
+function salForkNums(pos){
+  return '<div class="fork-nums">'+
+    '<span>Мин: <b>'+pos.min.toLocaleString('ru-RU')+'</b></span>'+
+    '<span>P25: <b>'+pos.p25.toLocaleString('ru-RU')+'</b></span>'+
+    '<span class="f-med">Медиана: <b>'+pos.median.toLocaleString('ru-RU')+'</b></span>'+
+    '<span>P75: <b>'+pos.p75.toLocaleString('ru-RU')+'</b></span>'+
+    '<span>Макс: <b>'+pos.max.toLocaleString('ru-RU')+'</b></span>'+
+  '</div>';
+}
+
+/** Полная карточка вилки (для топ-8). */
+function salForkCard(pos, idx){
+  var minVal = pos.min || 0;
+  var maxVal = Math.max(pos.max || 1, minVal + 1);
+  var range = maxVal - minVal;
+  var p25Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p25 - minVal) / range) * 100))) : 0;
+  var p75Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p75 - minVal) / range) * 100))) : 100;
+  var medPct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.median - minVal) / range) * 100))) : 50;
+  var wPct = Math.max(p75Pct - p25Pct, 4);
+  var bodyId = 'posBody_' + idx;
+
+  var forkVisual = pos.min > 0
+    ? salForkNums(pos)+
+      '<div class="fork-track-wrap">'+
+        '<div class="fork-track-p25-p75" style="left:'+p25Pct+'%;width:'+wPct+'%"></div>'+
+        '<div class="fork-track-med" style="left:'+medPct+'%"></div>'+
+      '</div>'
+    : '<div style="font-size:12.5px;color:var(--muted);margin:6px 0">Нет числовых данных по окладу</div>';
+
+  return '<div class="fork-box" id="posCard_'+idx+'">'+
+    '<div class="fork-hd" onclick="togglePosBody(\''+bodyId+'\')">'+
+      '<div class="fork-pos">'+esc(pos.pos)+'</div>'+
+      '<div class="fork-cnt">'+pos.count+' '+declOfNum(pos.count, ['запись','записи','записей'])+'</div>'+
+      (pos.forkSpreadPct ? '<div class="pill p-mid">размах +'+pos.forkSpreadPct+'%</div>' : '')+
+      '<div style="font-size:18px;color:var(--muted)">▾</div>'+
+    '</div>'+
+    forkVisual +
+    '<div id="'+bodyId+'" class="fork-body hidden">'+salCoTable(pos)+'</div>'+
+  '</div>';
+}
+
+function toggleSalRow(tr){
+  var next = tr.nextElementSibling;
+  if(next && next.classList.contains('sal-detail')) next.classList.toggle('hidden');
+}
+
+/**
+ * Вкладка «Зарплатные вилки» — топ-8 самых заполненных должностей полными
+ * карточками (медиана + коридор P25–P75 + компании по клику), ниже — таблица
+ * по ВСЕМ должностям: строка на должность, сортировка по колонкам, полоса
+ * «коридор рынка» на общей шкале. Клик по строке разворачивает те же
+ * Мин/Макс и таблицу компаний. Только фронт: данные и API не трогаем.
+ */
 function renderSalariesTab(positions){
   if(!positions.length){
     return '<div class="empty">По заданным условиям должностей не найдено</div>';
   }
 
-  var h = '<div class="sec-title">Зарплатные вилки по должностям ('+positions.length+')</div>';
+  var sort = S.dashSalSort || { key: 'count', dir: 'desc' };
+  var sorted = positions.slice().sort(function(a, b){
+    if(sort.key === 'pos'){
+      var an = (a.pos || '').toLowerCase(), bn = (b.pos || '').toLowerCase();
+      var c = an < bn ? -1 : an > bn ? 1 : 0;
+      return sort.dir === 'asc' ? c : -c;
+    }
+    var av = a[sort.key] || 0, bv = b[sort.key] || 0;
+    return sort.dir === 'asc' ? av - bv : bv - av;
+  });
 
-  h += '<div class="fork-grid">' + positions.map(function(pos, idx){
-    var minVal = pos.min || 0;
-    var maxVal = Math.max(pos.max || 1, minVal + 1);
-    var range = maxVal - minVal;
+  // Всегда топ-8 по числу записей, независимо от сортировки таблицы.
+  var top = positions.slice().sort(function(a, b){ return (b.count||0) - (a.count||0); }).slice(0, 8);
 
-    var p25Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p25 - minVal) / range) * 100))) : 0;
-    var p75Pct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.p75 - minVal) / range) * 100))) : 100;
-    var medPct = range > 0 ? Math.max(0, Math.min(100, Math.round(((pos.median - minVal) / range) * 100))) : 50;
-    var wPct = Math.max(p75Pct - p25Pct, 4);
+  // Общая шкала для полосы «коридор рынка» — по P25/P75 должностей с данными.
+  var withData = positions.filter(function(p){ return p.min > 0; });
+  var scaleLo = withData.length ? Math.min.apply(null, withData.map(function(p){ return p.p25; })) : 0;
+  var scaleHi = withData.length ? Math.max.apply(null, withData.map(function(p){ return p.p75; })) : 1;
+  var scaleRange = Math.max(scaleHi - scaleLo, 1);
 
-    var cardId = 'posCard_' + idx;
-    var bodyId = 'posBody_' + idx;
+  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px">';
 
-    var forkVisual = pos.min > 0
-      ? '<div class="fork-nums">'+
-          '<span>Мин: <b>'+pos.min.toLocaleString('ru-RU')+'</b></span>'+
-          '<span>P25: <b>'+pos.p25.toLocaleString('ru-RU')+'</b></span>'+
-          '<span class="f-med">Медиана: <b>'+pos.median.toLocaleString('ru-RU')+'</b></span>'+
-          '<span>P75: <b>'+pos.p75.toLocaleString('ru-RU')+'</b></span>'+
-          '<span>Макс: <b>'+pos.max.toLocaleString('ru-RU')+'</b></span>'+
-        '</div>'+
-        '<div class="fork-track-wrap">'+
-          '<div class="fork-track-p25-p75" style="left:'+p25Pct+'%;width:'+wPct+'%"></div>'+
-          '<div class="fork-track-med" style="left:'+medPct+'%"></div>'+
-        '</div>'
-      : '<div style="font-size:12.5px;color:var(--muted);margin:6px 0">Нет числовых данных по окладу</div>';
+  h += '<div class="sec-title">Топ-8 по числу данных</div>';
+  h += '<div class="fork-grid">' + top.map(function(p){ return salForkCard(p, positions.indexOf(p)); }).join('') + '</div>';
 
-    var coList = (pos.companies || []).map(function(c){
-      var payStr = (c.pFrom || c.pTo)
-        ? (c.pFrom ? c.pFrom.toLocaleString('ru-RU') : '—') + ' … ' + (c.pTo ? c.pTo.toLocaleString('ru-RU') : '—') + ' ' + esc(c.cur)
-        : 'не указан';
-      var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
-      var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:10.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
+  h += '<div class="sec-title" style="margin-top:16px">Все должности — таблица ('+positions.length+')</div>';
 
-      return '<tr>'+
-        '<td><b>'+esc(c.company)+'</b><br><small style="color:var(--muted)">'+esc(c.unit)+'</small></td>'+
-        '<td>'+payStr+'</td>'+
-        '<td>'+bonStr+'</td>'+
-        '<td>'+(bList || '<span style="color:var(--muted)">—</span>')+'</td>'+
-        '<td><small style="color:var(--muted)">'+esc(c.note || '—')+'</small></td>'+
-      '</tr>';
-    }).join('');
+  function arrow(k){ return sort.key === k ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''; }
 
-    return '<div class="fork-box" id="'+cardId+'">'+
-      '<div class="fork-hd" onclick="togglePosBody(\''+bodyId+'\')">'+
-        '<div class="fork-pos">'+esc(pos.pos)+'</div>'+
-        '<div class="fork-cnt">'+pos.count+' '+declOfNum(pos.count, ['запись','записи','записей'])+'</div>'+
-        (pos.forkSpreadPct ? '<div class="pill p-mid">размах +'+pos.forkSpreadPct+'%</div>' : '')+
-        '<div style="font-size:18px;color:var(--muted)">▾</div>'+
-      '</div>'+
-      forkVisual +
-      '<div id="'+bodyId+'" class="fork-body hidden">'+
-        '<div class="tblwrap">'+
-          '<table class="co-tbl">'+
-            '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
-            '<tbody>'+coList+'</tbody>'+
-          '</table>'+
-        '</div>'+
-      '</div>'+
+  h += '<div class="tblwrap rtbl"><table class="co-tbl co-tbl--pin sal-tbl"><thead><tr>'+
+      '<th data-sort="pos">Должность'+arrow('pos')+'</th>'+
+      '<th class="num" data-sort="count">Записей'+arrow('count')+'</th>'+
+      '<th class="num" data-sort="p25">P25'+arrow('p25')+'</th>'+
+      '<th class="num" data-sort="median">Медиана'+arrow('median')+'</th>'+
+      '<th class="num" data-sort="p75">P75'+arrow('p75')+'</th>'+
+      '<th style="width:32%">Коридор рынка</th>'+
+    '</tr></thead><tbody>';
+
+  sorted.forEach(function(p){
+    var has = p.min > 0;
+    var bar;
+    if(has){
+      var l = Math.max(0, Math.min(100, Math.round((p.p25 - scaleLo) / scaleRange * 100)));
+      var w = Math.max(3, Math.min(100 - l, Math.round((p.p75 - p.p25) / scaleRange * 100)));
+      var m = Math.max(0, Math.min(100, Math.round((p.median - scaleLo) / scaleRange * 100)));
+      bar = '<div class="sal-bar"><div class="sal-bar-band" style="left:'+l+'%;width:'+w+'%"></div>'+
+        '<div class="sal-bar-med" style="left:'+m+'%"></div></div>';
+    } else {
+      bar = '<span style="color:var(--muted);font-size:12px">нет данных</span>';
+    }
+    h += '<tr class="sal-row" onclick="toggleSalRow(this)">'+
+      '<td><b>'+esc(p.pos)+'</b></td>'+
+      '<td class="num">'+p.count+'</td>'+
+      '<td class="num">'+(has ? p.p25.toLocaleString('ru-RU') : '—')+'</td>'+
+      '<td class="num"><b>'+(has ? p.median.toLocaleString('ru-RU') : '—')+'</b></td>'+
+      '<td class="num">'+(has ? p.p75.toLocaleString('ru-RU') : '—')+'</td>'+
+      '<td>'+bar+'</td>'+
+    '</tr>'+
+    '<tr class="sal-detail hidden"><td colspan="6">'+
+      (has ? salForkNums(p) : '')+
+      salCoTable(p)+
+    '</td></tr>';
+  });
+
+  h += '</tbody></table></div>';
+
+  h += '<div class="rcards">' + sorted.map(function(p){
+    var has = p.min > 0;
+    var nm = esc(p.pos);
+    return '<div class="rcard">'+
+      '<div class="rcard-hd"><b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
+        '<span class="pill p-mid">'+p.count+' зап.</span></div>'+
+      '<div class="rcard-meta">'+(has
+        ? 'P25 '+p.p25.toLocaleString('ru-RU')+' · Медиана <b style="color:var(--text)">'+p.median.toLocaleString('ru-RU')+
+          '</b> · P75 '+p.p75.toLocaleString('ru-RU')
+        : 'нет числовых данных по окладу')+'</div>'+
     '</div>';
   }).join('') + '</div>';
+
+  h += '</div>';
+
+  setTimeout(function(){
+    var box = $('dashTabContent');
+    if(!box) return;
+    box.querySelectorAll('.sal-tbl th[data-sort]').forEach(function(th){
+      th.onclick = function(){
+        var k = this.dataset.sort;
+        var cur = S.dashSalSort || { key: 'count', dir: 'desc' };
+        if(cur.key === k){ cur.dir = cur.dir === 'asc' ? 'desc' : 'asc'; }
+        else { cur.key = k; cur.dir = (k === 'pos') ? 'asc' : 'desc'; }
+        S.dashSalSort = cur;
+        box.innerHTML = renderSalariesTab((S.dashData && S.dashData.positions) || []);
+      };
+    });
+  }, 30);
 
   return h;
 }
