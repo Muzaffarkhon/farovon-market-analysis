@@ -1354,6 +1354,85 @@ label.lbl {
   box-shadow: var(--shadow-sm);
 }
 
+/* ─── Онбординг первого входа (карусель, макеты turn-14b/14c) ─── */
+.ob-sheet {
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-in {
+  width: calc(100% - 40px);
+  max-width: 400px;
+  border-radius: var(--radius-lg);
+  padding: 28px 24px 20px;
+  text-align: center;
+}
+
+.ob-slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 148px;
+  justify-content: center;
+}
+
+.ob-ic {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.ob-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.ob-text {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 300px;
+}
+
+.ob-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.ob-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.ob-dot.on {
+  width: 20px;
+  background: var(--accent);
+}
+
+.ob-nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ob-nav .btn-ghost {
+  flex: none;
+}
+
 .onboard h2 {
   font-size: 15.5px;
   margin: 0 0 8px;

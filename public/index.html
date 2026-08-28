@@ -659,12 +659,6 @@ function chips(act, list, value, multi, req){
     }).join('') + '</div>';
 }
 
-/** Поле, которое открывает экран выбора из справочника. */
-function pickField(id, value, placeholder, need){
-  return '<button type="button" class="pick'+(need&&!value?' need':'')+'" id="'+id+'">'+
-    '<span class="'+(value?'':'ph')+'">'+esc(value || placeholder)+'</span><i>выбрать ▾</i></button>';
-}
-
 /**
  * Экран выбора значения из справочника: поиск + строгий список.
  * Свободного ввода нет — иначе одна и та же должность попадает в таблицу
@@ -1640,6 +1634,63 @@ function openHelp(){
   });
 }
 
+/**
+ * Онбординг первого входа (макеты turn-14b/14c): 3-шаговая карусель поверх
+ * первого экрана, «Пропустить» / «Далее» → «Начать работу».
+ * Флаг «показан» хранится в localStorage (ключ LS_OB, общий с инлайновой
+ * подсказкой в renderUnits). Кросс-девайсную защиту от сброса кэша Telegram
+ * дал бы серверный users.onboarding_seen + эндпоинт — это отдельная доработка
+ * бэкенда, за рамками правки вёрстки.
+ */
+function showOnboarding(){
+  if(store.get(LS_OB) === '1') return;
+  if(document.querySelector('.ob-sheet')) return;
+
+  var slides = [
+    { ic:'units', title:'Откройте своё подразделение',
+      text:'Если подразделений несколько — заполните каждое по очереди.' },
+    { ic:'clipboard', title:'Отметьте компании рынка',
+      text:'По каждой компании выберите: актуальна для сравнения, нет, или нужно уточнить позже.' },
+    { ic:'check', title:'Готово!',
+      text:'Инструкцию «Как заполнять» можно открыть в любой момент из меню профиля.' }
+  ];
+  var i = 0;
+
+  var el = document.createElement('div');
+  el.className = 'sheet ob-sheet';
+  el.innerHTML = '<div class="sheet-in ob-in"></div>';
+  document.body.appendChild(el);
+
+  function finish(){ store.set(LS_OB, '1'); el.remove(); }
+
+  function draw(){
+    var s = slides[i];
+    var last = i === slides.length - 1;
+    el.querySelector('.ob-in').innerHTML =
+      '<div class="ob-slide">'+
+        '<div class="ob-ic">'+icBare(s.ic, 30)+'</div>'+
+        '<div class="ob-title">'+esc(s.title)+'</div>'+
+        '<div class="ob-text">'+esc(s.text)+'</div>'+
+      '</div>'+
+      '<div class="ob-dots">'+slides.map(function(_, n){
+        return '<span class="ob-dot'+(n===i?' on':'')+'"></span>';
+      }).join('')+'</div>'+
+      '<div class="ob-nav">'+
+        (last ? '' : '<button class="btn-ghost" data-ob="skip">Пропустить</button>')+
+        '<button class="btn-primary" data-ob="next" style="width:auto;flex:1">'+(last?'Начать работу':'Далее')+'</button>'+
+      '</div>';
+  }
+
+  el.addEventListener('click', function(e){
+    var act = e.target.closest('[data-ob]');
+    if(!act) return;
+    if(act.dataset.ob === 'skip'){ finish(); return; }
+    if(i < slides.length - 1){ i++; draw(); } else { finish(); }
+  });
+
+  draw();
+}
+
 function onLoaded(data){
   S.data = data;
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
@@ -1659,6 +1710,9 @@ function onLoaded(data){
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
+
+  // Онбординг первого входа — поверх уже отрисованного первого экрана.
+  if(!isElevated) showOnboarding();
 }
 
 /** Плашка о состоянии периода. */
@@ -3257,6 +3311,27 @@ function renderKpiFrame(sm){
     '<span><span style="color:var(--muted);font-size:11.5px">Вилок:</span> <b>'+(sm.positionsCount||0)+'</b></span>';
 }
 
+/**
+ * Сводная строка KPI над графиками дашборда (макет turn-19a): масштаб данных
+ * и доверие к ним, одним взглядом перед любой из вкладок. Цифры — из
+ * summary дашборда, новых полей у API не просим: «компаний-участников» в
+ * контракте нет, поэтому вторая плитка показывает связи по рынку.
+ */
+function renderDashKpiRow(sm){
+  sm = sm || {};
+  var pct = sm.divCompletionPct || 0;
+  function tile(label, val, cls){
+    return '<div class="kpi-card"><div class="kpi-t">'+label+'</div>'+
+      '<div class="kpi-v"'+(cls?' style="color:'+cls+'"':'')+'>'+val+'</div></div>';
+  }
+  return '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:12px">'+
+    tile('Подразделений', (sm.totalDivisions||0))+
+    tile('Связей по рынку', (sm.checkedCompetitorLinks||0)+' / '+(sm.totalCompetitorLinks||0))+
+    tile('Записей по рынку', (sm.totalSurveyRecords||0))+
+    tile('Заполнено', pct+'%', pct >= 80 ? 'var(--ok)' : (pct > 0 ? 'var(--accent)' : 'var(--muted)'))+
+  '</div>';
+}
+
 function renderCurrentDashTab(){
   var d = S.dashData || {};
   if(S.dashTab === 'salaries'){
@@ -3282,6 +3357,7 @@ function fetchDashboard(quiet){
     S.dashData = r;
     if(quiet && $('dashTabContent') && $('dashKpiFrame')){
       $('dashKpiFrame').innerHTML = renderKpiFrame(r.summary || {});
+      if($('dashKpiRow')) $('dashKpiRow').innerHTML = renderDashKpiRow(r.summary || {});
       $('dashTabContent').innerHTML = renderCurrentDashTab();
     } else {
       renderDashboard();
@@ -3338,7 +3414,10 @@ function renderDashboard(){
     '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'Экспорт в CSV</button>'+
   '</div>';
 
-  // 3. Контент выбранной вкладки в отдельном контейнере
+  // 3. Сводная строка KPI перед графиками (turn-19a)
+  h += '<div id="dashKpiRow">' + renderDashKpiRow(sm) + '</div>';
+
+  // 4. Контент выбранной вкладки в отдельном контейнере
   h += '<div id="dashTabContent" style="flex:1;min-height:0;display:flex;flex-direction:column">' + renderCurrentDashTab() + '</div>';
 
   $('body').innerHTML = h;
@@ -6564,7 +6643,7 @@ function drawDeptAssign(){
         '<td>'+
           '<button type="button" class="pick dept-pick-btn" data-unit="'+esc(d.unit)+'" style="width:100%;min-height:32px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border:1px solid '+(isAssigned?'var(--line)':'var(--warn)')+'">'+
             '<span class="'+(isAssigned?'':'ph')+'">'+(isAssigned ? esc(curAssignee) : ic('search', 13)+'Выбрать сотрудника…')+'</span>'+
-            '<i style="color:var(--muted);font-size:12px">▾</i>'+
+            '<i style="color:var(--muted);flex:none;display:inline-flex">'+icBare('chevron', 14)+'</i>'+
           '</button>'+
         '</td>'+
         '<td style="text-align:center">'+
@@ -6590,7 +6669,7 @@ function drawDeptAssign(){
         : '<span style="color:var(--warn);font-weight:600">Не назначен</span>')+'</div>'+
       '<button type="button" class="pick dept-pick-btn" data-unit="'+nm+'" style="width:100%;min-height:34px;margin-top:8px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border:1px solid '+(isAssigned?'var(--line)':'var(--warn)')+'">'+
         '<span class="'+(isAssigned?'':'ph')+'">'+(isAssigned ? esc(curAssignee) : ic('search', 13)+'Выбрать сотрудника…')+'</span>'+
-        '<i style="color:var(--muted);font-size:12px">▾</i>'+
+        '<i style="color:var(--muted);flex:none;display:inline-flex">'+icBare('chevron', 14)+'</i>'+
       '</button>'+
     '</div>';
   }).join('') : '<div class="empty">Ничего не найдено</div>') + '</div>';
@@ -6680,7 +6759,7 @@ function openBulkDeptAssignModal(myDir, employees){
     '<label class="lbl">Сотрудник *</label>'+
     '<button type="button" class="pick" id="bulkPickBtn" style="width:100%;min-height:36px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 12px;margin-bottom:12px">'+
       '<span class="ph">'+ic('search', 13)+'Нажмите для поиска сотрудника…</span>'+
-      '<i style="color:var(--muted);font-size:12px">▾</i>'+
+      '<i style="color:var(--muted);flex:none;display:inline-flex">'+icBare('chevron', 14)+'</i>'+
     '</button>'+
     '<div style="margin-bottom:14px">'+
       '<label class="checkline"><input type="checkbox" id="bulkSetResp" checked> Назначить как ответственного за заполнение</label>'+
