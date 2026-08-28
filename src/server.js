@@ -49,8 +49,16 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Статические файлы SPA фронтенда
-app.use(express.static(path.join(__dirname, '../public')));
+// Статические файлы SPA фронтенда (с контролем кэша для мгновенного обновления версий)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/' || req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, '../public'), { etag: false, maxAge: 0 }));
 
 // API роуты
 app.use('/api', apiRoutes);
