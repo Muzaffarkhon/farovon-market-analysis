@@ -7432,13 +7432,21 @@ function renderAdminAudit(){
     });
     actions.sort();
 
-    function drawLogs(filterSearch, filterAct){
+    var LOG_PER_PAGE = 50;
+
+    function drawLogs(filterSearch, filterAct, pg){
+      pg = pg || 1;
       var q = (filterSearch || '').toLowerCase();
       var filtered = logs.filter(function(l){
         var matchQ = !q || (l.login && l.login.toLowerCase().indexOf(q) >= 0) || (l.detail && l.detail.toLowerCase().indexOf(q) >= 0);
         var matchA = !filterAct || (l.action === filterAct);
         return matchQ && matchA;
       });
+
+      var totalPages = Math.max(1, Math.ceil(filtered.length / LOG_PER_PAGE));
+      if(pg > totalPages) pg = totalPages;
+      if(pg < 1) pg = 1;
+      var pageRows = filtered.slice((pg - 1) * LOG_PER_PAGE, pg * LOG_PER_PAGE);
 
       var logH = '<div class="toolbar" style="margin-bottom:8px;flex:none">'+
         '<div class="search-wrap">'+icBare('search')+
@@ -7453,9 +7461,9 @@ function renderAdminAudit(){
         '<button id="btnAuditReload" class="btn-line toolbar-act" style="min-height:32px;font-size:12.5px;padding:0 12px">'+ic('refresh',14)+'Обновить</button>'+
       '</div>';
 
-      logH += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+      logH += '<div class="tblwrap tblwrap--page" style="flex:1 1 0;min-height:0!important;height:auto!important;max-height:none!important"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr></thead><tbody>'+
-        filtered.map(function(l){
+        pageRows.map(function(l){
           var act = String(l.action || '').trim() || '—';
           return '<tr>'+
             '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(fmtDateTime(l.dt))+'</td>'+
@@ -7465,6 +7473,23 @@ function renderAdminAudit(){
           '</tr>';
         }).join('')+
         '</tbody></table></div>';
+
+      if(filtered.length > LOG_PER_PAGE){
+        var from = (pg - 1) * LOG_PER_PAGE + 1;
+        var to = Math.min(pg * LOG_PER_PAGE, filtered.length);
+        var nums = '';
+        for(var n = 1; n <= totalPages; n++){
+          nums += '<button data-pg="'+n+'"'+(n === pg ? ' class="on"' : '')+'>'+n+'</button>';
+        }
+        logH += '<div class="pager">'+
+          '<span class="pager-info">Показано '+from+'–'+to+' из '+filtered.length+'</span>'+
+          '<div class="pager-btns">'+
+            '<button data-pg="'+(pg - 1)+'"'+(pg <= 1 ? ' disabled' : '')+'>‹</button>'+
+            nums+
+            '<button data-pg="'+(pg + 1)+'"'+(pg >= totalPages ? ' disabled' : '')+'>›</button>'+
+          '</div>'+
+        '</div>';
+      }
 
       $('auditLogBox').innerHTML = logH;
 
@@ -7487,6 +7512,12 @@ function renderAdminAudit(){
           renderAdminAudit();
         };
       }
+      $('auditLogBox').querySelectorAll('.pager-btns button[data-pg]').forEach(function(b){
+        b.onclick = function(){
+          if(this.disabled) return;
+          drawLogs(sIn ? sIn.value : '', aSel ? aSel.value : '', parseInt(this.dataset.pg, 10));
+        };
+      });
     }
 
     drawLogs('', '');
@@ -7878,7 +7909,7 @@ function openDash(){
       '<div class="page-head-main">'+
         '<div class="page-head-k">Период заполнения</div>'+
         '<div class="page-head-v">'+esc(p.name || 'без названия')+
-          '<span class="pill '+(closed?'p-no':'p-ok')+'">'+esc(p.state || 'открыт')+'</span></div>'+
+          ' <b style="font-size:13px;font-weight:700;color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b></div>'+
         '<div class="page-head-s">'+
           (p.from ? 'с '+esc(p.from)+' ' : '') + (p.to ? 'по '+esc(p.to) : '') +
           (p.by ? (p.from||p.to ? ' · ' : '')+'изменил: '+esc(p.by)+
