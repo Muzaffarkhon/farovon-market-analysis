@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { parse } = require('csv-parse/sync');
 const { queryAll, run } = require('../db/database');
 const { getFioTokens } = require('./mergeDuplicateUsers');
 
@@ -17,21 +16,23 @@ async function runEnrichment() {
 
   const files = fs.readdirSync(path.join(__dirname, '../../data')).filter(f => f.endsWith('.csv'));
   const fullFios = new Set();
+  const namePattern = /([А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+\s+[А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+(?:\s+[А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+)?)/g;
 
   for (const f of files) {
-    const raw = fs.readFileSync(path.join(__dirname, '../../data', f), 'utf8');
-    const records = parse(raw, { skip_empty_lines: true, relax_column_count: true });
-    for (const row of records) {
-      for (const cell of row) {
-        const val = String(cell || '').trim();
-        const parts = val.split(/\s+/);
-        if (parts.length === 3 && parts.every(p => p.length >= 2)) {
-          // Проверяем, что это имя человека (не название отдела/компании)
-          if (/^[А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+\s+[А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+\s+[А-ЯЁҒӢҚЎҲҶ][а-яёғӣқўҳҷ]+$/.test(val)) {
-            fullFios.add(val);
+    try {
+      const text = fs.readFileSync(path.join(__dirname, '../../data', f), 'utf8');
+      let match;
+      while ((match = namePattern.exec(text)) !== null) {
+        const candidate = match[1].trim();
+        const parts = candidate.split(/\s+/);
+        if (parts.length === 3 && parts.every(p => p.length >= 3)) {
+          if (!/завод|цех|отдел|управление|департамент|сектор|склад|хоз|фаровон|таджикистан|согд|душанбе|худжанд|бохтар|куляб|анхор|навобод|рынок|участник|база/i.test(candidate)) {
+            fullFios.add(candidate);
           }
         }
       }
+    } catch (e) {
+      console.warn(`Ошибка чтения файла ${f}:`, e.message);
     }
   }
 
@@ -62,7 +63,6 @@ async function runEnrichment() {
 
     const findBestFio = (name) => {
       if (!name || typeof name !== 'string') return name;
-      // Сначала ищем среди полных ФИО
       const fromDict = Array.from(fullFios).find(f => areFioMatching(name, f));
       if (fromDict) return fromDict;
       const fromUsers = freshUsers.find(u => areFioMatching(name, u.fio));
