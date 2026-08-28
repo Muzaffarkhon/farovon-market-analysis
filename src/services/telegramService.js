@@ -9,8 +9,10 @@ function getBot() {
   if (!config.telegramBotToken) return null;
 
   try {
-    const TelegramBot = require('node-telegram-bot-api');
-    bot = new TelegramBot(config.telegramBotToken, { polling: false });
+    // node-telegram-bot-api v2: класс Api — прямой клиент Bot API без поллинга
+    // и без встроенного парсинга апдейтов (вебхук разбираем сами в telegramController).
+    const { Api } = require('node-telegram-bot-api');
+    bot = new Api(config.telegramBotToken);
   } catch (e) {
     console.warn('Telegram bot initialization skipped (no token or module):', e.message);
   }
@@ -58,7 +60,8 @@ async function ensureWebhook() {
     return;
   }
   try {
-    await tg.setWebHook(`${config.webappUrl}/api/telegram/webhook`, {
+    await tg.setWebhook({
+      url: `${config.webappUrl}/api/telegram/webhook`,
       secret_token: config.telegramWebhookSecret
     });
     await getBotUsername();
@@ -68,7 +71,7 @@ async function ensureWebhook() {
   }
 
   try {
-    await tg.setMyCommands(BOT_COMMANDS);
+    await tg.setMyCommands({ commands: BOT_COMMANDS });
   } catch (err) {
     console.warn('⚠️ Не удалось обновить меню команд Telegram:', err.message);
   }
@@ -79,7 +82,7 @@ async function sendTelegramMessage(chatId, text, options = {}) {
   if (!tg || !chatId) return false;
 
   try {
-    await tg.sendMessage(chatId, text, { parse_mode: 'HTML', ...options });
+    await tg.sendMessage({ chat_id: chatId, text, parse_mode: 'HTML', ...options });
     return true;
   } catch (err) {
     console.error(`Failed to send Telegram message to ${chatId}:`, err.message);
@@ -93,7 +96,7 @@ async function answerCallbackQuery(callbackQueryId, text) {
   const tg = getBot();
   if (!tg || !callbackQueryId) return false;
   try {
-    await tg.answerCallbackQuery(callbackQueryId, text ? { text } : undefined);
+    await tg.answerCallbackQuery({ callback_query_id: callbackQueryId, ...(text ? { text } : {}) });
     return true;
   } catch (err) {
     console.error('Failed to answer Telegram callback query:', err.message);

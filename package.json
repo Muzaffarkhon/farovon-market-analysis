@@ -33,6 +33,6 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-telegram-bot-api": "^2.1.0"
   }
 }
