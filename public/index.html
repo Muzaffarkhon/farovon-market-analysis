@@ -6400,6 +6400,13 @@ function openDivisionModal(unit, opts){
           S.selectedOrgNode.dir = payload.dir;
         }
 
+        // Обновляем список пользователей для синхронизации галочек в разделе "Пользователи"
+        if(S.token){
+          call('apiAdminGetUsers', S.token).then(function(uRes){
+            if(uRes && uRes.ok && uRes.users) S.adminUsers = uRes.users;
+          }).catch(function(){});
+        }
+
         el.remove();
         toast('Подразделение обновлено', 'ok');
         onSaved();

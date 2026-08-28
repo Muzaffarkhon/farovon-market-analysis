@@ -355,6 +355,42 @@ exports.getDivisions = async (req, res) => {
   }
 };
 
+// Вспомогательная функция двусторонней синхронизации подразделений в профиле пользователя (users.units)
+async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
+  try {
+    // 1. Если был старый ответственный и он изменился — удаляем подразделение из его списка
+    if (oldPerson && (!newPerson || oldPerson.toLowerCase().trim() !== newPerson.toLowerCase().trim())) {
+      const trimmedOld = oldPerson.trim();
+      const stillAssigned = await queryOne(
+        `SELECT id FROM divisions WHERE unit = ? AND (LOWER(TRIM(resp)) = LOWER(?) OR LOWER(TRIM(head)) = LOWER(?) OR LOWER(TRIM(hrbp)) = LOWER(?))`,
+        [cleanUnit, trimmedOld, trimmedOld, trimmedOld]
+      );
+      if (!stillAssigned) {
+        const oldUser = await queryOne('SELECT id, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?)', [trimmedOld]);
+        if (oldUser && oldUser.units) {
+          const remaining = oldUser.units.split(';').map(x => x.trim()).filter(x => x && x.toLowerCase() !== cleanUnit.toLowerCase());
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remaining.join(';'), oldUser.id]);
+        }
+      }
+    }
+
+    // 2. Добавляем подразделение новому ответственному
+    if (newPerson && String(newPerson).trim()) {
+      const trimmedNew = String(newPerson).trim();
+      const newUser = await queryOne('SELECT id, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?)', [trimmedNew]);
+      if (newUser) {
+        const list = newUser.units ? newUser.units.split(';').map(x => x.trim()).filter(Boolean) : [];
+        if (!list.some(x => x.toLowerCase() === cleanUnit.toLowerCase())) {
+          list.push(cleanUnit);
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), newUser.id]);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('syncUserDivisionAssignment error:', err);
+  }
+}
+
 exports.saveDivision = async (req, res) => {
   const { unit, dir, head, resp, hrbp, note, group, org_role, is_survey_target } = req.body;
   if (!unit || !String(unit).trim()) {
@@ -365,29 +401,25 @@ exports.saveDivision = async (req, res) => {
   const cleanDir = dir !== undefined && dir !== null ? String(dir).trim() : null;
 
   try {
+    const existing = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
     const isAdmin = req.user.role === 'admin' || req.user.role === 'cb';
 
-    // dir_head назначает ответственных только по отделам СВОЕГО направления —
-    // само направление (dir) и его руководителя (head) на уровне департамента
-    // он менять не может, это была бы самоназначаемая смена зоны ответственности.
-    // Проверка на сервере, а не только скрытая кнопка на фронте: маршрут
-    // доступен dir_head напрямую.
+    // dir_head назначает ответственных только по отделам СВОЕГО направления
     if (!isAdmin) {
       if (req.user.role !== 'dir_head') {
         return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
       }
-      const division = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
-      if (!division) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
+      if (!existing) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
 
       const myDirs = req.user.units || [];
-      const inMyDirection = myDirs.includes(division.dir) || myDirs.includes(division.unit);
+      const inMyDirection = myDirs.includes(existing.dir) || myDirs.includes(existing.unit);
       if (!inMyDirection) {
         return res.status(403).json({
           ok: false,
           error: 'Можно назначать ответственных только по отделам своего направления'
         });
       }
-      if (cleanDir !== null && cleanDir !== division.dir) {
+      if (cleanDir !== null && cleanDir !== existing.dir) {
         return res.status(403).json({ ok: false, error: 'Менять направление отдела нельзя' });
       }
 
@@ -400,18 +432,9 @@ exports.saveDivision = async (req, res) => {
         WHERE unit = ?
       `, [head, resp, note, cleanUnit]);
 
-      // Сквозное обновление подразделения сотрудника в таблице пользователей (поле units)
-      const personToAssign = resp || head;
-      if (personToAssign) {
-        const uRow = await queryOne('SELECT id, units FROM users WHERE LOWER(fio) = LOWER(?)', [personToAssign]);
-        if (uRow) {
-          const list = uRow.units ? uRow.units.split(';').map(x => x.trim()).filter(Boolean) : [];
-          if (!list.includes(cleanUnit)) {
-            list.push(cleanUnit);
-            await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), uRow.id]);
-          }
-        }
-      }
+      // Двусторонняя синхронизация пользователей
+      if (head !== undefined) await syncUserDivisionAssignment(existing.head, head, cleanUnit);
+      if (resp !== undefined) await syncUserDivisionAssignment(existing.resp, resp, cleanUnit);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -440,17 +463,14 @@ exports.saveDivision = async (req, res) => {
       WHERE unit = ?
     `, [cleanDir, head, resp, hrbp, note, cleanGroup, cleanOrgRole, cleanSurveyTarget, cleanUnit]);
 
-    // Сквозное обновление подразделения сотрудника в таблице пользователей (поле units)
-    const assignedPerson = resp || head || hrbp;
-    if (assignedPerson) {
-      const uRow = await queryOne('SELECT id, units FROM users WHERE LOWER(fio) = LOWER(?)', [assignedPerson]);
-      if (uRow) {
-        const list = uRow.units ? uRow.units.split(';').map(x => x.trim()).filter(Boolean) : [];
-        if (!list.includes(cleanUnit)) {
-          list.push(cleanUnit);
-          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), uRow.id]);
-        }
-      }
+    // Двусторонняя синхронизация пользователей (добавление новому и снятие со старого)
+    if (existing) {
+      if (head !== undefined) await syncUserDivisionAssignment(existing.head, head, cleanUnit);
+      if (resp !== undefined) await syncUserDivisionAssignment(existing.resp, resp, cleanUnit);
+      if (hrbp !== undefined) await syncUserDivisionAssignment(existing.hrbp, hrbp, cleanUnit);
+    } else {
+      const assignedPerson = resp || head || hrbp;
+      if (assignedPerson) await syncUserDivisionAssignment(null, assignedPerson, cleanUnit);
     }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
