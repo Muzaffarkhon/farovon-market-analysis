@@ -103,8 +103,8 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
-  // Схему доводим до актуальной до того, как примем первый запрос.
-  migrate().catch(err => console.error('❌ Миграция не выполнена:', err.message));
+  // Миграции запускает IIFE выше (единственный вызов) — второй параллельный
+  // прогон плодил гонки на UPDATE'ах при объединении дубликатов пользователей.
 
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);

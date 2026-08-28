@@ -111,8 +111,8 @@ async function mergeDuplicateUsers() {
       // 5. Архивируем дубликаты
       for (const dup of duplicates) {
         await run(
-          'UPDATE users SET archived_at = CURRENT_TIMESTAMP, active = 0, units = "", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [dup.id]
+          'UPDATE users SET archived_at = CURRENT_TIMESTAMP, active = 0, units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          ['', dup.id]
         );
         mergedCount++;
       }
