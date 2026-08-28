@@ -4704,6 +4704,14 @@ function renderAdminDivisions(){
   if(!S.selectedOrgNode && filtered.length > 0){
     var firstUnit = filtered[0];
     S.selectedOrgNode = { type: 'unit', unit: firstUnit.unit, dir: firstUnit.dir, resp: firstUnit.resp, head: firstUnit.head, hrbp: firstUnit.hrbp };
+  } else if(S.selectedOrgNode && S.selectedOrgNode.unit){
+    var currentObj = (S.adminDivs || []).find(function(x){ return x.unit === S.selectedOrgNode.unit; });
+    if(currentObj){
+      S.selectedOrgNode.head = currentObj.head;
+      S.selectedOrgNode.resp = currentObj.resp;
+      S.selectedOrgNode.hrbp = currentObj.hrbp;
+      S.selectedOrgNode.dir = currentObj.dir;
+    }
   }
 
   S.orgZoom = S.orgZoom || 0.85;
@@ -6353,15 +6361,32 @@ function openDivisionModal(unit, opts){
     call('apiAdminSaveDivision', S.token, payload).then(function(res){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
+        // Мгновенная синхронизация локальных данных в памяти
+        d.dir = payload.dir;
+        d.head = payload.head;
+        d.resp = payload.resp;
+        d.hrbp = payload.hrbp;
+        d.note = payload.note;
+        d.group_key = payload.group;
+        d.org_role = payload.org_role;
+        d.is_survey_target = payload.is_survey_target;
+
+        if(S.selectedOrgNode && (S.selectedOrgNode.unit === d.unit || S.selectedOrgNode.dir === d.dir)){
+          S.selectedOrgNode.head = payload.head;
+          S.selectedOrgNode.resp = payload.resp;
+          S.selectedOrgNode.hrbp = payload.hrbp;
+          S.selectedOrgNode.dir = payload.dir;
+        }
+
         el.remove();
-        toast('Подразделение обновлено');
+        toast('Подразделение обновлено', 'ok');
         onSaved();
       } else {
-        toast((res && res.error) || 'Ошибка');
+        toast((res && res.error) || 'Ошибка', 'err');
       }
     }).catch(function(){
       btn.disabled = false; btn.textContent = 'Сохранить';
-      toast('Нет связи');
+      toast('Нет связи с сервером', 'err');
     });
   };
 }
