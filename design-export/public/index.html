@@ -6525,7 +6525,7 @@ function drawDeptAssign(){
         '<td>'+(isAssigned ? '<span style="font-weight:600">'+esc(curAssignee)+'</span>' : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
         '<td>'+
           '<button type="button" class="pick dept-pick-btn" data-unit="'+esc(d.unit)+'" style="width:100%;min-height:32px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border:1px solid '+(isAssigned?'var(--line)':'var(--warn)')+'">'+
-            '<span class="'+(isAssigned?'':'ph')+'">'+(isAssigned ? esc(curAssignee) : ic('search', 13)+'Выбрать сотрудника…')+'</span>'+
+            '<span class="'+(isAssigned?'':'ph')+'">'+(isAssigned ? esc(curAssignee) : '🔍 Выбрать сотрудника…')+'</span>'+
             '<i style="color:var(--muted);font-size:12px">▾</i>'+
           '</button>'+
         '</td>'+
@@ -6620,7 +6620,7 @@ function openBulkDeptAssignModal(myDir, employees){
     '</p>'+
     '<label class="lbl">Сотрудник *</label>'+
     '<button type="button" class="pick" id="bulkPickBtn" style="width:100%;min-height:36px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 12px;margin-bottom:12px">'+
-      '<span class="ph">'+ic('search', 13)+'Нажмите для поиска сотрудника…</span>'+
+      '<span class="ph">🔍 Нажмите для поиска сотрудника…</span>'+
       '<i style="color:var(--muted);font-size:12px">▾</i>'+
     '</button>'+
     '<div style="margin-bottom:14px">'+
