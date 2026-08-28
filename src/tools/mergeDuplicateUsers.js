@@ -131,10 +131,19 @@ async function mergeDuplicateUsers() {
     let newResp = div.resp;
     let newHrbp = div.hrbp;
 
+    // Приводим ФИО в карточке подразделения к каноничному написанию из users —
+    // но только когда это однозначно. Раньше здесь брался ПЕРВЫЙ нечёткий
+    // матч (совпадение фамилии + ещё одного токена), из-за чего у однофамильцев
+    // значение переписывалось на чужого и «плавало» от запуска к запуску —
+    // каждый прогон отчитывался о десятках «обновлённых» подразделений.
     const matchFio = (val) => {
       if (!val || typeof val !== 'string') return val;
-      const matched = activeUsers.find(u => areFioMatching(val, u.fio));
-      return matched ? matched.fio : val;
+      const trimmed = val.trim();
+      // Уже точно совпадает с активным пользователем — не трогаем.
+      if (activeUsers.some(u => (u.fio || '').trim() === trimmed)) return val;
+      // Иначе переписываем только при ЕДИНСТВЕННОМ нечётком кандидате.
+      const candidates = activeUsers.filter(u => areFioMatching(trimmed, u.fio));
+      return candidates.length === 1 ? candidates[0].fio : val;
     };
 
     if (div.head) newHead = matchFio(div.head);
