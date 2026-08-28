@@ -138,6 +138,14 @@ async function migrate() {
   await run('CREATE INDEX IF NOT EXISTS idx_divisions_org_role ON divisions(org_role)');
   await run('CREATE INDEX IF NOT EXISTS idx_dict_companies_name ON dictionary_companies(name)');
   await run('CREATE INDEX IF NOT EXISTS idx_dict_positions_name ON dictionary_positions(name)');
+
+  // Автоматическое объединение дубликатов пользователей и нормализация полных ФИО
+  try {
+    const { mergeDuplicateUsers } = require('../tools/mergeDuplicateUsers');
+    await mergeDuplicateUsers();
+  } catch (err) {
+    console.warn('⚠️ Ошибка авто-нормализации пользователей в migrate:', err && err.message ? err.message : err);
+  }
 }
 
 module.exports = { migrate, ensureColumn };

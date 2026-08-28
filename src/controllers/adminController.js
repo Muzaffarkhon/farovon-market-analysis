@@ -355,6 +355,27 @@ exports.getDivisions = async (req, res) => {
   }
 };
 
+// Находим пользователя точным поиском или нечётким сопоставлением по Фамилии и Имени
+async function findUserByFioFlexible(fioText) {
+  if (!fioText || !String(fioText).trim()) return null;
+  const raw = String(fioText).trim();
+  let u = await queryOne('SELECT id, fio, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?) AND archived_at IS NULL', [raw]);
+  if (u) return u;
+
+  const words = raw.toLowerCase().replace(/[^a-zа-яёғӣқўҳҷ0-9\s]/gi, '').split(/\s+/).filter(w => w.length > 2);
+  if (words.length >= 2) {
+    const allUsers = await queryAll('SELECT id, fio, units FROM users WHERE archived_at IS NULL');
+    for (const user of allUsers) {
+      const uWords = (user.fio || '').toLowerCase().replace(/[^a-zа-яёғӣқўҳҷ0-9\s]/gi, '').split(/\s+/).filter(w => w.length > 2);
+      const matched = words.filter(w => uWords.includes(w));
+      if (matched.length >= 2) {
+        return user;
+      }
+    }
+  }
+  return null;
+}
+
 // Вспомогательная функция двусторонней синхронизации подразделений в профиле пользователя (users.units)
 async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
   try {
@@ -366,7 +387,7 @@ async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
         [cleanUnit, trimmedOld, trimmedOld, trimmedOld]
       );
       if (!stillAssigned) {
-        const oldUser = await queryOne('SELECT id, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?)', [trimmedOld]);
+        const oldUser = await findUserByFioFlexible(trimmedOld);
         if (oldUser && oldUser.units) {
           const remaining = oldUser.units.split(';').map(x => x.trim()).filter(x => x && x.toLowerCase() !== cleanUnit.toLowerCase());
           await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remaining.join(';'), oldUser.id]);
@@ -377,7 +398,7 @@ async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
     // 2. Добавляем подразделение новому ответственному
     if (newPerson && String(newPerson).trim()) {
       const trimmedNew = String(newPerson).trim();
-      const newUser = await queryOne('SELECT id, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?)', [trimmedNew]);
+      const newUser = await findUserByFioFlexible(trimmedNew);
       if (newUser) {
         const list = newUser.units ? newUser.units.split(';').map(x => x.trim()).filter(Boolean) : [];
         if (!list.some(x => x.toLowerCase() === cleanUnit.toLowerCase())) {
