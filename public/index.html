@@ -3483,7 +3483,7 @@ function progressTable(list, whoLabel, whoOf, unitsLabel, withSurveys){
   if(!list.length) return '<div class="empty">Нет данных</div>';
 
   var h = tblCount(list.length, null, ['строка', 'строки', 'строк']);
-  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+  h += '<div class="tblwrap tblwrap--page rtbl"><table class="co-tbl co-tbl--pin"><thead><tr>'+
       '<th>'+esc(whoLabel)+'</th>'+
       '<th class="num">Готовность</th>'+
       '<th class="num">'+esc(unitsLabel)+'</th>'+
@@ -3506,7 +3506,29 @@ function progressTable(list, whoLabel, whoOf, unitsLabel, withSurveys){
     '</tr>';
   }).join('');
 
-  return h + '</tbody></table></div>';
+  h += '</tbody></table></div>';
+
+  // Карточный вариант для узких экранов (turn-24a): строка таблицы → карточка,
+  // три числовые колонки сводятся в одну подпись.
+  h += '<div class="rcards">' + list.map(function(x){
+    var isDone = x.pct >= 100;
+    var cls = isDone ? 'p-ok' : (x.pct > 0 ? 'p-mid' : 'p-no');
+    var name = esc(whoOf(x));
+    return '<div class="rcard">'+
+      '<div class="rcard-hd">'+
+        '<b class="rcard-title" title="'+name+'">'+name+'</b>'+
+        '<span class="pill '+cls+'">'+x.pct+'%</span>'+
+      '</div>'+
+      '<div class="prog-bar-bg" style="margin:6px 0">'+
+        '<div class="prog-bar-fill" style="width:'+x.pct+'%;background:'+(isDone?'var(--ok)':'var(--accent)')+'"></div>'+
+      '</div>'+
+      '<div class="rcard-meta">'+esc(unitsLabel)+' '+x.unitsDone+'/'+x.unitsTotal+
+        ' · Связей '+x.compDone+'/'+x.compTotal+
+        (withSurveys ? ' · Анкет '+x.surveysTotal : '')+'</div>'+
+    '</div>';
+  }).join('') + '</div>';
+
+  return h;
 }
 
 function renderProgressTab(hrbpList, dirList){
@@ -3601,7 +3623,7 @@ function renderBenefitsTab(benefits, bonuses, topComps){
     if(tab === 'benefits'){
       if(!benefits.length) return '<div class="empty">Нет данных о льготах</div>';
       var out = tblCount(benefits.length, null, ['льгота', 'льготы', 'льгот']);
-      out += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+      out += '<div class="tblwrap tblwrap--page rtbl"><table class="co-tbl co-tbl--pin"><thead><tr>'+
           '<th>Льгота</th><th class="num">Охват рынка</th><th class="num">Упоминаний</th>'+
         '</tr></thead><tbody>'+
         benefits.map(function(b){
@@ -3615,6 +3637,15 @@ function renderBenefitsTab(benefits, bonuses, topComps){
           '</tr>';
         }).join('')+
       '</tbody></table></div>';
+      out += '<div class="rcards">' + benefits.map(function(b){
+        var nm = esc(b.name);
+        return '<div class="rcard">'+
+          '<div class="rcard-hd"><b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
+            '<span class="pill p-ok">'+b.pct+'%</span></div>'+
+          '<div class="prog-bar-bg" style="margin:6px 0"><div class="prog-bar-fill" style="width:'+b.pct+'%"></div></div>'+
+          '<div class="rcard-meta">Упоминаний: '+b.count+'</div>'+
+        '</div>';
+      }).join('') + '</div>';
       return out;
     } else if(tab === 'bonuses'){
       var bTotal = (bonuses.hasBonus || 0) + (bonuses.noBonus || 0) + (bonuses.unknown || 0);
@@ -3636,12 +3667,19 @@ function renderBenefitsTab(benefits, bonuses, topComps){
     } else if(tab === 'comps'){
       if(!topComps.length) return '<div class="empty">Нет данных о компаниях</div>';
       var out = tblCount(topComps.length, null, ['компания', 'компании', 'компаний']);
-      out += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+      out += '<div class="tblwrap tblwrap--page rtbl"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Компания</th><th class="num">Записей в анкетах</th></tr></thead><tbody>'+
         topComps.map(function(c){
           return '<tr><td><b>'+esc(c.company)+'</b></td><td class="num"><b>'+c.count+'</b></td></tr>';
         }).join('')+
       '</tbody></table></div>';
+      out += '<div class="rcards">' + topComps.map(function(c){
+        var nm = esc(c.company);
+        return '<div class="rcard"><div class="rcard-hd">'+
+          '<b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
+          '<span class="pill p-ok">'+c.count+'</span></div>'+
+          '<div class="rcard-meta">Записей в анкетах</div></div>';
+      }).join('') + '</div>';
       return out;
     }
     return '';
@@ -6514,7 +6552,7 @@ function drawDeptAssign(){
     '</button>'+
   '</div>';
 
-  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+  h += '<div class="tblwrap tblwrap--page rtbl"><table class="co-tbl co-tbl--pin">'+
     '<thead><tr><th>Отдел</th><th>Текущий ответственный</th><th style="min-width:280px">Быстрое назначение с поиском</th><th style="width:50px;text-align:center">Инфо</th></tr></thead><tbody>'+
     (filtered.length ? filtered.map(function(d){
       var curAssignee = (d.resp || d.head || '').trim();
@@ -6535,6 +6573,27 @@ function drawDeptAssign(){
       '</tr>';
     }).join('') : '<tr><td colspan="4"><div class="empty">Ничего не найдено</div></td></tr>')+
   '</tbody></table></div>';
+
+  // Карточный вариант для узких экранов (turn-24f): строка → карточка отдела,
+  // незакрытый отдел выделен жёлтым, как и в таблице.
+  h += '<div class="rcards">' + (filtered.length ? filtered.map(function(d){
+    var curAssignee = (d.resp || d.head || '').trim();
+    var isAssigned = !!curAssignee;
+    var nm = esc(d.unit);
+    return '<div class="rcard'+(isAssigned?'':' is-warn')+'">'+
+      '<div class="rcard-hd">'+
+        '<b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
+        '<button class="btn-ghost" data-u="'+nm+'" title="Детальные настройки" style="border:1px solid var(--line);min-height:28px;padding:0 8px;font-size:12px;flex:none">'+ic('pencil', 13)+'</button>'+
+      '</div>'+
+      '<div class="rcard-sub">'+(isAssigned
+        ? '<span style="font-weight:600">'+esc(curAssignee)+'</span>'
+        : '<span style="color:var(--warn);font-weight:600">Не назначен</span>')+'</div>'+
+      '<button type="button" class="pick dept-pick-btn" data-unit="'+nm+'" style="width:100%;min-height:34px;margin-top:8px;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border:1px solid '+(isAssigned?'var(--line)':'var(--warn)')+'">'+
+        '<span class="'+(isAssigned?'':'ph')+'">'+(isAssigned ? esc(curAssignee) : ic('search', 13)+'Выбрать сотрудника…')+'</span>'+
+        '<i style="color:var(--muted);font-size:12px">▾</i>'+
+      '</button>'+
+    '</div>';
+  }).join('') : '<div class="empty">Ничего не найдено</div>') + '</div>';
 
   $('body').innerHTML = h;
 
@@ -7505,7 +7564,7 @@ function renderAdminRoles(){
       '<button id="rolesSave" class="btn-primary" style="min-height:34px;padding:0 18px;font-size:12.5px;flex-shrink:0">' + ic('check', 14) + ' Сохранить права</button>'+
     '</div>';
 
-  h += '<div class="tblwrap tblwrap--page" style="flex:1;min-height:0;height:calc(100vh - 120px);max-height:calc(100vh - 120px)"><table class="co-tbl co-tbl--pin">';
+  h += '<div class="tblwrap tblwrap--page rtbl" style="flex:1;min-height:0;height:calc(100vh - 120px);max-height:calc(100vh - 120px)"><table class="co-tbl co-tbl--pin">';
   h += '<thead><tr><th>Право</th><th class="num">Админ</th>'+
     roles.map(function(r){ return '<th class="num">'+esc(ROLE_LABELS_RU[r] || r)+'</th>'; }).join('')+
   '</tr></thead><tbody>';
@@ -7524,11 +7583,27 @@ function renderAdminRoles(){
     });
   });
 
-  h += '</tbody></table></div></div>';
+  h += '</tbody></table></div>';
+
+  // Карточный вариант для узких экранов (turn-24e): матрица «право × роль» не
+  // помещается — вкладки переключают одну роль за раз, права внутри становятся
+  // обычным чек-листом. Чекбоксы несут те же data-role/data-cap, поэтому общий
+  // обработчик ниже их подхватывает.
+  h += '<div class="rcards" id="rolesMobile">'+
+    '<div class="seg" style="margin:0 0 10px;flex-wrap:wrap">'+
+      roles.map(function(r, i){
+        return '<button class="seg-btn'+(i===0?' on':'')+'" data-mrole="'+r+'">'+esc(ROLE_LABELS_RU[r] || r)+'</button>';
+      }).join('')+
+    '</div>'+
+    '<p class="step-hint" style="margin:0 0 10px">«Администратор» — всегда полный доступ, не редактируется.</p>'+
+    '<div id="rolesMobileList"></div>'+
+  '</div>';
+
+  h += '</div>';
 
   $('adminContent').innerHTML = h;
 
-  $('adminContent').querySelectorAll('input[type=checkbox][data-role]').forEach(function(box){
+  function bindRoleBox(box){
     box.onchange = function(){
       var role = this.dataset.role, cap = this.dataset.cap;
       var arr = matrix[role] = matrix[role] || [];
@@ -7536,7 +7611,34 @@ function renderAdminRoles(){
       if(this.checked){ if(i < 0) arr.push(cap); }
       else if(i >= 0) arr.splice(i, 1);
     };
-  });
+  }
+
+  function drawRolesMobile(role){
+    var box = $('rolesMobileList');
+    if(!box) return;
+    box.innerHTML = groups.map(function(g){
+      return '<div class="sec-title" style="margin:12px 0 6px">'+esc(g.label)+'</div>'+
+        g.items.map(function(c){
+          var checked = (matrix[role] || []).indexOf(c.id) >= 0;
+          return '<label class="mp-row"><input type="checkbox" data-role="'+role+'" data-cap="'+c.id+'"'+(checked?' checked':'')+'><span>'+esc(c.label)+'</span></label>';
+        }).join('');
+    }).join('');
+    box.querySelectorAll('input[type=checkbox][data-role]').forEach(bindRoleBox);
+  }
+
+  $('adminContent').querySelectorAll('.rtbl input[type=checkbox][data-role]').forEach(bindRoleBox);
+
+  var mob = $('rolesMobile');
+  if(mob){
+    mob.querySelectorAll('button[data-mrole]').forEach(function(btn){
+      btn.onclick = function(){
+        mob.querySelectorAll('button[data-mrole]').forEach(function(b){ b.classList.remove('on'); });
+        this.classList.add('on');
+        drawRolesMobile(this.dataset.mrole);
+      };
+    });
+    drawRolesMobile(roles[0]);
+  }
 
   $('rolesSave').onclick = function(){
     var btn = this;
