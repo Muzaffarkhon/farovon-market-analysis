@@ -1742,11 +1742,12 @@ function renderNeedsAssignment(){
   setTop('Назначение ожидается', userLabel(), false);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
-  $('body').innerHTML = '<div class="unit-picker-card">' +
-    '<div class="note">За вами пока не закреплено направление или отдел. ' +
-    'Назначение выполняет администратор — как только он это сделает, ' +
-    'здесь появятся ваши подразделения.</div>' +
-    '<button id="naRefresh" class="btn-primary">Проверить снова</button>' +
+  $('body').innerHTML = '<div class="empty" style="max-width:460px;margin:48px auto 0;padding:40px 24px">' +
+    '<div style="color:var(--line-strong);margin-bottom:12px;line-height:0">'+icBare('clock', 40)+'</div>' +
+    '<b style="display:block;color:var(--text);font-size:15px;margin-bottom:6px">Назначение ещё не выполнено</b>' +
+    '<span style="display:block;margin-bottom:16px">За вами пока не закреплено направление или отдел. ' +
+    'Назначение выполняет администратор — как только он это сделает, здесь появятся ваши подразделения.</span>' +
+    '<button id="naRefresh" class="btn-primary" style="width:auto;padding:0 20px">Проверить снова</button>' +
     '</div>';
   $('naRefresh').onclick = function(){
     this.disabled = true; this.textContent = 'Проверяем…';
