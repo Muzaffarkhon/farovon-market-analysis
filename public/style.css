@@ -2627,7 +2627,7 @@ label.lbl {
   top: 0;
   bottom: 0;
   background: var(--accent);
-  opacity: 0.35;
+  opacity: 0.5;
   border-radius: 4px;
 }
 
@@ -2684,7 +2684,7 @@ label.lbl {
   top: 0;
   bottom: 0;
   background: var(--accent);
-  opacity: 0.35;
+  opacity: 0.5;
   border-radius: 999px;
 }
 
