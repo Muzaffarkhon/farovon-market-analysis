@@ -4010,8 +4010,13 @@ function openUserModal(login){
     '<div style="margin:14px 0 10px">'+
       '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
-    '<div class="sec-title" style="margin-top:14px">Закрепленные подразделения</div>'+
-    '<div class="search-wrap">'+icBare('search')+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">'+
+      '<div class="sec-title" style="margin:0">Закрепленные подразделения</div>'+
+      '<label class="checkline" style="font-size:12px;cursor:pointer;user-select:none;color:var(--text);display:inline-flex;align-items:center;gap:6px">'+
+        '<input type="checkbox" id="umOnlyChecked"> Показать только закреплённые'+
+      '</label>'+
+    '</div>'+
+    '<div class="search-wrap" style="margin-top:8px">'+icBare('search')+
       '<input id="umUnitSearch" placeholder="Фильтр подразделений…"></div>'+
     '<div id="umUnitList" style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
     '<div style="height:16px"></div>'+
@@ -4022,20 +4027,31 @@ function openUserModal(login){
 
   function drawUnits(){
     var q = (el.querySelector('#umUnitSearch').value || '').toLowerCase();
+    var onlyChecked = el.querySelector('#umOnlyChecked') && el.querySelector('#umOnlyChecked').checked;
     var all = S.data.allUnits || [];
-    el.querySelector('#umUnitList').innerHTML = all.filter(function(x){
+    var list = all.filter(function(x){
+      if(onlyChecked && !userUnits[x.unit]) return false;
       return !q || x.unit.toLowerCase().indexOf(q) >= 0 || x.dir.toLowerCase().indexOf(q) >= 0;
-    }).slice(0, 100).map(function(x){
+    });
+    el.querySelector('#umUnitList').innerHTML = list.slice(0, 100).map(function(x){
       return '<label class="pickrow"><input type="checkbox" data-u="'+esc(x.unit)+'"'+
         (userUnits[x.unit]?' checked':'')+'><span>'+esc(x.unit)+
         '<br><small style="color:var(--muted)">'+esc(x.dir)+'</small></span></label>';
-    }).join('') || '<p style="color:var(--muted);padding:8px">Ничего не найдено</p>';
+    }).join('') || '<p style="color:var(--muted);padding:8px">'+(onlyChecked ? 'Нет закреплённых подразделений' : 'Ничего не найдено')+'</p>';
   }
   drawUnits();
 
   el.querySelector('#umUnitSearch').oninput = drawUnits;
+  if(el.querySelector('#umOnlyChecked')){
+    el.querySelector('#umOnlyChecked').onchange = drawUnits;
+  }
   el.querySelector('#umUnitList').onchange = function(e){
-    if(e.target.dataset.u) userUnits[e.target.dataset.u] = e.target.checked;
+    if(e.target.dataset.u){
+      userUnits[e.target.dataset.u] = e.target.checked;
+      if(el.querySelector('#umOnlyChecked') && el.querySelector('#umOnlyChecked').checked){
+        drawUnits();
+      }
+    }
   };
 
   var origUnits = Object.keys(userUnits).filter(function(k){ return userUnits[k]; }).sort().join(',');
