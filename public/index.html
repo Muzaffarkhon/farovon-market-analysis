@@ -4248,17 +4248,16 @@ function loadAdminDivisions(){
   $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px">Загрузка оргструктуры...</div>';
   call('apiAdminGetDivisions', S.token).then(function(r){
     if(!r || !r.ok){
-      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки оргструктуры')+' <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
+      var msg = (r && (r.message || r.error)) || 'Ошибка загрузки оргструктуры';
+      $('adminContent').innerHTML = '<div class="err">'+esc(msg)+' <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
       return;
     }
     S.adminDivs = r.divisions || [];
     renderAdminDivisions();
-    // Карточка подразделения выбирает руководителя/HR BP из списка живых
-    // пользователей. Список грузится вкладкой «Пользователи», и если админ
-    // зашёл сразу сюда, пикер оказался бы пустым — выбрать было бы нечего.
     ensureAdminUsers();
-  }).catch(function(){
-    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
+  }).catch(function(err){
+    var msg = (err && (err.message || err.error)) || 'Нет связи с сервером';
+    $('adminContent').innerHTML = '<div class="err">'+esc(msg)+' <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
   });
 }
 

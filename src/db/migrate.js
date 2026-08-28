@@ -109,19 +109,14 @@ async function migrate() {
     PRIMARY KEY (role, capability)
   )`);
 
-  const capCount = await queryAll('SELECT COUNT(*) AS n FROM role_capabilities');
-  if (!capCount[0] || !capCount[0].n) {
-    const stmts = [];
-    ROLES.forEach(role => {
-      (DEFAULT_ROLE_CAPABILITIES[role] || []).forEach(cap => {
-        stmts.push({ sql: 'INSERT OR IGNORE INTO role_capabilities (role, capability) VALUES (?, ?)', args: [role, cap] });
-      });
-    });
-    for (const s of stmts) {
-      await run(s.sql, s.args);
+  // Всегда гарантируем наличие прав по умолчанию для каждой роли
+  for (const role of ROLES) {
+    const caps = DEFAULT_ROLE_CAPABILITIES[role] || [];
+    for (const cap of caps) {
+      await run('INSERT OR IGNORE INTO role_capabilities (role, capability) VALUES (?, ?)', [role, cap]);
     }
-    console.log('🔧 Миграция: конструктор ролей заполнен правами по умолчанию');
   }
+  console.log('🔧 Миграция: права ролей по умолчанию проверены и синхронизированы');
 
   // Корпоративная роль подразделения (governance / control / line)
   // и флаг участия в C&B обзорах рынка (1 — участвует, 0 — исключено)

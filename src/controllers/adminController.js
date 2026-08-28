@@ -336,14 +336,15 @@ exports.resetPassword = async (req, res) => {
 // ─── Оргструктура ───
 exports.getDivisions = async (req, res) => {
   try {
-    // dir_head видит и правит только отделы своего направления — не всю
-    // оргструктуру. Своё направление ему закрепляет администратор (units).
+    // dir_head видит и правит отделы своего направления или закреплённые подразделения.
     if (req.user.role === 'dir_head') {
       const myDirs = req.user.units || [];
       if (!myDirs.length) return res.json({ ok: true, divisions: [] });
       const placeholders = myDirs.map(() => '?').join(',');
       const divisions = await queryAll(
-        `SELECT * FROM divisions WHERE dir IN (${placeholders}) ORDER BY num ASC, unit ASC`, myDirs);
+        `SELECT * FROM divisions WHERE dir IN (${placeholders}) OR unit IN (${placeholders}) ORDER BY num ASC, unit ASC`,
+        [...myDirs, ...myDirs]
+      );
       return res.json({ ok: true, divisions });
     }
 
