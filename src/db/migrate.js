@@ -139,10 +139,12 @@ async function migrate() {
   await run('CREATE INDEX IF NOT EXISTS idx_dict_companies_name ON dictionary_companies(name)');
   await run('CREATE INDEX IF NOT EXISTS idx_dict_positions_name ON dictionary_positions(name)');
 
-  // Автоматическое объединение дубликатов пользователей и нормализация полных ФИО
+  // Автоматическое объединение дубликатов пользователей и нормализация полных ФИО с отчествами
   try {
     const { mergeDuplicateUsers } = require('../tools/mergeDuplicateUsers');
     await mergeDuplicateUsers();
+    const { runEnrichment } = require('../tools/enrichFullFio');
+    await runEnrichment();
   } catch (err) {
     console.warn('⚠️ Ошибка авто-нормализации пользователей в migrate:', err && err.message ? err.message : err);
   }
