@@ -414,6 +414,10 @@ exports.saveDivision = async (req, res) => {
       return res.json({ ok: true, message: 'Подразделение обновлено' });
     }
 
+    const cleanGroup = group !== undefined && group !== null ? String(group).trim() : null;
+    const cleanOrgRole = org_role !== undefined && org_role !== null ? String(org_role).trim() : null;
+    const cleanSurveyTarget = is_survey_target !== undefined && is_survey_target !== null ? Number(is_survey_target) : null;
+
     await run(`
       UPDATE divisions
       SET dir = COALESCE(?, dir),
@@ -421,11 +425,12 @@ exports.saveDivision = async (req, res) => {
           resp = COALESCE(?, resp),
           hrbp = COALESCE(?, hrbp),
           note = COALESCE(?, note),
+          group_key = COALESCE(?, group_key),
           org_role = COALESCE(?, org_role),
           is_survey_target = COALESCE(?, is_survey_target),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [cleanDir, head, resp, hrbp, note, org_role, is_survey_target, cleanUnit]);
+    `, [cleanDir, head, resp, hrbp, note, cleanGroup, cleanOrgRole, cleanSurveyTarget, cleanUnit]);
 
     // Сквозное обновление подразделения сотрудника в таблице пользователей
     const assignedPerson = resp || head || hrbp;
@@ -441,8 +446,8 @@ exports.saveDivision = async (req, res) => {
 
     res.json({ ok: true, message: 'Подразделение обновлено' });
   } catch (err) {
-    console.error('saveDivision error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка сохранения подразделения' });
+    console.error('saveDivision error:', err && err.message ? err.message : err);
+    res.status(500).json({ ok: false, error: (err && err.message) || 'Ошибка сохранения подразделения' });
   }
 };
 

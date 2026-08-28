@@ -23,13 +23,15 @@ if (missing.length) {
 
 const app = express();
 
-// Проверка подключения к базе данных
+// Проверка подключения к базе данных и запуск идемпотентных миграций
 (async () => {
   try {
     const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
     console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
+    await migrate();
+    console.log('✅ Идемпотентные миграции схемы базы данных успешно применены');
   } catch (err) {
-    console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
+    console.warn('⚠️ Ошибка подключения/миграции базы данных:', err.message);
   }
   await ensureWebhook();
 })();

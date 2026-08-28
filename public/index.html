@@ -4662,14 +4662,19 @@ function renderAdminDivisions(){
   var prevScrollTop = oldVp ? oldVp.scrollTop : (S.orgScroll ? S.orgScroll.top : null);
 
   var divs = S.adminDivs || [];
-  var search = ($('divSearch') ? $('divSearch').value : '').toLowerCase();
-  var staffSearch = ($('staffSearch') ? $('staffSearch').value : '').toLowerCase();
+  var search = (($('divSearch') && $('divSearch').value) ? $('divSearch').value : '').toLowerCase();
+  var staffSearch = (($('staffSearch') && $('staffSearch').value) ? $('staffSearch').value : '').toLowerCase();
   var curView = S.adminDivsView || 'tree';
 
   var filtered = divs.filter(function(d){
-    return !search || d.unit.toLowerCase().indexOf(search) >= 0 || d.dir.toLowerCase().indexOf(search) >= 0 ||
-      (d.resp && d.resp.toLowerCase().indexOf(search) >= 0) || (d.hrbp && d.hrbp.toLowerCase().indexOf(search) >= 0) ||
-      (d.head && d.head.toLowerCase().indexOf(search) >= 0);
+    if(!d) return false;
+    var uStr = (d.unit || '').toLowerCase();
+    var dStr = (d.dir || '').toLowerCase();
+    var rStr = (d.resp || '').toLowerCase();
+    var hStr = (d.head || '').toLowerCase();
+    var hbStr = (d.hrbp || '').toLowerCase();
+    return !search || uStr.indexOf(search) >= 0 || dStr.indexOf(search) >= 0 ||
+      rStr.indexOf(search) >= 0 || hbStr.indexOf(search) >= 0 || hStr.indexOf(search) >= 0;
   });
 
   // Группировка по направлениям
@@ -4686,15 +4691,18 @@ function renderAdminDivisions(){
     return a.localeCompare(b, 'ru');
   });
 
-  // Выбранное направление и отдел
-  if(!S.expandedDir && dirNames.length > 0){
-    S.expandedDir = dirNames[0];
+  // Выбранное направление и отдел при первом старте (если не инициализировано)
+  if(S.expandedDir === undefined){
+    S.expandedDir = '';
   }
-  if(!S.expandedUnit && dirGroups[S.expandedDir] && dirGroups[S.expandedDir][0]){
-    S.expandedUnit = dirGroups[S.expandedDir][0].unit;
+  if(S.expandedUnit === undefined){
+    S.expandedUnit = '';
+  }
+  if(S.expandedSubUnit === undefined){
+    S.expandedSubUnit = '';
   }
   if(!S.selectedOrgNode && filtered.length > 0){
-    var firstUnit = dirGroups[S.expandedDir] && dirGroups[S.expandedDir][0] ? dirGroups[S.expandedDir][0] : filtered[0];
+    var firstUnit = filtered[0];
     S.selectedOrgNode = { type: 'unit', unit: firstUnit.unit, dir: firstUnit.dir, resp: firstUnit.resp, head: firstUnit.head, hrbp: firstUnit.hrbp };
   }
 
@@ -4731,6 +4739,12 @@ function renderAdminDivisions(){
     var isBoardName = function(n){ var s = (n || '').toLowerCase().trim(); return s === 'совет директоров' || s === 'совет директора'; };
     var isExecName = function(n){ var s = (n || '').toLowerCase().trim(); return s === 'правление' || s === 'правление компании' || s === 'исполнительный орган'; };
     var isAuditName = function(n){ var s = (n || '').toLowerCase().trim(); return s.indexOf('аудит') >= 0; };
+    var isGovNode = function(d){
+      if(!d) return false;
+      var name = typeof d === 'string' ? d : (d.unit || d.dir || '');
+      var role = typeof d === 'object' ? (d.org_role || '') : '';
+      return isBoardName(name) || isExecName(name) || isAuditName(name) || role === 'governance' || role === 'control';
+    };
 
     var boardDirName = dirNames.find(function(d){ return isBoardName(d); }) || null;
     var execDirName = dirNames.find(function(d){ return isExecName(d); }) || null;
@@ -4772,9 +4786,14 @@ function renderAdminDivisions(){
       ? (L2_X + expDirIdx * (DIR_W + DIR_GAP) + DIR_W / 2)
       : (L2_X + totalLineDirW / 2);
 
-    // Уровень 3: Отделы выбранного направления
+    // Уровень 3: Отделы выбранного направления (исключая системные органы верхушки)
     var activeDirUnits = (S.expandedDir && dirGroups[S.expandedDir])
-      ? dirGroups[S.expandedDir].filter(function(d){ return !d.parent_unit && d.unit !== S.expandedDir; })
+      ? dirGroups[S.expandedDir].filter(function(d){
+          if(d.parent_unit) return false;
+          if(d.unit === S.expandedDir) return false;
+          if(isGovNode(d)) return false;
+          return true;
+        })
       : [];
     var totalL3W = activeDirUnits.length * CARD_W + Math.max(0, activeDirUnits.length - 1) * GAP;
     var L3_X = (activeDirUnits.length > 0) ? Math.round(dirCenterX - totalL3W / 2) : L2_X;
@@ -4787,7 +4806,7 @@ function renderAdminDivisions(){
     var l4Subunits = [];
     if(S.expandedUnit && expUnitIdx >= 0){
       l4Subunits = (S.adminDivs || []).filter(function(x){
-        return x.parent_unit && x.parent_unit === S.expandedUnit;
+        return x.parent_unit && x.parent_unit === S.expandedUnit && !isGovNode(x);
       });
     }
     var totalL4W = l4Subunits.length * CARD_W + Math.max(0, l4Subunits.length - 1) * GAP;
@@ -4801,7 +4820,7 @@ function renderAdminDivisions(){
     var l5Subunits = [];
     if(S.expandedSubUnit && expSubUnitIdx >= 0){
       l5Subunits = (S.adminDivs || []).filter(function(x){
-        return x.parent_unit && x.parent_unit === S.expandedSubUnit;
+        return x.parent_unit && x.parent_unit === S.expandedSubUnit && !isGovNode(x);
       });
     }
     var totalL5W = l5Subunits.length * CARD_W + Math.max(0, l5Subunits.length - 1) * GAP;
@@ -4911,6 +4930,21 @@ function renderAdminDivisions(){
 
       var isDirExpanded = (S.expandedDir === dir);
       var isDirActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'dir' && S.selectedOrgNode.dir === dir) || isDirExpanded;
+      var isFullBranchExpanded = (isDirExpanded && (subordinateUnits.length === 0 || !!S.expandedUnit));
+
+      var unitCountText = subordinateUnits.length ? subordinateUnits.length + ' ' + (subordinateUnits.length === 1 ? 'отдел' : (subordinateUnits.length >= 2 && subordinateUnits.length <= 4 ? 'отдела' : 'отделов')) : 'Аппарат';
+
+      var leftBtnHtml = subordinateUnits.length
+        ? '<button type="button" class="org-expand-all-btn' + (isFullBranchExpanded ? ' is-expanded' : '') + '" title="' + (isFullBranchExpanded ? 'Свернуть всю ветку' : 'Раскрыть всю ветку целиком (все уровни)') + '">' +
+            ic('units', 12) + '<span>' + unitCountText + '</span>' +
+          '</button>'
+        : '<span class="org-card-footer-label">' + unitCountText + '</span>';
+
+      var rightBtnHtml = subordinateUnits.length
+        ? '<span class="org-expand-tag" style="' + (isDirExpanded && !isFullBranchExpanded ? 'background:#0284c7;color:#fff' : (isFullBranchExpanded ? 'background:rgba(2,132,199,0.12);color:#0284c7' : '')) + '" title="' + (isDirExpanded ? 'Свернуть направление' : 'Раскрыть на 1 уровень (по одной ветке)') + '">' +
+            '1 уровень ' + (isDirExpanded ? '⌃' : '⌄') +
+          '</span>'
+        : '<span class="org-expand-tag" style="' + (isDirExpanded ? 'background:#0284c7;color:#fff' : '') + '">Состав</span>';
 
       h += '<div class="org-dir-col-item">'+
         '<div class=\'org-card-box' + (isDirActive ? ' is-active-card is-expanded-dir' : '') + '\' draggable="true" data-org-type="dir" data-dir="'+esc(dir)+'" data-u="'+esc(dir)+'" data-drop-dir="'+esc(dir)+'" title="Двойной клик — аппарат и назначение ответственных">'+
@@ -4923,8 +4957,8 @@ function renderAdminDivisions(){
             '</div>'+
           '</div>'+
           '<div class="org-card-footer">'+
-            '<span>' + (subordinateUnits.length ? subordinateUnits.length + ' отделов' : 'Аппарат') + '</span>'+
-            '<span class="org-expand-tag" style="'+(isDirExpanded?'background:#0284c7;color:#fff':'')+'">'+ (subordinateUnits.length ? subordinateUnits.length + ' отделов ' + (isDirExpanded ? '⌃' : '⌄') : 'Состав') + '</span>'+
+            leftBtnHtml +
+            rightBtnHtml +
           '</div>'+
         '</div>'+
       '</div>';
@@ -5065,18 +5099,25 @@ function renderAdminDivisions(){
       var selTitle = selNode ? (selNode.unit || selNode.dir || selNode.fio || 'Подразделение') : 'Подразделение';
 
       var allStaff = (S.adminUsers || []).filter(function(u){
-        return !staffSearch || u.fio.toLowerCase().indexOf(staffSearch) >= 0 || (u.role && u.role.toLowerCase().indexOf(staffSearch) >= 0);
+        return !staffSearch || (u.fio && u.fio.toLowerCase().indexOf(staffSearch) >= 0) || (u.role && u.role.toLowerCase().indexOf(staffSearch) >= 0);
       });
+
+      var isBoardSelected = isBoardName(selTitle) || (selNode && isBoardName(selNode.unit || selNode.dir));
+      var isExecSelected = isExecName(selTitle) || (selNode && isExecName(selNode.unit || selNode.dir));
+      var isAuditSelected = isAuditName(selTitle) || (selNode && isAuditName(selNode.unit || selNode.dir));
 
       var leaders = [];
       if(selNode && selNode.head){
-        leaders.push({ fio: selNode.head, role: 'Руководитель отдела', badge: 'Руководитель' });
+        var headRole = isBoardSelected ? 'Председатель Совета директоров' :
+                       (isExecSelected ? 'Председатель Правления' :
+                       (isAuditSelected ? 'Руководитель службы аудита' : (selNode.type === 'dir' ? 'Руководитель направления' : 'Руководитель отдела')));
+        leaders.push({ fio: selNode.head, role: headRole, badge: 'Руководитель', roleType: 'head' });
       }
-      if(selNode && selNode.hrbp && selNode.hrbp !== selNode.head){
-        leaders.push({ fio: selNode.hrbp, role: 'HR BP направления', badge: 'HR BP' });
+      if(!isBoardSelected && !isAuditSelected && selNode && selNode.hrbp && selNode.hrbp !== selNode.head){
+        leaders.push({ fio: selNode.hrbp, role: 'HR BP направления', badge: 'HR BP', roleType: 'hrbp' });
       }
-      if(selNode && selNode.resp && selNode.resp !== selNode.head && selNode.resp !== selNode.hrbp){
-        leaders.push({ fio: selNode.resp, role: 'Ответственный за рынок', badge: 'Ответственный' });
+      if(!isBoardSelected && selNode && selNode.resp && selNode.resp !== selNode.head && selNode.resp !== selNode.hrbp){
+        leaders.push({ fio: selNode.resp, role: 'Ответственный за рынок', badge: 'Ответственный', roleType: 'resp' });
       }
 
       h += '<div class="org-right-drawer">'+
@@ -5107,7 +5148,7 @@ function renderAdminDivisions(){
           (leaders.length ?
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители ' + leaders.length + '</div>'+
             leaders.map(function(ldr){
-              return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" title="Зажмите и перетащите на карточку">'+
+              return '<div class="org-staff-row org-leader-drop-zone" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" data-drop-role="'+(ldr.roleType||'head')+'" title="Зажмите для переноса или перетащите сюда сотрудника для смены руководителя">'+
                 '<div class="org-avatar-circle" style="background:#0284c7">'+getInitials(ldr.fio)+'</div>'+
                 '<div style="flex:1;overflow:hidden">'+
                   '<div style="font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
@@ -5118,12 +5159,15 @@ function renderAdminDivisions(){
                 '</div>'+
                 '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
               '</div>';
-            }).join('') : '')+
+            }).join('') :
+            '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители</div>'+
+            '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1px dashed var(--line);border-radius:8px;padding:10px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
+          )+
 
           // Подчинённые / Все сотрудники
           '<div class="org-section-lbl" style="margin-top:8px">' + ic('users', 14) + 'Сотрудники для назначения (' + allStaff.length + ')</div>'+
           (allStaff.length ? allStaff.map(function(u){
-            return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или направления">'+
+            return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или на руководителя вверху">'+
               '<div class="org-avatar-circle" style="background:#64748b">'+getInitials(u.fio)+'</div>'+
               '<div style="flex:1;overflow:hidden">'+
                 '<div style="font-size:12px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
@@ -5151,7 +5195,7 @@ function renderAdminDivisions(){
             '<button class="seg-btn on" id="btnOrgTable">' + ic('book', 14) + ' Таблица</button>'+
           '</div>'+
         '</div>'+
-        '<div>'+tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
+        '<div>'+countTag(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
       '</div>'+
       '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
@@ -5376,6 +5420,7 @@ function renderAdminDivisions(){
   $('adminContent').onclick = function(e){
     var card = e.target.closest('.org-card-box, .org-control-card, .org-board-card, .org-root-card, .org-top-holding-card');
     if(card){
+      var isExpandAllBtn = !!e.target.closest('.org-expand-all-btn');
       var isExpandTag = !!e.target.closest('.org-expand-tag');
 
       var uName = card.dataset.u;
@@ -5384,13 +5429,15 @@ function renderAdminDivisions(){
       var type = card.dataset.orgType || (uName ? 'unit' : (dirName ? 'dir' : 'root'));
       var cardKey = (type === 'unit' ? uName : (type === 'dir' ? dirName : (fio || 'root')));
 
+      var isGovCard = card.classList.contains('org-root-card') || card.classList.contains('org-board-card') || card.classList.contains('org-control-card') || card.classList.contains('org-top-holding-card') || isBoardName(uName) || isBoardName(dirName) || isExecName(uName) || isExecName(dirName) || isAuditName(uName) || isAuditName(dirName);
+
       var now = Date.now();
       var isDbl = (_lastCardClickKey === cardKey && (now - _lastCardClickTime) < 380);
       _lastCardClickTime = now;
       _lastCardClickKey = cardKey;
 
       // 1. ДВОЙНОЙ КЛИК: мгновенно открываем модалку ответственных, отменяя одиночный клик
-      if(isDbl){
+      if(isDbl && !isExpandAllBtn && !isExpandTag){
         if(_orgClickTimer){
           clearTimeout(_orgClickTimer);
           _orgClickTimer = null;
@@ -5406,9 +5453,9 @@ function renderAdminDivisions(){
         }
       }
 
-      // 2. ОДИНОЧНЫЙ КЛИК: откладываем выполнение на 240мс, чтобы дать шанс второму клику сработать
+      // 2. ОДИНОЧНЫЙ КЛИК: кнопки раскрытия срабатывают мгновенно (0мс), клик по телу карточки откладываем на 240мс для dblclick
       if(_orgClickTimer) clearTimeout(_orgClickTimer);
-      var delay = isExpandTag ? 0 : 240;
+      var delay = (isExpandTag || isExpandAllBtn) ? 0 : 240;
 
       _orgClickTimer = setTimeout(function(){
         _orgClickTimer = null;
@@ -5419,27 +5466,43 @@ function renderAdminDivisions(){
         var cardRelX = vpRect ? (cardRect.left - vpRect.left) : null;
         var cardRelY = vpRect ? (cardRect.top - vpRect.top) : null;
 
-        if(type === 'unit' && uName){
+        if(isGovCard){
+          // ── ОРГАНЫ КОРПОРАТИВНОГО УПРАВЛЕНИЯ (Холдинг, СД, Правление, Аудит) ──
+          var targetName = uName || dirName || (card.classList.contains('org-top-holding-card') ? 'Farovon Holding' : 'Правление компании');
+          var targetRole = card.classList.contains('org-top-holding-card') ? 'Холдинг' :
+                           (isBoardName(targetName) ? 'Совет директоров' :
+                           (isAuditName(targetName) ? 'Служба аудита' : 'Правление компании'));
+          var found = (S.adminDivs || []).find(function(x){ return isGovNode(x) && (x.unit === targetName || x.dir === targetName); });
+          var targetHead = found ? (found.head || found.resp || '') : '';
+          if(!targetHead){
+            if(isBoardName(targetName) || isExecName(targetName)) targetHead = 'Бобочонов Баходур';
+            else if(isAuditName(targetName)) targetHead = 'Рабиев Илхомджон';
+          }
+
+          S.selectedOrgNode = {
+            type: 'governance',
+            unit: targetName,
+            dir: dirName || targetName,
+            resp: found ? found.resp : '',
+            head: targetHead,
+            hrbp: found ? found.hrbp : '',
+            roleName: targetRole
+          };
+          S.orgDrawerCollapsed = false;
+          // Внимание: НЕ мутируем S.expandedDir / S.expandedUnit — не сбиваем ветки!
+        } else if(type === 'unit' && uName){
           var found = (S.adminDivs || []).find(function(x){ return x.unit === uName; });
           var isChildOfExpandedUnit = found && found.parent_unit && found.parent_unit === S.expandedUnit;
           var isChildOfExpandedSubUnit = found && found.parent_unit && found.parent_unit === S.expandedSubUnit;
 
           if(isChildOfExpandedUnit){
             // Кликнули по подотделу 4-го уровня
-            if(isExpandTag){
-              S.expandedSubUnit = (S.expandedSubUnit === uName) ? '' : uName;
-            } else {
-              S.expandedSubUnit = uName;
-            }
+            S.expandedSubUnit = (S.expandedSubUnit === uName) ? '' : uName;
           } else if(isChildOfExpandedSubUnit){
             // Кликнули по подотделу 5-го уровня (конечный узел)
           } else {
             // Кликнули по отделу 3-го уровня
-            if(isExpandTag){
-              S.expandedUnit = (S.expandedUnit === uName) ? '' : uName;
-            } else {
-              S.expandedUnit = uName;
-            }
+            S.expandedUnit = (S.expandedUnit === uName) ? '' : uName;
             S.expandedSubUnit = '';
           }
 
@@ -5460,14 +5523,72 @@ function renderAdminDivisions(){
           };
           S.orgDrawerCollapsed = false;
         } else {
+          // type === 'dir' (Линейные операционные департаменты)
           var found = (S.adminDivs || []).find(function(x){ return x.unit === dirName || x.dir === dirName; });
-          if(isExpandTag){
-            S.expandedDir = (S.expandedDir === dirName) ? '' : dirName;
+          var dList = dirGroups[dirName] || [];
+          var subordinateUnits = dList.filter(function(x){ return !x.parent_unit && x.unit !== dirName && !isGovNode(x); });
+
+          if(isExpandAllBtn){
+            // ── ЛЕВАЯ КНОПКА: РАСКРЫТЬ ВСЮ ВЕТКУ ЦЕЛИКОМ ──
+            var isAlreadyFull = (S.expandedDir === dirName && (subordinateUnits.length === 0 || !!S.expandedUnit));
+            if(isAlreadyFull){
+              // Сворачиваем всю ветку целиком
+              S.expandedDir = '';
+              S.expandedUnit = '';
+              S.expandedSubUnit = '';
+            } else {
+              // Раскрываем направление + до самого глубокого подотдела (L3 -> L4 -> L5)
+              S.expandedDir = dirName;
+              var targetUnit = '';
+              var targetSubUnit = '';
+
+              for(var uIdx = 0; uIdx < subordinateUnits.length; uIdx++){
+                var uCand = subordinateUnits[uIdx];
+                var l4 = (S.adminDivs || []).filter(function(x){ return x.parent_unit === uCand.unit && !isGovNode(x); });
+                if(l4.length > 0){
+                  targetUnit = uCand.unit;
+                  for(var suIdx = 0; suIdx < l4.length; suIdx++){
+                    var suCand = l4[suIdx];
+                    var l5 = (S.adminDivs || []).filter(function(x){ return x.parent_unit === suCand.unit && !isGovNode(x); });
+                    if(l5.length > 0){
+                      targetSubUnit = suCand.unit;
+                      break;
+                    }
+                  }
+                  if(!targetSubUnit && l4.length > 0){
+                    targetSubUnit = l4[0].unit;
+                  }
+                  break;
+                }
+              }
+              if(!targetUnit && subordinateUnits.length > 0){
+                targetUnit = subordinateUnits[0].unit;
+              }
+              S.expandedUnit = targetUnit;
+              S.expandedSubUnit = targetSubUnit;
+            }
+          } else if(isExpandTag){
+            // ── ПРАВАЯ КНОПКА: РАСКРЫТЬ НА 1 УРОВЕНЬ (ПО ОДНОЙ ВЕТКЕ) ──
+            if(S.expandedDir === dirName){
+              S.expandedDir = '';
+              S.expandedUnit = '';
+              S.expandedSubUnit = '';
+            } else {
+              S.expandedDir = dirName;
+              S.expandedUnit = '';
+              S.expandedSubUnit = '';
+            }
           } else {
-            S.expandedDir = dirName;
+            // Клик по карточке направления
+            if(S.expandedDir === dirName){
+              // Уже раскрыто — не сбрасываем
+            } else {
+              S.expandedDir = dirName;
+              S.expandedUnit = '';
+              S.expandedSubUnit = '';
+            }
           }
-          S.expandedUnit = '';
-          S.expandedSubUnit = '';
+
           S.selectedOrgNode = {
             type: 'dir',
             dir: dirName,
@@ -5483,22 +5604,35 @@ function renderAdminDivisions(){
 
         // Фиксация положения: карточка остаётся ровно на тех же координатах экрана
         var newVp = $('orgViewport');
-        if(newVp && vpRect && cardKey && cardRelX !== null){
-          var newCards = newVp.querySelectorAll('.org-card-box');
+        if(newVp && vpRect && cardRelX !== null){
           var newCard = null;
-          for(var i = 0; i < newCards.length; i++){
-            var c = newCards[i];
-            if(type === 'unit' && c.dataset.u === uName){ newCard = c; break; }
-            if(type === 'dir' && c.dataset.dir === dirName){ newCard = c; break; }
-            if(type === 'staff' && c.dataset.fio === fio){ newCard = c; break; }
+          if(card.classList.contains('org-control-card')){
+            newCard = newVp.querySelector('.org-control-card');
+          } else if(card.classList.contains('org-board-card')){
+            newCard = newVp.querySelector('.org-board-card');
+          } else if(card.classList.contains('org-top-holding-card')){
+            newCard = newVp.querySelector('.org-top-holding-card');
+          } else if(card.classList.contains('org-root-card')){
+            newCard = newVp.querySelector('.org-root-card:not(.org-control-card)');
+          } else if(type === 'unit' && uName){
+            newCard = newVp.querySelector('.org-card-box[data-u="' + uName.replace(/"/g, '\\"') + '"]');
+          } else if(type === 'dir' && dirName){
+            newCard = newVp.querySelector('.org-card-box[data-dir="' + dirName.replace(/"/g, '\\"') + '"]');
+          } else if(fio){
+            newCard = newVp.querySelector('[data-fio="' + fio.replace(/"/g, '\\"') + '"]');
           }
+
           if(newCard){
             var newRect = newCard.getBoundingClientRect();
             var newVpRect = newVp.getBoundingClientRect();
             var newRelX = newRect.left - newVpRect.left;
             var newRelY = newRect.top - newVpRect.top;
-            newVp.scrollLeft += (newRelX - cardRelX);
-            newVp.scrollTop += (newRelY - cardRelY);
+            var deltaX = newRelX - cardRelX;
+            var deltaY = newRelY - cardRelY;
+            if(Math.abs(deltaX) > 0.2 || Math.abs(deltaY) > 0.2){
+              newVp.scrollLeft += deltaX;
+              newVp.scrollTop += deltaY;
+            }
             S.orgScroll = { left: newVp.scrollLeft, top: newVp.scrollTop };
             saveNavState();
           }
@@ -5600,6 +5734,37 @@ function renderAdminDivisions(){
       }
     });
   }
+
+  // Drop на слоты руководителей в правой панели состава (Drawer)
+  $('adminContent').querySelectorAll('.org-leader-drop-zone').forEach(function(targetEl){
+    targetEl.addEventListener('dragover', function(e){
+      if(!dragPayload || dragPayload.type !== 'staff') return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      this.classList.add('drop-target-hover');
+    });
+    targetEl.addEventListener('dragleave', function(){
+      this.classList.remove('drop-target-hover');
+    });
+    targetEl.addEventListener('drop', function(e){
+      e.preventDefault();
+      this.classList.remove('drop-target-hover');
+      if(!dragPayload || dragPayload.type !== 'staff') return;
+
+      var staffFio = dragPayload.val;
+      var roleType = this.dataset.dropRole || 'head';
+      dragPayload = null;
+
+      var sel = S.selectedOrgNode;
+      if(!sel) return;
+
+      if(sel.type === 'dir' || isGovNode(sel)){
+        promptAssignStaffToDir(staffFio, sel.dir || sel.unit);
+      } else {
+        promptAssignStaffToUnit(staffFio, sel.unit);
+      }
+    });
+  });
 
   // Drop на карточки оргструктуры
   $('adminContent').querySelectorAll('.org-card-box').forEach(function(targetEl){
