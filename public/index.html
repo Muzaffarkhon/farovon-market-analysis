@@ -761,8 +761,8 @@ function openMultiPicker(opts){
   el.innerHTML = '<div class="sheet-in">'+
     '<div class="sheet-hd"><b>'+esc(opts.title)+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<div class="pk-search"><input id="mpQ" placeholder="Поиск…" autocomplete="off" '+
-      'autocapitalize="off" autocorrect="off" spellcheck="false"></div>'+
+    '<div class="pk-search"><div class="search-wrap">'+icBare('search')+'<input id="mpQ" placeholder="Поиск…" autocomplete="off" '+
+      'autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>'+
     '<div class="mp-bar"><span id="mpCnt"></span>'+
       '<button type="button" class="btn-ghost" id="mpAll">Выбрать все</button>'+
       '<button type="button" class="btn-ghost" id="mpNone">Снять все</button></div>'+
@@ -911,9 +911,9 @@ function openPicker(opts){
   el.innerHTML = '<div class="sheet-in">'+
     '<div class="sheet-hd"><b>'+esc(opts.title)+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<div class="pk-search">'+
+    '<div class="pk-search"><div class="search-wrap">'+icBare('search')+
       '<input id="pkQ" placeholder="Поиск…" autocomplete="off" autocapitalize="off" '+
-        'autocorrect="off" spellcheck="false"></div>'+
+        'autocorrect="off" spellcheck="false"></div></div>'+
     '<div id="pkBody"></div>'+
     '<div style="height:10px"></div></div>';
   document.body.appendChild(el);
@@ -1761,7 +1761,7 @@ function renderUnitPicker(){
     '<div class="unit-picker-card">' +
     '<div class="note">За вами пока не закреплено подразделение. ' +
     'Отметьте те, по которым вы отвечаете за обзор рынка.</div>' +
-    '<input id="pickFind" placeholder="Поиск по названию…"><div id="pickList"></div>' +
+    '<div class="search-wrap" style="margin-bottom:10px">'+icBare('search')+'<input id="pickFind" placeholder="Поиск по названию…"></div><div id="pickList"></div>' +
     '<div style="height:14px"></div><button id="pickGo" class="btn-primary">Продолжить</button>' +
     '</div>';
   var chosen = {};
@@ -2125,12 +2125,9 @@ function renderTabComp(){
        (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
   h += '</div>';
 
-  if(!S.ro){
-    h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">';
-    h += '<button id="btnNext" class="btn-primary" style="width:100%;min-height:38px;font-size:13.5px;font-weight:600">'+
-         'Перейти к Шагу 2: Заполнение данных по рынку →</button>';
-    h += '</div>';
-  }
+  // Кнопка «Перейти к шагу 2» живёт в нижней липкой панели (#bar) и управляется
+  // в renderBar(). Раньше здесь была её копия с тем же id="btnNext" — дубль id,
+  // не был подключён к обработчику и наезжал на липкую панель снизу.
 
   h += '</div>';
 
@@ -2179,7 +2176,6 @@ function renderTabComp(){
       });
     };
   }
-  if($('btnNext')) $('btnNext').onclick = function(){ S.tab = 'survey'; renderUnit(); };
 }
 
 /**
