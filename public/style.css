@@ -4103,18 +4103,41 @@ label.lbl {
 }
 
 /* ─── Профиль: цифры и разделитель ─── */
+/* Профиль (макет turn-15a): три равные плитки-счётчика, ниже — вертикальный
+   список действий на всю ширину, «Выйти» отдельным цветом после разделителя. */
 .profile-facts {
   display: flex;
-  gap: 18px;
-  padding: 12px 2px 14px;
+  gap: 8px;
+  padding: 4px 0 14px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .pf {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 2px;
   line-height: 1.15;
+  text-align: center;
+  background: var(--card-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 6px;
+}
+
+.profile-sheet .btn-line,
+.profile-sheet .btn-primary {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  min-height: 40px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.profile-sheet .btn-line.btn-danger {
+  justify-content: flex-start;
 }
 
 .pf b {
