@@ -1816,7 +1816,7 @@ function renderUnitCards(list){
     var totalSlots = x.total * (pu.length || 0);
     var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
     return '<div class="unit" data-u="'+esc(x.unit)+'">'+
-      '<div class="u-body"><div class="u-name">'+esc(x.unit)+'</div>'+
+      '<div class="u-body"><div class="u-name" title="'+esc(x.unit)+'">'+esc(x.unit)+'</div>'+
       '<div class="u-dir">'+esc(x.dir)+'</div>'+
       '<div class="u-bars">'+
         bar2('Участники рынка', x.done, x.total, pct, askPct) +
@@ -3903,7 +3903,7 @@ function renderAdminUsers(){
     else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
 
     rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
-      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</td>'+
       '<td class="u-t-login">'+esc(u.login)+
         (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
       '</td>'+
@@ -3917,7 +3917,7 @@ function renderAdminUsers(){
 
     cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<div class="u-hd">'+
-        '<div class="u-fio">'+esc(u.fio)+'</div>'+
+        '<div class="u-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</div>'+
         '<div>'+
           '<span class="badge '+rBadge+'">'+esc(u.role)+'</span> '+
           '<span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span>'+
@@ -4211,7 +4211,7 @@ function renderAdminArchive(){
   var rows = '', cards = '';
   users.forEach(function(u){
     rows += '<tr>'+
-      '<td class="u-t-fio">'+esc(u.fio)+'</td>'+
+      '<td class="u-t-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</td>'+
       '<td class="u-t-login">'+esc(u.login)+'</td>'+
       '<td><span class="badge b-user">'+esc(u.role)+'</span></td>'+
       '<td class="u-t-dim">'+esc(fmtDateTime(u.archivedAt) || '—')+'</td>'+
@@ -4220,7 +4220,7 @@ function renderAdminArchive(){
 
     cards += '<div class="u-card">'+
       '<div class="u-hd">'+
-        '<div class="u-fio">'+esc(u.fio)+'</div>'+
+        '<div class="u-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</div>'+
         '<span class="badge b-user">'+esc(u.role)+'</span>'+
       '</div>'+
       '<div class="u-meta">'+
@@ -6844,7 +6844,13 @@ function drawDict(){
   '</div>';
 
   if(!items.length){
-    h += '<div class="empty">'+(S.dictQ ? 'Ничего не найдено' : 'Справочник пуст')+'</div>';
+    h += S.dictQ
+      ? '<div class="empty">Ничего не найдено</div>'
+      : '<div class="empty" style="padding:40px 16px">'+
+          '<div style="color:var(--line-strong);margin-bottom:10px;line-height:0">'+icBare('units', 40)+'</div>'+
+          '<b style="display:block;color:var(--text);font-size:14px;margin-bottom:4px">Справочник «'+esc(meta.label)+'» пока пуст</b>'+
+          '<span>Добавьте первую запись кнопкой «+ Добавить '+esc(meta.one)+'» выше</span>'+
+        '</div>';
     $('dictBox').innerHTML = h;
     bindDictBar();
     return;
