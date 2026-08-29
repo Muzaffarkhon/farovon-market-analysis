@@ -1552,14 +1552,18 @@ function openTelegramLink(){
     // а ссылка с кодом — запасной.
     var botUser = (r.deepLink.match(/t\.me\/([^?]+)/) || [])[1] || '';
     box.className = '';
-    box.innerHTML = '<p style="color:var(--muted);font-size:13.5px;line-height:1.5">'+
-        'Откройте бота'+(botUser?' <b>@'+esc(botUser)+'</b>':'')+', наберите <b>/link</b> и нажмите '+
-        'кнопку «Отправить номер телефона» — привяжется по номеру, указанному в вашем профиле.</p>'+
-      '<div style="height:10px"></div>'+
+    box.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 4px 0">'+
+        '<div style="width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);'+
+          'display:flex;align-items:center;justify-content:center;margin-bottom:12px">'+icBare('link', 24)+'</div>'+
+        '<p style="color:var(--muted);font-size:13.5px;line-height:1.5;margin:0">'+
+          'Откройте бота'+(botUser?' <b>@'+esc(botUser)+'</b>':'')+', наберите <b>/link</b> и нажмите '+
+          'кнопку «Отправить номер телефона» — привяжется по номеру из вашего профиля.</p>'+
+      '</div>'+
+      '<div style="height:14px"></div>'+
       '<a href="https://t.me/'+esc(botUser)+'" target="_blank" class="btn-primary" '+
         'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
         'Открыть '+(botUser?'@'+esc(botUser):'бота')+'</a>'+
-      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px">'+
+      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;text-align:center">'+
         'Или ссылка с кодом (действует '+r.expiresInMinutes+' минут) — у части клиентов Telegram '+
         'сама подставляет команду, тогда останется нажать «Отправить»:</p>'+
       '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-line" '+
