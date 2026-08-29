@@ -3582,6 +3582,71 @@ function toggleSalRow(tr){
  * «коридор рынка» на общей шкале. Клик по строке разворачивает те же
  * Мин/Макс и таблицу компаний. Только фронт: данные и API не трогаем.
  */
+/**
+ * turn-18b — гистограмма распределения окладов по всей выборке: один график
+ * на «какая типичная вилка», без разбивки по должностям. Строится из средних
+ * окладов по компаниям (positions[].companies[].avg), которые уже приходят с
+ * дашборда — данные и API не трогаем.
+ */
+function salHistogram(positions){
+  var vals = [];
+  positions.forEach(function(p){
+    (p.companies || []).forEach(function(c){
+      var v = Number(c.avg) || 0;
+      if(v > 0) vals.push(v);
+    });
+  });
+  if(vals.length < 5) return '';
+
+  vals.sort(function(a, b){ return a - b; });
+  var lo = vals[0], hi = vals[vals.length - 1];
+  if(hi <= lo) return '';
+
+  var BANDS = 7;
+  var step = (hi - lo) / BANDS;
+  var buckets = new Array(BANDS).fill(0);
+  vals.forEach(function(v){
+    var i = Math.min(BANDS - 1, Math.floor((v - lo) / step));
+    buckets[i]++;
+  });
+  var peak = Math.max.apply(null, buckets);
+  var modalIdx = buckets.indexOf(peak);
+  var median = vals[Math.floor(vals.length / 2)];
+
+  var fmtM = function(n){
+    if(n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if(n >= 1e3) return Math.round(n / 1e3) + 'K';
+    return String(Math.round(n));
+  };
+
+  var bars = buckets.map(function(cnt, i){
+    var pct = peak ? Math.round(cnt / peak * 100) : 0;
+    var bandLo = lo + step * i;
+    var title = fmtM(bandLo) + '–' + fmtM(bandLo + step) + ': ' + cnt + ' ' + declOfNum(cnt, ['запись','записи','записей']);
+    return '<div class="sal-hist-col'+(i === modalIdx ? ' is-modal' : '')+'" title="'+esc(title)+'">'+
+      '<div class="sal-hist-bar" style="height:'+Math.max(pct, 3)+'%"></div>'+
+    '</div>';
+  }).join('');
+
+  var ticks = '';
+  for(var t = 0; t <= BANDS; t += Math.ceil(BANDS / 4)){
+    ticks += '<span>'+fmtM(lo + step * t)+'</span>';
+  }
+
+  return '<div class="sal-hist card">'+
+    '<div class="sal-hist-hd">'+
+      '<b>Распределение окладов</b>'+
+      '<span>'+vals.length+' '+declOfNum(vals.length, ['запись','записи','записей'])+' по '+positions.length+' '+declOfNum(positions.length, ['должности','должностям','должностям'])+'</span>'+
+    '</div>'+
+    '<div class="sal-hist-plot">'+bars+'</div>'+
+    '<div class="sal-hist-axis">'+ticks+'</div>'+
+    '<div class="sal-hist-stats">'+
+      '<div><i>Медиана</i><b>'+fmtM(median)+'</b></div>'+
+      '<div><i>Чаще всего</i><b>'+fmtM(lo + step * modalIdx)+'–'+fmtM(lo + step * (modalIdx + 1))+'</b></div>'+
+    '</div>'+
+  '</div>';
+}
+
 function renderSalariesTab(positions){
   if(!positions.length){
     return '<div class="empty">По заданным условиям должностей не найдено</div>';
@@ -3611,6 +3676,8 @@ function renderSalariesTab(positions){
 
   h += '<div class="sec-title">Топ-8 по числу данных</div>';
   h += '<div class="fork-grid">' + top.map(function(p){ return salForkCard(p, positions.indexOf(p)); }).join('') + '</div>';
+
+  h += salHistogram(positions);
 
   // turn-18c: список должностей сворачивается до 5 самых заполненных, остальные
   // прячутся за «Показать ещё N» — без потери данных; поиск открывает любую
