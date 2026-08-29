@@ -2686,10 +2686,69 @@ function openBatchSurveySheet(posName){
   }
 
   function renderSheetContent(){
+    // turn-7b: на десктопе весь ввод по должности — плоская редактируемая
+    // таблица (оклад правится прямо в ячейке), детальные поля (должность у них,
+    // бонусы, льготы, источник, комментарий) остаются на «Параметры» под строкой.
+    // На телефоне — прежние аккордеон-карточки (turn-7a).
+    // Ширину берём по факту окна: класс .compact на <html> в обычном браузере
+    // висит всегда (грузится Telegram SDK), поэтому по нему десктоп не отличить.
+    var wide = window.innerWidth >= 980;
+
+    function morePanelHtml(item){
+      return '<div class="batch-more-panel hidden">'+
+        '<label class="lbl">Как эта должность называется у них</label>'+
+        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>' + ic('chevron', 12) + '</i></div>'+
+
+        '<label class="lbl">Грейд / Уровень</label>'+
+        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">'+
+
+        '<label class="lbl">Бонусы и премии</label>'+
+        chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
+        '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
+          '<label class="lbl">Размер бонуса</label>'+
+          '<input class="b-bon-size" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(item.bonSize)+'">'+
+          '<div style="height:6px"></div>'+chips('bonType', bonusTypes, item.bonType, false)+
+          '<div style="height:6px"></div>'+chips('bonPer', bonusPeriods, item.bonPer, false)+
+        '</div>'+
+
+        '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
+        chips('benefits', benefitsList, item.benefits, true)+
+
+        '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
+        '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
+
+        '<div class="two" style="margin-top:10px">'+
+          '<div><label class="lbl">Откуда данные</label>'+chips('source', sources, item.source, false)+'</div>'+
+          '<div><label class="lbl">Надёжность</label>'+chips('trust', trustList, item.trust, false)+'</div>'+
+        '</div>'+
+
+        '<label class="lbl" style="margin-top:10px">Комментарий</label>'+
+        '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>'+
+      '</div>';
+    }
+
+    var curOpts = function(sel){ return currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); };
+    var perOpts = function(sel){ return payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(sel===p?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
+
     var cardsHtml = entries.map(function(item, idx){
       var comp = getSurveyItemCompleteness(item);
       var stTag = renderSurveyStTag(comp);
       var cls = comp.status === 'ok' ? 'is-filled' : (comp.status === 'part' ? 'is-part' : '');
+
+      if(wide){
+        return '<div class="batch-card '+cls+'" data-idx="'+idx+'">'+
+          '<div class="bx-row">'+
+            '<div class="bx-co">' + ic('units', 14) + '<span>' + esc(item.co) + '</span></div>'+
+            '<div class="bx-cell"><input class="b-pay-from" inputmode="decimal" placeholder="от" value="'+esc(item.payFrom)+'"></div>'+
+            '<div class="bx-cell"><input class="b-pay-to" inputmode="decimal" placeholder="до" value="'+esc(item.payTo)+'"></div>'+
+            '<div class="bx-cell"><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
+            '<div class="bx-cell"><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
+            '<button type="button" class="batch-toggle-more bx-more" data-act="toggle-more">Параметры <span class="b-arr">' + ic('chevron', 12) + '</span></button>'+
+            '<div class="batch-hd bx-st">'+stTag+'</div>'+
+          '</div>'+
+          morePanelHtml(item)+
+        '</div>';
+      }
 
       return '<div class="batch-card '+cls+'" data-idx="'+idx+'">'+
         '<div class="batch-hd">'+
@@ -2707,8 +2766,8 @@ function openBatchSurveySheet(posName){
           '<div>'+
             '<label class="lbl">Валюта и период</label>'+
             '<div class="two">'+
-              '<div><select class="b-cur">'+currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(item.cur===c?' selected':'')+'>'+esc(c)+'</option>'; }).join('')+'</select></div>'+
-              '<div><select class="b-pay-per">'+payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(item.payPer===p?' selected':'')+'>'+esc(p)+'</option>'; }).join('')+'</select></div>'+
+              '<div><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
+              '<div><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
             '</div>'+
           '</div>'+
         '</div>'+
@@ -2718,40 +2777,11 @@ function openBatchSurveySheet(posName){
           '<span class="b-arr">' + ic('chevron', 12) + '</span>'+
         '</button>'+
 
-        '<div class="batch-more-panel hidden">'+
-          '<label class="lbl">Как эта должность называется у них</label>'+
-          '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>' + ic('chevron', 12) + '</i></div>'+
-
-          '<label class="lbl">Грейд / Уровень</label>'+
-          '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">'+
-
-          '<label class="lbl">Бонусы и премии</label>'+
-          chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
-          '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
-            '<label class="lbl">Размер бонуса</label>'+
-            '<input class="b-bon-size" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(item.bonSize)+'">'+
-            '<div style="height:6px"></div>'+chips('bonType', bonusTypes, item.bonType, false)+
-            '<div style="height:6px"></div>'+chips('bonPer', bonusPeriods, item.bonPer, false)+
-          '</div>'+
-
-          '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
-          chips('benefits', benefitsList, item.benefits, true)+
-
-          '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
-          '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
-
-          '<div class="two" style="margin-top:10px">'+
-            '<div><label class="lbl">Откуда данные</label>'+chips('source', sources, item.source, false)+'</div>'+
-            '<div><label class="lbl">Надёжность</label>'+chips('trust', trustList, item.trust, false)+'</div>'+
-          '</div>'+
-
-          '<label class="lbl" style="margin-top:10px">Комментарий</label>'+
-          '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>'+
-        '</div>'+
+        morePanelHtml(item)+
       '</div>';
     }).join('');
 
-    el.innerHTML = '<div class="sheet-in batch-sheet">'+
+    el.innerHTML = '<div class="sheet-in batch-sheet'+(wide ? ' batch-sheet--wide' : '')+'">'+
       '<div class="sheet-hd">'+
         '<div>'+
           '<b>Должность: '+esc(posName)+'</b>'+
@@ -2760,7 +2790,13 @@ function openBatchSurveySheet(posName){
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
 
-      '<div class="batch-list">'+cardsHtml+'</div>'+
+      '<div class="batch-list'+(wide ? ' batch-list--grid' : '')+'">'+
+        (wide ? '<div class="bx-head">'+
+          '<span>Компания</span><span>Оклад от*</span><span>Оклад до*</span>'+
+          '<span>Валюта</span><span>Период</span><span></span><span>Статус</span>'+
+        '</div>' : '')+
+        cardsHtml+
+      '</div>'+
 
       '<div style="height:10px"></div>'+
       '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+

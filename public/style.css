@@ -1881,6 +1881,12 @@ label.lbl {
   max-width: 760px;
 }
 
+/* turn-7b — режим плоской таблицы: модалке нужно больше ширины под все
+   колонки. Двойной класс, чтобы победить `@media(min-width:640px) .sheet-in`. */
+.sheet-in.batch-sheet--wide {
+  max-width: min(1060px, 94vw);
+}
+
 .unit-content-wrap {
   width: 100%;
   max-width: 100%;
@@ -1907,6 +1913,123 @@ label.lbl {
   flex-direction: column;
   gap: 8px;
   margin: 12px 0;
+}
+
+/* turn-7b — плоская редактируемая таблица для десктопа: одна строка на
+   компанию, оклад правится в ячейке, «Параметры» разворачивают детальные
+   поля под строкой на всю ширину. */
+.batch-list--grid {
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.bx-head,
+.batch-list--grid .bx-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.6fr) 92px 92px 108px 120px 116px 128px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+}
+
+.bx-head {
+  background: var(--card-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.batch-list--grid .batch-card {
+  border: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  background: var(--card);
+}
+
+.batch-list--grid .batch-card:last-child {
+  border-bottom: 0;
+}
+
+.batch-list--grid .batch-card:hover {
+  box-shadow: none;
+}
+
+.batch-list--grid .batch-card.is-filled {
+  border-left: 3px solid var(--ok);
+  background: var(--ok-soft);
+}
+
+.batch-list--grid .batch-card.is-part {
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+}
+
+.batch-list--grid .bx-co {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.batch-list--grid .bx-co span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-list--grid .bx-cell input,
+.batch-list--grid .bx-cell select {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 8px;
+  font-size: 12.5px;
+}
+
+.batch-list--grid .batch-toggle-more.bx-more {
+  margin: 0;
+  width: auto;
+  min-height: 34px;
+  padding: 0 10px;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.batch-list--grid .batch-toggle-more.bx-more:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.batch-list--grid .batch-hd.bx-st {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.batch-list--grid .batch-more-panel {
+  margin: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px dashed var(--line);
+  background: var(--card-2);
 }
 
 .batch-card {
