@@ -5398,7 +5398,7 @@ function renderAdminDivisions(){
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители ' + leaders.length + '</div>'+
             leaders.map(function(ldr){
               return '<div class="org-staff-row org-leader-drop-zone" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" data-drop-role="'+(ldr.roleType||'head')+'" title="Зажмите для переноса или перетащите сюда сотрудника для смены руководителя">'+
-                '<div class="org-avatar-circle" style="background:#0284c7">'+getInitials(ldr.fio)+'</div>'+
+                '<div class="org-avatar-circle" style="background:var(--accent)">'+getInitials(ldr.fio)+'</div>'+
                 '<div style="flex:1;overflow:hidden">'+
                   '<div style="font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
                     esc(ldr.fio)+
@@ -5410,14 +5410,14 @@ function renderAdminDivisions(){
               '</div>';
             }).join('') :
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители</div>'+
-            '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1px dashed var(--line);border-radius:8px;padding:10px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
+            '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm);padding:16px 12px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
           )+
 
           // Подчинённые / Все сотрудники
           '<div class="org-section-lbl" style="margin-top:8px">' + ic('users', 14) + 'Сотрудники для назначения (' + allStaff.length + ')</div>'+
           (allStaff.length ? allStaff.map(function(u){
             return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или на руководителя вверху">'+
-              '<div class="org-avatar-circle" style="background:#64748b">'+getInitials(u.fio)+'</div>'+
+              '<div class="org-avatar-circle" style="background:var(--subtle)">'+getInitials(u.fio)+'</div>'+
               '<div style="flex:1;overflow:hidden">'+
                 '<div style="font-size:12px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
                 '<div style="font-size:11px;color:var(--muted)">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
