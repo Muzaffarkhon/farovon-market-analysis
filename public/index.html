@@ -3572,7 +3572,25 @@ function renderSalariesTab(positions){
   h += '<div class="sec-title">Топ-8 по числу данных</div>';
   h += '<div class="fork-grid">' + top.map(function(p){ return salForkCard(p, positions.indexOf(p)); }).join('') + '</div>';
 
-  h += '<div class="sec-title" style="margin-top:16px">Все должности — таблица ('+positions.length+')</div>';
+  // turn-18c: список должностей сворачивается до 5 самых заполненных, остальные
+  // прячутся за «Показать ещё N» — без потери данных; поиск открывает любую
+  // должность, не разворачивая весь список.
+  var salQ = (S.dashSalSearch || '').trim().toLowerCase();
+  var salShowAll = !!S.dashSalShowAll || !!salQ;
+  var SAL_LIMIT = 5;
+  var salFiltered = sorted.filter(function(p){ return !salQ || (p.pos || '').toLowerCase().indexOf(salQ) >= 0; });
+  var salMatchTotal = salFiltered.length;
+  var salHidden = 0;
+  if(!salShowAll && salFiltered.length > SAL_LIMIT){
+    salHidden = salFiltered.length - SAL_LIMIT;
+    salFiltered = salFiltered.slice(0, SAL_LIMIT);
+  }
+
+  h += '<div class="sec-title" style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
+    '<span>Все должности — таблица ('+(salQ ? salMatchTotal + ' из ' + positions.length : positions.length)+')</span>'+
+    '<span class="search-wrap" style="flex:0 1 240px;min-width:180px">'+icBare('search', 13)+
+      '<input id="salSearch" placeholder="Найти должность…" value="'+esc(S.dashSalSearch || '')+'" style="height:32px;font-size:12.5px"></span>'+
+  '</div>';
 
   function arrow(k){ return sort.key === k ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''; }
 
@@ -3585,7 +3603,7 @@ function renderSalariesTab(positions){
       '<th style="width:32%">Коридор рынка</th>'+
     '</tr></thead><tbody>';
 
-  sorted.forEach(function(p){
+  salFiltered.forEach(function(p){
     var has = p.min > 0;
     var bar;
     if(has){
@@ -3613,7 +3631,13 @@ function renderSalariesTab(positions){
 
   h += '</tbody></table></div>';
 
-  h += '<div class="rcards">' + sorted.map(function(p){
+  if(salHidden > 0){
+    h += '<button class="btn-line" id="salShowAll" style="width:100%;margin-top:8px">Показать ещё '+salHidden+' '+declOfNum(salHidden, ['должность','должности','должностей'])+'</button>';
+  } else if(salShowAll && !salQ && positions.length > SAL_LIMIT){
+    h += '<button class="btn-line" id="salCollapse" style="width:100%;margin-top:8px">Свернуть до топ-'+SAL_LIMIT+'</button>';
+  }
+
+  h += '<div class="rcards">' + salFiltered.map(function(p){
     var has = p.min > 0;
     var nm = esc(p.pos);
     return '<div class="rcard">'+
@@ -3641,6 +3665,24 @@ function renderSalariesTab(positions){
         box.innerHTML = renderSalariesTab((S.dashData && S.dashData.positions) || []);
       };
     });
+
+    var reRender = function(){ box.innerHTML = renderSalariesTab((S.dashData && S.dashData.positions) || []); };
+
+    var salInput = box.querySelector('#salSearch');
+    if(salInput){
+      salInput.oninput = function(){
+        var pos = this.selectionStart;
+        S.dashSalSearch = this.value;
+        S.dashSalShowAll = false;
+        reRender();
+        var again = box.querySelector('#salSearch');
+        if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
+      };
+    }
+    var salMore = box.querySelector('#salShowAll');
+    if(salMore) salMore.onclick = function(){ S.dashSalShowAll = true; reRender(); };
+    var salLess = box.querySelector('#salCollapse');
+    if(salLess) salLess.onclick = function(){ S.dashSalShowAll = false; reRender(); };
   }, 30);
 
   return h;
