@@ -26,3 +26,6 @@ data/market.db-shm
 Thumbs.db
 .vscode/
 .idea/
+
+# graphify knowledge-graph output (regenerate with: graphify . --update)
+graphify-out/
