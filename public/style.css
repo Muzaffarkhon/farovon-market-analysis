@@ -4935,8 +4935,8 @@ html.compact {
   flex: 1;
   min-height: 0;
   height: 100%;
-  background-color: #f8fafc;
-  border-radius: var(--radius-elements, 12px);
+  background-color: var(--card-2, #f8fafc);
+  border-radius: var(--radius-elements, 10px);
   border: 1px solid var(--line);
   overflow: hidden;
   display: flex;
@@ -5130,31 +5130,32 @@ html.compact {
   width: 260px;
   min-height: 124px;
   box-sizing: border-box;
-  background: linear-gradient(145deg, #1e293b, #0f172a);
-  color: #ffffff;
-  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--radius);
   padding: 12px 14px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   position: relative;
   z-index: 2;
 }
 
 .org-top-holding-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .org-holding-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 14px;
   font-weight: 700;
   display: flex;
@@ -5164,9 +5165,9 @@ html.compact {
 }
 
 .org-holding-to-board-stem {
-  width: 2px;
+  width: 1px;
   height: 20px;
-  background: #94a3b8;
+  background: var(--line-strong);
   margin: 0 auto;
 }
 
@@ -5174,33 +5175,33 @@ html.compact {
   width: 260px;
   min-height: 124px;
   box-sizing: border-box;
-  background: linear-gradient(145deg, #1e1b4b, #0f172a);
-  color: #ffffff;
-  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--radius);
   padding: 12px 14px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   cursor: pointer;
-  border: 1px solid rgba(167, 139, 250, 0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   position: relative;
   z-index: 2;
 }
 
 .org-board-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(124, 58, 237, 0.22);
-  border-color: #a78bfa;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--line-strong);
 }
 
 .org-board-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #ffffff;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -5223,8 +5224,8 @@ html.compact {
   top: 0;
   left: 130px;
   right: 130px;
-  height: 2px;
-  background: #94a3b8;
+  height: 1px;
+  background: var(--line-strong);
 }
 
 .org-gov-col {
@@ -5240,54 +5241,54 @@ html.compact {
   top: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 24px;
-  background: #94a3b8;
+  background: var(--line-strong);
 }
 
 .org-root-card {
   width: 260px;
   min-height: 124px;
   box-sizing: border-box;
-  background: linear-gradient(145deg, #0f2b46, #091e32);
-  color: #ffffff;
-  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--radius);
   padding: 12px 14px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   cursor: pointer;
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .org-root-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
-  border-color: #38bdf8;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--line-strong);
 }
 
 .org-control-card {
   width: 260px;
   min-height: 124px;
   box-sizing: border-box;
-  background: linear-gradient(145deg, #27272a, #18181b);
-  border: 1px solid rgba(239, 68, 68, 0.28);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-xs);
 }
 
 .org-control-card:hover {
-  border-color: #ef4444 !important;
-  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.2) !important;
+  border-color: var(--no) !important;
+  box-shadow: var(--shadow-sm) !important;
 }
 
 .org-root-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0284c7, #38bdf8);
-  color: #ffffff;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -5300,7 +5301,7 @@ html.compact {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: var(--text);
   line-height: 1.35;
   height: 35px;
   min-height: 35px;
@@ -5314,7 +5315,7 @@ html.compact {
 
 .org-root-sub {
   font-size: 11.5px;
-  color: #94a3b8;
+  color: var(--muted);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -5322,23 +5323,15 @@ html.compact {
 }
 
 .org-root-arrow-stem {
-  width: 2px;
+  width: 1px;
   height: 32px;
-  background: #94a3b8;
+  background: var(--line-strong);
   position: relative;
   margin: 0 auto;
 }
 
 .org-root-arrow-stem::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: -4px;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid #94a3b8;
+  content: none;
 }
 
 /* Уровень 2: Строка всех направлений/департаментов */
@@ -5359,8 +5352,8 @@ html.compact {
   top: 0;
   left: 130px;
   right: 130px;
-  height: 2px;
-  background: #94a3b8;
+  height: 1px;
+  background: var(--line-strong);
 }
 
 .org-dirs-level-row.has-single-child::before {
@@ -5382,9 +5375,9 @@ html.compact {
   top: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 24px;
-  background: #94a3b8;
+  background: var(--line-strong);
 }
 
 /* Секции уровней отделов / подотделов (выровненные независимые ряды) */
@@ -5419,8 +5412,8 @@ html.compact {
   top: 0;
   left: 130px;
   right: 130px;
-  height: 2px;
-  background: #94a3b8;
+  height: 1px;
+  background: var(--line-strong);
 }
 
 .org-child-units-row.has-single-child::before {
@@ -5442,9 +5435,9 @@ html.compact {
   top: -28px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 28px;
-  background: #94a3b8;
+  background: var(--line-strong);
 }
 
 /* Уровень 4 и 5: Подотделы раскрытого отдела */
@@ -5463,8 +5456,8 @@ html.compact {
   top: 0;
   left: 130px;
   right: 130px;
-  height: 2px;
-  background: #94a3b8;
+  height: 1px;
+  background: var(--line-strong);
 }
 
 .org-grandchild-staff-row.has-single-child::before {
@@ -5486,9 +5479,9 @@ html.compact {
   top: -28px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 28px;
-  background: #94a3b8;
+  background: var(--line-strong);
 }
 
 .org-constructor-box {
@@ -5515,9 +5508,9 @@ html.compact {
   box-sizing: border-box;
   background: var(--card, #ffffff);
   border: 1px solid var(--line, #e2e8f0);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 10px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow-xs);
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   position: relative;
@@ -5528,51 +5521,42 @@ html.compact {
 }
 
 .org-card-box:hover {
-  border-color: #94a3b8;
+  border-color: var(--line-strong);
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
-.org-card-box.is-expanded-dir {
-  border-color: #0284c7;
-}
-
-.org-card-box.is-expanded-dir::after {
-  content: '';
-  position: absolute;
-  bottom: -24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2px;
-  height: 24px;
-  background: #0284c7;
-  z-index: 2;
-}
-
+.org-card-box.is-expanded-dir,
 .org-card-box.is-expanded-unit {
-  border-color: #0284c7;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
+.org-card-box.is-expanded-dir::after,
 .org-card-box.is-expanded-unit::after {
   content: '';
   position: absolute;
   bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 2px;
+  width: 1px;
   height: 24px;
-  background: #0284c7;
+  background: var(--accent);
   z-index: 2;
 }
 
-.org-card-box.is-active-card {
-  border: 2px solid #0284c7 !important;
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12), 0 4px 14px rgba(2, 132, 199, 0.08) !important;
+.org-card-box.is-active-card,
+.org-board-card.is-active-card,
+.org-root-card.is-active-card,
+.org-control-card.is-active-card {
+  border: 1px solid var(--accent) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm) !important;
 }
 
 .org-card-box.drop-target-hover {
-  border: 2px dashed #0284c7 !important;
-  background-color: rgba(2, 132, 199, 0.04) !important;
+  border: 2px dashed var(--accent) !important;
+  background-color: var(--accent-soft) !important;
 }
 
 .org-card-title {

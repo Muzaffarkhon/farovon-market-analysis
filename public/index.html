@@ -5106,7 +5106,7 @@ function renderAdminDivisions(){
                 '<div class="org-holding-avatar">' + ic('units', 18) + '</div>'+
                 '<div style="overflow:hidden">'+
                   '<div class="org-root-title" style="height:auto;min-height:auto">Farovon Holding</div>'+
-                  '<div class="org-root-sub" style="color:rgba(255,255,255,0.75)">Группа компаний</div>'+
+                  '<div class="org-root-sub">Группа компаний</div>'+
                 '</div>'+
               '</div>'+
             '</div>'+
@@ -5145,13 +5145,13 @@ function renderAdminDivisions(){
                   '<div style="width:100%">'+
                     '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">'+
                       '<div class="org-root-title" style="font-size:12.5px;height:auto;min-height:auto">'+esc(auditUnitName)+'</div>'+
-                      '<span style="font-size:9px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.18);padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.03em;flex-shrink:0">Контроль СД</span>'+
+                      '<span style="font-size:9px;font-weight:700;color:var(--no);background:var(--no-soft);padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.03em;flex-shrink:0">Контроль СД</span>'+
                     '</div>'+
                     '<div style="display:flex;align-items:center;gap:10px">'+
-                      '<div class="org-root-avatar" style="width:34px;height:34px;background:linear-gradient(135deg,#dc2626,#f87171)">'+getInitials(auditHead || auditUnitName)+'</div>'+
+                      '<div class="org-root-avatar" style="width:34px;height:34px;background:var(--no-soft);color:var(--no)">'+getInitials(auditHead || auditUnitName)+'</div>'+
                       '<div style="overflow:hidden;flex:1">'+
-                        '<div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(auditHead ? esc(auditHead) : 'Руководитель не назначен')+'</div>'+
-                        '<div style="font-size:10.5px;color:#fca5a5">Служба аудита</div>'+
+                        '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(auditHead ? esc(auditHead) : 'Руководитель не назначен')+'</div>'+
+                        '<div style="font-size:10.5px;color:var(--muted)">Служба аудита</div>'+
                       '</div>'+
                     '</div>'+
                   '</div>'+
@@ -5190,10 +5190,10 @@ function renderAdminDivisions(){
         : '<span class="org-card-footer-label">' + unitCountText + '</span>';
 
       var rightBtnHtml = subordinateUnits.length
-        ? '<span class="org-expand-tag" style="' + (isDirExpanded && !isFullBranchExpanded ? 'background:#0284c7;color:#fff' : (isFullBranchExpanded ? 'background:rgba(2,132,199,0.12);color:#0284c7' : '')) + '" title="' + (isDirExpanded ? 'Свернуть направление' : 'Раскрыть на 1 уровень (по одной ветке)') + '">' +
+        ? '<span class="org-expand-tag" style="' + (isDirExpanded && !isFullBranchExpanded ? 'background:var(--accent);color:#fff' : (isFullBranchExpanded ? 'background:var(--accent-soft);color:var(--accent)' : '')) + '" title="' + (isDirExpanded ? 'Свернуть направление' : 'Раскрыть на 1 уровень (по одной ветке)') + '">' +
             '1 уровень ' + (isDirExpanded ? '⌃' : '⌄') +
           '</span>'
-        : '<span class="org-expand-tag" style="' + (isDirExpanded ? 'background:#0284c7;color:#fff' : '') + '">Состав</span>';
+        : '<span class="org-expand-tag" style="' + (isDirExpanded ? 'background:var(--accent);color:#fff' : '') + '">Состав</span>';
 
       h += '<div class="org-dir-col-item">'+
         '<div class=\'org-card-box' + (isDirActive ? ' is-active-card is-expanded-dir' : '') + '\' draggable="true" data-org-type="dir" data-dir="'+esc(dir)+'" data-u="'+esc(dir)+'" data-drop-dir="'+esc(dir)+'" title="Двойной клик — аппарат и назначение ответственных">'+
@@ -5242,7 +5242,7 @@ function renderAdminDivisions(){
             '</div>'+
             '<div class="org-card-footer">'+
               '<span>' + (subunitsCount ? subunitsCount + ' подотд.' : (unitStaffList.length ? unitStaffList.length + ' сотр.' : 'Назначить')) + '</span>'+
-              '<span class="org-expand-tag" style="'+(isUnitExpanded?'background:#0284c7;color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' + (isUnitExpanded ? (subunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) + '</span>'+
+              '<span class="org-expand-tag" style="'+(isUnitExpanded?'background:var(--accent);color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' + (isUnitExpanded ? (subunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) + '</span>'+
             '</div>'+
           '</div>'+
         '</div>';
