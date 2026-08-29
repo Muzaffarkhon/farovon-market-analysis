@@ -103,42 +103,23 @@ function generateTempPassword() {
   return 'Fv-' + code;
 }
 
-/** Запрос логина и генерация нового пароля после привязки Telegram */
-async function handleLogin(chatId) {
-  const user = await queryOne(
-    'SELECT id, login, fio, role FROM users WHERE telegram_chat_id = ? AND archived_at IS NULL AND active = 1',
-    [String(chatId)]
-  );
-  if (!user) {
-    await sendTelegramMessage(chatId, NOT_LINKED_MSG, REMOVE_KEYBOARD);
-    return;
-  }
-
-  // Защита системного администратора
-  if (user.login === 'admin') {
-    await sendTelegramMessage(
-      chatId,
-      '⚠️ Пароль системного администратора не может быть сброшен через Telegram-бота. Обратитесь к системному инженеру.'
-    );
-    return;
-  }
+/**
+ * Сбрасывает пароль пользователю и присылает новый ему в личный чат Telegram.
+ * Общий код для двух точек входа:
+ *   - команда /login в боте (сам пользователь);
+ *   - админское «Сбросить пароль» в приложении — новый пароль уходит
+ *     пользователю, администратор его НЕ видит (пароль знает только владелец).
+ *
+ * `user` — строка из users с полями id, login, fio, telegram_chat_id.
+ * `source` — 'self' | 'admin' (только для записи в журнал).
+ * Возвращает { ok:true } либо { ok:false, reason:'not_linked'|'system_admin'|'not_found' }.
+ */
+async function resetAndSendCredentials(user, source) {
+  if (!user) return { ok: false, reason: 'not_found' };
+  if (user.login === 'admin') return { ok: false, reason: 'system_admin' };
+  if (!user.telegram_chat_id) return { ok: false, reason: 'not_linked' };
 
   const tempPassword = generateTempPassword();
-  const newHash = bcrypt.hashSync(tempPassword, 10);
-  const now = new Date().toISOString();
-
-  await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
-    newHash,
-    now,
-    user.id
-  ]);
-
-  await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
-    user.login,
-    'сброс пароля telegram',
-    `Пользователь ${user.fio} запросил данные для входа через Telegram (chat_id: ${chatId})`
-  ]);
-
   const platformUrl = config.webappUrl || 'https://farovon-market-analysis.onrender.com';
 
   const msg = `🔐 <b>Данные для входа в систему «Обзор рынка»:</b>\n\n` +
@@ -147,7 +128,10 @@ async function handleLogin(chatId) {
     `⚠️ <i>Рекомендуем сменить этот пароль в профиле сразу после входа.</i>\n\n` +
     `🌐 <b>Ссылка на платформу:</b>\n${platformUrl}`;
 
-  await sendTelegramMessage(chatId, msg, {
+  // Сначала пытаемся доставить — и только если ушло, меняем хэш. Иначе при
+  // недоступном боте пароль бы уже сменился, а пользователь остался бы без
+  // нового (лок-аут).
+  const sent = await sendTelegramMessage(user.telegram_chat_id, msg, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -155,6 +139,45 @@ async function handleLogin(chatId) {
       ]
     }
   });
+  if (!sent) return { ok: false, reason: 'send_failed' };
+
+  await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
+    bcrypt.hashSync(tempPassword, 10),
+    new Date().toISOString(),
+    user.id
+  ]);
+
+  await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+    user.login,
+    source === 'admin' ? 'сброс пароля админом (выслан в telegram)' : 'сброс пароля telegram',
+    source === 'admin'
+      ? `Новый пароль для ${user.fio} сгенерирован и отправлен пользователю в Telegram`
+      : `Пользователь ${user.fio} запросил данные для входа через Telegram`
+  ]);
+
+  return { ok: true };
+}
+
+exports.resetAndSendCredentials = resetAndSendCredentials;
+
+/** Запрос логина и генерация нового пароля после привязки Telegram */
+async function handleLogin(chatId) {
+  const user = await queryOne(
+    'SELECT id, login, fio, telegram_chat_id FROM users WHERE telegram_chat_id = ? AND archived_at IS NULL AND active = 1',
+    [String(chatId)]
+  );
+  if (!user) {
+    await sendTelegramMessage(chatId, NOT_LINKED_MSG, REMOVE_KEYBOARD);
+    return;
+  }
+
+  const result = await resetAndSendCredentials(user, 'self');
+  if (!result.ok && result.reason === 'system_admin') {
+    await sendTelegramMessage(
+      chatId,
+      '⚠️ Пароль системного администратора не может быть сброшен через Telegram-бота. Обратитесь к системному инженеру.'
+    );
+  }
 }
 
 async function handleStart(chatId, token) {

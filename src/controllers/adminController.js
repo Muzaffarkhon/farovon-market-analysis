@@ -317,20 +317,35 @@ exports.resetPassword = async (req, res) => {
   const { login } = req.params;
 
   try {
-    const user = await queryOne('SELECT id, login FROM users WHERE LOWER(login) = LOWER(?)', [login]);
+    const user = await queryOne(
+      'SELECT id, login, fio, telegram_chat_id FROM users WHERE LOWER(login) = LOWER(?)',
+      [login]
+    );
     if (!user) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
 
-    const newPwd = makePassword();
-    const hash = hashPassword(newPwd);
+    // Вариант 2: пароль генерится и уходит пользователю в Telegram. Админ его
+    // не видит — знать пароль должен только сам владелец.
+    const { resetAndSendCredentials } = require('./telegramController');
+    const result = await resetAndSendCredentials(user, 'admin');
 
-    await run('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hash, user.id]);
+    if (!result.ok) {
+      const messages = {
+        not_linked: 'У пользователя не привязан Telegram — новый пароль отправить некуда. ' +
+                    'Пусть привяжет бота: команда /link (поделиться номером телефона), затем повторите сброс.',
+        send_failed: 'Не удалось доставить сообщение в Telegram. Пароль не менялся — попробуйте позже.',
+        system_admin: 'Пароль системного администратора так не сбрасывается — обратитесь к системному инженеру.',
+        not_found: 'Пользователь не найден.'
+      };
+      return res.status(400).json({ ok: false, error: messages[result.reason] || 'Не удалось сбросить пароль' });
+    }
+
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
-      'сброс пароля',
-      `Логин: ${user.login}`
+      'админ: сброс пароля пользователя',
+      `Логин: ${user.login} — новый пароль сгенерирован и выслан пользователю в Telegram`
     ]);
 
-    res.json({ ok: true, login: user.login, newPassword: newPwd });
+    res.json({ ok: true, login: user.login, delivered: true });
   } catch (err) {
     console.error('resetPassword error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка сброса пароля' });

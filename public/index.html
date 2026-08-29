@@ -4507,19 +4507,25 @@ function adminToggleUser(login, active){
 function adminResetPwd(login){
   ask({
     title: 'Сбросить пароль пользователя?',
-    html: 'Для логина <b>'+esc(login)+'</b> будет сгенерирован новый пароль.',
-    ok: 'Сгенерировать пароль'
+    html: 'Для <b>'+esc(login)+'</b> будет сгенерирован новый пароль и отправлен '+
+      'пользователю в Telegram. Вы пароль не увидите — его знает только владелец аккаунта.',
+    ok: 'Сбросить и отправить'
   }).then(function(yes){
     if(!yes) return;
     call('apiAdminResetPassword', S.token, login).then(function(res){
       if(res && res.ok){
         ask({
-          title: 'Новый пароль выдан',
-          html: 'Логин: <b>'+esc(res.login)+'</b><br>Новый пароль: <b style="font-size:18px;color:var(--accent)">'+esc(res.newPassword)+'</b><br><br>Передайте эти данные сотруднику.',
-          ok: 'Скопировано / Понятно'
+          title: 'Пароль отправлен',
+          html: 'Новый пароль для <b>'+esc(res.login || login)+'</b> сгенерирован и отправлен '+
+            'пользователю в личные сообщения Telegram.',
+          ok: 'Понятно'
         });
       } else {
-        toast((res && res.error) || 'Ошибка сброса');
+        ask({
+          title: 'Не удалось сбросить',
+          html: esc((res && res.error) || 'Ошибка сброса пароля'),
+          ok: 'Понятно'
+        });
       }
     });
   });
