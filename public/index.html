@@ -4374,16 +4374,11 @@ function openUserModal(login){
         '</select>'+
       '</div>'+
     '</div>'+
-    '<div class="field-grid">'+
-      '<div>'+
-        '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
-        '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
-      '</div>'+
-      '<div>'+
-        '<label class="lbl">'+(isEdit?'Новый пароль (оставьте пустым, чтобы не менять)':'Пароль (оставьте пустым для автогенерации)')+'</label>'+
-        '<input id="umPwd" type="text" placeholder="пароль">'+
-      '</div>'+
-    '</div>'+
+    '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
+    '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+    (isEdit ? '' :
+      '<p class="step-hint" style="margin:8px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
+      '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
     '<div style="margin:14px 0 10px">'+
       '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
@@ -4438,7 +4433,6 @@ function openUserModal(login){
       el.querySelector('#umLogin').value.trim() !== (u?u.login:'') ||
       el.querySelector('#umRole').value !== (u?u.role:'user') ||
       el.querySelector('#umPhone').value.trim() !== (u?u.phone:'') ||
-      !!el.querySelector('#umPwd').value.trim() ||
       el.querySelector('#umActive').checked !== (u?!!u.active:true) ||
       curUnits !== origUnits;
   };
@@ -4456,7 +4450,6 @@ function openUserModal(login){
       login: el.querySelector('#umLogin').value.trim(),
       role: el.querySelector('#umRole').value,
       phone: el.querySelector('#umPhone').value.trim(),
-      password: el.querySelector('#umPwd').value.trim(),
       active: el.querySelector('#umActive').checked,
       units: assignedUnits
     };
@@ -4467,8 +4460,19 @@ function openUserModal(login){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
         el.remove();
-        toast('Пользователь сохранён');
         loadAdminUsers();
+        if(!isEdit){
+          ask({
+            title: 'Пользователь создан',
+            html: 'Логин: <b>'+esc(res.login || payload.login)+'</b><br><br>'+
+              'Пароль задаёт себе сам пользователь в Telegram-боте: команда <b>/link</b> '+
+              '(поделиться номером телефона из профиля), затем <b>/login</b> — бот пришлёт '+
+              'логин и пароль ему в личные сообщения.',
+            ok: 'Понятно'
+          });
+        } else {
+          toast('Пользователь сохранён');
+        }
       } else {
         var err = el.querySelector('#uModalErr');
         err.textContent = (res && res.error) || 'Ошибка сохранения';

@@ -109,7 +109,11 @@ async function otherActiveAdmins(login) {
 }
 
 exports.saveUser = async (req, res) => {
-  const { fio, role, phone, password, active, units } = req.body;
+  // Пароль через эту форму не задаётся и не возвращается: его знает только сам
+  // пользователь. Первичную выдачу и сброс делает Telegram-бот (/link → /login),
+  // который присылает пароль в личку пользователю. Любое поле `password` в теле
+  // запроса игнорируется намеренно.
+  const { fio, role, phone, active, units } = req.body;
   let { login } = req.body;
 
   if (!fio || !String(fio).trim()) {
@@ -159,13 +163,11 @@ exports.saveUser = async (req, res) => {
         }
       }
 
-      const hash = (password && String(password).trim()) ? hashPassword(String(password).trim()) : null;
-
       await run(`
         UPDATE users
-        SET fio = ?, role = ?, phone = ?, password_hash = COALESCE(?, password_hash), active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
+        SET fio = ?, role = ?, phone = ?, active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [String(fio).trim(), newRole, cleanPhone || null, hash, active !== false ? 1 : 0, unitsStr, existing.id]);
+      `, [String(fio).trim(), newRole, cleanPhone || null, active !== false ? 1 : 0, unitsStr, existing.id]);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -184,8 +186,10 @@ exports.saveUser = async (req, res) => {
         finalLogin = makeLogin(String(fio).trim(), allLogins);
       }
 
-      const rawPwd = (password && String(password).trim()) ? String(password).trim() : makePassword();
-      const hash = hashPassword(rawPwd);
+      // Случайный одноразовый хэш — просто чтобы строка пользователя была
+      // валидной. Этот пароль никому не показывается; пользователь получит
+      // рабочий пароль сам через бота (/link → /login).
+      const hash = hashPassword(makePassword());
 
       await run(`
         INSERT INTO users (login, password_hash, fio, role, phone, units, active)
@@ -198,7 +202,7 @@ exports.saveUser = async (req, res) => {
         `Логин: ${finalLogin}, ФИО: ${fio}, Роль: ${targetRole}`
       ]);
 
-      return res.json({ ok: true, login: finalLogin, rawPassword: rawPwd, message: 'Пользователь создан' });
+      return res.json({ ok: true, login: finalLogin, message: 'Пользователь создан' });
     }
   } catch (err) {
     console.error('saveUser error:', err);
