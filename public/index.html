@@ -1371,9 +1371,11 @@ function renderTopNav(){
   // вкладка из одной кнопки, ведущая на текущий же экран.
   if(btns.length < 2 || S.unit !== null){
     topNav.classList.add('hidden');
+    document.body.classList.remove('has-topnav');
     return;
   }
   topNav.classList.remove('hidden');
+  document.body.classList.add('has-topnav');
 
   topNav.innerHTML = btns.map(function(b){
     var on = S.appView === b.id ? ' on' : '';

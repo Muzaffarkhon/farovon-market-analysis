@@ -2555,6 +2555,57 @@ label.lbl {
   color: var(--accent);
 }
 
+/* turn-10d — на телефоне #topNav становится нижней вкладочной навигацией:
+   иконка над подписью, активный пункт только цветом (без фоновой плашки),
+   таргет — весь столбец, ≥44px. Экраны ≥1024px используют боковой rail и
+   #topNav у них скрыт (см. media 1024). */
+@media (max-width: 640px) {
+  #topNav.nav-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    gap: 0;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    border-bottom: none;
+    overflow: visible;
+    z-index: 40;
+    box-shadow: 0 -4px 16px rgba(20, 30, 40, 0.06);
+  }
+
+  #topNav .nav-btn {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 46px;
+    padding: 4px 2px;
+    font-size: 10.5px;
+    line-height: 1;
+  }
+
+  #topNav .nav-btn svg {
+    margin: 0 !important;
+    width: 20px;
+    height: 20px;
+  }
+
+  #topNav .nav-btn.on {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  #topNav .nav-btn.on svg {
+    color: var(--accent);
+  }
+
+  body.has-topnav .wrap {
+    padding-bottom: 60px;
+  }
+}
+
 /* ─── KPI Карточки Дашборда ─── */
 .kpi-grid {
   display: grid;
