@@ -37,7 +37,12 @@
       <label class="lbl" style="margin-top:0">Логин</label>
       <input id="inLogin" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="например: ivanov.ii">
       <label class="lbl">Пароль</label>
-      <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div class="pw-wrap">
+        <input id="inPass" type="password" autocomplete="current-password" placeholder="••••••••">
+        <button type="button" id="pwEye" class="pw-eye" tabindex="-1" aria-label="Показать пароль">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/></svg>
+        </button>
+      </div>
       <div style="height:18px"></div>
       <button id="btnLogin" class="btn-primary">Войти в систему</button>
     </div>
@@ -219,6 +224,8 @@ function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
  */
 var ICONS = {
   dashboard: '<path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  eye: '<path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/>',
+  'eye-off': '<path d="M10.6 5.2A9.6 9.6 0 0112 5c6.5 0 10.5 7 10.5 7a18 18 0 01-2.5 3.3M6.2 6.7A17.8 17.8 0 001.5 12S5.5 19 12 19a9.3 9.3 0 004.2-.95M9.9 9.9a3.2 3.2 0 004.2 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   admin: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.6"/>',
   clipboard: '<path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   units: '<rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>',
@@ -1200,6 +1207,19 @@ function renderRail(){
 $('btnLogin').onclick = doLogin;
 $('inPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 $('inLogin').addEventListener('keydown', function(e){ if(e.key==='Enter') $('inPass').focus(); });
+
+// Глазок: показать/скрыть пароль в окне входа.
+(function(){
+  var eye = $('pwEye'), pw = $('inPass');
+  if(!eye || !pw) return;
+  eye.addEventListener('click', function(){
+    var reveal = pw.type === 'password';
+    pw.type = reveal ? 'text' : 'password';
+    eye.innerHTML = icBare(reveal ? 'eye-off' : 'eye', 18);
+    eye.setAttribute('aria-label', reveal ? 'Скрыть пароль' : 'Показать пароль');
+    pw.focus();
+  });
+})();
 
 function doLogin(){
   var l = $('inLogin').value.trim(), p = $('inPass').value;
@@ -2586,6 +2606,7 @@ function openBatchSurveySheet(posName){
   var payPeriods = ref.payPeriods || ['в месяц', 'в день', 'в час'];
   var bonusTypes = ref.bonusTypes || ['ежемесячный', 'квартальный', 'годовой', 'KPI'];
   var bonusPeriods = ref.bonusPeriods || ['в месяц', 'в квартал', 'в год'];
+  var scheduleList = ref.schedules || ['5/2 · 40 часов', '5/2 · 45 часов', '6/1 · 48 часов', '6/1 · 50 часов', '6/1 · 54 часа', 'Сменный 2/2', 'Вахтовый', 'Свободный / гибкий'];
   var sources = ref.sources || ['собеседования', 'бывшие сотрудники', 'сайты вакансий', 'знакомые'];
   var trustList = ref.trust || ['высокая', 'средняя', 'низкая'];
   var benefitsList = S.data.benefits || ['ДМС', 'Питание', 'Связь', 'ГСМ', 'Транспорт'];
@@ -2707,15 +2728,19 @@ function openBatchSurveySheet(posName){
         '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">'+
 
         '<label class="lbl">График работы</label>'+
-        '<input class="b-schedule" placeholder="например: 6/1, 5/2, 40 часов" value="'+esc(item.schedule)+'">'+
+        chips('schedule', scheduleList, item.schedule, false)+
 
         '<label class="lbl">Бонусы и премии</label>'+
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
         '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
           '<label class="lbl">Размер бонуса</label>'+
           '<input class="b-bon-size" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(item.bonSize)+'">'+
-          '<div style="height:6px"></div>'+chips('bonType', bonusTypes, item.bonType, false)+
-          '<div style="height:6px"></div>'+chips('bonPer', bonusPeriods, item.bonPer, false)+
+          '<label class="lbl" style="margin-top:8px">Вид переменной части</label>'+
+          chips('bonType', bonusTypes, item.bonType, false)+
+          '<div class="sub-step">'+
+            '<label class="lbl" style="margin:0 0 6px">Периодичность получения</label>'+
+            chips('bonPer', bonusPeriods, item.bonPer, false)+
+          '</div>'+
         '</div>'+
 
         '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
@@ -2994,7 +3019,6 @@ function openBatchSurveySheet(posName){
     if(e.target.classList.contains('b-pay-from')) item.payFrom = e.target.value.replace(/[^0-9\s,.]/g, '');
     if(e.target.classList.contains('b-pay-to')) item.payTo = e.target.value.replace(/[^0-9\s,.]/g, '');
     if(e.target.classList.contains('b-grade')) item.grade = e.target.value;
-    if(e.target.classList.contains('b-schedule')) item.schedule = e.target.value;
     if(e.target.classList.contains('b-bon-size')) item.bonSize = e.target.value;
     if(e.target.classList.contains('b-extra')) item.extra = e.target.value;
     if(e.target.classList.contains('b-note')) item.note = e.target.value;
