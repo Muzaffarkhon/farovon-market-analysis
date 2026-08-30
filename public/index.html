@@ -3547,12 +3547,13 @@ function renderDashboard(){
   var allDirs = (d.dirProgress || []).map(function(x){ return x.dir; }).filter(function(x){ return x && x !== 'Без направления'; });
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
 
-  h += '<div class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
-    '<div class="search-wrap" style="flex:1 1 180px;min-width:160px;max-width:320px">'+icBare('search')+
-      '<input id="dashSearch" placeholder="Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'"></div>'+
-    niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:170,
+  // Общий фильтр — только направление и HR BP (поиск у «Вилок» и «Реестра»
+  // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
+  var filterHidden = (S.dashTab === 'progress');
+  h += '<div id="dashFilterBar" class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:'+(filterHidden ? 'none' : 'flex')+';align-items:center;flex-wrap:wrap">'+
+    niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
-    niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:160,
+    niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
       items:[{ v:'', label:'Все HR BP' }].concat(allHrbps.map(function(x){ return { v:x, label:x }; })) })+
     '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
     '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
@@ -3573,26 +3574,16 @@ function renderDashboard(){
       $('body').querySelectorAll('button[data-dtab]').forEach(function(b){ b.classList.remove('on'); });
       this.classList.add('on');
       if($('dashKpiRow')) $('dashKpiRow').innerHTML = renderDashKpiRow((S.dashData && S.dashData.summary) || {});
+      if($('dashFilterBar')) $('dashFilterBar').style.display = (S.dashTab === 'progress') ? 'none' : 'flex';
       $('dashTabContent').innerHTML = renderCurrentDashTab();
     };
   });
-
-  var searchIn = $('dashSearch');
-  var timer = null;
-  searchIn.oninput = function(){
-    clearTimeout(timer);
-    timer = setTimeout(function(){
-      S.dashFilters.search = searchIn.value.trim();
-      fetchDashboard(true);
-    }, 250);
-  };
 
   wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
   wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
     S.dashFilters = { dir:'', hrbp:'', search:'' };
-    if($('dashSearch')) $('dashSearch').value = '';
     setNiceSelect('dashDir', '');
     setNiceSelect('dashHrbp', '');
     fetchDashboard(true);
