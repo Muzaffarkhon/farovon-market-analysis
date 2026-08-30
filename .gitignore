@@ -29,3 +29,7 @@ Thumbs.db
 
 # graphify knowledge-graph output (regenerate with: graphify . --update)
 graphify-out/
+
+# Scratch: одноразовые скрипты разбора / проверки данных, не для репозитория
+scratch/
+.obsidian/
