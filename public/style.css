@@ -4481,6 +4481,117 @@ label.lbl {
   outline-offset: 1px;
 }
 
+/* ─── Кастомный select (.nselect) — вместо квадратного нативного поповера ─── */
+.nselect {
+  position: relative;
+  flex: none;
+}
+
+.nselect-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.nselect-btn:hover {
+  border-color: var(--line-strong);
+}
+
+.nselect.open .nselect-btn {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.nselect-cur {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.nselect-btn > svg {
+  flex: none;
+  color: var(--muted);
+  transform: rotate(90deg); /* иконка chevron указывает вправо → делаем «вниз» */
+  transition: transform 0.18s ease;
+}
+
+.nselect.open .nselect-btn > svg {
+  transform: rotate(-90deg);
+}
+
+.nselect-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 45;
+  min-width: 100%;
+  max-width: 300px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 5px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  animation: nselIn 0.14s ease;
+}
+
+@keyframes nselIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.nselect-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.12s ease;
+}
+
+.nselect-opt:hover {
+  background: var(--card-hover);
+}
+
+.nselect-opt.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .dash-filters .nselect {
+    flex: 1 1 45%;
+    width: auto !important;
+  }
+}
+
 .search-wrap {
   position: relative;
 }

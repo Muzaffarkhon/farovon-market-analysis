@@ -3450,6 +3450,74 @@ function fetchDashboard(quiet){
   });
 }
 
+// ─── Кастомный выпадающий список вместо нативного <select>: скруглённая
+// панель, тени, подсветка строк — в стиле сайта. Нативный поповер ОС не
+// поддаётся оформлению, поэтому рисуем свой.
+function niceSelect(o){
+  var items = o.items || [];
+  var cur = items.filter(function(it){ return String(it.v) === String(o.value || ''); })[0] || items[0] || { label:'' };
+  return '<div class="nselect" id="'+o.id+'" data-value="'+esc(String(o.value || ''))+'"'+
+      (o.width ? ' style="width:'+o.width+'px"' : '')+'>'+
+    '<button type="button" class="nselect-btn">'+
+      '<span class="nselect-cur">'+esc(cur.label)+'</span>'+icBare('chevron', 14)+
+    '</button>'+
+    '<div class="nselect-panel" hidden>'+
+      items.map(function(it){
+        return '<button type="button" class="nselect-opt'+(String(it.v) === String(o.value || '') ? ' on' : '')+
+          '" data-v="'+esc(String(it.v))+'">'+esc(it.label)+'</button>';
+      }).join('')+
+    '</div>'+
+  '</div>';
+}
+
+function wireNiceSelect(id, onPick){
+  var root = $(id);
+  if(!root) return;
+  var btn = root.querySelector('.nselect-btn');
+  var panel = root.querySelector('.nselect-panel');
+  var onDoc = function(e){ if(!root.contains(e.target)) close(); };
+  var onKey = function(e){ if(e.key === 'Escape') close(); };
+  function close(){
+    panel.hidden = true;
+    root.classList.remove('open');
+    document.removeEventListener('click', onDoc, true);
+    document.removeEventListener('keydown', onKey, true);
+  }
+  btn.onclick = function(e){
+    e.stopPropagation();
+    if(panel.hidden){
+      panel.hidden = false;
+      root.classList.add('open');
+      var on = panel.querySelector('.nselect-opt.on');
+      if(on) on.scrollIntoView({ block:'nearest' });
+      document.addEventListener('click', onDoc, true);
+      document.addEventListener('keydown', onKey, true);
+    } else { close(); }
+  };
+  panel.querySelectorAll('.nselect-opt').forEach(function(opt){
+    opt.onclick = function(){
+      root.dataset.value = this.dataset.v;
+      root.querySelector('.nselect-cur').textContent = this.textContent;
+      panel.querySelectorAll('.nselect-opt').forEach(function(x){ x.classList.toggle('on', x === opt); });
+      close();
+      if(onPick) onPick(this.dataset.v);
+    };
+  });
+}
+
+function setNiceSelect(id, v){
+  var root = $(id);
+  if(!root) return;
+  root.dataset.value = v;
+  var chosen = null;
+  root.querySelectorAll('.nselect-opt').forEach(function(o){
+    var m = o.dataset.v === v;
+    o.classList.toggle('on', m);
+    if(m) chosen = o;
+  });
+  if(chosen) root.querySelector('.nselect-cur').textContent = chosen.textContent;
+}
+
 function renderDashboard(){
   if(!S.dashData) return;
   var d = S.dashData;
@@ -3482,18 +3550,10 @@ function renderDashboard(){
   h += '<div class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
     '<div class="search-wrap" style="flex:1 1 180px;min-width:160px;max-width:320px">'+icBare('search')+
       '<input id="dashSearch" placeholder="Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'"></div>'+
-    '<select id="dashDir" style="flex:none;width:auto;min-width:130px;max-width:165px">'+
-      '<option value="">Все направления</option>'+
-      allDirs.map(function(dir){
-        return '<option value="'+esc(dir)+'"'+(S.dashFilters.dir===dir?' selected':'')+'>'+esc(dir)+'</option>';
-      }).join('')+
-    '</select>'+
-    '<select id="dashHrbp" style="flex:none;width:auto;min-width:120px;max-width:145px">'+
-      '<option value="">Все HR BP</option>'+
-      allHrbps.map(function(h){
-        return '<option value="'+esc(h)+'"'+(S.dashFilters.hrbp===h?' selected':'')+'>'+esc(h)+'</option>';
-      }).join('')+
-    '</select>'+
+    niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:170,
+      items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
+    niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:160,
+      items:[{ v:'', label:'Все HR BP' }].concat(allHrbps.map(function(x){ return { v:x, label:x }; })) })+
     '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
     '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
@@ -3527,21 +3587,14 @@ function renderDashboard(){
     }, 250);
   };
 
-  $('dashDir').onchange = function(){
-    S.dashFilters.dir = this.value;
-    fetchDashboard(true);
-  };
-
-  $('dashHrbp').onchange = function(){
-    S.dashFilters.hrbp = this.value;
-    fetchDashboard(true);
-  };
+  wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
+  wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
     S.dashFilters = { dir:'', hrbp:'', search:'' };
     if($('dashSearch')) $('dashSearch').value = '';
-    if($('dashDir')) $('dashDir').value = '';
-    if($('dashHrbp')) $('dashHrbp').value = '';
+    setNiceSelect('dashDir', '');
+    setNiceSelect('dashHrbp', '');
     fetchDashboard(true);
   };
 
