@@ -3399,7 +3399,7 @@ function renderDashKpiRow(sm){
     '</div>';
   }
   var med = sm.salaryMedian || 0;
-  return '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:12px">'+
+  return '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:10px">'+
     tile('Записей по рынку', (sm.totalSurveyRecords||0), (sm.recordsWithSalary||0)+' с окладом')+
     tile('Компаний в опросе', (sm.companiesInSurvey||0), '')+
     tile('Медиана рынка', med ? med.toLocaleString('ru-RU')+' c' : '—',

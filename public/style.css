@@ -3037,8 +3037,8 @@ label.lbl {
 
 /* turn-18b — гистограмма распределения окладов */
 .sal-hist {
-  margin: 12px 0 4px;
-  padding: 16px;
+  margin: 0 0 4px;
+  padding: 14px 16px;
 }
 
 .sal-hist-hd {
@@ -3047,7 +3047,7 @@ label.lbl {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .sal-hist-hd b {
@@ -3065,10 +3065,10 @@ label.lbl {
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  height: 120px;
+  height: 108px;
   overflow: visible; /* даём наведённому столбцу выпирать за пределы */
-  padding-top: 20px;
-  margin-top: -20px;
+  padding-top: 12px;
+  margin-top: -12px;
 }
 
 .sal-hist-col {
