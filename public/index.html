@@ -4355,7 +4355,7 @@ function openUserModal(login){
     '<div class="sheet-hd"><b>'+(isEdit ? 'Редактирование: ' + esc(u.fio) : 'Новый пользователь')+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div id="uModalErr" class="err hidden"></div>'+
-    '<label class="lbl" style="margin-top:4px">ФИО *</label>'+
+    '<label class="lbl" style="margin-top:2px">ФИО *</label>'+
     '<input id="umFio" value="'+esc(u?u.fio:'')+'" placeholder="Иванов Иван Иванович">'+
     '<div class="field-grid">'+
       '<div>'+
@@ -4377,21 +4377,21 @@ function openUserModal(login){
     '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
     '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
     (isEdit ? '' :
-      '<p class="step-hint" style="margin:8px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
+      '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
       '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
-    '<div style="margin:14px 0 10px">'+
+    '<div style="margin:8px 0 6px">'+
       '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
     '</div>'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'+
       '<div class="sec-title" style="margin:0">Закрепленные подразделения</div>'+
       '<label class="checkline" style="font-size:12px;cursor:pointer;user-select:none;color:var(--text);display:inline-flex;align-items:center;gap:6px">'+
         '<input type="checkbox" id="umOnlyChecked"> Показать только закреплённые'+
       '</label>'+
     '</div>'+
-    '<div class="search-wrap" style="margin-top:8px">'+icBare('search')+
+    '<div class="search-wrap" style="margin-top:6px">'+icBare('search')+
       '<input id="umUnitSearch" placeholder="Фильтр подразделений…"></div>'+
-    '<div id="umUnitList" style="max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
-    '<div style="height:16px"></div>'+
+    '<div id="umUnitList" style="max-height:135px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
+    '<div style="height:12px"></div>'+
     '<button id="umSave" class="btn-primary">Сохранить</button>'+
   '</div>';
 

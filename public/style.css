@@ -2511,6 +2511,15 @@ label.lbl {
 
 /* Модалка пользователя (openUserModal) шире на десктопе — под неё есть место,
    и пары полей (логин/роль, телефон/пароль) встают в 2 колонки вместо стопки. */
+.sheet-in.um-modal {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sheet-in.um-modal::-webkit-scrollbar {
+  display: none;
+}
+
 @media (min-width: 1024px) {
   .um-modal {
     max-width: 640px;
