@@ -1,5 +1,24 @@
 const { queryAll, queryOne } = require('../db/database');
 
+// Стандартный месяц для приведения часовой тарифной ставки (ЧТС) к месячному
+// окладу: 168 часов. Нужно, чтобы часовые ставки не занижали вилки должностей.
+const HOURS_PER_MONTH = 168;
+
+/** Похоже ли наблюдение на часовую ставку (ЧТС). Признаки:
+ *  - периодичность прямо говорит «в час» / «ЧТС»;
+ *  - «месячный» оклад меньше 1000 сомони — такого на рынке нет, это ЧТС,
+ *    внесённая без смены периодичности (8,5 / 20 / 230 …). */
+function looksHourly(payPer, pFrom, pTo) {
+  if (/час|чтс/i.test(payPer || '')) return true;
+  const v = pFrom || pTo || 0;
+  return v > 0 && v < 1000;
+}
+
+/** ЧТС → месячный эквивалент (× 168). Прочие значения не трогаем. */
+function toMonthly(value, hourly) {
+  return (hourly && value > 0) ? Math.round(value * HOURS_PER_MONTH) : value;
+}
+
 function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
   const n = midSamples.length;
   if (n === 0) return { min: 0, p25: 0, median: 0, p75: 0, max: 0, avg: 0, spread: 0 };
@@ -113,6 +132,11 @@ async function getExtendedAnalytics(filters = {}) {
     const pTo = Number(s.pay_to) || 0;
     const cur = (s.cur || 'сомони').trim();
     const payPer = (s.pay_per || 'в месяц').trim();
+    // ЧТС приводим к месяцу (× 168 ч) — для вилок, медианы и гистограммы.
+    // Сырые pFrom/pTo остаются как есть для вкладки «Реестр данных».
+    const isHourly = looksHourly(payPer, pFrom, pTo);
+    const pFromM = toMonthly(pFrom, isHourly);
+    const pToM = toMonthly(pTo, isHourly);
     const bonHas = (s.bon_has || '').trim().toLowerCase();
     const bonSize = (s.bon_size || '').trim();
     const bonType = (s.bon_type || '').trim();
@@ -129,11 +153,11 @@ async function getExtendedAnalytics(filters = {}) {
     if (company) compRank[company] = (compRank[company] || 0) + 1;
     curStats[cur] = (curStats[cur] || 0) + 1;
 
-    // Общая медиана рынка — по всем «месячным» наблюдениям с окладом,
-    // часовые/дневные ставки (< 100) исключаем, чтобы не занижать.
+    // Общая медиана рынка: ЧТС уже приведена к месяцу (pFromM/pToM), дневные
+    // ставки пока исключаем — их к месяцу не приводим.
     {
-      const mid = (pFrom > 0 && pTo > 0) ? (pFrom + pTo) / 2 : (pFrom || pTo || 0);
-      if (mid >= 100 && !/час|день|дн/i.test(payPer)) allSalarySamples.push(mid);
+      const mid = (pFromM > 0 && pToM > 0) ? (pFromM + pToM) / 2 : (pFromM || pToM || 0);
+      if (mid > 0 && !/день|дн(?!е)/i.test(payPer)) allSalarySamples.push(mid);
     }
 
     // Регион и сырой ID_Бизнес живут в примечании импортированных строк
@@ -195,11 +219,11 @@ async function getExtendedAnalytics(filters = {}) {
       posMap[posOur].count++;
 
       let avgPay = 0;
-      if (pFrom > 0 || pTo > 0) {
+      if (pFromM > 0 || pToM > 0) {
         recordsWithSalary++;
-        if (pFrom > 0) posMap[posOur].fromSamples.push(pFrom);
-        if (pTo > 0) posMap[posOur].toSamples.push(pTo);
-        avgPay = (pFrom > 0 && pTo > 0) ? Math.round((pFrom + pTo) / 2) : (pFrom || pTo);
+        if (pFromM > 0) posMap[posOur].fromSamples.push(pFromM);
+        if (pToM > 0) posMap[posOur].toSamples.push(pToM);
+        avgPay = (pFromM > 0 && pToM > 0) ? Math.round((pFromM + pToM) / 2) : (pFromM || pToM);
         posMap[posOur].salarySamples.push(avgPay);
       }
 
@@ -207,9 +231,12 @@ async function getExtendedAnalytics(filters = {}) {
         company,
         unit: un,
         dir: uInfo.dir,
-        pFrom,
-        pTo,
+        pFrom: pFromM,
+        pTo: pToM,
         avg: avgPay,
+        hourly: isHourly,
+        hourFrom: isHourly ? pFrom : 0,
+        hourTo: isHourly ? pTo : 0,
         cur,
         payPer,
         bonHas,

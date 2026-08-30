@@ -3550,6 +3550,10 @@ function salCoRows(pos){
     var payStr = (c.pFrom || c.pTo)
       ? (c.pFrom ? c.pFrom.toLocaleString('ru-RU') : '—') + ' … ' + (c.pTo ? c.pTo.toLocaleString('ru-RU') : '—') + ' ' + esc(c.cur)
       : 'не указан';
+    if(c.hourly){
+      var h = c.hourFrom === c.hourTo ? c.hourFrom : (c.hourFrom + '–' + c.hourTo);
+      payStr += ' <small style="color:var(--muted)">(ЧТС ' + esc(String(h)) + ' × 168 ч)</small>';
+    }
     var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
     var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:10.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
     return '<tr>'+
