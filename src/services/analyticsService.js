@@ -153,11 +153,12 @@ async function getExtendedAnalytics(filters = {}) {
     if (company) compRank[company] = (compRank[company] || 0) + 1;
     curStats[cur] = (curStats[cur] || 0) + 1;
 
-    // Общая медиана рынка: ЧТС уже приведена к месяцу (pFromM/pToM), дневные
-    // ставки пока исключаем — их к месяцу не приводим.
+    // Общая медиана рынка: ЧТС приведена к месяцу (pFromM/pToM). Дневных ставок
+    // в данных фактически нет (одна строка «в день» с суммой 5000–10000 —
+    // очевидно месячный оклад с ошибкой периода), поэтому берём как есть.
     {
       const mid = (pFromM > 0 && pToM > 0) ? (pFromM + pToM) / 2 : (pFromM || pToM || 0);
-      if (mid > 0 && !/день|дн(?!е)/i.test(payPer)) allSalarySamples.push(mid);
+      if (mid > 0) allSalarySamples.push(mid);
     }
 
     // Регион и сырой ID_Бизнес живут в примечании импортированных строк
