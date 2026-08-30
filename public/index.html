@@ -3436,11 +3436,11 @@ function renderDashboard(){
     { id:'progress', icon:'target', label:'Прогресс по HR BP' },
     { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
   ];
-  var h = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
-    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+  var h = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-bottom:8px">'+
+    '<div class="dash-tab-strip" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto">'+
       tabs.map(function(t){
         var on = S.dashTab === t.id ? ' on' : '';
-        return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
+        return '<button class="sub-tab'+on+'" style="flex:none" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
       }).join('')+
     '</div>'+
     '<div id="dashKpiFrame" class="kpi-group-frame">'+
@@ -3452,7 +3452,7 @@ function renderDashboard(){
   var allDirs = (d.dirProgress || []).map(function(x){ return x.dir; }).filter(function(x){ return x && x !== 'Без направления'; });
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
 
-  h += '<div class="toolbar" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
+  h += '<div class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
     '<div class="search-wrap" style="flex:1 1 180px;min-width:160px;max-width:320px">'+icBare('search')+
       '<input id="dashSearch" placeholder="Поиск должности или компании…" value="'+esc(S.dashFilters.search)+'"></div>'+
     '<select id="dashDir" style="flex:none;width:auto;min-width:130px;max-width:165px">'+
@@ -3468,7 +3468,7 @@ function renderDashboard(){
       }).join('')+
     '</select>'+
     '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
-    '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'Экспорт в CSV</button>'+
+    '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
 
   // 3. Сводная строка KPI перед графиками (turn-19a)
@@ -3699,19 +3699,17 @@ function renderOverviewTab(d){
     '</div>';
   };
 
-  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px;display:flex;flex-direction:column;gap:12px">';
+  var h = '<div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;padding-bottom:16px">';
 
-  // 1. Распределение окладов — во всю ширину
+  // 1. Распределение окладов — salHistogram уже возвращает самодостаточную
+  //    карточку с заголовком, второй раз в .card не оборачиваем.
   var hist = salHistogram(positions);
   if(hist){
-    h += '<div class="card" style="padding:0;overflow:hidden">'+
-      cardHd('Распределение окладов по рынку', (sm.recordsWithSalary||0)+' записей · сомони / мес')+
-      '<div style="padding:12px 14px 4px">'+hist+'</div>'+
-    '</div>';
+    h += '<div style="margin-bottom:12px">'+hist+'</div>';
   }
 
-  // 2–3. Две панели в ряд: ключевые должности | топ компаний
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start">';
+  // 2–3. Две панели в ряд (на узком экране — стопкой): ключевые должности | топ компаний
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start">';
 
   var withGap = positions.filter(function(p){ return p.gapPct != null; });
   h += '<div class="card" style="padding:0;overflow:hidden">'+
@@ -3790,7 +3788,7 @@ function renderSalariesTab(positions){
   var pcOf = function(v){ return Math.max(0, Math.min(100, (v - scaleLo) / scaleRange * 100)); };
   var fmtK = function(n){ return n >= 1000 ? Math.round(n / 1000) + 'k' : String(Math.round(n)); };
 
-  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px">';
+  var h = '<div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;padding-bottom:16px">';
 
   if(unmappedCnt > 0){
     h += '<div class="sal-unmapped-banner">'+ic('warn', 15)+
@@ -3896,12 +3894,15 @@ function renderSalariesTab(positions){
   h += '<div class="rcards">' + salFiltered.map(function(p){
     var has = p.min > 0;
     var nm = esc(p.pos);
+    var gap = (p.gapPct == null) ? ''
+      : ' · <b style="color:'+(p.gapPct < 0 ? 'var(--danger,#dc2626)' : 'var(--ok)')+'">гэп '+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>';
     return '<div class="rcard">'+
       '<div class="rcard-hd"><b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
         '<span class="pill p-mid">'+p.count+' зап.</span></div>'+
       '<div class="rcard-meta">'+(has
         ? 'P25 '+p.p25.toLocaleString('ru-RU')+' · Медиана <b style="color:var(--text)">'+p.median.toLocaleString('ru-RU')+
-          '</b> · P75 '+p.p75.toLocaleString('ru-RU')
+          '</b> · P75 '+p.p75.toLocaleString('ru-RU')+
+          (p.ourMid ? ' · мы '+p.ourMid.toLocaleString('ru-RU') : '')+gap
         : 'нет числовых данных по окладу')+'</div>'+
     '</div>';
   }).join('') + '</div>';
@@ -4010,7 +4011,7 @@ function renderRegistryTab(rows){
   var pg = S.dashRegPage;
   var pageRows = filtered.slice((pg - 1) * REG_PER_PAGE, pg * REG_PER_PAGE);
 
-  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px">';
+  var h = '<div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;padding-bottom:16px">';
 
   // Панель фильтров
   h += '<div class="toolbar" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
@@ -4022,8 +4023,8 @@ function renderRegistryTab(rows){
     tblCount(filtered.length, rows.length, ['запись', 'записи', 'записей'])+
   '</div>';
 
-  // Таблица (широкая — на узких экранах прокручивается по горизонтали)
-  h += '<div class="tblwrap" style="overflow-x:auto"><table class="co-tbl co-tbl--pin" style="min-width:1040px"><thead><tr>'+
+  // Таблица (широкая) — на ≤560px скрывается, ниже показывается карточный список
+  h += '<div class="tblwrap rtbl" style="overflow-x:auto"><table class="co-tbl co-tbl--pin" style="min-width:1040px"><thead><tr>'+
       '<th>Дата</th><th>Направление</th><th>Компания</th><th>Регион</th>'+
       '<th>Наша должность</th><th>Должность у них</th>'+
       '<th class="num">Оклад от</th><th class="num">Оклад до</th>'+
@@ -4062,6 +4063,37 @@ function renderRegistryTab(rows){
   });
 
   h += '</tbody></table></div>';
+
+  // Карточный список для узких экранов (≤560px, парный к .rtbl выше)
+  h += '<div class="rcards">';
+  if(!pageRows.length){
+    h += '<div class="empty" style="padding:24px 12px">Ничего не найдено</div>';
+  }
+  pageRows.forEach(function(r){
+    var idx = rows.indexOf(r);
+    var hourly = regIsHourly(r);
+    var pay = (r.payFrom && r.payTo && r.payFrom !== r.payTo)
+      ? Number(r.payFrom).toLocaleString('ru-RU') + ' – ' + Number(r.payTo).toLocaleString('ru-RU')
+      : (r.payFrom ? Number(r.payFrom).toLocaleString('ru-RU') : (r.payTo ? Number(r.payTo).toLocaleString('ru-RU') : '—'));
+    var benN = (r.benefits || []).length;
+    h += '<div class="rcard reg-row" data-reg="'+idx+'" style="cursor:pointer">'+
+      '<div class="rcard-hd">'+
+        '<b class="rcard-title" title="'+esc(r.company || '')+'">'+esc(r.company || '—')+'</b>'+
+        '<span class="pill '+(hourly?'p-mid':'p-ok')+'" style="font-size:10.5px">'+esc(pay)+' '+esc(regPerLabel(r).split(' / ')[1] || '')+'</span>'+
+      '</div>'+
+      '<div class="rcard-meta">'+
+        (regIsUnmapped(r)
+          ? '<span class="pill p-mid" style="font-size:10px">не сопоставлено</span> '
+          : '<b style="color:var(--text)">'+esc(r.posOur)+'</b> ')+
+        '← '+esc(r.posTheir || '—')+
+      '</div>'+
+      '<div class="rcard-meta" style="margin-top:2px">'+
+        esc(regDirShort(r.dir))+' · '+esc(r.region || '—')+' · '+regDate(r.date)+
+        (benN ? ' · льгот: '+benN : '')+
+      '</div>'+
+    '</div>';
+  });
+  h += '</div>';
 
   // Пагинация
   if(totalPages > 1){
@@ -4107,7 +4139,7 @@ function renderRegistryTab(rows){
     var nx = box.querySelector('#regNext');
     if(nx) nx.onclick = function(){ S.dashRegPage++; reRender(); };
 
-    box.querySelectorAll('tr.reg-row').forEach(function(row){
+    box.querySelectorAll('.reg-row[data-reg]').forEach(function(row){
       row.onclick = function(){
         var list = (S.dashData && S.dashData.rows) || [];
         var rec = list[+this.dataset.reg];

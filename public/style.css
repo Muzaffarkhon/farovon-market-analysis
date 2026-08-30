@@ -2988,6 +2988,42 @@ label.lbl {
   color: var(--text);
 }
 
+/* ─── Дашборд: узкие экраны ─── */
+/* Пустая рамка KPI-сводки (renderKpiFrame теперь возвращает '') не должна
+   занимать место и рисовать бордюр. */
+.kpi-group-frame:empty {
+  display: none;
+}
+
+/* Полоса вкладок дашборда — горизонтальная прокрутка вместо переноса в 2 ряда. */
+.dash-tab-strip {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dash-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  /* Панель фильтров дашборда: поиск во всю ширину, селекты делят строку,
+     у кнопки экспорта прячем подпись — иначе шапка съедает пол-экрана. */
+  .dash-filters .search-wrap {
+    flex: 1 1 100% !important;
+    max-width: none !important;
+  }
+  .dash-filters select {
+    flex: 1 1 45% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+  .dash-filters .dash-exp-txt {
+    display: none;
+  }
+  .dash-filters #btnDashExport {
+    padding: 0 10px !important;
+  }
+}
+
 /* turn-18b — гистограмма распределения окладов */
 .sal-hist {
   margin: 12px 0 4px;
@@ -3448,6 +3484,7 @@ label.lbl {
     flex-direction: column;
     gap: 10px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     flex: 1;
     min-height: 0;
     padding-bottom: 12px;
