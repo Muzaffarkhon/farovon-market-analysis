@@ -4,6 +4,7 @@ const { queryAll, queryOne, run, batch } = require('../db/database');
 const { sendMassReminder } = require('../services/telegramService');
 const { CAPABILITIES, ROLES } = require('../config/capabilities');
 const { hasCapability } = require('../middleware/auth');
+const surveyImport = require('../services/surveyImport');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
@@ -1221,5 +1222,169 @@ exports.saveRoleCapabilities = async (req, res) => {
   } catch (err) {
     console.error('saveRoleCapabilities error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка сохранения прав доступа' });
+  }
+};
+
+// ─── Импорт файла опроса зарплат (CSV) ───────────────────────────────────────
+// Кнопка «Загрузить из ноутбука» во вкладке «Сервисные утилиты». Тело запроса:
+//   { csv: "<содержимое файла>", dryRun: true|false, dupAction: 'skip'|'update' }
+// dryRun=true (по умолчанию) — только проверка и отчёт, в базу ничего не пишется.
+// Все загрузки идут от имени текущего пользователя (в эту точку доходит только
+// admin / обладатель service:edit), автор анкет — менеджер из файла.
+exports.importSurvey = async (req, res) => {
+  const { csv, dryRun, dupAction } = req.body || {};
+  if (typeof csv !== 'string' || !csv.trim()) {
+    return res.status(400).json({ ok: false, error: 'Пустой файл' });
+  }
+
+  let rows;
+  try {
+    rows = surveyImport.parseCsv(csv);
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: 'Не удалось разобрать CSV: ' + err.message });
+  }
+  if (!rows.length) return res.status(400).json({ ok: false, error: 'В файле нет строк данных' });
+
+  const need = [surveyImport.COLS.company, surveyImport.COLS.position, surveyImport.COLS.bizId];
+  const have = Object.keys(rows[0] || {});
+  const missing = need.filter(c => !have.includes(c));
+  if (missing.length) {
+    return res.status(400).json({
+      ok: false,
+      error: 'В файле нет обязательных колонок: ' + missing.join(', ') +
+        '. Ожидается выгрузка листа «Ответы».',
+    });
+  }
+
+  try {
+    const [divisions, users, dc, dp, existing, period] = await Promise.all([
+      queryAll('SELECT unit FROM divisions'),
+      queryAll('SELECT fio FROM users WHERE archived_at IS NULL'),
+      queryAll('SELECT name FROM dictionary_companies'),
+      queryAll('SELECT name FROM dictionary_positions'),
+      queryAll("SELECT sid, unit, company, pos_their, pay_from FROM surveys WHERE state = 'активна'"),
+      queryOne('SELECT name FROM periods ORDER BY id DESC LIMIT 1'),
+    ]);
+
+    const norm = surveyImport.norm;
+    const result = surveyImport.analyze({
+      rows,
+      divisions,
+      userFios: new Set(users.map(u => norm(u.fio))),
+      dictCompanies: new Set(dc.map(x => norm(x.name))),
+      dictPositions: new Set(dp.map(x => norm(x.name))),
+      existingSurveys: existing,
+      periodName: period ? period.name : '',
+      adminName: req.user.fio || req.user.login,
+    });
+
+    if (dryRun !== false) {
+      return res.json({
+        ok: true,
+        dryRun: true,
+        report: result.report,
+        cellIssues: result.cellIssues.slice(0, 500),
+        duplicates: result.duplicates.slice(0, 500),
+        skippedRows: result.skippedRows,
+      });
+    }
+
+    // ── Запись ──
+    const action = dupAction === 'update' ? 'update' : 'skip';
+    const divUnitSet = new Set(divisions.map(d => norm(d.unit)));
+    const dcSet = new Set(dc.map(x => norm(x.name)));
+    const dpSet = new Set(dp.map(x => norm(x.name)));
+    const dupSids = new Set(result.prepared.filter(p => p._dupOf).map(p => p._dupOf));
+
+    const stmts = [];
+
+    // недостающие подразделения (обычно только «Обзор рынка — не распределено»)
+    for (const u of result.report.unitsList) {
+      if (!divUnitSet.has(norm(u))) {
+        stmts.push({
+          sql: `INSERT INTO divisions (unit, dir, level, note) VALUES (?, ?, '1.0', 'создано импортом опроса зарплат')`,
+          args: [u, u],
+        });
+        divUnitSet.add(norm(u));
+      }
+    }
+    // недостающие компании и должности справочника
+    const newCo = new Set();
+    const newPos = new Set();
+    for (const p of result.prepared) {
+      if (p.company && !dcSet.has(norm(p.company)) && !newCo.has(norm(p.company))) {
+        newCo.add(norm(p.company));
+        stmts.push({ sql: 'INSERT OR IGNORE INTO dictionary_companies (name) VALUES (?)', args: [p.company] });
+      }
+      const pt = p.pos_their;
+      if (pt && pt !== surveyImport.SENTINEL_POS_THEIR && !dpSet.has(norm(pt)) && !newPos.has(norm(pt))) {
+        newPos.add(norm(pt));
+        stmts.push({ sql: 'INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)', args: [pt] });
+      }
+    }
+
+    let inserted = 0;
+    let updated = 0;
+    let skippedDup = 0;
+    for (const p of result.prepared) {
+      if (p._dupOf) {
+        if (action === 'skip') { skippedDup++; continue; }
+        stmts.push({
+          sql: `UPDATE surveys SET company = ?, pos_our = ?, pos_their = ?, pay_from = ?, pay_to = ?,
+                  cur = ?, pay_per = ?, bon_has = ?, bon_size = ?, bon_per = ?, benefits = ?,
+                  schedule = ?, source = ?, note = ?, created_by = ?, created_at = ?, period = ?
+                WHERE sid = ?`,
+          args: [
+            p.company, p.pos_our, p.pos_their, p.pay_from, p.pay_to, p.cur, p.pay_per,
+            p.bon_has, p.bon_size, p.bon_per, p.benefits, p.schedule, p.source, p.note,
+            p.created_by, p.created_at, p.period, p._dupOf,
+          ],
+        });
+        updated++;
+        continue;
+      }
+      stmts.push({
+        sql: `INSERT INTO surveys
+                (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per,
+                 bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note,
+                 created_by, created_at, state, period)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          p.sid, p.unit, p.company, p.pos_our, p.pos_their, p.grade, p.pay_from, p.pay_to,
+          p.cur, p.pay_per, p.bon_has, p.bon_size, p.bon_type, p.bon_per, p.benefits,
+          p.schedule, p.extra, p.source, p.trust, p.note, p.created_by, p.created_at, p.state, p.period,
+        ],
+      });
+      inserted++;
+    }
+
+    const detail =
+      `Загружено анкет: ${inserted}` +
+      (updated ? `, обновлено: ${updated}` : '') +
+      (skippedDup ? `, пропущено дублей: ${skippedDup}` : '') +
+      `. Новых подразделений: ${result.report.unitsNew.length}, компаний: ${newCo.size}, должностей: ${newPos.size}.` +
+      ` Пропущено ячеек: ${result.report.cellIssues}, отбраковано строк: ${result.report.rowsSkipped}.`;
+    stmts.push({
+      sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      args: [req.user.login, 'импорт опроса зарплат', detail],
+    });
+
+    await batch(stmts);
+
+    return res.json({
+      ok: true,
+      dryRun: false,
+      inserted,
+      updated,
+      skippedDup,
+      newUnits: result.report.unitsNew.length,
+      newCompanies: newCo.size,
+      newPositions: newPos.size,
+      message: detail,
+      report: result.report,
+    });
+  } catch (err) {
+    console.error('importSurvey error:', err);
+    return res.status(500).json({ ok: false, error: 'Ошибка импорта: ' + err.message });
   }
 };

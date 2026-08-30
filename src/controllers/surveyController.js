@@ -225,6 +225,7 @@ exports.saveSurveyDetails = async (req, res) => {
       bonType: String(s.bonType || '').trim(),
       bonPer: String(s.bonPer || '').trim(),
       benefits: benefitsToText(s.benefits),
+      schedule: String(s.schedule || '').trim(),
       extra: String(s.extra || '').trim(),
       source: String(s.source || '').trim(),
       trust: String(s.trust || '').trim(),
@@ -285,13 +286,13 @@ exports.saveSurveyDetails = async (req, res) => {
         stmts.push({
           sql: `UPDATE surveys
                 SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
-                    bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, extra = ?, source = ?, trust = ?, note = ?
+                    bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
                 WHERE sid = ? AND unit = ?`,
           args: [
             s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer,
-            s.benefits, s.extra, s.source, s.trust, s.note,
+            s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
             sid, unit
           ]
         });
@@ -300,13 +301,13 @@ exports.saveSurveyDetails = async (req, res) => {
         sid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         newIds.push(sid);
         stmts.push({
-          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, extra, source, trust, note, created_by, created_at, state, period)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
           args: [
             sid, unit, s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer,
-            s.benefits, s.extra, s.source, s.trust, s.note,
+            s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
             req.user.fio || req.user.login, now, period.name
           ]
         });

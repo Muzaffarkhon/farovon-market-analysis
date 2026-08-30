@@ -118,6 +118,17 @@ async function migrate() {
   }
   console.log('🔧 Миграция: права ролей по умолчанию проверены и синхронизированы');
 
+  // График работы у конкурента (например «6/1-54 часов»). Собирается и в
+  // карточке сбора данных, и приходит из импорта опроса зарплат — раньше
+  // отдельного поля не было и значение терялось в примечании.
+  await ensureColumn('surveys', 'schedule', "TEXT DEFAULT ''");
+
+  // Оклад Фаровона по должности — эталон для колонок «Мы» и «Гэп к рынку» на
+  // дашборде вилок. Хранится в справочнике должностей (holding-wide, без грейдов),
+  // заполняется админом в разделе «Справочники → Должности».
+  await ensureColumn('dictionary_positions', 'pay_from', 'REAL DEFAULT 0');
+  await ensureColumn('dictionary_positions', 'pay_to', 'REAL DEFAULT 0');
+
   // Корпоративная роль подразделения (governance / control / line)
   // и флаг участия в C&B обзорах рынка (1 — участвует, 0 — исключено)
   await ensureColumn('divisions', 'org_role', "TEXT DEFAULT 'line'");

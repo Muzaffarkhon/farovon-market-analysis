@@ -293,6 +293,7 @@ async function getUserPayload(user) {
       bonSize: s.bon_size || '',
       bonType: s.bon_type || '',
       bonPer: s.bon_per || '',
+      schedule: s.schedule || '',
       // Массив, а не строка: фронт держит льготы списком (чипы с
       // множественным выбором) и вызывает на них .map. Строка из базы
       // роняла отрисовку всего шага 2.

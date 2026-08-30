@@ -135,11 +135,12 @@ exports.list = async (req, res) => {
       // может быть заведена в отделах, но пока не встречаться ни в одной анкете.
       const rows = await tryQuery(`
         SELECT d.name, COALESCE(d.dirs, '') AS dirs, COALESCE(d.code, '') AS code,
+               COALESCE(d.pay_from, 0) AS pay_from, COALESCE(d.pay_to, 0) AS pay_to,
                (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
                   AND s.state != 'удалена') AS used,
                (SELECT COUNT(*) FROM unit_positions up WHERE up.position = d.name) AS units
         FROM dictionary_positions d ORDER BY d.name ASC`, `
-        SELECT d.name, '' AS dirs, '' AS code,
+        SELECT d.name, '' AS dirs, '' AS code, 0 AS pay_from, 0 AS pay_to,
                (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
                   AND s.state != 'удалена') AS used,
                0 AS units
@@ -148,6 +149,8 @@ exports.list = async (req, res) => {
         name: r.name,
         code: r.code || '',
         dirs: String(r.dirs || '').split(';').map(s => s.trim()).filter(Boolean),
+        payFrom: Number(r.pay_from) || 0,
+        payTo: Number(r.pay_to) || 0,
         units: r.units || 0,
         used: r.used || 0
       }));
@@ -186,6 +189,8 @@ exports.save = async (req, res) => {
   const segment = String(req.body.segment || '').trim();
   const region = String(req.body.region || '').trim();
   const dirs = Array.isArray(req.body.dirs) ? req.body.dirs.filter(Boolean).join(';') : '';
+  const payFrom = Math.max(0, Math.round(Number(req.body.payFrom) || 0));
+  const payTo = Math.max(0, Math.round(Number(req.body.payTo) || 0));
 
   // Маршрут пускает по dictionary:create ИЛИ dictionary:edit (см. routes/api.js) —
   // точная граница зависит от prev, известного только здесь.
@@ -205,7 +210,8 @@ exports.save = async (req, res) => {
         await run('INSERT INTO dictionary_companies (name, segment, region, dirs) VALUES (?, ?, ?, ?)',
           [name, segment, region, dirs]);
       } else if (kind === 'positions') {
-        await run('INSERT INTO dictionary_positions (name, dirs) VALUES (?, ?)', [name, dirs]);
+        await run('INSERT INTO dictionary_positions (name, dirs, pay_from, pay_to) VALUES (?, ?, ?, ?)',
+          [name, dirs, payFrom, payTo]);
       } else {
         await run(`INSERT INTO ${KINDS[kind].table} (name) VALUES (?)`, [name]);
       }
@@ -227,7 +233,8 @@ exports.save = async (req, res) => {
       if (segment) await run('UPDATE competitors SET segment = ? WHERE company = ?', [segment, name]);
       if (region) await run('UPDATE competitors SET region = ? WHERE company = ?', [region, name]);
     } else if (kind === 'positions') {
-      await run('UPDATE dictionary_positions SET name = ?, dirs = ? WHERE name = ?', [name, dirs, prev]);
+      await run('UPDATE dictionary_positions SET name = ?, dirs = ?, pay_from = ?, pay_to = ? WHERE name = ?',
+        [name, dirs, payFrom, payTo, prev]);
       if (name !== prev) {
         await run('UPDATE surveys SET pos_our = ? WHERE pos_our = ?', [name, prev]);
         await run('UPDATE surveys SET pos_their = ? WHERE pos_their = ?', [name, prev]);

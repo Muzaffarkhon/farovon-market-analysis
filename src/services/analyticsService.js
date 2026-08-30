@@ -40,11 +40,27 @@ async function getExtendedAnalytics(filters = {}) {
   const searchPos = (filters.search || '').trim().toLowerCase();
 
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
-  const [divisions, competitors, surveys] = await Promise.all([
+  const [divisions, competitors, surveys, posDict] = await Promise.all([
     queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
     queryAll('SELECT unit, actual FROM competitors'),
-    queryAll("SELECT * FROM surveys WHERE state != 'удалена'")
+    queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
+    queryAll('SELECT name, COALESCE(pay_from,0) AS pay_from, COALESCE(pay_to,0) AS pay_to FROM dictionary_positions')
+      .catch(() => [])
   ]);
+
+  // Оклад Фаровона по должности (эталон для колонок «Мы» / «Гэп к рынку»)
+  const ourPayByPos = {};
+  posDict.forEach(p => {
+    const from = Number(p.pay_from) || 0;
+    const to = Number(p.pay_to) || 0;
+    if (from > 0 || to > 0) {
+      ourPayByPos[(p.name || '').trim().toLowerCase()] = {
+        from,
+        to,
+        mid: (from > 0 && to > 0) ? Math.round((from + to) / 2) : (from || to)
+      };
+    }
+  });
 
   // 1. Оргструктура
   const unitMap = {};
@@ -77,6 +93,8 @@ async function getExtendedAnalytics(filters = {}) {
   let totalRecords = 0;
   let recordsWithSalary = 0;
   const posMap = {};
+  const rawRows = []; // сырые наблюдения для вкладки «Реестр данных»
+  const allSalarySamples = []; // для общей медианы рынка (вкладка «Обзор»)
   const benefitStats = {};
   const bonusStats = { hasBonus: 0, noBonus: 0, unknown: 0, types: {}, periods: {} };
   const compRank = {};
@@ -110,6 +128,41 @@ async function getExtendedAnalytics(filters = {}) {
     if (unitMap[un]) unitMap[un].surveysCount++;
     if (company) compRank[company] = (compRank[company] || 0) + 1;
     curStats[cur] = (curStats[cur] || 0) + 1;
+
+    // Общая медиана рынка — по всем «месячным» наблюдениям с окладом,
+    // часовые/дневные ставки (< 100) исключаем, чтобы не занижать.
+    {
+      const mid = (pFrom > 0 && pTo > 0) ? (pFrom + pTo) / 2 : (pFrom || pTo || 0);
+      if (mid >= 100 && !/час|день|дн/i.test(payPer)) allSalarySamples.push(mid);
+    }
+
+    // Регион и сырой ID_Бизнес живут в примечании импортированных строк
+    // («Собрал: …; Регион: Худжанд; ID_Бизнес: 11»). Для ручных анкет — пусто.
+    const regionMatch = note.match(/Регион:\s*([^;·]+)/i);
+    const idbizMatch = note.match(/ID_Бизнес[^:]*:\s*([0-9 ,]+)/i);
+    rawRows.push({
+      date: s.created_at || '',
+      dir: uInfo.dir || '',
+      unit: un,
+      company,
+      region: regionMatch ? regionMatch[1].trim() : '',
+      idbiz: idbizMatch ? idbizMatch[1].trim() : '',
+      posOur,
+      posTheir: (s.pos_their || '').trim(),
+      payFrom: pFrom,
+      payTo: pTo,
+      cur,
+      payPer,
+      bonHas,
+      bonSize,
+      bonType,
+      bonPer,
+      benefits, // массив
+      schedule: (s.schedule || '').trim(),
+      by: (s.created_by || '').trim(),
+      source: (s.source || '').trim(),
+      note
+    });
 
     // Бонусы
     if (bonHas === 'да') {
@@ -173,6 +226,10 @@ async function getExtendedAnalytics(filters = {}) {
   const positionsList = Object.keys(posMap).map(k => {
     const item = posMap[k];
     const stats = calculateSalaryForkStats(item.fromSamples, item.toSamples, item.salarySamples);
+    const our = ourPayByPos[k.trim().toLowerCase()] || null;
+    const gapPct = (our && our.mid > 0 && stats.median > 0)
+      ? Math.round(((our.mid - stats.median) / stats.median) * 100)
+      : null;
     return {
       pos: k,
       count: item.count,
@@ -184,6 +241,10 @@ async function getExtendedAnalytics(filters = {}) {
       max: stats.max,
       avg: stats.avg,
       forkSpreadPct: stats.spread,
+      ourFrom: our ? our.from : 0,
+      ourTo: our ? our.to : 0,
+      ourMid: our ? our.mid : 0,
+      gapPct: gapPct,
       companies: item.companies
     };
   }).sort((a, b) => b.count - a.count);
@@ -259,11 +320,29 @@ async function getExtendedAnalytics(filters = {}) {
       compCompletionPct: totalComps ? Math.round((checkedComps / totalComps) * 100) : 0,
       totalSurveyRecords: totalRecords,
       recordsWithSalary: recordsWithSalary,
-      positionsCount: positionsList.length
+      positionsCount: positionsList.length,
+      companiesInSurvey: Object.keys(compRank).length,
+      unmappedRecords: (posMap['(не сопоставлено)'] && posMap['(не сопоставлено)'].count) || 0,
+      salaryMedian: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length / 2)]);
+      })(),
+      salaryP25: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length * 0.25)]);
+      })(),
+      salaryP75: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length * 0.75)]);
+      })()
     },
     hrbpProgress,
     dirProgress,
     positions: positionsList,
+    rows: rawRows,
     topBenefits,
     bonuses: bonusStats,
     topCompetitors,

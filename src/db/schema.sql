@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   bon_type TEXT,
   bon_per TEXT,
   benefits TEXT DEFAULT '',
+  schedule TEXT DEFAULT '',
   extra TEXT,
   source TEXT,
   trust TEXT,
@@ -90,7 +91,9 @@ CREATE TABLE IF NOT EXISTS dictionary_companies (
 
 CREATE TABLE IF NOT EXISTS dictionary_positions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL
+  name TEXT UNIQUE NOT NULL,
+  pay_from REAL DEFAULT 0, -- оклад Фаровона по должности (эталон для дашборда вилок)
+  pay_to REAL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS periods (

@@ -62,6 +62,7 @@ router.post('/admin/dictionary/:kind/delete', requireCapability('dictionary:edit
 
 router.post('/admin/period', requireCapability('period:edit'), adminController.setPeriod);
 router.post('/admin/maintenance', requireCapability('service:edit'), adminController.runMaintenance);
+router.post('/admin/import-survey', requireCapability('service:edit'), adminController.importSurvey);
 router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);
 router.get('/admin/data-status', requireCapability('service:view'), adminController.getDataStatus);
 
