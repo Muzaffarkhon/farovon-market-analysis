@@ -3702,6 +3702,35 @@ function salHistogram(positions){
 
 // ═══ Вкладка «Обзор» — один экран без таблиц: распределение, ключевые
 // должности, топ компаний. Таблицы живут на «Вилках» и «Реестре». ═══
+
+// Кольцевая (donut) диаграмма из сегментов-долек. Сегменты «вырастают» при
+// появлении и выпирают наружу при наведении (как разрезанный кусок пирога).
+var DONUT_PALETTE = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#a5b4fc', '#c7d2fe', '#cbd5e1'];
+
+function donutChart(items){
+  var total = items.reduce(function(s, it){ return s + it.value; }, 0) || 1;
+  var C = 90, R = 80, RIN = 44, PUSH = 11;
+  var ang = -Math.PI / 2;
+  var pt = function(rad, a){ return (C + rad * Math.cos(a)).toFixed(2) + ' ' + (C + rad * Math.sin(a)).toFixed(2); };
+  var segs = items.map(function(it, i){
+    var frac = it.value / total;
+    var a0 = ang, a1 = ang + Math.max(frac, 0.0001) * Math.PI * 2;
+    ang = a1;
+    var mid = (a0 + a1) / 2;
+    var big = (a1 - a0) > Math.PI ? 1 : 0;
+    var d = 'M ' + pt(R, a0) + ' A ' + R + ' ' + R + ' 0 ' + big + ' 1 ' + pt(R, a1) +
+            ' L ' + pt(RIN, a1) + ' A ' + RIN + ' ' + RIN + ' 0 ' + big + ' 0 ' + pt(RIN, a0) + ' Z';
+    return '<path class="donut-seg" d="' + d + '" fill="' + it.color + '" ' +
+      'style="--dx:' + (Math.cos(mid) * PUSH).toFixed(2) + 'px;--dy:' + (Math.sin(mid) * PUSH).toFixed(2) + 'px;' +
+      'animation-delay:' + (0.05 + i * 0.09).toFixed(2) + 's">' +
+      '<title>' + esc(it.label) + ': ' + it.value + ' (' + Math.round(frac * 100) + '%)</title></path>';
+  }).join('');
+  return '<svg class="donut" viewBox="0 0 180 180" width="150" height="150" aria-hidden="true">' + segs +
+    '<text x="90" y="88" text-anchor="middle" class="donut-c-num">' + total + '</text>' +
+    '<text x="90" y="104" text-anchor="middle" class="donut-c-lbl">записей</text>' +
+  '</svg>';
+}
+
 function overviewBarRow(name, right, pct, color){
   return '<div class="ov-row" style="display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center;'+
       'padding:9px 4px;border-bottom:1px solid var(--line)">'+
@@ -3744,6 +3773,31 @@ function renderOverviewTab(d){
   //    Фаровона. Сетка сама раскладывает в 1–3 колонки по ширине экрана.
   var withGap = positions.filter(function(p){ return p.gapPct != null; });
   h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start">';
+
+  // 2·0. Кольцевая диаграмма — записи по направлениям (топ-6 + прочие)
+  var dirTally = {};
+  (d.rows || []).forEach(function(r){ var k = (r.dir || '').trim() || 'Не указано'; dirTally[k] = (dirTally[k] || 0) + 1; });
+  var dirArr = Object.keys(dirTally).map(function(k){ return { label: k, value: dirTally[k] }; })
+    .sort(function(a, b){ return b.value - a.value; });
+  if(dirArr.length){
+    var donutItems = dirArr.slice(0, 6).map(function(it, i){ return { label: it.label, value: it.value, color: DONUT_PALETTE[i] }; });
+    var restSum = dirArr.slice(6).reduce(function(s, it){ return s + it.value; }, 0);
+    if(restSum) donutItems.push({ label: 'Прочие (' + (dirArr.length - 6) + ')', value: restSum, color: DONUT_PALETTE[6] });
+    h += '<div class="card" style="padding:0;overflow:hidden">'+
+      cardHd('Записи по направлениям', dirArr.length + ' ' + declOfNum(dirArr.length, ['направление','направления','направлений']))+
+      '<div style="display:flex;gap:12px;align-items:center;padding:12px 14px;flex-wrap:wrap">'+
+        donutChart(donutItems)+
+        '<div style="flex:1;min-width:130px;font-size:11.5px;font-weight:600">'+
+          donutItems.map(function(it){
+            return '<div style="display:flex;align-items:center;gap:7px;padding:3px 0">'+
+              '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:'+it.color+'"></span>'+
+              '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(it.label)+'">'+esc(regDirShort(it.label))+'</span>'+
+              '<b>'+it.value+'</b></div>';
+          }).join('')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
 
   // 2a. Самые массовые должности — всегда
   var byCount = positions.slice().sort(function(a, b){ return (b.count || 0) - (a.count || 0); }).slice(0, 6);

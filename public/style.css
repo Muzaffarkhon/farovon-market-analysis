@@ -3175,6 +3175,54 @@ label.lbl {
   filter: saturate(1.12) brightness(1.05);
 }
 
+/* ─── Кольцевая (donut) диаграмма ─── */
+.donut {
+  display: block;
+  overflow: visible;
+  flex: none;
+}
+
+.donut-seg {
+  transform-origin: 90px 90px;
+  stroke: var(--card);
+  stroke-width: 1.5;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
+    filter 0.2s ease;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .donut-seg {
+    animation: donutSegIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+}
+
+@keyframes donutSegIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* «Выпирается» — сегмент выезжает наружу по радиусу (--dx/--dy) и чуть растёт. */
+.donut-seg:hover {
+  transform: translate(var(--dx), var(--dy)) scale(1.04);
+  filter: brightness(1.07) drop-shadow(0 3px 7px rgba(15, 23, 42, 0.35));
+}
+
+.donut-c-num {
+  font-size: 22px;
+  font-weight: 800;
+  fill: var(--text);
+}
+
+.donut-c-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+
 .sal-hist-axis {
   display: flex;
   justify-content: space-between;
