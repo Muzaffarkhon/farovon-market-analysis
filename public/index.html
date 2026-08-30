@@ -3672,12 +3672,16 @@ function salHistogram(positions){
     return String(Math.round(n));
   };
 
+  // Палитра столбцов — последовательный переход в пределах фирменной сине-
+  // индиговой гаммы сайта: светлее у низких окладов, глубже у высоких.
+  var HIST_RAMP = ['#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#4f46e5', '#4338ca'];
   var bars = buckets.map(function(cnt, i){
     var pct = peak ? Math.round(cnt / peak * 100) : 0;
     var bandLo = lo + step * i;
     var title = fmtM(bandLo) + '–' + fmtM(bandLo + step) + ': ' + cnt + ' ' + declOfNum(cnt, ['запись','записи','записей']);
+    var col = HIST_RAMP[Math.min(HIST_RAMP.length - 1, Math.round(i / (BANDS - 1) * (HIST_RAMP.length - 1)))];
     return '<div class="sal-hist-col'+(i === modalIdx ? ' is-modal' : '')+'" title="'+esc(title)+'">'+
-      '<div class="sal-hist-bar" style="height:'+Math.max(pct, 3)+'%"></div>'+
+      '<div class="sal-hist-bar" style="height:'+Math.max(pct, 3)+'%;background:'+col+'"></div>'+
     '</div>';
   }).join('');
 
