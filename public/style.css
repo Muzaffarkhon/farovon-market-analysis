@@ -3066,6 +3066,9 @@ label.lbl {
   align-items: flex-end;
   gap: 6px;
   height: 120px;
+  overflow: visible; /* даём наведённому столбцу выпирать за пределы */
+  padding-top: 20px;
+  margin-top: -20px;
 }
 
 .sal-hist-col {
@@ -3073,18 +3076,54 @@ label.lbl {
   display: flex;
   align-items: flex-end;
   height: 100%;
+  overflow: visible;
+  cursor: default;
 }
 
 .sal-hist-bar {
   width: 100%;
   min-height: 3px;
   background: var(--accent-soft);
-  border-radius: 4px 4px 0 0;
-  transition: height 0.2s ease;
+  border-radius: 5px 5px 0 0;
+  transform-origin: bottom center;
+  transition:
+    height 0.2s ease,
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .sal-hist-col.is-modal .sal-hist-bar {
   background: var(--accent);
+}
+
+/* Появление: столбцы «вырастают» снизу, с лёгкой задержкой друг за другом. */
+@media (prefers-reduced-motion: no-preference) {
+  .sal-hist-bar {
+    animation: histBarGrow 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .sal-hist-col:nth-child(1) .sal-hist-bar { animation-delay: 0.03s; }
+  .sal-hist-col:nth-child(2) .sal-hist-bar { animation-delay: 0.08s; }
+  .sal-hist-col:nth-child(3) .sal-hist-bar { animation-delay: 0.13s; }
+  .sal-hist-col:nth-child(4) .sal-hist-bar { animation-delay: 0.18s; }
+  .sal-hist-col:nth-child(5) .sal-hist-bar { animation-delay: 0.23s; }
+  .sal-hist-col:nth-child(6) .sal-hist-bar { animation-delay: 0.28s; }
+  .sal-hist-col:nth-child(7) .sal-hist-bar { animation-delay: 0.33s; }
+  .sal-hist-col:nth-child(8) .sal-hist-bar { animation-delay: 0.38s; }
+}
+
+@keyframes histBarGrow {
+  from { transform: scaleY(0); opacity: 0.35; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+/* «Выпирается» при наведении: шире, чуть выше, сплошной цвет + тень. */
+.sal-hist-col:hover .sal-hist-bar {
+  transform: scaleX(1.16) scaleY(1.05);
+  background: var(--accent);
+  box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.5);
+  position: relative;
+  z-index: 3;
 }
 
 .sal-hist-axis {
