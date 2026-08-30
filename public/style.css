@@ -3088,9 +3088,9 @@ label.lbl {
   transform-origin: bottom center;
   transition:
     height 0.2s ease,
-    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 0.18s ease,
-    box-shadow 0.18s ease;
+    transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background-color 0.28s ease,
+    box-shadow 0.28s ease;
 }
 
 .sal-hist-col.is-modal .sal-hist-bar {
@@ -3100,16 +3100,16 @@ label.lbl {
 /* Появление: столбцы «вырастают» снизу, с лёгкой задержкой друг за другом. */
 @media (prefers-reduced-motion: no-preference) {
   .sal-hist-bar {
-    animation: histBarGrow 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation: histBarGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
-  .sal-hist-col:nth-child(1) .sal-hist-bar { animation-delay: 0.03s; }
-  .sal-hist-col:nth-child(2) .sal-hist-bar { animation-delay: 0.08s; }
-  .sal-hist-col:nth-child(3) .sal-hist-bar { animation-delay: 0.13s; }
-  .sal-hist-col:nth-child(4) .sal-hist-bar { animation-delay: 0.18s; }
-  .sal-hist-col:nth-child(5) .sal-hist-bar { animation-delay: 0.23s; }
-  .sal-hist-col:nth-child(6) .sal-hist-bar { animation-delay: 0.28s; }
-  .sal-hist-col:nth-child(7) .sal-hist-bar { animation-delay: 0.33s; }
-  .sal-hist-col:nth-child(8) .sal-hist-bar { animation-delay: 0.38s; }
+  .sal-hist-col:nth-child(1) .sal-hist-bar { animation-delay: 0.05s; }
+  .sal-hist-col:nth-child(2) .sal-hist-bar { animation-delay: 0.12s; }
+  .sal-hist-col:nth-child(3) .sal-hist-bar { animation-delay: 0.19s; }
+  .sal-hist-col:nth-child(4) .sal-hist-bar { animation-delay: 0.26s; }
+  .sal-hist-col:nth-child(5) .sal-hist-bar { animation-delay: 0.33s; }
+  .sal-hist-col:nth-child(6) .sal-hist-bar { animation-delay: 0.40s; }
+  .sal-hist-col:nth-child(7) .sal-hist-bar { animation-delay: 0.47s; }
+  .sal-hist-col:nth-child(8) .sal-hist-bar { animation-delay: 0.54s; }
 }
 
 @keyframes histBarGrow {
@@ -3124,6 +3124,55 @@ label.lbl {
   box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.5);
   position: relative;
   z-index: 3;
+}
+
+/* ─── Полосы-списки на «Обзоре» (Самые массовые / Гэп / Топ компаний) ─── */
+.ov-row {
+  transition: background-color 0.15s ease;
+}
+
+.ov-row:hover {
+  background: var(--card-2);
+}
+
+.ov-track {
+  overflow: visible;
+}
+
+.ov-fill {
+  transform: scaleX(1);
+  transform-origin: left center;
+  transition:
+    transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.24s ease,
+    filter 0.24s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ov-fill {
+    animation: ovFillGrow 0.75s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .ov-row:nth-child(1) .ov-fill { animation-delay: 0.05s; }
+  .ov-row:nth-child(2) .ov-fill { animation-delay: 0.11s; }
+  .ov-row:nth-child(3) .ov-fill { animation-delay: 0.17s; }
+  .ov-row:nth-child(4) .ov-fill { animation-delay: 0.23s; }
+  .ov-row:nth-child(5) .ov-fill { animation-delay: 0.29s; }
+  .ov-row:nth-child(6) .ov-fill { animation-delay: 0.35s; }
+  .ov-row:nth-child(7) .ov-fill { animation-delay: 0.41s; }
+  .ov-row:nth-child(8) .ov-fill { animation-delay: 0.47s; }
+}
+
+@keyframes ovFillGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* «Выпирается»: полоса раздувается по высоте + мягкая тень (нейтральная —
+   полосы бывают и синие, и красные в «Гэпе к рынку»). */
+.ov-row:hover .ov-fill {
+  transform: scaleX(1) scaleY(1.8);
+  box-shadow: 0 3px 10px -2px rgba(15, 23, 42, 0.28);
+  filter: saturate(1.12) brightness(1.05);
 }
 
 .sal-hist-axis {
