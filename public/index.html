@@ -2920,7 +2920,8 @@ function openBatchSurveySheet(posName){
     el.remove();
     markDirty();
     renderUnit();
-    toast('Данные по должности «' + posName + '» внесены. Не забудьте «Сохранить».', 'ok');
+    // Итог покажет save() ('Сохранено в …' / 'Нет связи…') — оба вызывающих
+    // #batchSaveBtn и #cmSave дожимают на сервер сразу после.
     return true;
   }
 
@@ -2946,8 +2947,10 @@ function openBatchSurveySheet(posName){
     document.body.appendChild(cm);
 
     cm.querySelector('#cmSave').onclick = function(){
-      var ok = saveBatchSurvey();
-      if(ok) cm.remove();
+      // Сводим карточку в состояние и сразу дожимаем на сервер — иначе «Сохранить
+      // и выйти» лишь клало в черновик, а на сервер уходило только по нижней
+      // кнопке (люди на этом спотыкались).
+      if(saveBatchSurvey()){ cm.remove(); save(false); }
     };
     cm.querySelector('#cmDiscard').onclick = function(){
       cm.remove();
@@ -3054,7 +3057,8 @@ function openBatchSurveySheet(posName){
 
   // Сохранение всей должности
   el.querySelector('#batchSaveBtn').onclick = function(){
-    saveBatchSurvey();
+    // Свести карточку и сразу сохранить на сервер (не только в черновик).
+    if(saveBatchSurvey()) save(false);
   };
 
   setTimeout(function(){ el.querySelector('.sheet-in').scrollTop = 0; }, 30);
