@@ -162,6 +162,36 @@ var store = {
   del: function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
 
+/**
+ * Скользящая сессия. Токен живёт 7 дней; /auth/resume при каждом успешном
+ * ответе возвращает новый. Раньше свежий токен клали только в S.token и не
+ * сохраняли — при ежедневном использовании через 7 дней всё равно бы выкинуло.
+ * Теперь сохраняем всегда, плюс тихо продлеваем раз в 3 часа и при возврате
+ * на вкладку.
+ */
+function persistToken(r){
+  if(r && r.ok && r.token && typeof S !== 'undefined'){
+    S.token = r.token;
+    store.set(LS_TOKEN, r.token);
+  }
+}
+
+var _lastKeepAlive = Date.now();
+function keepSessionFresh(){
+  if(typeof S === 'undefined' || !S.token) return;
+  _lastKeepAlive = Date.now();
+  call('apiResume', S.token).then(function(r){
+    if(r && r.ok) persistToken(r);
+    // молча: истёкшую сессию поймает обычный запрос и покажет «Сессия истекла»
+  }).catch(function(){});
+}
+setInterval(keepSessionFresh, 3 * 60 * 60 * 1000);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && S.token && Date.now() - _lastKeepAlive > 60 * 60 * 1000){
+    keepSessionFresh();
+  }
+});
+
 function saveNavState(){
   try {
     var nav = {
@@ -1217,7 +1247,7 @@ function renderRail(){
   }
   show('load');
   call('apiResume', t).then(function(r){
-    if(r && r.ok){ S.token = r.token; onLoaded(r.data); }
+    if(r && r.ok){ persistToken(r); onLoaded(r.data); }
     else { store.del(LS_TOKEN); show('login'); }
   }).catch(function(){ store.del(LS_TOKEN); show('login'); });
 })();
@@ -1282,6 +1312,7 @@ function doRefresh(){
  */
 function quietRefresh(){
   call('apiRefresh', S.token).then(function(r){
+    persistToken(r);
     if(r && r.ok && r.data){
       S.data.segments = r.data.segments || S.data.segments;
       S.data.regions = r.data.regions || S.data.regions;
@@ -1297,6 +1328,7 @@ function doRefresh_(){
   toast('Обновляем…');
   call('apiRefresh', S.token).then(function(r){
     if(!r || !r.ok){ toast((r&&r.error)||'Не удалось обновить', 'no'); return; }
+    persistToken(r);
     S.dirty = false;
     onLoaded(r.data);
     toast('Данные обновлены', 'ok');

@@ -8,7 +8,11 @@ const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || '',
-  jwtExpiresIn: '30d',
+  // 7 дней: короче прежних 30, но клиент продлевает сессию скользящим окном —
+  // при каждом открытии приложения и раз в ~3 часа в открытой вкладке
+  // /auth/resume выдаёт новый токен (см. persistToken во фронте). Переопределяется
+  // переменной JWT_EXPIRES_IN, если нужно.
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   dbPath: process.env.DATABASE_PATH || path.join(__dirname, '../../data/market.db'),
   tursoUrl: process.env.TURSO_DATABASE_URL || '',
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
