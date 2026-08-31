@@ -218,6 +218,19 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
 /**
+ * Разбор суммы оклада. Люди вводят по-разному: "10000", "10 000", "10,000",
+ * "10.000" — пробел, запятая и точка здесь ВСЕГДА разделители тысяч (дробных
+ * окладов в вилках не бывает). Раньше запятая/точка трактовались как
+ * десятичный разделитель: "10,000" превращалось в 10, вилка от=5000 до=10
+ * считалась перевёрнутой и «Сохранить» молча отклонялся.
+ */
+function parseMoney(v){
+  var s = String(v == null ? '' : v).replace(/[\s .,]/g, '');
+  var n = Number(s);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
  * Единый набор SVG-иконок (Apple HIG / Linear стиль — тонкая линия, currentColor).
  * Эмодзи в интерфейсе не используются нигде — только эти иконки, чтобы стиль
  * не расходился между экранами и не превращался в «стикеры».
@@ -467,11 +480,12 @@ function toast(msg, kind, opts){
   }
   var isError = kind === 'no' || kind === 'err' || kind === 'error';
   while(host.children.length >= 3){ host.removeChild(host.firstElementChild); }
+  var isWarn = kind === 'warn';
   var t = document.createElement('div');
-  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : isError ? ' t-no' : '');
+  t.className = 'toast' + (kind === 'ok' ? ' t-ok' : isError ? ' t-no' : isWarn ? ' t-warn' : '');
   t.id = 'toast_' + (++toastSeq);
-  t.setAttribute('role', isError ? 'alert' : 'status');
-  var mark = kind === 'ok' ? 'check' : (kind === 'no' || kind === 'err' || kind === 'error') ? 'close' : 'info';
+  t.setAttribute('role', (isError || isWarn) ? 'alert' : 'status');
+  var mark = kind === 'ok' ? 'check' : (kind === 'no' || kind === 'err' || kind === 'error') ? 'close' : isWarn ? 'warn' : 'info';
   t.innerHTML = '<span class="toast-ic">'+icBare(mark, 16)+'</span>'+
     '<span class="toast-msg">'+esc(msg)+'</span>'+
     (opts.action ? '<button class="toast-action" type="button">'+esc(opts.action.label)+'</button>' : '')+
@@ -2387,10 +2401,9 @@ function survGroups(){
 
 function money(r){
   var num = function(x){
-    var s = String(x == null ? '' : x).replace(/[\s ]/g,'').replace(',','.');
-    if(!s) return '';
-    var n = Number(s);
-    if(isNaN(n)) return String(x).trim();
+    if(!String(x == null ? '' : x).trim()) return '';
+    var n = parseMoney(x);
+    if(!n) return String(x).trim();
     return n.toLocaleString('ru-RU');
   };
   var f = num(r.payFrom), t = num(r.payTo);
@@ -2690,8 +2703,8 @@ function openBatchSurveySheet(posName){
 
   function updateCardCompleteness(card, item){
     var comp = getSurveyItemCompleteness(item);
-    var pFrom = item.payFrom ? Number(String(item.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
-    var pTo = item.payTo ? Number(String(item.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
+    var pFrom = parseMoney(item.payFrom);
+    var pTo = parseMoney(item.payTo);
     var isForkInverted = (pFrom > 0 && pTo > 0 && pFrom > pTo);
 
     var hd = card.querySelector('.batch-hd');
@@ -2848,8 +2861,8 @@ function openBatchSurveySheet(posName){
     // Валидация диапазонов окладов перед сохранением
     for(var i = 0; i < entries.length; i++){
       var it = entries[i];
-      var pF = it.payFrom ? Number(String(it.payFrom).replace(/\s+/g, '').replace(',', '.')) : 0;
-      var pT = it.payTo ? Number(String(it.payTo).replace(/\s+/g, '').replace(',', '.')) : 0;
+      var pF = parseMoney(it.payFrom);
+      var pT = parseMoney(it.payTo);
       if(pF > 0 && pT > 0 && pF > pT){
         toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
         return false;
@@ -2871,8 +2884,10 @@ function openBatchSurveySheet(posName){
           posTheir: item.posTheir.trim(),
           grade: item.grade.trim(),
           schedule: item.schedule.trim(),
-          payFrom: item.payFrom.trim(),
-          payTo: item.payTo.trim(),
+          // Нормализуем к чистому числу-строке ("10000"): сервер и дашборд
+          // читают это через Number(), а "10 000"/"10,000" туда не годятся.
+          payFrom: item.payFrom.trim() ? String(parseMoney(item.payFrom)) : '',
+          payTo: item.payTo.trim() ? String(parseMoney(item.payTo)) : '',
           cur: item.cur,
           payPer: item.payPer,
           bonHas: item.bonHas,

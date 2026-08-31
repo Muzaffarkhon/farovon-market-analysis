@@ -5467,6 +5467,15 @@ html.compact {
   border-left-color: var(--color-emerald-vivid);
 }
 
+.toast.t-warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.toast.t-warn .toast-ic {
+  color: var(--warn);
+}
+
 .toast.t-ok .toast-ic {
   color: var(--color-emerald-vivid);
 }
