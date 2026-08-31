@@ -369,12 +369,16 @@ h3,
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.wrap.is-scrollable {
+  /* Главный контейнер контента должен прокручиваться сам (экраны рендерят
+     содержимое прямо в него, без внутреннего скроллера). Раньше здесь было
+     overflow: hidden, а прокрутку включал класс .is-scrollable, который в
+     коде нигде не проставлялся — на телефоне/в Telegram контент просто
+     обрезался. */
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* инерционный скролл в вебвью iOS/Telegram */
+  overscroll-behavior: contain;      /* не отдаём жест прокрутки оболочке Telegram */
+  box-sizing: border-box;
 }
 
 body.has-bar .wrap {
@@ -662,7 +666,9 @@ body.has-bar .wrap {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* см. базовое .wrap — контейнер прокручивается сам; здесь только другой padding */
+    overflow-y: auto;
+    overflow-x: hidden;
     box-sizing: border-box;
   }
 
@@ -4924,7 +4930,10 @@ html.compact {
   max-height: calc(100vh - 48px);
   flex: 1;
   box-sizing: border-box;
-  overflow: hidden;
+  /* overflow сюда НЕ ставим: этот блок идёт в файле позже базового .wrap и с
+     той же специфичностью, и прежнее overflow: hidden отключало прокрутку в
+     Telegram (там всегда .compact через метку .tg). Прокрутку задаёт базовое
+     .wrap (overflow-y: auto). */
 }
 
 .compact body.has-bar .wrap {
