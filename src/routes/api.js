@@ -78,5 +78,8 @@ router.get('/admin/data-status', requireCapability('service:view'), adminControl
 // эскалацией, которую конструктор должен предотвращать.
 router.get('/admin/role-capabilities', requireRoles('admin'), adminController.getRoleCapabilities);
 router.post('/admin/role-capabilities', requireRoles('admin'), adminController.saveRoleCapabilities);
+router.post('/admin/roles', requireRoles('admin'), adminController.createRole);
+router.post('/admin/roles/:key/rename', requireRoles('admin'), adminController.renameRole);
+router.post('/admin/roles/:key/delete', requireRoles('admin'), adminController.deleteRole);
 
 module.exports = router;

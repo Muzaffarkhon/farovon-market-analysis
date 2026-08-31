@@ -2,9 +2,22 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
 const { sendMassReminder } = require('../services/telegramService');
-const { CAPABILITIES, ROLES } = require('../config/capabilities');
+const { CAPABILITIES, ROLES, STRUCTURAL_NOTES, RESERVED_ROLE_KEYS } = require('../config/capabilities');
 const { hasCapability } = require('../middleware/auth');
+const roleService = require('../services/roleService');
 const surveyImport = require('../services/surveyImport');
+
+// Кириллица/латиница → безопасный ключ роли (kebab, латиница).
+function slugifyRoleKey(label) {
+  const map = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'e','ж':'zh','з':'z','и':'i','й':'y','к':'k',
+    'л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts',
+    'ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'
+  };
+  return String(label || '').toLowerCase().trim()
+    .split('').map(c => (c in map ? map[c] : c)).join('')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32);
+}
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 12);
@@ -122,9 +135,9 @@ exports.saveUser = async (req, res) => {
   }
 
   const targetRole = String(role || 'user').trim().toLowerCase();
-  const VALID_ROLES = ['admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'];
-  if (!VALID_ROLES.includes(targetRole)) {
-    return res.status(400).json({ ok: false, error: 'Недопустимая роль пользователя. Допустимы: admin, cb, hrbp, dir_head, head, user' });
+  const roleKeys = await roleService.getRoleKeys();
+  if (!roleKeys.includes(targetRole)) {
+    return res.status(400).json({ ok: false, error: 'Недопустимая роль пользователя. Допустимы: ' + roleKeys.join(', ') });
   }
 
   try {
@@ -1197,14 +1210,33 @@ exports.getAuditLog = async (req, res) => {
 // всегда, это не настраивается (см. src/config/capabilities.js).
 exports.getRoleCapabilities = async (req, res) => {
   try {
-    const rows = await queryAll('SELECT role, capability FROM role_capabilities');
-    const byRole = {};
-    ROLES.forEach(r => { byRole[r] = []; });
-    rows.forEach(r => {
-      if (byRole[r.role]) byRole[r.role].push(r.capability);
-    });
+    const roles = await roleService.getRoles();
+    const [capRows, userRows] = await Promise.all([
+      queryAll('SELECT role, capability FROM role_capabilities'),
+      queryAll('SELECT role, COUNT(*) AS n FROM users WHERE archived_at IS NULL GROUP BY role')
+    ]);
 
-    res.json({ ok: true, roles: ROLES, capabilities: CAPABILITIES, matrix: byRole });
+    const matrix = {};
+    roles.forEach(r => { matrix[r.key] = []; });
+    capRows.forEach(r => { if (matrix[r.role]) matrix[r.role].push(r.capability); });
+
+    const userCount = {};
+    userRows.forEach(u => { userCount[u.role] = u.n; });
+
+    res.json({
+      ok: true,
+      capabilities: CAPABILITIES,
+      matrix,
+      roles: roles.map(r => ({
+        key: r.key,
+        label: r.label,
+        is_protected: r.is_protected,
+        is_admin: r.key === 'admin',
+        structural: !!STRUCTURAL_NOTES[r.key],
+        note: STRUCTURAL_NOTES[r.key] || '',
+        users: userCount[r.key] || 0
+      }))
+    });
   } catch (err) {
     console.error('getRoleCapabilities error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки прав доступа' });
@@ -1213,9 +1245,13 @@ exports.getRoleCapabilities = async (req, res) => {
 
 exports.saveRoleCapabilities = async (req, res) => {
   const { role, capabilities } = req.body;
+  const roleKeys = await roleService.getRoleKeys();
 
-  if (!ROLES.includes(role)) {
-    return res.status(400).json({ ok: false, error: 'Неизвестная или защищённая роль' });
+  if (!roleKeys.includes(role)) {
+    return res.status(400).json({ ok: false, error: 'Неизвестная роль' });
+  }
+  if (role === 'admin') {
+    return res.status(400).json({ ok: false, error: 'У «Администратора» права всегда полные и не редактируются' });
   }
   const known = new Set(CAPABILITIES.map(c => c.id));
   const clean = Array.isArray(capabilities) ? capabilities.filter(c => known.has(c)) : [];
@@ -1225,17 +1261,94 @@ exports.saveRoleCapabilities = async (req, res) => {
     for (const cap of clean) {
       await run('INSERT OR IGNORE INTO role_capabilities (role, capability) VALUES (?, ?)', [role, cap]);
     }
-
-    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
-      req.user.login,
-      'права доступа',
-      `Роль: ${role}, прав: ${clean.length}`
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      req.user.login, 'права доступа', `Роль: ${role}, прав: ${clean.length}`, req.ip || ''
     ]);
-
     res.json({ ok: true, capabilities: clean });
   } catch (err) {
     console.error('saveRoleCapabilities error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка сохранения прав доступа' });
+  }
+};
+
+// ─── CRUD своих ролей ───
+exports.createRole = async (req, res) => {
+  const label = String((req.body && req.body.label) || '').trim();
+  if (label.length < 2 || label.length > 40) {
+    return res.status(400).json({ ok: false, error: 'Название роли: от 2 до 40 символов' });
+  }
+  let key = slugifyRoleKey(label);
+  if (!key) return res.status(400).json({ ok: false, error: 'Из названия не удалось получить ключ — используйте буквы или цифры' });
+  if (RESERVED_ROLE_KEYS.includes(key)) key = key + '_' + Date.now().toString(36).slice(-4);
+
+  try {
+    const exists = await queryOne('SELECT key FROM roles WHERE key = ? OR LOWER(label) = LOWER(?)', [key, label]);
+    if (exists) return res.status(409).json({ ok: false, error: 'Роль с таким названием уже есть' });
+
+    const maxSort = await queryOne('SELECT MAX(sort) AS m FROM roles');
+    await run('INSERT INTO roles (key, label, is_protected, sort) VALUES (?, ?, 0, ?)', [
+      key, label, ((maxSort && maxSort.m) || 100) + 10
+    ]);
+    roleService.invalidate();
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      req.user.login, 'роль создана', `«${label}» (${key})`, req.ip || ''
+    ]);
+    res.json({ ok: true, key, label });
+  } catch (err) {
+    console.error('createRole error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка создания роли' });
+  }
+};
+
+exports.renameRole = async (req, res) => {
+  const key = String(req.params.key || '');
+  const label = String((req.body && req.body.label) || '').trim();
+  if (key === 'admin') return res.status(400).json({ ok: false, error: 'Роль «Администратор» не переименовывается' });
+  if (label.length < 2 || label.length > 40) {
+    return res.status(400).json({ ok: false, error: 'Название роли: от 2 до 40 символов' });
+  }
+  try {
+    const row = await queryOne('SELECT key FROM roles WHERE key = ?', [key]);
+    if (!row) return res.status(404).json({ ok: false, error: 'Роль не найдена' });
+    const dup = await queryOne('SELECT key FROM roles WHERE LOWER(label) = LOWER(?) AND key <> ?', [label, key]);
+    if (dup) return res.status(409).json({ ok: false, error: 'Другая роль уже называется так же' });
+
+    await run('UPDATE roles SET label = ? WHERE key = ?', [label, key]);
+    roleService.invalidate();
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      req.user.login, 'роль переименована', `${key} → «${label}»`, req.ip || ''
+    ]);
+    res.json({ ok: true, key, label });
+  } catch (err) {
+    console.error('renameRole error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка переименования' });
+  }
+};
+
+exports.deleteRole = async (req, res) => {
+  const key = String(req.params.key || '');
+  if (RESERVED_ROLE_KEYS.includes(key)) {
+    return res.status(400).json({ ok: false, error: 'Встроенную роль удалить нельзя' });
+  }
+  try {
+    const row = await queryOne('SELECT key, is_protected FROM roles WHERE key = ?', [key]);
+    if (!row) return res.status(404).json({ ok: false, error: 'Роль не найдена' });
+    if (row.is_protected) return res.status(400).json({ ok: false, error: 'Защищённую роль удалить нельзя' });
+
+    const used = await queryOne('SELECT COUNT(*) AS n FROM users WHERE role = ? AND archived_at IS NULL', [key]);
+    if (used && used.n > 0) {
+      return res.status(409).json({ ok: false, error: `Роль назначена ${used.n} пользоват. — сначала смените им роль` });
+    }
+    await run('DELETE FROM role_capabilities WHERE role = ?', [key]);
+    await run('DELETE FROM roles WHERE key = ?', [key]);
+    roleService.invalidate();
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      req.user.login, 'роль удалена', key, req.ip || ''
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteRole error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка удаления роли' });
   }
 };
 

@@ -6530,3 +6530,50 @@ html.compact {
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
+/* ─── Конструктор ролей и доступов (вкладка «Роли и доступы») ─── */
+.roles2 { display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 0; }
+.roles2-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; flex-shrink: 0; }
+.roles2-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.roles2-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.roles2-detail { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-cards); background: var(--card); padding: 16px; }
+
+.r2-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); cursor: pointer; transition: border-color .12s, background .12s; }
+.r2-item:hover { border-color: var(--line-strong); }
+.r2-item.on { border-color: var(--accent); background: var(--accent-soft); }
+.r2-name { font-weight: 700; font-size: 13px; color: var(--text); }
+.r2-sub { font-size: 11px; color: var(--muted); }
+
+.r2-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.r2-title { font-weight: 800; font-size: 16px; }
+.r2-title-in { font-weight: 800; font-size: 15px; padding: 6px 10px; width: auto; min-width: 220px;
+  border: 1px solid var(--line); border-radius: var(--radius-inputs); background: var(--bg); color: var(--text); }
+.r2-key { font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--subtle);
+  background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+
+.r2-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.45;
+  background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-bottom: 14px; color: var(--text); }
+.r2-note svg { flex-shrink: 0; color: var(--warn); margin-top: 1px; }
+.r2-note--plain { background: var(--card-2); border-color: var(--line); }
+.r2-note--plain svg { color: var(--subtle); }
+
+.r2-allon { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  color: var(--ok); background: var(--ok-soft); border: 1px solid var(--ok-border);
+  border-radius: var(--radius-sm); padding: 12px 14px; }
+
+.r2-caps { display: flex; flex-direction: column; gap: 16px; }
+.r2-group-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); margin-bottom: 6px; }
+.r2-cap { display: flex; align-items: center; gap: 10px; padding: 7px 4px; font-size: 12.5px;
+  border-bottom: 1px solid var(--line); cursor: pointer; }
+.r2-cap:last-child { border-bottom: none; }
+.r2-cap input { flex-shrink: 0; }
+
+@media (max-width: 860px) {
+  .roles2 { height: auto; }
+  .roles2-body { grid-template-columns: 1fr; }
+  .roles2-list { flex-direction: row; overflow-x: auto; overflow-y: visible; }
+  .r2-item { min-width: 160px; }
+}

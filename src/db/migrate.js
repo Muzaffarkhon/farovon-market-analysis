@@ -1,5 +1,5 @@
 const { queryAll, run } = require('./database');
-const { ROLES, DEFAULT_ROLE_CAPABILITIES } = require('../config/capabilities');
+const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
 
 /**
  * Идемпотентные миграции живой базы.
@@ -117,6 +117,27 @@ async function migrate() {
     }
   }
   console.log('🔧 Миграция: права ролей по умолчанию проверены и синхронизированы');
+
+  // Справочник ролей: раньше список ролей был только константой в коде. Теперь
+  // он в БД, чтобы админ мог добавлять свои роли (конструктор «Роли и доступы»).
+  // Зарезервированные 6 ключей помечаем is_protected — их поведение зашито в
+  // код, удалять/переименовывать ключ нельзя (см. RESERVED_ROLE_KEYS).
+  await run(`CREATE TABLE IF NOT EXISTS roles (
+    key TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    is_protected INTEGER NOT NULL DEFAULT 0,
+    sort INTEGER NOT NULL DEFAULT 100
+  )`);
+  const seedRoles = [
+    ['admin', 0], ['cb', 10], ['hrbp', 20], ['dir_head', 30], ['head', 40], ['user', 50]
+  ];
+  for (const [key, sort] of seedRoles) {
+    await run(
+      'INSERT OR IGNORE INTO roles (key, label, is_protected, sort) VALUES (?, ?, 1, ?)',
+      [key, ROLE_LABELS[key] || key, sort]
+    );
+  }
+  console.log('🔧 Миграция: справочник ролей (roles) синхронизирован');
 
   // Защита от брутфорса пароля: счётчик подряд идущих неудачных входов и время,
   // до которого вход по паролю для этой учётки запрещён. Логика — в
