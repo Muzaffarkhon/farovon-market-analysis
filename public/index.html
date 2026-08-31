@@ -243,8 +243,11 @@ function restoreNavState(){
 }
 
 function $(id){ return document.getElementById(id); }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){
-  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+// Экранирование для вставки в HTML. Помимо & < > " гасим и одинарную кавычку
+// (&#39;) — на случай атрибутов в одинарных кавычках и inline-обработчиков,
+// чтобы esc() был безопасен в любом HTML-контексте, а не только в "...".
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
 /**
