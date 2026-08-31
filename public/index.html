@@ -9218,13 +9218,16 @@ function openBenchmarks(){
   S.unit = null;
   saveNavState();
   renderTopNav();
+  setTop('Мультиисточниковый бенчмаркинг', userLabel(), false, 'chart');
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
 
-  var app = $('app');
-  app.innerHTML = '<div class="bm-shell" style="max-width:1200px;margin:0 auto;padding:16px 20px 60px">' +
+  var body = $('body');
+  body.innerHTML = '<div class="bm-shell" style="max-width:1200px;margin:0 auto;padding:16px 20px 60px">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">' +
       '<div>' +
         '<h1 style="margin:0 0 4px;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px">' +
-          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="stroke:var(--accent)">' + (ICONS.chart || ICONS.dashboard) + '</svg>' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="stroke:var(--accent)">' + ICONS.chart + '</svg>' +
           'Мультиисточниковый бенчмаркинг вознаграждений' +
         '</h1>' +
         '<div style="font-size:13px;color:var(--muted)">Сравнение заработных плат Фаровона с внешними провайдерами (B1, Antal), джоб-сайтами и внутренним сбором</div>' +
