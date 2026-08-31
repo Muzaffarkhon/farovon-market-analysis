@@ -2931,70 +2931,86 @@ function openBatchSurveySheet(posName){
   }
 
   function saveBatchSurvey(){
-    // Валидация диапазонов окладов перед сохранением
-    for(var i = 0; i < entries.length; i++){
-      var it = entries[i];
-      var pF = parseMoney(it.payFrom);
-      var pT = parseMoney(it.payTo);
-      if(pF > 0 && pT > 0 && pF > pT){
-        toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
-        return false;
+    try {
+      // Валидация диапазонов окладов перед сохранением
+      for(var i = 0; i < entries.length; i++){
+        var it = entries[i];
+        var pF = parseMoney(it.payFrom);
+        var pT = parseMoney(it.payTo);
+        if(pF > 0 && pT > 0 && pF > pT){
+          toast('В компании "' + it.co + '" оклад "от" (' + pF.toLocaleString('ru-RU') + ') превышает оклад "до" (' + pT.toLocaleString('ru-RU') + ')', 'warn');
+          return false;
+        }
       }
-    }
-    entries.forEach(function(item){
-      var isFilled = !!(String(item.payFrom).trim() || String(item.payTo).trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
+      entries.forEach(function(item){
+        var pFromStr = String(item.payFrom == null ? '' : item.payFrom).trim();
+        var pToStr = String(item.payTo == null ? '' : item.payTo).trim();
+        var bonSizeStr = String(item.bonSize == null ? '' : item.bonSize).trim();
+        var noteStr = String(item.note == null ? '' : item.note).trim();
+        var extraStr = String(item.extra == null ? '' : item.extra).trim();
+        var posTheirStr = String(item.posTheir == null ? '' : item.posTheir).trim();
+        var gradeStr = String(item.grade == null ? '' : item.grade).trim();
+        var scheduleStr = String(item.schedule == null ? '' : item.schedule).trim();
+        var benArr = Array.isArray(item.benefits) ? item.benefits : [];
 
-      var existIndex = S.surveys.findIndex(function(s){
-        return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
+        var isFilled = !!(pFromStr || pToStr || bonSizeStr || benArr.length || noteStr || extraStr || posTheirStr || gradeStr || (item.bonHas && item.bonHas === 'да'));
+
+        var existIndex = S.surveys.findIndex(function(s){
+          return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
+        });
+
+        if(isFilled){
+          var record = {
+            id: item.id || uid(),
+            unit: S.unit,
+            company: item.co,
+            posOur: posName,
+            posTheir: posTheirStr,
+            grade: gradeStr,
+            schedule: scheduleStr,
+            // Нормализуем к чистому числу-строке ("10000"): сервер и дашборд
+            // читают это через Number(), а "10 000"/"10,000" туда не годятся.
+            payFrom: pFromStr ? String(parseMoney(pFromStr)) : '',
+            payTo: pToStr ? String(parseMoney(pToStr)) : '',
+            cur: item.cur || 'сомони',
+            payPer: item.payPer || 'в месяц',
+            bonHas: item.bonHas || '',
+            bonSize: item.bonHas === 'да' ? bonSizeStr : '',
+            bonType: item.bonHas === 'да' ? String(item.bonType || '') : '',
+            bonPer: item.bonHas === 'да' ? String(item.bonPer || '') : '',
+            benefits: benArr,
+            extra: extraStr,
+            source: item.source || '',
+            trust: item.trust || '',
+            note: noteStr
+          };
+
+          if(existIndex >= 0){
+            S.surveys[existIndex] = record;
+          } else {
+            S.surveys.push(record);
+          }
+        } else if(existIndex >= 0){
+          // Если запись была, но пользователь всё стёр
+          var removedRec = S.surveys[existIndex];
+          if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
+            S.removed.push(removedRec.id);
+          }
+          S.surveys.splice(existIndex, 1);
+        }
       });
 
-      if(isFilled){
-        var record = {
-          id: item.id || uid(),
-          unit: S.unit,
-          company: item.co,
-          posOur: posName,
-          posTheir: item.posTheir.trim(),
-          grade: item.grade.trim(),
-          schedule: item.schedule.trim(),
-          // Нормализуем к чистому числу-строке ("10000"): сервер и дашборд
-          // читают это через Number(), а "10 000"/"10,000" туда не годятся.
-          payFrom: String(item.payFrom).trim() ? String(parseMoney(item.payFrom)) : '',
-          payTo: String(item.payTo).trim() ? String(parseMoney(item.payTo)) : '',
-          cur: item.cur,
-          payPer: item.payPer,
-          bonHas: item.bonHas,
-          bonSize: item.bonHas === 'да' ? item.bonSize.trim() : '',
-          bonType: item.bonHas === 'да' ? item.bonType : '',
-          bonPer: item.bonHas === 'да' ? item.bonPer : '',
-          benefits: item.benefits,
-          extra: item.extra.trim(),
-          source: item.source,
-          trust: item.trust,
-          note: item.note.trim()
-        };
-
-        if(existIndex >= 0){
-          S.surveys[existIndex] = record;
-        } else {
-          S.surveys.push(record);
-        }
-      } else if(existIndex >= 0){
-        // Если запись была, но пользователь всё стёр
-        var removedRec = S.surveys[existIndex];
-        if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
-          S.removed.push(removedRec.id);
-        }
-        S.surveys.splice(existIndex, 1);
-      }
-    });
-
-    el.remove();
-    markDirty();
-    renderUnit();
-    // Итог покажет save() ('Сохранено в …' / 'Нет связи…') — оба вызывающих
-    // #batchSaveBtn и #cmSave дожимают на сервер сразу после.
-    return true;
+      el.remove();
+      markDirty();
+      renderUnit();
+      // Итог покажет save() ('Сохранено в …' / 'Нет связи…') — оба вызывающих
+      // #batchSaveBtn и #cmSave дожимают на сервер сразу после.
+      return true;
+    } catch(err) {
+      console.error('saveBatchSurvey error:', err);
+      toast('Ошибка обработки формы: ' + (err.message || err), 'no');
+      return false;
+    }
   }
 
   function requestCloseSheet(){
