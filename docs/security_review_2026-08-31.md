@@ -17,23 +17,31 @@
 | P1-7 | Убран приём JWT из `?token=` query (`middleware/auth.js`); `jwt.verify`/`jwt.sign` с явным `algorithms: ['HS256']`. **Осталось:** короткоживущая подписанная ссылка для `export-csv`, срок токена < 30 дней + refresh |
 | P1-8 | `app.set('trust proxy', 1)` (`server.js`) — реальный `req.ip` за прокси Render |
 
-Новая зависимость: `express-rate-limit@^7.5.1`. Требуется действие: см. P0-1 (ротация секретов) — кодом не закрывается.
+Новая зависимость: `express-rate-limit@^7.5.1`.
+
+**P0-1 (ротация секретов) — выполнена 2026-08-31** вручную: `JWT_SECRET`, `TURSO_AUTH_TOKEN` (база `farovon`), `TELEGRAM_WEBHOOK_SECRET` заменены в Render + `.env`, `setWebhook` перерегистрирован, `TURSO_DATABASE_URL` выправлен. Прод проверен: `/health` `db:ok`, вход и бот работают. Осталось прибрать заброшенную базу `farovon-market-analysis` (к ней всё ещё подходит утёкший в git токен) — детали в P0-1 ниже.
+
+⚠️ Код-изменения этой ветки (`security/review-2026-08-31`) на прод **не выкатывались** — там всё ещё `main`/`fadd7f7` без rate-limit и lockout. Нужен merge + deploy.
 
 ---
 
 ## P0 — критично
 
-### P0-1 ⏭️ Ротация секретов из git-истории
-`src/config/index.js:4-6` фиксирует: RW-токен Turso и `JWT_SECRET` ранее были захардкожены и попали в историю git. Удаление из кода не помогает — значения остаются в истории навсегда.
+### P0-1 ✅ Ротация секретов из git-истории (сделано 2026-08-31)
+`src/config/index.js:4-6` фиксирует: RW-токен Turso и `JWT_SECRET` ранее были захардкожены и попали в историю git.
 
-- [ ] Сгенерировать заново и заменить в Render → Environment: `JWT_SECRET`
-- [ ] `TURSO_AUTH_TOKEN` — выпустить новый токен, старый отозвать в панели Turso
-- [ ] `TELEGRAM_BOT_TOKEN` — `/revoke` у @BotFather, прописать новый
-- [ ] `TELEGRAM_WEBHOOK_SECRET` — новый, повторно вызвать `setWebhook`
-- [ ] Проверить историю на `ADMIN_PASSWORD` / `CB_PASSWORD` (используются в `src/tools/generateDataBundle.js`, `cleanTurso.js`)
-- [ ] После смены `JWT_SECRET` все текущие сессии инвалидируются — предупредить пользователей
+Что выяснилось при ротации: утёкший в историю Turso-токен (`rid 022dc4a4…`, `id БД 01a02e8e…`) был выписан для базы **`farovon-market-analysis`** — это отдельная, судя по всему заброшенная база. Прод работает на базе **`farovon`** (`id БД 01a031f8…`), её токен в историю не попадал (жил только в `.env`, а `.env` в git не коммитился — проверено `git log -- .env`).
 
-**Риск, если не сделано:** известный `JWT_SECRET` → подделка токена любого пользователя, включая `admin`.
+- [x] `JWT_SECRET` — заменён в Render + локальном `.env` (все сессии разлогинены, вход проверен)
+- [x] `TURSO_AUTH_TOKEN` — рабочий токen базы `farovon` в Render + `.env`; прод `/health` → `db:ok`, 111 пользователей
+- [x] `TELEGRAM_WEBHOOK_SECRET` — новый (64 hex), в Render + `.env` + `setWebhook`; бот отвечает на `/help`
+- [x] `TURSO_DATABASE_URL` в Render и `.env` выправлен на `libsql://farovon-muzaffarkhon.aws-eu-west-1.turso.io`
+- [ ] `TELEGRAM_BOT_TOKEN` — НЕ ротирован (в истории его не нашли; ротировать по желанию через @BotFather)
+- [ ] Удалить/проверить заброшенную базу `farovon-market-analysis` в панели Turso — это окончательно погасит утёкший в git токен
+- [ ] Проверить историю на `ADMIN_PASSWORD` / `CB_PASSWORD` (`src/tools/generateDataBundle.js`, `cleanTurso.js`)
+- [ ] `.env.bak.*` и `scratch/*.js` (помощники ротации) — можно удалить локально; в git они не попадают
+
+**Остаточный риск:** пока база `farovon-market-analysis` жива, старый RW-токен из истории git к ней подходит. Данные там, вероятно, неактуальны, но лучше удалить базу или сделать `tokens invalidate` на ней.
 
 ### P0-2 ✅ Эскалация привилегий в `saveUser`
 `src/controllers/adminController.js:112-210`. `VALID_ROLES` включает `'admin'`; нет проверки, что не-admin не может создать/повысить пользователя (или себя) до `admin`. Единственная защита — «последний админ». Как только конструктор ролей выдаёт `users:create`/`users:edit` роли `cb`/`hrbp`, эта роль может выписать себе admin-учётку.
