@@ -386,6 +386,158 @@ class BenchmarkService {
       }
     };
   }
+
+  /**
+   * Удаление датасета и его строк
+   */
+  async deleteDataset(id) {
+    const dsId = Number(id);
+    await batch([
+      { sql: 'DELETE FROM benchmark_rows WHERE dataset_id = ?', args: [dsId] },
+      { sql: 'DELETE FROM benchmark_datasets WHERE id = ?', args: [dsId] }
+    ]);
+    return { ok: true };
+  }
+
+  /**
+   * Экспорт матрицы бенчмаркинга в CSV
+   */
+  async exportMatrix({ user }) {
+    let positions = await queryAll(`
+      SELECT DISTINCT d.id, d.name, d.pay_from, d.pay_to
+      FROM dictionary_positions d
+      WHERE d.id IN (SELECT dict_position_id FROM position_map)
+      ORDER BY d.name ASC
+    `);
+
+    if (!positions || positions.length === 0) {
+      positions = await queryAll(`
+        SELECT d.id, d.name, d.pay_from, d.pay_to
+        FROM dictionary_positions d
+        WHERE d.pay_from > 0 OR d.pay_to > 0
+        ORDER BY d.name ASC LIMIT 50
+      `);
+    }
+
+    const rows = [];
+    for (const pos of positions) {
+      try {
+        const comp = await this.compare({ positionId: pos.id, user });
+        const p = comp.position;
+        const intr = comp.internal.stats;
+        const extMap = {};
+        comp.external.forEach(e => { extMap[e.sourceKey] = e; });
+        const b1 = extMap['b1'] ? extMap['b1'].stats : {};
+        const antal = extMap['antal'] ? extMap['antal'].stats : {};
+        const job = extMap['job_farovon'] ? extMap['job_farovon'].stats : {};
+        const sum = comp.summary;
+
+        rows.push({
+          position: p.name,
+          ourFrom: p.ourPayFrom || '',
+          ourTo: p.ourPayTo || '',
+          ourMid: p.ourMid || '',
+          internalP50: intr.p50 || '',
+          b1P50: b1.p50 || '',
+          antalP50: antal.p50 || '',
+          jobP50: job.p50 || '',
+          compositeMedian: sum.compositeMedian || '',
+          gapPercent: sum.compositeGapPercent != null ? (sum.compositeGapPercent + '%') : '',
+          gapAmount: sum.compositeGapAmount != null ? sum.compositeGapAmount : ''
+        });
+      } catch (e) {}
+    }
+
+    const headers = [
+      'Должность',
+      'Оклад Фаровон (От)',
+      'Оклад Фаровон (До)',
+      'Медиана Фаровон',
+      'Внутренний сбор (P50)',
+      'B1 Ernst & Young (P50)',
+      'Antal International (P50)',
+      'Job Farovon (P50)',
+      'Сводная медиана рынка',
+      'Гэп к рынку (%)',
+      'Гэп к рынку (сомони)'
+    ];
+
+    const escapeCsv = (val) => {
+      const s = String(val == null ? '' : val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const csvLines = [
+      '\uFEFF' + headers.map(escapeCsv).join(';')
+    ];
+
+    rows.forEach(r => {
+      csvLines.push([
+        r.position,
+        r.ourFrom,
+        r.ourTo,
+        r.ourMid,
+        r.internalP50,
+        r.b1P50,
+        r.antalP50,
+        r.jobP50,
+        r.compositeMedian,
+        r.gapPercent,
+        r.gapAmount
+      ].map(escapeCsv).join(';'));
+    });
+
+    return csvLines.join('\r\n');
+  }
+
+  /**
+   * Сводные виджеты для главного дашборда
+   */
+  async getBenchmarkSummaryWidgets({ user }) {
+    const totalRow = await queryOne('SELECT COUNT(*) as total FROM dictionary_positions');
+    const targetPositions = await queryAll(`
+      SELECT DISTINCT d.id, d.name, d.pay_from, d.pay_to
+      FROM dictionary_positions d
+      WHERE d.id IN (SELECT dict_position_id FROM position_map)
+    `);
+
+    const gaps = [];
+    let mappedCount = 0;
+
+    for (const pos of targetPositions) {
+      try {
+        const comp = await this.compare({ positionId: pos.id, user });
+        if (comp.summary.compositeMedian > 0) {
+          mappedCount++;
+          if (comp.summary.compositeGapPercent != null) {
+            gaps.push({
+              positionId: pos.id,
+              positionName: pos.name,
+              ourMid: comp.position.ourMid,
+              marketMedian: comp.summary.compositeMedian,
+              gapPercent: comp.summary.compositeGapPercent,
+              gapAmount: comp.summary.compositeGapAmount
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    gaps.sort((a, b) => a.gapPercent - b.gapPercent);
+    const belowMarket = gaps.filter(g => g.gapPercent < 0).slice(0, 5);
+    const aboveMarket = gaps.filter(g => g.gapPercent > 0).slice(-5).reverse();
+
+    const totalPositions = (totalRow && totalRow.total) || 0;
+    const coveragePercent = totalPositions > 0 ? Math.round((mappedCount / totalPositions) * 100) : 0;
+
+    return {
+      totalPositions,
+      mappedPositions: mappedCount,
+      coveragePercent,
+      belowMarket,
+      aboveMarket
+    };
+  }
 }
 
 module.exports = new BenchmarkService();

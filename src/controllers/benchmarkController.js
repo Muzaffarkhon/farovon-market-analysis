@@ -123,3 +123,36 @@ exports.compare = async (req, res) => {
     res.status(400).json({ ok: false, error: 'Ошибка формирования сравнения: ' + err.message });
   }
 };
+
+exports.deleteDataset = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await benchmarkService.deleteDataset(Number(id));
+    res.json({ ok: true, message: 'Датасет успешно удален' });
+  } catch (err) {
+    console.error('deleteDataset error:', err);
+    res.status(400).json({ ok: false, error: 'Ошибка удаления датасета: ' + err.message });
+  }
+};
+
+exports.exportMatrix = async (req, res) => {
+  try {
+    const csv = await benchmarkService.exportMatrix({ user: req.user });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="farovon_benchmark_matrix.csv"');
+    res.send(csv);
+  } catch (err) {
+    console.error('exportMatrix error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка экспорта матрицы: ' + err.message });
+  }
+};
+
+exports.getSummaryWidgets = async (req, res) => {
+  try {
+    const widgets = await benchmarkService.getBenchmarkSummaryWidgets({ user: req.user });
+    res.json({ ok: true, widgets });
+  } catch (err) {
+    console.error('getSummaryWidgets error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки виджетов: ' + err.message });
+  }
+};
