@@ -190,12 +190,12 @@ class BenchmarkImportService {
       VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
     `, [sourceKey, datasetTitle, reportDate || null, dataAsOf || null, currency, user ? (user.fio || user.login) : 'admin', dry.validRows]);
 
-    const datasetId = datasetRes.lastInsertRowid || datasetRes.insertId;
+    const datasetId = Number(datasetRes.lastInsertRowid || datasetRes.insertId || 0);
 
     // 2. Гарантируем наличие всех должностей источника
     const existingPos = await queryAll('SELECT id, label FROM source_positions WHERE source_key = ?', [sourceKey]);
     const posIdMap = new Map();
-    existingPos.forEach(p => posIdMap.set(p.label.toLowerCase(), p.id));
+    existingPos.forEach(p => posIdMap.set(p.label.toLowerCase(), Number(p.id)));
 
     const stmts = [];
 
@@ -208,7 +208,7 @@ class BenchmarkImportService {
       if (!sourcePosId) {
         const code = codeColIdx >= 0 ? (row[codeColIdx] || '').trim() : null;
         const insPos = await run('INSERT INTO source_positions (source_key, code, label) VALUES (?, ?, ?)', [sourceKey, code, label]);
-        sourcePosId = insPos.lastInsertRowid || insPos.insertId;
+        sourcePosId = Number(insPos.lastInsertRowid || insPos.insertId || 0);
         posIdMap.set(label.toLowerCase(), sourcePosId);
       }
 

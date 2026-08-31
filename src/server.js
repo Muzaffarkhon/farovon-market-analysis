@@ -5,6 +5,11 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 
+// Автоматическая сериализация BigInt для JSON (LibSQL возвращает lastInsertRowid как BigInt)
+BigInt.prototype.toJSON = function() {
+  return Number(this);
+};
+
 const config = require('./config');
 const { queryOne } = require('./db/database');
 const { migrate } = require('./db/migrate');
