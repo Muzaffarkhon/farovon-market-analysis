@@ -118,9 +118,93 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ============================================================
+-- Мультиисточниковый бенчмаркинг вознаграждений (Фаза 1)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS data_sources (
+  key TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  kind TEXT NOT NULL, -- 'internal', 'jobsite', 'consultancy'
+  is_licensed INTEGER NOT NULL DEFAULT 0,
+  default_currency TEXT DEFAULT 'сомони',
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS benchmark_datasets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_key TEXT NOT NULL,
+  title TEXT NOT NULL,
+  report_date TEXT,
+  data_as_of TEXT,
+  currency TEXT DEFAULT 'сомони',
+  methodology TEXT,
+  uploaded_by TEXT,
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  row_count INTEGER DEFAULT 0,
+  state TEXT DEFAULT 'active', -- 'draft', 'active', 'archived'
+  FOREIGN KEY (source_key) REFERENCES data_sources(key)
+);
+
+CREATE TABLE IF NOT EXISTS source_positions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_key TEXT NOT NULL,
+  code TEXT,
+  label TEXT NOT NULL,
+  family TEXT,
+  UNIQUE(source_key, label),
+  FOREIGN KEY (source_key) REFERENCES data_sources(key)
+);
+
+CREATE TABLE IF NOT EXISTS position_map (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dict_position_id INTEGER NOT NULL,
+  source_position_id INTEGER NOT NULL,
+  confidence TEXT DEFAULT 'exact', -- 'exact', 'close', 'approx'
+  note TEXT,
+  mapped_by TEXT,
+  mapped_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(dict_position_id, source_position_id),
+  FOREIGN KEY (dict_position_id) REFERENCES dictionary_positions(id),
+  FOREIGN KEY (source_position_id) REFERENCES source_positions(id)
+);
+
+CREATE TABLE IF NOT EXISTS benchmark_rows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dataset_id INTEGER NOT NULL,
+  source_position_id INTEGER NOT NULL,
+  region TEXT,
+  industry TEXT,
+  company_size TEXT,
+  grade TEXT,
+  component TEXT DEFAULT 'base', -- 'base', 'total_cash', 'total_remuneration'
+  currency TEXT DEFAULT 'сомони',
+  period TEXT DEFAULT 'в месяц',
+  stat_type TEXT NOT NULL, -- 'point', 'p10', 'p25', 'p50', 'p75', 'p90', 'avg', 'min', 'max'
+  value REAL NOT NULL,
+  sample_n INTEGER DEFAULT 1,
+  company TEXT,
+  FOREIGN KEY (dataset_id) REFERENCES benchmark_datasets(id),
+  FOREIGN KEY (source_position_id) REFERENCES source_positions(id)
+);
+
+CREATE TABLE IF NOT EXISTS fx_rates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  currency TEXT NOT NULL,
+  date TEXT NOT NULL,
+  rate_to_base REAL NOT NULL, -- курс к сомони (TJS = 1)
+  UNIQUE(currency, date)
+);
+
 -- Индексы для быстродействия
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
 CREATE INDEX IF NOT EXISTS idx_divisions_unit ON divisions(unit);
 CREATE INDEX IF NOT EXISTS idx_competitors_unit ON competitors(unit);
 CREATE INDEX IF NOT EXISTS idx_surveys_unit ON surveys(unit);
 CREATE INDEX IF NOT EXISTS idx_surveys_pos ON surveys(pos_our);
+CREATE INDEX IF NOT EXISTS idx_benchmark_rows_dataset ON benchmark_rows(dataset_id);
+CREATE INDEX IF NOT EXISTS idx_benchmark_rows_pos ON benchmark_rows(source_position_id);
+CREATE INDEX IF NOT EXISTS idx_source_positions_source ON source_positions(source_key);
+CREATE INDEX IF NOT EXISTS idx_position_map_dict ON position_map(dict_position_id);
+CREATE INDEX IF NOT EXISTS idx_position_map_source ON position_map(source_position_id);
+

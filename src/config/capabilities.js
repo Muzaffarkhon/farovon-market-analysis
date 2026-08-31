@@ -28,7 +28,11 @@ const CAPABILITIES = [
   { id: 'period:edit', resource: 'period', resourceLabel: 'Период сбора', label: 'Открытие/закрытие периода' },
   { id: 'service:view', resource: 'service', resourceLabel: 'Сервис и Журнал', label: 'Просмотр журнала и статуса данных' },
   { id: 'service:edit', resource: 'service', resourceLabel: 'Сервис и Журнал', label: 'Запуск сервисных задач' },
-  { id: 'dashboard:view', resource: 'dashboard', resourceLabel: 'Дашборд', label: 'Аналитическая сводка' }
+  { id: 'dashboard:view', resource: 'dashboard', resourceLabel: 'Дашборд', label: 'Аналитическая сводка' },
+  { id: 'benchmarks:view', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр сравнений' },
+  { id: 'benchmarks:view_licensed', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр лицензированных обзоров (B1, Antal)' },
+  { id: 'benchmarks:import', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Загрузка и импорт датасетов' },
+  { id: 'benchmarks:map', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Сопоставление должностей' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];

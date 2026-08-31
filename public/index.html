@@ -423,7 +423,17 @@ var API_ROUTES = {
   apiAdminUnlock: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'unlock', targetOwner:args[1], targetRole:args[2] } }); },
   apiAdminDataStatus: function(args){ return fetchJson('/api/admin/data-status', { method:'GET', token:args[0] }); },
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
-  apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); }
+  apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); },
+  apiBenchmarkSources: function(args){ return fetchJson('/api/benchmarks/sources', { method:'GET', token:args[0] }); },
+  apiBenchmarkDatasets: function(args){ return fetchJson('/api/benchmarks/datasets' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
+  apiBenchmarkPositions: function(args){ return fetchJson('/api/benchmarks/positions/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiBenchmarkMappings: function(args){ return fetchJson('/api/benchmarks/mappings' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
+  apiBenchmarkSuggestMappings: function(args){ return fetchJson('/api/benchmarks/suggest-mappings/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiBenchmarkSaveMapping: function(args){ return fetchJson('/api/benchmarks/mappings', { method:'POST', token:args[0], body:args[1] }); },
+  apiBenchmarkDeleteMapping: function(args){ return fetchJson('/api/benchmarks/mappings/' + encodeURIComponent(args[1]) + '/delete', { method:'POST', token:args[0] }); },
+  apiBenchmarkDryRun: function(args){ return fetchJson('/api/benchmarks/import/dry-run', { method:'POST', token:args[0], body:args[1] }); },
+  apiBenchmarkCommit: function(args){ return fetchJson('/api/benchmarks/import/commit', { method:'POST', token:args[0], body:args[1] }); },
+  apiBenchmarkCompare: function(args){ return fetchJson('/api/benchmarks/compare?' + (args[1] ? 'positionId='+encodeURIComponent(args[1]) : 'positionName='+encodeURIComponent(args[2])), { method:'GET', token:args[0] }); }
 };
 
 var ERROR_MAP_RU = {
@@ -1155,6 +1165,9 @@ function renderRail(){
   if(canSeeDashboard()){
     items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
   }
+  if(hasCap('benchmarks:view') || isElevated){
+    items.push({ id:'benchmarks', view:'benchmarks', label:'Бенчмаркинг', icon: ICONS.chart || ICONS.dashboard });
+  }
   if(r === 'hrbp'){
     items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon: ICONS.clipboard });
   }
@@ -1441,6 +1454,10 @@ function renderTopNav(){
   if(canSeeDashboard()){
     btns.push({ id:'dashboard', icon:'dashboard', label:'Дашборд' });
   }
+  var isElevated = (r === 'admin' || r === 'cb');
+  if(hasCap('benchmarks:view') || isElevated){
+    btns.push({ id:'benchmarks', icon:'chart', label:'Бенчмаркинг' });
+  }
   if(canSeeAdmin()){
     btns.push({ id:'admin', icon:'admin', label:'Админка' });
   }
@@ -1482,6 +1499,7 @@ function switchView(v){
   renderTopNav();
   if(v === 'units') renderUnits();
   else if(v === 'dashboard') openDashboard();
+  else if(v === 'benchmarks') openBenchmarks();
   else if(v === 'admin') openAdminPanel();
 }
 
@@ -1802,6 +1820,7 @@ function onLoaded(data){
   else if(data.needsAssignment) renderNeedsAssignment();
   else if(S.appView === 'unit' && S.unit) openUnit(S.unit);
   else if(S.appView === 'dashboard') openDashboard();
+  else if(S.appView === 'benchmarks') openBenchmarks();
   else if(S.appView === 'dash_hrbp') openDash();
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
@@ -9156,6 +9175,517 @@ function openDash(){
     }
     function periodFail(){ toast('Нет связи'); openDash(); }
   });
+}
+
+// ═══════════════════════════════════════════════════════════
+// МУЛЬТИИСТОЧНИКОВЫЙ БЕНЧМАРКИНГ (ФАЗА 1)
+// ═══════════════════════════════════════════════════════════
+var BM_STATE = {
+  tab: 'compare',
+  selectedPosId: null,
+  selectedSourceKey: 'b1',
+  sources: [],
+  datasets: [],
+  mappings: [],
+  comparison: null,
+  loading: false
+};
+
+function openBenchmarks(){
+  S.appView = 'benchmarks';
+  S.unit = null;
+  saveNavState();
+  renderTopNav();
+
+  var app = $('app');
+  app.innerHTML = '<div class="bm-shell" style="max-width:1200px;margin:0 auto;padding:16px 20px 60px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">' +
+      '<div>' +
+        '<h1 style="margin:0 0 4px;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px">' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="stroke:var(--accent)">' + (ICONS.chart || ICONS.dashboard) + '</svg>' +
+          'Мультиисточниковый бенчмаркинг вознаграждений' +
+        '</h1>' +
+        '<div style="font-size:13px;color:var(--muted)">Сравнение заработных плат Фаровона с внешними провайдерами (B1, Antal), джоб-сайтами и внутренним сбором</div>' +
+      '</div>' +
+      '<div class="tab-bar" style="margin:0;background:var(--card);padding:4px;border-radius:10px;border:1px solid var(--line);display:flex;gap:4px">' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">📊 Сравнение по должности</button>' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">🔗 Сопоставление должностей</button>' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">📁 Источники и датасеты</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="bmContent">Загрузка данных…</div>' +
+  '</div>';
+
+  loadBmInitialData();
+}
+
+function switchBmTab(tab){
+  BM_STATE.tab = tab;
+  openBenchmarks();
+}
+
+function loadBmInitialData(){
+  Promise.all([
+    call('apiBenchmarkSources', S.token).catch(function(){ return { sources:[] }; }),
+    call('apiDictList', S.token, 'positions').catch(function(){ return { items:[] }; })
+  ]).then(function(res){
+    BM_STATE.sources = (res[0] && res[0].sources) || [];
+    if(res[1] && res[1].items) S.data.dictPositions = res[1].items;
+
+    if(!BM_STATE.selectedPosId && S.data.dictPositions && S.data.dictPositions.length){
+      BM_STATE.selectedPosId = S.data.dictPositions[0].id;
+    }
+
+    if(BM_STATE.tab === 'compare') renderBmCompare();
+    else if(BM_STATE.tab === 'mapping') renderBmMapping();
+    else if(BM_STATE.tab === 'datasets') renderBmDatasets();
+  });
+}
+
+function renderBmCompare(){
+  var c = $('bmContent');
+  if(!c) return;
+
+  var positions = S.data.dictPositions || [];
+  var selId = BM_STATE.selectedPosId;
+
+  var posOptions = positions.map(function(p){
+    return '<option value="' + p.id + '" ' + (p.id == selId ? 'selected' : '') + '>' + esc(p.name) + '</option>';
+  }).join('');
+
+  c.innerHTML = '<div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">' +
+    '<div class="card" style="padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+      '<label class="lbl" style="margin-top:0">Выберите должность для анализа</label>' +
+      '<select id="bmPosSelect" style="width:100%;margin-bottom:12px">' + posOptions + '</select>' +
+      '<div id="bmPosMeta" style="font-size:12px;color:var(--muted);line-height:1.5">Загрузка данных…</div>' +
+    '</div>' +
+    '<div id="bmCompareDetail">Загрузка сравнения…</div>' +
+  '</div>';
+
+  $('bmPosSelect').onchange = function(){
+    BM_STATE.selectedPosId = this.value;
+    loadBmCompareDetail();
+  };
+
+  loadBmCompareDetail();
+}
+
+function loadBmCompareDetail(){
+  var d = $('bmCompareDetail');
+  var m = $('bmPosMeta');
+  if(!d || !BM_STATE.selectedPosId) return;
+
+  d.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Загрузка сравнения…</div>';
+
+  call('apiBenchmarkCompare', S.token, BM_STATE.selectedPosId).then(function(res){
+    if(!res || !res.ok || !res.result){
+      d.innerHTML = '<div class="err">' + ((res && res.error) || 'Ошибка загрузки данных сравнения') + '</div>';
+      return;
+    }
+    var r = res.result;
+    var pos = r.position || {};
+    var ourMid = pos.ourMid || 0;
+    var comp = r.summary || {};
+
+    if(m){
+      m.innerHTML = '<b>Оклад Фаровон:</b> ' + (pos.ourPayFrom ? pos.ourPayFrom.toLocaleString('ru-RU') : '—') +
+        ' – ' + (pos.ourPayTo ? pos.ourPayTo.toLocaleString('ru-RU') : '—') + ' сомони<br>' +
+        '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--muted)">не задана</span>');
+    }
+
+    var compBadge = '';
+    if(comp.compositeGapPercent != null){
+      var isPositive = comp.compositeGapPercent >= 0;
+      var color = isPositive ? 'var(--green, #10b981)' : 'var(--red, #ef4444)';
+      var sign = isPositive ? '+' : '';
+      compBadge = '<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:700;background:' + color + '20;color:' + color + '">' +
+        sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
+    }
+
+    var sourcesHtml = '';
+
+    // Внутренний сбор
+    var intr = r.internal || {};
+    var intrStats = intr.stats || {};
+    sourcesHtml += '<div class="card" style="padding:14px 16px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:12px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+        '<div>' +
+          '<b style="font-size:15px;display:flex;align-items:center;gap:6px">🏢 ' + esc(intr.sourceTitle) + '</b>' +
+          '<span style="font-size:12px;color:var(--muted)">Внутренние анкеты подразделений (' + (intr.observationsCount || 0) + ' наблюдений)</span>' +
+        '</div>' +
+        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent)">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;font-size:12px;background:var(--bg);padding:8px 12px;border-radius:8px;text-align:center">' +
+        '<div><span style="color:var(--muted)">P10 / Min:</span><br><b>' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--muted)">P25:</span><br><b>' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--muted)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--muted)">P75:</span><br><b>' + (intrStats.p75 ? intrStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--muted)">P90 / Max:</span><br><b>' + (intrStats.max ? intrStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+      '</div>' +
+    '</div>';
+
+    // Внешние источники
+    (r.external || []).forEach(function(ext){
+      var extStats = ext.stats || {};
+      var licBadge = ext.isLicensed ? '<span class="badge" style="background:#f59e0b20;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:4px">Лицензия</span>' : '';
+      var gapHtml = '';
+      if(ext.gapPercent != null){
+        var isPos = ext.gapPercent >= 0;
+        var col = isPos ? '#10b981' : '#ef4444';
+        gapHtml = '<span style="font-size:12px;font-weight:700;color:' + col + '">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
+      }
+
+      sourcesHtml += '<div class="card" style="padding:14px 16px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
+          '<div>' +
+            '<b style="font-size:15px;display:flex;align-items:center;gap:6px">🌐 ' + esc(ext.sourceTitle) + ' ' + licBadge + '</b>' +
+            '<span style="font-size:12px;color:var(--muted)">' + (ext.sourcePosition ? 'Сопоставлено с: «' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · Актуально на: ' + esc(ext.dataAsOf) : '') + '</span>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent)">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
+            (gapHtml ? '<br>' + gapHtml : '') +
+          '</div>' +
+        '</div>' +
+        (ext.hasData ?
+          '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;font-size:12px;background:var(--bg);padding:8px 12px;border-radius:8px;text-align:center">' +
+            '<div><span style="color:var(--muted)">P10 / Min:</span><br><b>' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--muted)">P25:</span><br><b>' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--muted)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--muted)">P75:</span><br><b>' + (extStats.p75 ? extStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--muted)">P90 / Max:</span><br><b>' + (extStats.max ? extStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '</div>'
+        :
+          '<div style="padding:10px;text-align:center;font-size:12px;color:var(--muted);background:var(--bg);border-radius:8px">' +
+            'Для этой должности нет сопоставленных наблюдений в активных датасетах этого источника. ' +
+            '<button class="btn-ghost" style="padding:2px 6px;font-size:12px;color:var(--accent)" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
+          '</div>'
+        ) +
+      '</div>';
+    });
+
+    d.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);padding:14px 18px;border-radius:12px;border:1px solid var(--line);margin-bottom:16px">' +
+        '<div>' +
+          '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:700">Сводная рыночная медиана</div>' +
+          '<div style="font-size:22px;font-weight:800;color:var(--accent);margin-top:2px">' +
+            (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
+          '</div>' +
+        '</div>' +
+        '<div>' + compBadge + '</div>' +
+      '</div>' +
+      sourcesHtml;
+  }).catch(function(err){
+    d.innerHTML = '<div class="err">Ошибка: ' + (err.message || err) + '</div>';
+  });
+}
+
+function renderBmMapping(){
+  var c = $('bmContent');
+  if(!c) return;
+
+  var srcOpts = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+    return '<option value="' + s.key + '" ' + (s.key === BM_STATE.selectedSourceKey ? 'selected' : '') + '>' + esc(s.title) + '</option>';
+  }).join('');
+
+  c.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+      '<label class="lbl" style="margin:0">Источник данных:</label>' +
+      '<select id="bmMapSrcSelect" style="padding:6px 12px;border-radius:8px">' + srcOpts + '</select>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button class="btn" id="btnBmSuggest" style="display:inline-flex;align-items:center;gap:6px">' +
+        '⚡ Автоподбор похожих должностей' +
+      '</button>' +
+    '</div>' +
+  '</div>' +
+  '<div id="bmMapTable">Загрузка сопоставлений…</div>';
+
+  $('bmMapSrcSelect').onchange = function(){
+    BM_STATE.selectedSourceKey = this.value;
+    loadBmMappingsList();
+  };
+
+  $('btnBmSuggest').onclick = openBmSuggestModal;
+
+  loadBmMappingsList();
+}
+
+function loadBmMappingsList(){
+  var tbl = $('bmMapTable');
+  if(!tbl) return;
+
+  tbl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">Загрузка сопоставлений…</div>';
+
+  call('apiBenchmarkMappings', S.token, BM_STATE.selectedSourceKey).then(function(res){
+    var mappings = (res && res.mappings) || [];
+    if(mappings.length === 0){
+      tbl.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+        'Сопоставлений для этого источника пока нет. Нажмите <b>«⚡ Автоподбор похожих должностей»</b> или загрузите новый датасет.' +
+      '</div>';
+      return;
+    }
+
+    var rows = mappings.map(function(m){
+      var confLabel = m.confidence === 'exact' ? '🟢 Точное' : (m.confidence === 'close' ? '🟡 Близкое' : '⚪ Примерное');
+      return '<tr>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)"><b>' + esc(m.dict_position_name) + '</b></td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:11px;color:var(--muted)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)"><span style="font-size:12px">' + confLabel + '</span></td>' +
+        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:right">' +
+          '<button class="btn-ghost" style="color:var(--red, #ef4444);padding:4px 8px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">Удалить</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    tbl.innerHTML = '<div class="card" style="background:var(--card);border-radius:12px;border:1px solid var(--line);overflow:hidden">' +
+      '<table style="width:100%;border-collapse:collapse;text-align:left;font-size:13px">' +
+        '<thead>' +
+          '<tr style="background:var(--bg);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)">' +
+            '<th style="padding:10px 12px">Должность Фаровон</th>' +
+            '<th style="padding:10px 12px">Должность источника</th>' +
+            '<th style="padding:10px 12px">Точность</th>' +
+            '<th style="padding:10px 12px;text-align:right">Действие</th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+  });
+}
+
+function deleteBmMapping(id){
+  ask({ title:'Удалить сопоставление?', html:'Связь между должностями будет удалена.', ok:'Удалить', danger:true }).then(function(yes){
+    if(!yes) return;
+    call('apiBenchmarkDeleteMapping', S.token, id).then(function(res){
+      if(res && res.ok){
+        toast('Сопоставление удалено');
+        loadBmMappingsList();
+      } else {
+        toast((res && res.error) || 'Ошибка удаления');
+      }
+    });
+  });
+}
+
+function openBmSuggestModal(){
+  var srcKey = BM_STATE.selectedSourceKey;
+  call('apiBenchmarkSuggestMappings', S.token, srcKey).then(function(res){
+    var list = (res && res.suggestions) || [];
+    if(list.length === 0){
+      alertModal('Нет предложений', 'Все должности источника уже сопоставлены либо подходящих совпадений не найдено.');
+      return;
+    }
+
+    var el = document.createElement('div');
+    el.className = 'sheet';
+
+    var itemsHtml = list.map(function(item, idx){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--line);font-size:13px">' +
+        '<div>' +
+          '<b>' + esc(item.sourcePosition.label) + '</b> <span style="font-size:11px;color:var(--muted)">(Источник)</span><br>' +
+          '<span style="color:var(--accent)">→ ' + esc(item.suggestedDictPosition.name) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--green, #10b981)">' + item.similarity + '%</span>' +
+          '<button class="btn" style="padding:4px 10px;font-size:12px" data-bmapply="' + idx + '">Связать</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML = '<div class="sheet-in" style="max-width:650px">' +
+      '<div class="sheet-hd"><b>Предложения по сопоставлению должностей</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+      '<div style="max-height:400px;overflow-y:auto;margin:12px 0">' + itemsHtml + '</div>' +
+    '</div>';
+
+    document.body.appendChild(el);
+    el.onclick = function(e){
+      if(e.target.dataset.x || e.target === el){ el.remove(); return; }
+      var btn = e.target.closest('button[data-bmapply]');
+      if(btn){
+        var item = list[parseInt(btn.dataset.bmapply)];
+        btn.disabled = true; btn.textContent = 'Сохраняем…';
+        call('apiBenchmarkSaveMapping', S.token, {
+          dictPositionId: item.suggestedDictPosition.id,
+          sourcePositionId: item.sourcePosition.id,
+          confidence: item.confidence,
+          note: 'Автоподбор (' + item.similarity + '%)'
+        }).then(function(res){
+          if(res && res.ok){
+            toast('Связано: ' + item.sourcePosition.label + ' ↔ ' + item.suggestedDictPosition.name);
+            btn.parentElement.innerHTML = '<span style="color:var(--green, #10b981);font-size:12px">✓ Связано</span>';
+            loadBmMappingsList();
+          } else {
+            toast((res && res.error) || 'Ошибка');
+            btn.disabled = false; btn.textContent = 'Связать';
+          }
+        });
+      }
+    };
+  });
+}
+
+function renderBmDatasets(){
+  var c = $('bmContent');
+  if(!c) return;
+
+  c.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+    '<div><b style="font-size:16px">Загруженные датасеты и источники</b></div>' +
+    '<div><button class="btn" id="btnBmUpload" style="display:inline-flex;align-items:center;gap:6px">➕ Загрузить датасет</button></div>' +
+  '</div>' +
+  '<div id="bmDatasetsList">Загрузка датасетов…</div>';
+
+  $('btnBmUpload').onclick = openBmImportModal;
+
+  call('apiBenchmarkDatasets', S.token).then(function(res){
+    var list = (res && res.datasets) || [];
+    var el = $('bmDatasetsList');
+    if(!el) return;
+
+    if(list.length === 0){
+      el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+        'Пока нет загруженных датасетов. Нажмите <b>«➕ Загрузить датасет»</b>, чтобы загрузить данные B1, Antal или Job Farovon.' +
+      '</div>';
+      return;
+    }
+
+    var cards = list.map(function(d){
+      var lic = d.is_licensed ? '<span class="badge" style="background:#f59e0b20;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:4px">Лицензия</span>' : '';
+      return '<div class="card" style="padding:14px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">' +
+        '<div>' +
+          '<b style="font-size:15px">' + esc(d.title) + ' ' + lic + '</b><br>' +
+          '<span style="font-size:12px;color:var(--muted)">Источник: ' + esc(d.source_title) + ' · Дата отчёта: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+        '</div>' +
+        '<span style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--green, #10b981)20;color:var(--green, #10b981);font-weight:700">Активен</span>' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML = cards;
+  });
+}
+
+function openBmImportModal(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+
+  var srcOptions = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+    return '<option value="' + s.key + '">' + esc(s.title) + '</option>';
+  }).join('');
+
+  el.innerHTML = '<div class="sheet-in" style="max-width:750px">' +
+    '<div class="sheet-hd"><b>Загрузка датасета обзора заработных плат</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div id="bmImpErr" class="err hidden" style="margin-top:8px"></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">' +
+      '<div>' +
+        '<label class="lbl">Источник</label>' +
+        '<select id="bmiSource">' + srcOptions + '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">Название датасета</label>' +
+        '<input id="bmiTitle" placeholder="B1 Salary Survey 2026">' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">Режим данных</label>' +
+        '<select id="bmiMode">' +
+          '<option value="percentiles">Готовые перцентили (P25/P50/P75)</option>' +
+          '<option value="raw_vacancies">Сырые вакансии/точки данных</option>' +
+        '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">Дата актуальности данных</label>' +
+        '<input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '">' +
+      '</div>' +
+    '</div>' +
+    '<label class="lbl" style="margin-top:12px">Вставьте данные (таблица CSV / TSV из Excel или PDF):</label>' +
+    '<textarea id="bmiText" rows="6" placeholder="Должность,P25,P50,P75\nГлавный бухгалтер,8000,12000,16000" style="width:100%;font-family:monospace;font-size:12px"></textarea>' +
+    '<div id="bmiPreview" style="margin-top:12px"></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
+      '<button class="btn-ghost" data-x="1">Отмена</button>' +
+      '<button class="btn-line" id="btnBmiDryRun">🔍 Проверить (Dry Run)</button>' +
+      '<button class="btn" id="btnBmiCommit" disabled>Импортировать в базу</button>' +
+    '</div>' +
+  '</div>';
+
+  document.body.appendChild(el);
+
+  var dryRunReport = null;
+
+  el.onclick = function(e){
+    if(e.target.dataset.x || e.target === el){ el.remove(); return; }
+  };
+
+  $('btnBmiDryRun').onclick = function(){
+    var text = $('bmiText').value.trim();
+    if(!text){ toast('Вставьте текст таблицы'); return; }
+
+    var mode = $('bmiMode').value;
+    var colMap = mode === 'percentiles' ?
+      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
+      { posLabel:0, value:1, region:2, company:3 };
+
+    $('btnBmiDryRun').disabled = true; $('btnBmiDryRun').textContent = 'Проверка…';
+    $('bmImpErr').classList.add('hidden');
+
+    call('apiBenchmarkDryRun', S.token, {
+      sourceKey: $('bmiSource').value,
+      text: text,
+      mode: mode,
+      columnMap: colMap,
+      title: $('bmiTitle').value.trim(),
+      dataAsOf: $('bmiDataAsOf').value
+    }).then(function(res){
+      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').textContent = '🔍 Проверить (Dry Run)';
+      if(!res || !res.ok){
+        $('bmImpErr').textContent = (res && res.error) || 'Ошибка проверки';
+        $('bmImpErr').classList.remove('hidden');
+        return;
+      }
+
+      dryRunReport = res.report;
+      $('btnBmiCommit').disabled = false;
+
+      var prevHtml = '<div style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px">' +
+        '<b>Результат проверки:</b> Найдено ' + dryRunReport.validRows + ' валидных строк. Новых должностей для источника: ' + dryRunReport.newPositionsCount + '<br>' +
+        (dryRunReport.errors.length ? '<span style="color:var(--red, #ef4444)">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span style="color:var(--green, #10b981)">Ошибок нет</span>') +
+      '</div>';
+      $('bmiPreview').innerHTML = prevHtml;
+    }).catch(function(err){
+      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').textContent = '🔍 Проверить (Dry Run)';
+      $('bmImpErr').textContent = err.message || 'Ошибка связи';
+      $('bmImpErr').classList.remove('hidden');
+    });
+  };
+
+  $('btnBmiCommit').onclick = function(){
+    var text = $('bmiText').value.trim();
+    var mode = $('bmiMode').value;
+    var colMap = mode === 'percentiles' ?
+      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
+      { posLabel:0, value:1, region:2, company:3 };
+
+    $('btnBmiCommit').disabled = true; $('btnBmiCommit').textContent = 'Импортируем…';
+
+    call('apiBenchmarkCommit', S.token, {
+      sourceKey: $('bmiSource').value,
+      text: text,
+      mode: mode,
+      columnMap: colMap,
+      title: $('bmiTitle').value.trim(),
+      dataAsOf: $('bmiDataAsOf').value
+    }).then(function(res){
+      if(res && res.ok){
+        toast('Датасет успешно сохранен!');
+        el.remove();
+        renderBmDatasets();
+      } else {
+        $('bmImpErr').textContent = (res && res.error) || 'Ошибка сохранения';
+        $('bmImpErr').classList.remove('hidden');
+        $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
+      }
+    }).catch(function(err){
+      $('bmImpErr').textContent = err.message || 'Ошибка связи';
+      $('bmImpErr').classList.remove('hidden');
+      $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
+    });
+  };
 }
 </script>
 

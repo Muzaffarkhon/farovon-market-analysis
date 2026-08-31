@@ -168,21 +168,107 @@ async function migrate() {
   // Автоматическая инициализация роли 'control' для служб внутреннего аудита
   await run("UPDATE divisions SET org_role = 'control' WHERE (unit LIKE '%аудит%' OR dir LIKE '%аудит%') AND (org_role IS NULL OR org_role = 'line')");
 
-  // Составные индексы для мгновенной выборки и ускорения работы
-  await run('CREATE INDEX IF NOT EXISTS idx_competitors_unit_actual ON competitors(unit, actual)');
-  await run('CREATE INDEX IF NOT EXISTS idx_surveys_unit_state ON surveys(unit, state)');
-  await run('CREATE INDEX IF NOT EXISTS idx_divisions_dir ON divisions(dir)');
-  await run('CREATE INDEX IF NOT EXISTS idx_divisions_org_role ON divisions(org_role)');
-  await run('CREATE INDEX IF NOT EXISTS idx_dict_companies_name ON dictionary_companies(name)');
-  await run('CREATE INDEX IF NOT EXISTS idx_dict_positions_name ON dictionary_positions(name)');
+  // Комментарий по подразделению (свободный текст)
+  await ensureColumn('divisions', 'survey_note', "TEXT DEFAULT ''");
 
-  // Объединение дубликатов ФИО и дописывание отчеств вынесено в РУЧНЫЕ скрипты —
-  // на старте оно не запускается. Эвристика слияния (совпадение фамилии + ещё
-  // одного токена) может склеить разных людей-однофамильцев и архивирует аккаунт
-  // необратимо, поэтому её нельзя гонять по боевой базе при каждом деплое.
-  // Разовая чистка, под присмотром и с бэкапом:
-  //   node src/tools/mergeDuplicateUsers.js
-  //   node src/tools/enrichFullFio.js
+  // ============================================================
+  // Мультиисточниковый бенчмаркинг вознаграждений (Фаза 1)
+  // ============================================================
+
+  await run(`CREATE TABLE IF NOT EXISTS data_sources (
+    key TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL, -- 'internal', 'jobsite', 'consultancy'
+    is_licensed INTEGER NOT NULL DEFAULT 0,
+    default_currency TEXT DEFAULT 'сомони',
+    notes TEXT
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS benchmark_datasets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    report_date TEXT,
+    data_as_of TEXT,
+    currency TEXT DEFAULT 'сомони',
+    methodology TEXT,
+    uploaded_by TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    row_count INTEGER DEFAULT 0,
+    state TEXT DEFAULT 'active', -- 'draft', 'active', 'archived'
+    FOREIGN KEY (source_key) REFERENCES data_sources(key)
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS source_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_key TEXT NOT NULL,
+    code TEXT,
+    label TEXT NOT NULL,
+    family TEXT,
+    UNIQUE(source_key, label),
+    FOREIGN KEY (source_key) REFERENCES data_sources(key)
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS position_map (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dict_position_id INTEGER NOT NULL,
+    source_position_id INTEGER NOT NULL,
+    confidence TEXT DEFAULT 'exact', -- 'exact', 'close', 'approx'
+    note TEXT,
+    mapped_by TEXT,
+    mapped_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(dict_position_id, source_position_id),
+    FOREIGN KEY (dict_position_id) REFERENCES dictionary_positions(id),
+    FOREIGN KEY (source_position_id) REFERENCES source_positions(id)
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS benchmark_rows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER NOT NULL,
+    source_position_id INTEGER NOT NULL,
+    region TEXT,
+    industry TEXT,
+    company_size TEXT,
+    grade TEXT,
+    component TEXT DEFAULT 'base', -- 'base', 'total_cash', 'total_remuneration'
+    currency TEXT DEFAULT 'сомони',
+    period TEXT DEFAULT 'в месяц',
+    stat_type TEXT NOT NULL, -- 'point', 'p10', 'p25', 'p50', 'p75', 'p90', 'avg', 'min', 'max'
+    value REAL NOT NULL,
+    sample_n INTEGER DEFAULT 1,
+    company TEXT,
+    FOREIGN KEY (dataset_id) REFERENCES benchmark_datasets(id),
+    FOREIGN KEY (source_position_id) REFERENCES source_positions(id)
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS fx_rates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    currency TEXT NOT NULL,
+    date TEXT NOT NULL,
+    rate_to_base REAL NOT NULL, -- курс к сомони (TJS = 1)
+    UNIQUE(currency, date)
+  )`);
+
+  await run('CREATE INDEX IF NOT EXISTS idx_benchmark_rows_dataset ON benchmark_rows(dataset_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_benchmark_rows_pos ON benchmark_rows(source_position_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_source_positions_source ON source_positions(source_key)');
+  await run('CREATE INDEX IF NOT EXISTS idx_position_map_dict ON position_map(dict_position_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_position_map_source ON position_map(source_position_id)');
+
+  // Сид базовых источников данных
+  const defaultSources = [
+    ['internal', 'Внутренний сбор', 'internal', 0, 'сомони', 'Точечные наблюдения по компаниям-конкурентам от HR BP и руководителей подразделений'],
+    ['job_farovon', 'Job Farovon (hh)', 'jobsite', 0, 'сомони', 'Выгрузка вакансий и резюме с джоб-платформы Farovon / HeadHunter'],
+    ['b1', 'B1 (Ernst & Young)', 'consultancy', 1, 'USD', 'Ежегодный обзор заработных плат B1 Salary Survey'],
+    ['antal', 'Antal International', 'consultancy', 1, 'USD', 'Исследование рынка труда и зарплат Antal']
+  ];
+  for (const [key, title, kind, is_licensed, default_currency, notes] of defaultSources) {
+    await run(
+      'INSERT OR IGNORE INTO data_sources (key, title, kind, is_licensed, default_currency, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [key, title, kind, is_licensed, default_currency, notes]
+    );
+  }
+  console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
 }
 
 module.exports = { migrate, ensureColumn };

@@ -9,6 +9,7 @@ const dashboardController = require('../controllers/dashboardController');
 const adminController = require('../controllers/adminController');
 const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
+const benchmarkController = require('../controllers/benchmarkController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -81,5 +82,17 @@ router.post('/admin/role-capabilities', requireRoles('admin'), adminController.s
 router.post('/admin/roles', requireRoles('admin'), adminController.createRole);
 router.post('/admin/roles/:key/rename', requireRoles('admin'), adminController.renameRole);
 router.post('/admin/roles/:key/delete', requireRoles('admin'), adminController.deleteRole);
+
+// ─── Мультиисточниковый бенчмаркинг вознаграждений ───
+router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);
+router.get('/benchmarks/datasets', requireCapability('benchmarks:view'), benchmarkController.getDatasets);
+router.get('/benchmarks/positions/:sourceKey', requireCapability('benchmarks:view'), benchmarkController.getSourcePositions);
+router.get('/benchmarks/mappings', requireCapability('benchmarks:view'), benchmarkController.getMappings);
+router.get('/benchmarks/suggest-mappings/:sourceKey', requireCapability('benchmarks:map'), benchmarkController.suggestMappings);
+router.post('/benchmarks/mappings', requireCapability('benchmarks:map'), benchmarkController.saveMapping);
+router.post('/benchmarks/mappings/:id/delete', requireCapability('benchmarks:map'), benchmarkController.deleteMapping);
+router.post('/benchmarks/import/dry-run', requireCapability('benchmarks:import'), benchmarkController.dryRunImport);
+router.post('/benchmarks/import/commit', requireCapability('benchmarks:import'), benchmarkController.commitImport);
+router.get('/benchmarks/compare', requireCapability('benchmarks:view'), benchmarkController.compare);
 
 module.exports = router;
