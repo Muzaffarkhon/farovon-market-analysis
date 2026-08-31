@@ -6,14 +6,14 @@ async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['x-token'];
   let token = null;
 
+  // Токен принимаем только из заголовка. Раньше был ещё и ?token= в query —
+  // такие токены оседают в логах доступа, Referer и истории браузера.
   if (authHeader) {
     if (authHeader.startsWith('Bearer ')) {
       token = authHeader.slice(7).trim();
     } else {
       token = authHeader.trim();
     }
-  } else if (req.query && req.query.token) {
-    token = req.query.token;
   }
 
   if (!token) {
@@ -21,7 +21,7 @@ async function authMiddleware(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret);
+    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
     const user = await queryOne(
       "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
       [decoded.login]

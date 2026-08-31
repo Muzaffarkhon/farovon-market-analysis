@@ -4595,9 +4595,16 @@ function exportDashboardCSV(){
     return;
   }
   var headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
+  // Гасим CSV-инъекцию: ячейку, начинающуюся с = + - @ или упр. символа,
+  // Excel/Sheets исполняют как формулу — префиксуем апострофом.
+  var csvCell = function(v){
+    var s = String(v == null ? '' : v);
+    if(/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
   var rows = S.dashData.positions.map(function(p){
     return [
-      '"' + (p.pos || '').replace(/"/g, '""') + '"',
+      csvCell(p.pos),
       p.count,
       p.withSalaryCount,
       p.min,

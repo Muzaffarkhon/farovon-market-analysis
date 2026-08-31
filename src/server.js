@@ -23,6 +23,10 @@ if (missing.length) {
 
 const app = express();
 
+// За прокси Render: без этого req.ip = адрес прокси, и IP в audit_log
+// бесполезны, а rate-limit считал бы всех клиентов за одного.
+app.set('trust proxy', 1);
+
 // Проверка подключения к базе данных и запуск идемпотентных миграций
 (async () => {
   try {
@@ -37,9 +41,50 @@ const app = express();
 })();
 
 // Middleware
-app.use(cors());
+// CORS по белому списку вместо `cors()` (который отдавал Access-Control-Allow-Origin: *
+// всем подряд). Фронтенд отдаётся тем же сервером — межсайтовые запросы к API
+// делает только Telegram Mini App. Список origin'ов можно переопределить
+// переменной CORS_ORIGINS (через запятую).
+const corsOrigins = (process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : [config.webappUrl, 'https://web.telegram.org', 'https://farovon-market-analysis.onrender.com']
+).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    // Запросы без Origin (curl, серверные, health-пинги, same-origin GET) не блокируем.
+    if (!origin || corsOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: false
+}));
+// CSP вместо полностью выключенного. script-src/style-src оставляют
+// 'unsafe-inline' — во фронте много инлайнового JS/CSS, хешировать его без
+// переписывания нельзя; но внешние ресурсы, framing и base-uri теперь под
+// контролем. Разрешены: сам сервер, Telegram Web SDK (telegram.org),
+// Google Fonts. Встраивать страницу в iframe может только Telegram.
 app.use(helmet({
-  contentSecurityPolicy: false // Для работы Telegram Mini App Web SDK
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'unsafe-inline'", 'https://telegram.org'],
+      'script-src-attr': ["'unsafe-inline'"], // во фронте ~20 инлайновых onclick=
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      'img-src': ["'self'", 'data:'],
+      'connect-src': ["'self'"],
+      'frame-ancestors': ["'self'", 'https://web.telegram.org', 'https://*.telegram.org'],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+      'upgrade-insecure-requests': null // ломает локальную разработку по http
+    }
+  },
+  // X-Frame-Options: SAMEORIGIN перебил бы frame-ancestors и не пустил бы
+  // Telegram-iframe. Framing контролирует CSP выше.
+  frameguard: false,
+  crossOriginEmbedderPolicy: false, // иначе Telegram Mini App не грузится в iframe
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { authMiddleware, requireRoles, requireCapability } = require('../middleware/auth');
+const { apiLimiter, authLimiter, webhookLimiter } = require('../middleware/rateLimit');
 const authController = require('../controllers/authController');
 const surveyController = require('../controllers/surveyController');
 const dashboardController = require('../controllers/dashboardController');
@@ -9,11 +10,14 @@ const adminController = require('../controllers/adminController');
 const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
 
+// Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
+router.use(apiLimiter);
+
 // ─── Публичные роуты авторизации ───
-router.post('/auth/login', authController.login);
+router.post('/auth/login', authLimiter, authController.login);
 
 // Сюда Telegram шлёт входящие сообщения — без JWT, проверяется секретным заголовком
-router.post('/telegram/webhook', telegramController.webhook);
+router.post('/telegram/webhook', webhookLimiter, telegramController.webhook);
 
 // ─── Защищенные роуты (требуют JWT) ───
 router.use(authMiddleware);
