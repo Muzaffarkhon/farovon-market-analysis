@@ -1,11 +1,14 @@
 const { queryOne, queryAll, run, batch } = require('../db/database');
 
 const ALLOWED_CURRENCIES = ['сомони', 'usd', 'rub', 'eur', 'доллар', 'рубль', 'евро', 'tjs'];
-const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в смену', 'в год', 'в день'];
+const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в час (чтс)', 'в смену', 'в год', 'в день'];
 
 function cleanNumber(val, fieldName) {
   if (val === undefined || val === null || val === '') return 0;
-  const num = Number(String(val).replace(/\s+/g, '').replace(',', '.'));
+  // Пробел, запятая и точка — разделители тысяч ("10 000" / "10,000" / "10.000").
+  // Дробных окладов в вилках нет, поэтому убираем их все. Раньше здесь было
+  // .replace(',', '.') — "10,000" превращалось в 10 и валило проверку "от > до".
+  const num = Number(String(val).replace(/[\s .,]/g, ''));
   if (!Number.isFinite(num) || isNaN(num)) {
     throw new Error(`Поле "${fieldName}" должно быть корректным числом`);
   }
