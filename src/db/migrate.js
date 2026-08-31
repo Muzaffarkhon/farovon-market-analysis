@@ -145,6 +145,10 @@ async function migrate() {
   await ensureColumn('users', 'failed_login_count', 'INTEGER NOT NULL DEFAULT 0');
   await ensureColumn('users', 'locked_until', 'DATETIME');
 
+  // Вошёл по временному паролю (бот /login или сброс админом) — обязан сменить
+  // его при первом входе. Флаг ставит telegramController, снимает changePassword.
+  await ensureColumn('users', 'must_change_password', 'INTEGER NOT NULL DEFAULT 0');
+
   // График работы у конкурента (например «6/1-54 часов»). Собирается и в
   // карточке сбора данных, и приходит из импорта опроса зарплат — раньше
   // отдельного поля не было и значение терялось в примечании.

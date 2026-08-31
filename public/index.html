@@ -1544,18 +1544,20 @@ function openProfile(){
   el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
 }
 
-/** Смена собственного пароля. */
-function openPassword(){
+/** Смена собственного пароля. forced=true — принудительно после входа по
+ *  временному паролю: без кнопки закрытия, после успеха — перезагрузка. */
+function openPassword(forced){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in">'+
-    '<div class="sheet-hd"><b>Сменить пароль</b>'+
-      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div class="sheet-hd"><b>'+(forced ? 'Требуется сменить пароль' : 'Сменить пароль')+'</b>'+
+      (forced ? '' : '<button class="btn-ghost" data-x="1">Закрыть</button>')+'</div>'+
+    (forced ? '<p style="font-size:13px;color:var(--muted);margin:2px 0 10px">Вы вошли по временному паролю. Придумайте свой — без этого продолжить нельзя.</p>' : '')+
     '<div id="pwErr" class="err hidden"></div>'+
-    '<label class="lbl" style="margin-top:6px">Текущий пароль</label>'+
+    '<label class="lbl" style="margin-top:6px">Текущий'+(forced ? ' (временный)' : '')+' пароль</label>'+
     '<input id="pwOld" type="password" autocomplete="current-password">'+
     '<label class="lbl">Новый пароль</label>'+
-    '<input id="pwNew" type="password" autocomplete="new-password" placeholder="минимум 6 символов">'+
+    '<input id="pwNew" type="password" autocomplete="new-password" placeholder="минимум 8 символов, буква и цифра">'+
     '<label class="lbl">Повторите новый</label>'+
     '<input id="pwNew2" type="password" autocomplete="new-password">'+
     '<div style="height:16px"></div>'+
@@ -1570,16 +1572,21 @@ function openPassword(){
     e.textContent = m; e.classList.remove('hidden');
   };
 
-  guardClose(el, function(){
-    return !!(el.querySelector('#pwOld').value || el.querySelector('#pwNew').value || el.querySelector('#pwNew2').value);
-  });
+  // В forced-режиме окно закрыть нельзя вообще: нет кнопки закрытия и не вешаем
+  // guardClose (клик по фону тоже ничего не делает).
+  if(!forced){
+    guardClose(el, function(){
+      return !!(el.querySelector('#pwOld').value || el.querySelector('#pwNew').value || el.querySelector('#pwNew2').value);
+    });
+  }
 
   el.querySelector('#pwGo').onclick = function(){
     var o = el.querySelector('#pwOld').value;
     var n = el.querySelector('#pwNew').value;
     var n2 = el.querySelector('#pwNew2').value;
     if(!o || !n){ err('Заполните все поля'); return; }
-    if(n.length < 6){ err('Новый пароль — минимум 6 символов'); return; }
+    if(n.length < 8){ err('Новый пароль — минимум 8 символов'); return; }
+    if(!/[A-Za-zА-Яа-я]/.test(n) || !/[0-9]/.test(n)){ err('Нужна хотя бы одна буква и одна цифра'); return; }
     if(n !== n2){ err('Новые пароли не совпадают'); return; }
 
     var btn = this;
@@ -1587,6 +1594,7 @@ function openPassword(){
     call('apiChangePassword', S.token, o, n).then(function(r){
       btn.disabled = false; btn.textContent = 'Сменить пароль';
       if(!r || !r.ok){ err((r && r.error) || 'Не удалось сменить пароль'); return; }
+      if(forced){ toast('Пароль изменён', 'ok'); setTimeout(function(){ location.reload(); }, 700); return; }
       el.remove();
       toast('Пароль изменён. В следующий раз входите с новым.');
     }).catch(function(){
@@ -1783,6 +1791,9 @@ function onLoaded(data){
   if(isElevated && (!S.appView || S.appView === 'units')) S.appView = 'dashboard';
   show('app');
   renderTopNav();
+
+  // Вошёл по временному паролю — форсируем смену, остальное не показываем.
+  if(data.mustChangePassword){ openPassword(true); return; }
 
   if(data.needsUnitPick) renderUnitPicker();
   else if(data.needsAssignment) renderNeedsAssignment();

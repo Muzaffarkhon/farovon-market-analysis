@@ -281,6 +281,7 @@ async function getUserPayload(user) {
       capabilities
     },
     period,
+    mustChangePassword: !!user.must_change_password,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
     needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),
     units: visibleUnits,
@@ -531,7 +532,7 @@ exports.changePassword = async (req, res) => {
 
     const newHash = hashPassword(newPassword);
     const now = new Date().toISOString();
-    await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
+    await run('UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?', [
       newHash,
       now,
       user.id

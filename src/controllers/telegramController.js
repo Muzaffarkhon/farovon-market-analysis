@@ -152,7 +152,7 @@ async function resetAndSendCredentials(user, source) {
   });
   if (!sent) return { ok: false, reason: 'send_failed' };
 
-  await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
+  await run('UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ?', [
     bcrypt.hashSync(tempPassword, 12),
     new Date().toISOString(),
     user.id

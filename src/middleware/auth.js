@@ -23,7 +23,7 @@ async function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
     const user = await queryOne(
-      "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
+      "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id, must_change_password FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
       [decoded.login]
     );
 
@@ -39,6 +39,18 @@ async function authMiddleware(req, res, next) {
       ...user,
       units: user.units ? user.units.split(';').map(s => s.trim()).filter(Boolean) : []
     };
+
+    // Вошёл по временному паролю — до его смены пускаем только на смену пароля
+    // и обновление сессии. Остальные эндпоинты закрыты.
+    if (user.must_change_password) {
+      const allowed = /\/auth\/(change-password|resume)$/.test(req.path || req.url || '');
+      if (!allowed) {
+        return res.status(403).json({
+          ok: false, error: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'Сначала смените временный пароль'
+        });
+      }
+    }
 
     next();
   } catch (err) {
