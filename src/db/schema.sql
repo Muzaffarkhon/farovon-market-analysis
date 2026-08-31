@@ -4,13 +4,18 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   login TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  raw_password TEXT,
   fio TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user', -- 'admin', 'cb', 'hrbp', 'dir_head', 'head', 'user'
   phone TEXT,
   telegram_chat_id TEXT,
+  telegram_link_token TEXT,
+  telegram_link_expires DATETIME,
   units TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
+  archived_at DATETIME, -- NULL = обычный пользователь; иначе — в архиве, не виден в списке и не может войти
+  failed_login_count INTEGER NOT NULL DEFAULT 0, -- подряд идущих неудачных входов; сбрасывается при успешном
+  locked_until DATETIME, -- NULL = не заблокирован; иначе ISO-время, до которого вход по паролю запрещён
+  must_change_password INTEGER NOT NULL DEFAULT 0, -- 1 = вошёл по временному паролю, обязан сменить
   last_login_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -69,6 +74,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   bon_type TEXT,
   bon_per TEXT,
   benefits TEXT DEFAULT '',
+  schedule TEXT DEFAULT '',
   extra TEXT,
   source TEXT,
   trust TEXT,
@@ -88,7 +94,9 @@ CREATE TABLE IF NOT EXISTS dictionary_companies (
 
 CREATE TABLE IF NOT EXISTS dictionary_positions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL
+  name TEXT UNIQUE NOT NULL,
+  pay_from REAL DEFAULT 0, -- оклад Фаровона по должности (эталон для дашборда вилок)
+  pay_to REAL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS periods (

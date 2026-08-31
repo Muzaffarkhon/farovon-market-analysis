@@ -8,6 +8,9 @@ yarn-error.log*
 .env
 .env.local
 .env.production
+.env.bak*
+.env.*.bak*
+.env.*.local
 
 # Database file (generated)
 data/market.db
@@ -26,3 +29,10 @@ data/market.db-shm
 Thumbs.db
 .vscode/
 .idea/
+
+# graphify knowledge-graph output (regenerate with: graphify . --update)
+graphify-out/
+
+# Scratch: одноразовые скрипты разбора / проверки данных, не для репозитория
+scratch/
+.obsidian/

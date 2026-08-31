@@ -6,47 +6,146 @@ const compression = require('compression');
 const morgan = require('morgan');
 
 const config = require('./config');
-const { getDb } = require('./db/database');
-const { runSeed } = require('./db/seed');
+const { queryOne } = require('./db/database');
+const { migrate } = require('./db/migrate');
 const apiRoutes = require('./routes/api');
 const errorHandler = require('./middleware/errorHandler');
+const { ensureWebhook } = require('./services/telegramService');
+
+// Секретов с запасными значениями в коде больше нет — если переменные окружения не
+// заданы, сервис обязан упасть сразу, а не поднять полурабочий прод.
+const missing = config.missingSecrets();
+if (missing.length) {
+  console.error(`❌ Не заданы обязательные переменные окружения: ${missing.join(', ')}`);
+  console.error('   Render → Environment (или файл .env локально, см. .env.example), затем перезапуск.');
+  process.exit(1);
+}
 
 const app = express();
 
-// Инициализация базы данных и сидирование при первом запуске
-try {
-  const db = getDb();
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (userCount === 0) {
-    console.log('📦 База данных пуста. Запускаем автоматическое сидирование...');
-    runSeed();
+// За прокси Render: без этого req.ip = адрес прокси, и IP в audit_log
+// бесполезны, а rate-limit считал бы всех клиентов за одного.
+app.set('trust proxy', 1);
+
+// Проверка подключения к базе данных и запуск идемпотентных миграций
+(async () => {
+  try {
+    const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
+    console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
+    await migrate();
+    console.log('✅ Идемпотентные миграции схемы базы данных успешно применены');
+  } catch (err) {
+    console.warn('⚠️ Ошибка подключения/миграции базы данных:', err.message);
   }
-} catch (err) {
-  console.warn('⚠️ Ошибка при автоматической проверке сидов:', err.message);
-}
+  await ensureWebhook();
+})();
 
 // Middleware
-app.use(cors());
+// CORS по белому списку вместо `cors()` (который отдавал Access-Control-Allow-Origin: *
+// всем подряд). Фронтенд отдаётся тем же сервером — межсайтовые запросы к API
+// делает только Telegram Mini App. Список origin'ов можно переопределить
+// переменной CORS_ORIGINS (через запятую).
+const corsOrigins = (process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : [config.webappUrl, 'https://web.telegram.org', 'https://farovon-market-analysis.onrender.com']
+).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    // Запросы без Origin (curl, серверные, health-пинги, same-origin GET) не блокируем.
+    if (!origin || corsOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: false
+}));
+// CSP вместо полностью выключенного. script-src/style-src оставляют
+// 'unsafe-inline' — во фронте много инлайнового JS/CSS, хешировать его без
+// переписывания нельзя; но внешние ресурсы, framing и base-uri теперь под
+// контролем. Разрешены: сам сервер, Telegram Web SDK (telegram.org),
+// Google Fonts. Встраивать страницу в iframe может только Telegram.
 app.use(helmet({
-  contentSecurityPolicy: false // Для работы Telegram Mini App Web SDK
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'unsafe-inline'", 'https://telegram.org'],
+      'script-src-attr': ["'unsafe-inline'"], // во фронте ~20 инлайновых onclick=
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      'img-src': ["'self'", 'data:'],
+      'connect-src': ["'self'"],
+      'frame-ancestors': ["'self'", 'https://web.telegram.org', 'https://*.telegram.org'],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+      'upgrade-insecure-requests': null // ломает локальную разработку по http
+    }
+  },
+  // X-Frame-Options: SAMEORIGIN перебил бы frame-ancestors и не пустил бы
+  // Telegram-iframe. Framing контролирует CSP выше.
+  frameguard: false,
+  crossOriginEmbedderPolicy: false, // иначе Telegram Mini App не грузится в iframe
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Тело запроса: обычным роутам хватает с запасом 512 КБ. Большой JSON нужен
+// только импорту опроса зарплат (весь CSV приходит строкой в теле) — для него
+// отдельный парсер на 15 МБ. Так на остальные эндпоинты нельзя залить мегабайты
+// мусора, заставляя сервер их буферизовать и парсить.
+const jsonSmall = express.json({ limit: '512kb' });
+const jsonLarge = express.json({ limit: '15mb' });
+app.use((req, res, next) => {
+  if (req.path === '/api/admin/import-survey') return jsonLarge(req, res, next);
+  return jsonSmall(req, res, next);
+});
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
 if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Статические файлы SPA фронтенда
-app.use(express.static(path.join(__dirname, '../public')));
+// Статические файлы SPA фронтенда (с контролем кэша для мгновенного обновления версий)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/' || req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, '../public'), { etag: false, maxAge: 0 }));
 
 // API роуты
 app.use('/api', apiRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString(), env: config.nodeEnv });
+let lastUptimeRobotPing = null;
+
+app.use((req, res, next) => {
+  const ua = req.get('user-agent');
+  if (ua && ua.includes('UptimeRobot')) {
+    lastUptimeRobotPing = new Date().toISOString();
+  }
+  next();
+});
+
+// Health check. Поле db показывает, доехало ли подключение к Turso — текст ошибки
+// наружу не отдаём, он остаётся в логах Render.
+app.get('/health', async (req, res) => {
+  let db = 'ok';
+  try {
+    await queryOne('SELECT 1 AS ok');
+  } catch (err) {
+    db = 'error';
+    console.error('❌ Health check: база недоступна:', err.message);
+  }
+  res.json({ 
+    ok: db === 'ok', 
+    db, 
+    version: '2.2.0', 
+    timestamp: new Date().toISOString(), 
+    env: config.nodeEnv,
+    lastUptimeRobotPing
+  });
 });
 
 // SPA fallback для роутинга
@@ -59,10 +158,26 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
+  // Миграции запускает IIFE выше (единственный вызов) — второй параллельный
+  // прогон плодил гонки на UPDATE'ах при объединении дубликатов пользователей.
+
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
     console.log(`📁 База данных: ${config.dbPath}`);
     console.log(`🌐 Окружение: ${config.nodeEnv}\n`);
+
+    // Keep-Alive пинг для предотвращения засыпания Render в рабочее время (каждые 9 мин)
+    if (config.nodeEnv === 'production' || process.env.RENDER) {
+      const http = require('http');
+      const PING_INTERVAL = 9 * 60 * 1000;
+      setInterval(() => {
+        try {
+          http.get(`http://127.0.0.1:${config.port}/health`, (res) => {
+            res.resume();
+          }).on('error', () => {});
+        } catch (e) {}
+      }, PING_INTERVAL).unref();
+    }
   });
 }
 

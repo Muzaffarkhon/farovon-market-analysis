@@ -1,37 +1,52 @@
-const fs = require('fs');
-const path = require('path');
+const { createClient } = require('@libsql/client');
 const config = require('../config');
 
-let db = null;
+let client = null;
 
 function getDb() {
-  if (db) return db;
+  if (client) return client;
 
-  const dbDir = path.dirname(config.dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+  if (!config.tursoUrl || !config.tursoAuthToken) {
+    throw new Error(
+      'Не заданы TURSO_DATABASE_URL и/или TURSO_AUTH_TOKEN. ' +
+      'На Render задайте их в Environment, локально — в файле .env (см. .env.example).'
+    );
   }
 
-  try {
-    const Database = require('better-sqlite3');
-    db = new Database(config.dbPath);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+  client = createClient({
+    url: config.tursoUrl,
+    authToken: config.tursoAuthToken
+  });
 
-    // Run schema
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-      db.exec(schemaSql);
-    }
-  } catch (err) {
-    console.error('Failed to initialize better-sqlite3 database:', err.message);
-    throw err;
-  }
+  return client;
+}
 
-  return db;
+async function queryAll(sql, args = []) {
+  const db = getDb();
+  const res = await db.execute({ sql, args });
+  return res.rows;
+}
+
+async function queryOne(sql, args = []) {
+  const db = getDb();
+  const res = await db.execute({ sql, args });
+  return res.rows[0] || null;
+}
+
+async function run(sql, args = []) {
+  const db = getDb();
+  return await db.execute({ sql, args });
+}
+
+async function batch(stmts) {
+  const db = getDb();
+  return await db.batch(stmts, 'write');
 }
 
 module.exports = {
-  getDb
+  getDb,
+  queryAll,
+  queryOne,
+  run,
+  batch
 };

@@ -1,183 +1,443 @@
-const { getDb } = require('../db/database');
+const { queryOne, queryAll, run, batch } = require('../db/database');
 
-exports.saveSurveyData = (req, res) => {
+const ALLOWED_CURRENCIES = ['сомони', 'usd', 'rub', 'eur', 'доллар', 'рубль', 'евро', 'tjs'];
+const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в час (чтс)', 'в смену', 'в год', 'в день'];
+
+function cleanNumber(val, fieldName) {
+  if (val === undefined || val === null || val === '') return 0;
+  // Пробел, запятая и точка — разделители тысяч ("10 000" / "10,000" / "10.000").
+  // Дробных окладов в вилках нет, поэтому убираем их все. Раньше здесь было
+  // .replace(',', '.') — "10,000" превращалось в 10 и валило проверку "от > до".
+  const num = Number(String(val).replace(/[\s .,]/g, ''));
+  if (!Number.isFinite(num) || isNaN(num)) {
+    throw new Error(`Поле "${fieldName}" должно быть корректным числом`);
+  }
+  if (num < 0) {
+    throw new Error(`Поле "${fieldName}" не может быть отрицательным (${num})`);
+  }
+  if (num > 1000000000) {
+    throw new Error(`Поле "${fieldName}" превышает максимально допустимое значение 1 000 000 000`);
+  }
+  return num;
+}
+
+/**
+ * Если у подразделения несколько ответственных («Ответственный за обзор»
+ * допускает несколько ФИО), нельзя, чтобы один затирал уже сохранённые
+ * данные другого. Строка «принадлежит» тому, кто первым её сохранил —
+ * дальше правит только он сам (по ФИО) или admin/cb.
+ */
+function isOwnedByOther(existingOwner, user, ownerRowSource) {
+  if (user.role === 'admin' || user.role === 'cb') return false;
+  if (String(ownerRowSource || '').trim().toLowerCase().startsWith('импорт')) return false;
+  const owner = String(existingOwner || '').trim().toLowerCase();
+  if (!owner || owner === 'импорт') return false;
+  const mine = String(user.fio || user.login || '').trim().toLowerCase();
+  return owner !== mine;
+}
+
+/**
+ * Льготы: на фронте это массив (чипы с множественным выбором), в базе —
+ * текстовое поле. Раньше массив уходил в libSQL как есть, а обратно приходил
+ * строкой — и `r.benefits.slice(0,3).map(...)` в карточке записи падал с
+ * TypeError, потому что slice у строки возвращает строку. Одна сохранённая
+ * запись с льготами делала весь шаг 2 пустым: исключение прерывало отрисовку
+ * до вставки в DOM, и пользователь видел белый экран при живых данных.
+ *
+ * Поэтому граница приводится явно в обе стороны, разделитель ';' — тот же,
+ * что у units и dirs.
+ */
+function benefitsToText(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).map(s => String(s).trim()).filter(Boolean).join(';');
+  return String(v == null ? '' : v);
+}
+
+function benefitsToList(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  return String(v == null ? '' : v)
+    .split(/[;,]/).map(s => s.trim()).filter(Boolean);
+}
+
+exports.benefitsToList = benefitsToList;
+
+exports.saveSurveyData = async (req, res) => {
   const { unit, rows, added, note, submit } = req.body;
-  if (!unit) {
+  if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
 
-  const db = getDb();
-  const period = db.prepare('SELECT state FROM periods ORDER BY id DESC LIMIT 1').get();
-  if (period && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
-    return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
-  }
+  try {
+    const period = await queryOne('SELECT state FROM periods ORDER BY id DESC LIMIT 1');
+    if (period && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
+      return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
+    }
 
-  const now = new Date().toISOString();
-  const newIds = [];
+    const now = new Date().toISOString();
+    const newIds = [];
+    const stmts = [];
 
-  db.transaction(() => {
-    // 1. Обновляем существующие строки конкурентов
-    const updateStmt = db.prepare(`
-      UPDATE competitors
-      SET actual = ?, note = ?, updated_by = ?, updated_at = ?
-      WHERE cid = ? AND unit = ?
-    `);
+    // 1. Обновляем существующие строки конкурентов — но только те, что не
+    // заняты другим ответственным (см. isOwnedByOther выше).
+    const editIds = (rows || []).filter(r => r && r.id).map(r => r.id);
+    const ownerByCid = {};
+    if (editIds.length) {
+      const placeholders = editIds.map(() => '?').join(',');
+      const existing = await queryAll(
+        `SELECT cid, company, updated_by FROM competitors WHERE unit = ? AND cid IN (${placeholders})`,
+        [unit, ...editIds]);
+      existing.forEach(x => { ownerByCid[x.cid] = x; });
+    }
 
+    const blocked = [];
     (rows || []).forEach(r => {
-      if (r.id) {
-        updateStmt.run(r.actual || 'уточнить', r.note || '', req.user.fio || req.user.login, now, r.id, unit);
+      if (!r || !r.id) return;
+      const existing = ownerByCid[r.id];
+      if (existing && isOwnedByOther(existing.updated_by, req.user)) {
+        blocked.push({ id: r.id, company: existing.company, owner: existing.updated_by });
+        return;
       }
+      stmts.push({
+        sql: `UPDATE competitors SET actual = ?, note = ?, updated_by = ?, updated_at = ? WHERE cid = ? AND unit = ?`,
+        args: [r.actual || 'уточнить', String(r.note || '').trim(), req.user.fio || req.user.login, now, r.id, unit]
+      });
     });
 
-    // 2. Вставляем добавленные компании
-    const insertStmt = db.prepare(`
-      INSERT INTO competitors (cid, num, dir, unit, resp, hrbp, company, type, segment, region, prio, status, src, note, actual, updated_by, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
+    // 2. Вставляем добавленные компании (с дедупликацией и фильтрацией пустых)
+    const seenCompanies = new Set();
     (added || []).forEach(a => {
+      if (!a) return;
+      const compName = String(a.company || '').trim();
+      if (!compName) return;
+      const normKey = compName.toLowerCase();
+      if (seenCompanies.has(normKey)) return;
+      seenCompanies.add(normKey);
+
       const cid = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
       newIds.push(cid);
-      insertStmt.run(
-        cid,
-        0,
-        a.dir || '',
-        unit,
-        req.user.fio,
-        '',
-        a.company,
-        a.type || '',
-        a.segment || '',
-        a.region || '',
-        a.prio || '',
-        a.status || '',
-        a.src || 'форма',
-        a.note || '',
-        a.actual || 'актуально',
-        req.user.fio || req.user.login,
-        now
-      );
+      stmts.push({
+        sql: `INSERT INTO competitors (cid, num, dir, unit, resp, hrbp, company, type, segment, region, prio, status, src, note, actual, updated_by, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          cid,
+          0,
+          String(a.dir || '').trim(),
+          unit,
+          req.user.fio || req.user.login,
+          '',
+          compName,
+          String(a.type || '').trim(),
+          String(a.segment || '').trim(),
+          String(a.region || '').trim(),
+          String(a.prio || '').trim(),
+          String(a.status || '').trim(),
+          String(a.src || 'форма').trim(),
+          String(a.note || '').trim(),
+          a.actual || 'актуально',
+          req.user.fio || req.user.login,
+          now
+        ]
+      });
     });
 
-    // 3. Журнал
-    db.prepare('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)').run(
-      req.user.login,
-      submit ? 'отправка подразделения' : 'сохранение конкурентов',
-      `Подразделение: ${unit}, обновлено строк: ${(rows || []).length}, добавлено: ${(added || []).length}`
-    );
-  })();
+    // 3. Комментарий по подразделению — свободный текст ответственного о рынке
+    // труда. Одна запись на unit, хранится на строке divisions. Приходит с
+    // каждым сохранением (фронт держит его в S.note); пишем, только если поле
+    // вообще прислано — старый клиент без него ничего не затрёт.
+    if (note !== undefined) {
+      stmts.push({
+        sql: `UPDATE divisions SET survey_note = ? WHERE unit = ?`,
+        args: [String(note == null ? '' : note).trim().slice(0, 4000), unit]
+      });
+    }
 
-  res.json({
-    ok: true,
-    newIds,
-    at: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  });
+    // 4. Журнал
+    stmts.push({
+      sql: `INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)`,
+      args: [
+        req.user.login,
+        submit ? 'отправка подразделения' : 'сохранение участников рынка',
+        `Подразделение: ${unit}, обновлено строк: ${(rows || []).length}, добавлено: ${newIds.length}`
+      ]
+    });
+
+    if (stmts.length > 0) {
+      await batch(stmts);
+    }
+
+    res.json({
+      ok: true,
+      newIds,
+      blocked,
+      at: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    });
+  } catch (err) {
+    console.error('Save survey data error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения данных по компаниям' });
+  }
 };
 
-exports.saveSurveyDetails = (req, res) => {
+exports.saveSurveyDetails = async (req, res) => {
   const { unit, upsert, remove } = req.body;
-  if (!unit) {
+  if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
 
-  const db = getDb();
-  const period = db.prepare('SELECT state, name FROM periods ORDER BY id DESC LIMIT 1').get() || { state: 'открыт', name: 'Обзор рынка' };
-  if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
-    return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
+  if (upsert !== undefined && upsert !== null && !Array.isArray(upsert)) {
+    return res.status(400).json({ ok: false, error: 'Данные анкет должны быть массивом' });
   }
 
-  const now = new Date().toISOString();
-  const newIds = [];
+  if (remove !== undefined && remove !== null && !Array.isArray(remove)) {
+    return res.status(400).json({ ok: false, error: 'Список на удаление должен быть массивом' });
+  }
 
-  db.transaction(() => {
+  // Предварительная валидация всех элементов ДО вызова базы данных
+  const validatedItems = [];
+  for (let i = 0; i < (upsert || []).length; i++) {
+    const s = upsert[i];
+    if (!s) continue;
+    const compName = String(s.company || '').trim();
+    const posOurName = String(s.posOur || '').trim();
+    if (!compName) {
+      return res.status(400).json({ ok: false, error: `В записи #${i + 1} не указано название компании-конкурента` });
+    }
+    if (!posOurName) {
+      return res.status(400).json({ ok: false, error: `В записи #${i + 1} (${compName}) не указана должность` });
+    }
+
+    let pFrom = 0, pTo = 0;
+    try {
+      pFrom = cleanNumber(s.payFrom, 'Оклад от');
+      pTo = cleanNumber(s.payTo, 'Оклад до');
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+
+    if (pFrom > 0 && pTo > 0 && pFrom > pTo) {
+      return res.status(400).json({
+        ok: false,
+        error: `В записи "${compName}" оклад "от" (${pFrom.toLocaleString('ru-RU')}) не может превышать оклад "до" (${pTo.toLocaleString('ru-RU')})`
+      });
+    }
+
+    let cur = String(s.cur || 'сомони').trim().toLowerCase();
+    if (!ALLOWED_CURRENCIES.includes(cur)) cur = 'сомони';
+
+    let payPer = String(s.payPer || 'в месяц').trim().toLowerCase();
+    if (!ALLOWED_PAY_PERIODS.includes(payPer)) payPer = 'в месяц';
+
+    validatedItems.push({
+      id: s.id,
+      company: compName,
+      posOur: posOurName,
+      posTheir: String(s.posTheir || '').trim(),
+      grade: String(s.grade || '').trim(),
+      pFrom,
+      pTo,
+      cur,
+      payPer,
+      bonHas: String(s.bonHas || 'не знаю').trim(),
+      bonSize: String(s.bonSize || '').trim(),
+      bonType: String(s.bonType || '').trim(),
+      bonPer: String(s.bonPer || '').trim(),
+      benefits: benefitsToText(s.benefits),
+      schedule: String(s.schedule || '').trim(),
+      extra: String(s.extra || '').trim(),
+      source: String(s.source || '').trim(),
+      trust: String(s.trust || '').trim(),
+      note: String(s.note || '').trim()
+    });
+  }
+
+  try {
+    const period = (await queryOne('SELECT state, name FROM periods ORDER BY id DESC LIMIT 1')) || { state: 'открыт', name: 'Обзор рынка' };
+    if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
+      return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
+    }
+
+    const now = new Date().toISOString();
+    const newIds = [];
+    const stmts = [];
+    const blocked = [];
+
+    // Владельцы существующих записей
+    const touchedSids = ([]).concat(
+      Array.isArray(remove) ? remove.map(String).filter(Boolean) : [],
+      validatedItems.filter(s => s.id && !String(s.id).startsWith('tmp')).map(s => s.id)
+    );
+    const ownerBySid = {};
+    if (touchedSids.length) {
+      const placeholders = touchedSids.map(() => '?').join(',');
+      const existing = await queryAll(
+        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
+        [unit, ...touchedSids]);
+      existing.forEach(x => { ownerBySid[x.sid] = x; });
+    }
+
     // Удаление
     if (Array.isArray(remove) && remove.length) {
-      const deleteStmt = db.prepare('UPDATE surveys SET state = "удалена" WHERE sid = ? AND unit = ?');
-      remove.forEach(sid => deleteStmt.run(sid, unit));
+      remove.forEach(sid => {
+        const existing = ownerBySid[sid];
+        if (existing && isOwnedByOther(existing.created_by, req.user, existing.source)) {
+          blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'remove' });
+          return;
+        }
+        stmts.push({
+          sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?",
+          args: [sid, unit]
+        });
+      });
     }
 
     // Вставка / Обновление
-    const updateStmt = db.prepare(`
-      UPDATE surveys
-      SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
-          bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, extra = ?, source = ?, trust = ?, note = ?
-      WHERE sid = ? AND unit = ?
-    `);
-
-    const insertStmt = db.prepare(`
-      INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, extra, source, trust, note, created_by, created_at, state, period)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)
-    `);
-
-    (upsert || []).forEach(s => {
+    validatedItems.forEach(s => {
       let sid = s.id;
-      if (sid && !sid.startsWith('tmp')) {
-        updateStmt.run(
-          s.company, s.posOur, s.posTheir || '', s.grade || '',
-          Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
-          s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-          s.benefits || '', s.extra || '', s.source || '', s.trust || '', s.note || '',
-          sid, unit
-        );
+      if (sid && !String(sid).startsWith('tmp')) {
+        const existing = ownerBySid[sid];
+        if (existing && isOwnedByOther(existing.created_by, req.user, existing.source)) {
+          blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'edit' });
+          newIds.push(sid);
+          return;
+        }
+        stmts.push({
+          sql: `UPDATE surveys
+                SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
+                    bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
+                WHERE sid = ? AND unit = ?`,
+          args: [
+            s.company, s.posOur, s.posTheir, s.grade,
+            s.pFrom, s.pTo, s.cur, s.payPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+            sid, unit
+          ]
+        });
         newIds.push(sid);
       } else {
         sid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         newIds.push(sid);
-        insertStmt.run(
-          sid, unit, s.company, s.posOur, s.posTheir || '', s.grade || '',
-          Number(s.payFrom) || 0, Number(s.payTo) || 0, s.cur || 'сомони', s.payPer || 'в месяц',
-          s.bonHas || 'не знаю', s.bonSize || '', s.bonType || '', s.bonPer || '',
-          s.benefits || '', s.extra || '', s.source || '', s.trust || '', s.note || '',
-          req.user.fio || req.user.login, now, period.name
-        );
+        stmts.push({
+          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+          args: [
+            sid, unit, s.company, s.posOur, s.posTheir, s.grade,
+            s.pFrom, s.pTo, s.cur, s.payPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+            req.user.fio || req.user.login, now, period.name
+          ]
+        });
       }
     });
 
-    db.prepare('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)').run(
-      req.user.login,
-      'сохранение данных по должностям',
-      `Подразделение: ${unit}, сохранено анкет: ${(upsert || []).length}, удалено: ${(remove || []).length}`
-    );
-  })();
+    stmts.push({
+      sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      args: [
+        req.user.login,
+        'сохранение данных по должностям',
+        `Подразделение: ${unit}, сохранено анкет: ${validatedItems.length}, удалено: ${(remove || []).length}`
+      ]
+    });
 
-  res.json({
-    ok: true,
-    newIds,
-    added: (upsert || []).filter(x => !x.id || x.id.startsWith('tmp')).length,
-    updated: (upsert || []).filter(x => x.id && !x.id.startsWith('tmp')).length,
-    removed: (remove || []).length
-  });
+    if (stmts.length > 0) {
+      await batch(stmts);
+    }
+
+    res.json({
+      ok: true,
+      newIds,
+      blocked,
+      added: validatedItems.filter(x => !x.id || String(x.id).startsWith('tmp')).length,
+      updated: validatedItems.filter(x => x.id && !String(x.id).startsWith('tmp')).length,
+      removed: (remove || []).length
+    });
+  } catch (err) {
+    console.error('Save survey details error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения данных по должностям' });
+  }
 };
 
-exports.addDictionaryItem = (req, res) => {
-  const { block, name, segment, region } = req.body;
+/**
+ * Добавление значения в справочник прямо из анкеты — кнопка «+ Добавить» в
+ * пикере. Раньше поддерживались только компании и должности, а сегменты с
+ * регионами вообще не были таблицами; теперь блоков четыре.
+ *
+ * Для должности можно передать unit: тогда она не просто попадёт в общий
+ * справочник, но и прикрепится к направлению этого подразделения — то есть
+ * появится в «штатке» у всех, кто это направление ведёт.
+ */
+exports.addDictionaryItem = async (req, res) => {
+  const { block, name, segment, region, unit } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ ok: false, error: 'Укажите название' });
   }
 
   const cleanName = name.trim();
-  const db = getDb();
 
-  if (block === 'companies') {
-    db.prepare('INSERT OR IGNORE INTO dictionary_companies (name, segment, region) VALUES (?, ?, ?)').run(
-      cleanName, segment || '', region || ''
-    );
-    const list = db.prepare('SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC').all();
-    return res.json({
-      ok: true,
-      name: cleanName,
-      list: list.map(x => x.name),
-      all: list
-    });
-  } else if (block === 'positions') {
-    db.prepare('INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)').run(cleanName);
-    const list = db.prepare('SELECT name FROM dictionary_positions ORDER BY name ASC').all().map(x => x.name);
-    return res.json({
-      ok: true,
-      name: cleanName,
-      list
-    });
+  try {
+    if (block === 'companies') {
+      await run('INSERT OR IGNORE INTO dictionary_companies (name, segment, region) VALUES (?, ?, ?)', [
+        cleanName, segment || '', region || ''
+      ]);
+      const list = await queryAll('SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC');
+      return res.json({
+        ok: true,
+        name: cleanName,
+        list: list.map(x => x.name),
+        all: list
+      });
+    }
+
+    if (block === 'positions') {
+      await run('INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)', [cleanName]);
+
+      // Прикрепляем к направлению подразделения. Колонки dirs может не быть,
+      // если миграция ещё не прошла, — тогда должность просто останется общей,
+      // а не приведёт к ошибке при сохранении анкеты.
+      let dirsOfUser = [];
+      if (unit) {
+        try {
+          const d = await queryOne('SELECT dir FROM divisions WHERE unit = ?', [unit]);
+          const dir = d && String(d.dir || '').trim();
+          if (dir) {
+            const cur = await queryOne("SELECT COALESCE(dirs,'') AS dirs FROM dictionary_positions WHERE name = ?", [cleanName]);
+            const own = String((cur && cur.dirs) || '').split(';').map(s => s.trim()).filter(Boolean);
+            if (!own.includes(dir)) {
+              own.push(dir);
+              await run('UPDATE dictionary_positions SET dirs = ? WHERE name = ?', [own.join(';'), cleanName]);
+            }
+            dirsOfUser = [dir];
+          }
+        } catch (e) {
+          console.error('Не удалось прикрепить должность к направлению:', e.message);
+        }
+      }
+
+      const allRows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
+      const all = allRows.map(x => x.name);
+
+      let list = all;
+      if (dirsOfUser.length) {
+        try {
+          const scoped = await queryAll(
+            "SELECT name, COALESCE(dirs,'') AS dirs FROM dictionary_positions WHERE COALESCE(dirs,'') <> '' ORDER BY name ASC");
+          const own = scoped.filter(p => String(p.dirs || '').split(';').map(s => s.trim()).includes(dirsOfUser[0]));
+          if (own.length) list = own.map(x => x.name);
+        } catch (e) { /* остаёмся на общем списке */ }
+      }
+
+      return res.json({ ok: true, name: cleanName, list, all });
+    }
+
+    if (block === 'segments' || block === 'regions') {
+      const table = block === 'segments' ? 'dictionary_segments' : 'dictionary_regions';
+      await run(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`, [cleanName]);
+      const rows = await queryAll(`SELECT name FROM ${table} ORDER BY name ASC`);
+      return res.json({ ok: true, name: cleanName, list: rows.map(x => x.name) });
+    }
+
+    res.status(400).json({ ok: false, error: 'Неизвестный блок' });
+  } catch (err) {
+    console.error('Add dictionary error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка добавления в справочник' });
   }
-
-  res.status(400).json({ ok: false, error: 'Неизвестный блок' });
 };

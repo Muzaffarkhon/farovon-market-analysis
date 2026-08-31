@@ -1,19 +1,80 @@
 const config = require('../config');
-const { getDb } = require('../db/database');
+const { queryAll } = require('../db/database');
 
 let bot = null;
+let botUsername = null;
 
 function getBot() {
   if (bot) return bot;
   if (!config.telegramBotToken) return null;
 
   try {
-    const TelegramBot = require('node-telegram-bot-api');
-    bot = new TelegramBot(config.telegramBotToken, { polling: false });
+    // node-telegram-bot-api v2: класс Api — прямой клиент Bot API без поллинга
+    // и без встроенного парсинга апдейтов (вебхук разбираем сами в telegramController).
+    const { Api } = require('node-telegram-bot-api');
+    bot = new Api(config.telegramBotToken);
   } catch (e) {
     console.warn('Telegram bot initialization skipped (no token or module):', e.message);
   }
   return bot;
+}
+
+/** Юзернейм бота — нужен, чтобы собрать диплинк t.me/<username>?start=<token>. Спрашиваем
+ *  у Telegram один раз при старте и держим в памяти, вместо ещё одной переменной окружения. */
+async function getBotUsername() {
+  if (botUsername) return botUsername;
+  const tg = getBot();
+  if (!tg) return null;
+  try {
+    const me = await tg.getMe();
+    botUsername = me.username;
+    return botUsername;
+  } catch (err) {
+    console.warn('Не удалось получить username бота (getMe):', err.message);
+    return null;
+  }
+}
+
+// Список команд для меню бота (кнопка «Меню» в Telegram). До этой правки
+// там висел набор от прошлой (Apps Script) версии бота — /start и /help с
+// чужими описаниями и /login «Показать мой логин и пароль», которого в этом
+// боте вообще нет. Telegram хранит меню на своей стороне, а не берёт его из
+// кода при каждом сообщении — обновляется только явным вызовом setMyCommands.
+const BOT_COMMANDS = [
+  { command: 'start', description: 'Привязать аккаунт' },
+  { command: 'login', description: 'Получить логин и пароль для входа' },
+  { command: 'status', description: 'Мои подразделения и прогресс' },
+  { command: 'unlink', description: 'Отвязать этот Telegram от аккаунта' },
+  { command: 'link', description: 'Привязать по номеру телефона' },
+  { command: 'help', description: 'Список команд' }
+];
+
+/** Регистрирует вебхук в Telegram, чтобы бот мог принимать входящие сообщения — без
+ *  этого он умеет только отправлять. Вызывается один раз при старте сервера; ошибка
+ *  не должна мешать серверу подняться, поэтому не бросает исключение наружу. */
+async function ensureWebhook() {
+  const tg = getBot();
+  if (!tg || !config.webappUrl || config.webappUrl.indexOf('localhost') >= 0) return;
+  if (!config.telegramWebhookSecret) {
+    console.warn('⚠️ TELEGRAM_WEBHOOK_SECRET не задан — вебхук Telegram не регистрируется.');
+    return;
+  }
+  try {
+    await tg.setWebhook({
+      url: `${config.webappUrl}/api/telegram/webhook`,
+      secret_token: config.telegramWebhookSecret
+    });
+    await getBotUsername();
+    console.log(`✅ Telegram webhook зарегистрирован (@${botUsername || '?'})`);
+  } catch (err) {
+    console.warn('⚠️ Не удалось зарегистрировать Telegram webhook:', err.message);
+  }
+
+  try {
+    await tg.setMyCommands({ commands: BOT_COMMANDS });
+  } catch (err) {
+    console.warn('⚠️ Не удалось обновить меню команд Telegram:', err.message);
+  }
 }
 
 async function sendTelegramMessage(chatId, text, options = {}) {
@@ -21,7 +82,7 @@ async function sendTelegramMessage(chatId, text, options = {}) {
   if (!tg || !chatId) return false;
 
   try {
-    await tg.sendMessage(chatId, text, { parse_mode: 'HTML', ...options });
+    await tg.sendMessage({ chat_id: chatId, text, parse_mode: 'HTML', ...options });
     return true;
   } catch (err) {
     console.error(`Failed to send Telegram message to ${chatId}:`, err.message);
@@ -29,10 +90,23 @@ async function sendTelegramMessage(chatId, text, options = {}) {
   }
 }
 
+/** Убирает "часики" на нажатой inline-кнопке — без этого Telegram сам снимет их
+ *  через несколько секунд таймаутом, но кнопка выглядит зависшей. */
+async function answerCallbackQuery(callbackQueryId, text) {
+  const tg = getBot();
+  if (!tg || !callbackQueryId) return false;
+  try {
+    await tg.answerCallbackQuery({ callback_query_id: callbackQueryId, ...(text ? { text } : {}) });
+    return true;
+  } catch (err) {
+    console.error('Failed to answer Telegram callback query:', err.message);
+    return false;
+  }
+}
+
 async function sendMassReminder(senderFio = 'Администрация C&B') {
-  const db = getDb();
-  const divisions = db.prepare('SELECT unit, resp, head, hrbp FROM divisions').all();
-  const competitors = db.prepare('SELECT unit, actual FROM competitors').all();
+  const divisions = await queryAll('SELECT unit, resp, head, hrbp FROM divisions');
+  const competitors = await queryAll('SELECT unit, actual FROM competitors');
 
   const unitCounts = {};
   competitors.forEach(c => {
@@ -51,7 +125,7 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
   });
 
   // Ищем пользователей с telegram_chat_id или телефонами
-  const users = db.prepare('SELECT login, fio, phone, telegram_chat_id, units FROM users WHERE active = 1').all();
+  const users = await queryAll('SELECT login, fio, phone, telegram_chat_id, units FROM users WHERE active = 1');
   let sentCount = 0;
 
   for (const u of users) {
@@ -77,6 +151,9 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
 
 module.exports = {
   getBot,
+  getBotUsername,
+  ensureWebhook,
   sendTelegramMessage,
+  answerCallbackQuery,
   sendMassReminder
 };

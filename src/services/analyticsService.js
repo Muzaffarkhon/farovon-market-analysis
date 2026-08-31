@@ -1,39 +1,87 @@
-const { getDb } = require('../db/database');
+const { queryAll, queryOne } = require('../db/database');
 
-function calculatePercentiles(samples) {
-  const s = [...samples].sort((a, b) => a - b);
-  const n = s.length;
+// Стандартный месяц для приведения часовой тарифной ставки (ЧТС) к месячному
+// окладу: 168 часов. Нужно, чтобы часовые ставки не занижали вилки должностей.
+const HOURS_PER_MONTH = 168;
+
+/** Похоже ли наблюдение на часовую ставку (ЧТС). Признаки:
+ *  - периодичность прямо говорит «в час» / «ЧТС»;
+ *  - «месячный» оклад меньше 1000 сомони — такого на рынке нет, это ЧТС,
+ *    внесённая без смены периодичности (8,5 / 20 / 230 …). */
+function looksHourly(payPer, pFrom, pTo) {
+  if (/час|чтс/i.test(payPer || '')) return true;
+  const v = pFrom || pTo || 0;
+  return v > 0 && v < 1000;
+}
+
+/** ЧТС → месячный эквивалент (× 168). Прочие значения не трогаем. */
+function toMonthly(value, hourly) {
+  return (hourly && value > 0) ? Math.round(value * HOURS_PER_MONTH) : value;
+}
+
+function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
+  const n = midSamples.length;
   if (n === 0) return { min: 0, p25: 0, median: 0, p75: 0, max: 0, avg: 0, spread: 0 };
 
-  const min = s[0];
-  const max = s[n - 1];
-  const avg = Math.round(s.reduce((acc, v) => acc + v, 0) / n);
+  const validFroms = fromSamples.filter(v => v > 0);
+  const validTos = toSamples.filter(v => v > 0);
+
+  // Реальные границы рынка (стандарт C&B)
+  const min = validFroms.length ? Math.min(...validFroms) : (validTos.length ? Math.min(...validTos) : Math.min(...midSamples));
+  const max = validTos.length ? Math.max(...validTos) : (validFroms.length ? Math.max(...validFroms) : Math.max(...midSamples));
+
+  // Среднее значение
+  const avg = Math.round(midSamples.reduce((acc, v) => acc + v, 0) / n);
+
+  // Перцентили и медиана
+  const s = [...midSamples].sort((a, b) => a - b);
+  const i50 = (n - 1) * 0.5;
+  const l50 = Math.floor(i50);
+  const median = Math.round(s[l50] + (s[Math.min(l50 + 1, n - 1)] - s[l50]) * (i50 - l50));
 
   const i25 = (n - 1) * 0.25;
   const l25 = Math.floor(i25);
   const p25 = Math.round(s[l25] + (s[Math.min(l25 + 1, n - 1)] - s[l25]) * (i25 - l25));
 
-  const i50 = (n - 1) * 0.5;
-  const l50 = Math.floor(i50);
-  const median = Math.round(s[l50] + (s[Math.min(l50 + 1, n - 1)] - s[l50]) * (i50 - l50));
-
   const i75 = (n - 1) * 0.75;
   const l75 = Math.floor(i75);
   const p75 = Math.round(s[l75] + (s[Math.min(l75 + 1, n - 1)] - s[l75]) * (i75 - l75));
 
+  // Реальный размах рынка от Мин до Макс
   const spread = (min > 0 && max > min) ? Math.round(((max - min) / min) * 100) : 0;
 
   return { min, p25, median, p75, max, avg, spread };
 }
 
-function getExtendedAnalytics(filters = {}) {
-  const db = getDb();
+async function getExtendedAnalytics(filters = {}) {
   const filterDir = (filters.dir || '').trim();
   const filterHrbp = (filters.hrbp || '').trim();
   const searchPos = (filters.search || '').trim().toLowerCase();
 
+  // Параллельный запуск всех запросов к БД в 1 сетевом раунде
+  const [divisions, competitors, surveys, posDict] = await Promise.all([
+    queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
+    queryAll('SELECT unit, actual FROM competitors'),
+    queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
+    queryAll('SELECT name, COALESCE(pay_from,0) AS pay_from, COALESCE(pay_to,0) AS pay_to FROM dictionary_positions')
+      .catch(() => [])
+  ]);
+
+  // Оклад Фаровона по должности (эталон для колонок «Мы» / «Гэп к рынку»)
+  const ourPayByPos = {};
+  posDict.forEach(p => {
+    const from = Number(p.pay_from) || 0;
+    const to = Number(p.pay_to) || 0;
+    if (from > 0 || to > 0) {
+      ourPayByPos[(p.name || '').trim().toLowerCase()] = {
+        from,
+        to,
+        mid: (from > 0 && to > 0) ? Math.round((from + to) / 2) : (from || to)
+      };
+    }
+  });
+
   // 1. Оргструктура
-  const divisions = db.prepare('SELECT num, dir, unit, head, resp, hrbp FROM divisions').all();
   const unitMap = {};
   divisions.forEach(d => {
     unitMap[d.unit] = {
@@ -49,7 +97,6 @@ function getExtendedAnalytics(filters = {}) {
   });
 
   // 2. Конкуренты
-  const competitors = db.prepare('SELECT unit, actual FROM competitors').all();
   competitors.forEach(c => {
     if (unitMap[c.unit]) {
       unitMap[c.unit].totalComp++;
@@ -62,12 +109,11 @@ function getExtendedAnalytics(filters = {}) {
     }
   });
 
-  // 3. Данные по рынку (Анкеты)
-  const surveys = db.prepare('SELECT * FROM surveys WHERE state != "удалена"').all();
-
   let totalRecords = 0;
   let recordsWithSalary = 0;
   const posMap = {};
+  const rawRows = []; // сырые наблюдения для вкладки «Реестр данных»
+  const allSalarySamples = []; // для общей медианы рынка (вкладка «Обзор»)
   const benefitStats = {};
   const bonusStats = { hasBonus: 0, noBonus: 0, unknown: 0, types: {}, periods: {} };
   const compRank = {};
@@ -86,6 +132,11 @@ function getExtendedAnalytics(filters = {}) {
     const pTo = Number(s.pay_to) || 0;
     const cur = (s.cur || 'сомони').trim();
     const payPer = (s.pay_per || 'в месяц').trim();
+    // ЧТС приводим к месяцу (× 168 ч) — для вилок, медианы и гистограммы.
+    // Сырые pFrom/pTo остаются как есть для вкладки «Реестр данных».
+    const isHourly = looksHourly(payPer, pFrom, pTo);
+    const pFromM = toMonthly(pFrom, isHourly);
+    const pToM = toMonthly(pTo, isHourly);
     const bonHas = (s.bon_has || '').trim().toLowerCase();
     const bonSize = (s.bon_size || '').trim();
     const bonType = (s.bon_type || '').trim();
@@ -101,6 +152,42 @@ function getExtendedAnalytics(filters = {}) {
     if (unitMap[un]) unitMap[un].surveysCount++;
     if (company) compRank[company] = (compRank[company] || 0) + 1;
     curStats[cur] = (curStats[cur] || 0) + 1;
+
+    // Общая медиана рынка: ЧТС приведена к месяцу (pFromM/pToM). Дневных ставок
+    // в данных фактически нет (одна строка «в день» с суммой 5000–10000 —
+    // очевидно месячный оклад с ошибкой периода), поэтому берём как есть.
+    {
+      const mid = (pFromM > 0 && pToM > 0) ? (pFromM + pToM) / 2 : (pFromM || pToM || 0);
+      if (mid > 0) allSalarySamples.push(mid);
+    }
+
+    // Регион и сырой ID_Бизнес живут в примечании импортированных строк
+    // («Собрал: …; Регион: Худжанд; ID_Бизнес: 11»). Для ручных анкет — пусто.
+    const regionMatch = note.match(/Регион:\s*([^;·]+)/i);
+    const idbizMatch = note.match(/ID_Бизнес[^:]*:\s*([0-9 ,]+)/i);
+    rawRows.push({
+      date: s.created_at || '',
+      dir: uInfo.dir || '',
+      unit: un,
+      company,
+      region: regionMatch ? regionMatch[1].trim() : '',
+      idbiz: idbizMatch ? idbizMatch[1].trim() : '',
+      posOur,
+      posTheir: (s.pos_their || '').trim(),
+      payFrom: pFrom,
+      payTo: pTo,
+      cur,
+      payPer,
+      bonHas,
+      bonSize,
+      bonType,
+      bonPer,
+      benefits, // массив
+      schedule: (s.schedule || '').trim(),
+      by: (s.created_by || '').trim(),
+      source: (s.source || '').trim(),
+      note
+    });
 
     // Бонусы
     if (bonHas === 'да') {
@@ -124,6 +211,8 @@ function getExtendedAnalytics(filters = {}) {
         posMap[posOur] = {
           pos: posOur,
           count: 0,
+          fromSamples: [],
+          toSamples: [],
           salarySamples: [],
           companies: []
         };
@@ -131,9 +220,11 @@ function getExtendedAnalytics(filters = {}) {
       posMap[posOur].count++;
 
       let avgPay = 0;
-      if (pFrom > 0 || pTo > 0) {
+      if (pFromM > 0 || pToM > 0) {
         recordsWithSalary++;
-        avgPay = (pFrom > 0 && pTo > 0) ? Math.round((pFrom + pTo) / 2) : (pFrom || pTo);
+        if (pFromM > 0) posMap[posOur].fromSamples.push(pFromM);
+        if (pToM > 0) posMap[posOur].toSamples.push(pToM);
+        avgPay = (pFromM > 0 && pToM > 0) ? Math.round((pFromM + pToM) / 2) : (pFromM || pToM);
         posMap[posOur].salarySamples.push(avgPay);
       }
 
@@ -141,9 +232,12 @@ function getExtendedAnalytics(filters = {}) {
         company,
         unit: un,
         dir: uInfo.dir,
-        pFrom,
-        pTo,
+        pFrom: pFromM,
+        pTo: pToM,
         avg: avgPay,
+        hourly: isHourly,
+        hourFrom: isHourly ? pFrom : 0,
+        hourTo: isHourly ? pTo : 0,
         cur,
         payPer,
         bonHas,
@@ -159,7 +253,11 @@ function getExtendedAnalytics(filters = {}) {
   // Расчет перцентилей по должностям
   const positionsList = Object.keys(posMap).map(k => {
     const item = posMap[k];
-    const stats = calculatePercentiles(item.salarySamples);
+    const stats = calculateSalaryForkStats(item.fromSamples, item.toSamples, item.salarySamples);
+    const our = ourPayByPos[k.trim().toLowerCase()] || null;
+    const gapPct = (our && our.mid > 0 && stats.median > 0)
+      ? Math.round(((our.mid - stats.median) / stats.median) * 100)
+      : null;
     return {
       pos: k,
       count: item.count,
@@ -171,6 +269,10 @@ function getExtendedAnalytics(filters = {}) {
       max: stats.max,
       avg: stats.avg,
       forkSpreadPct: stats.spread,
+      ourFrom: our ? our.from : 0,
+      ourTo: our ? our.to : 0,
+      ourMid: our ? our.mid : 0,
+      gapPct: gapPct,
       companies: item.companies
     };
   }).sort((a, b) => b.count - a.count);
@@ -233,7 +335,7 @@ function getExtendedAnalytics(filters = {}) {
   const totalComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].totalComp, 0);
   const checkedComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].doneComp, 0);
 
-  const periodRow = db.prepare('SELECT * FROM periods ORDER BY id DESC LIMIT 1').get() || { name: 'Обзор рынка', state: 'открыт' };
+  const periodRow = (await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')) || { name: 'Обзор рынка', state: 'открыт' };
 
   return {
     ok: true,
@@ -246,11 +348,29 @@ function getExtendedAnalytics(filters = {}) {
       compCompletionPct: totalComps ? Math.round((checkedComps / totalComps) * 100) : 0,
       totalSurveyRecords: totalRecords,
       recordsWithSalary: recordsWithSalary,
-      positionsCount: positionsList.length
+      positionsCount: positionsList.length,
+      companiesInSurvey: Object.keys(compRank).length,
+      unmappedRecords: (posMap['(не сопоставлено)'] && posMap['(не сопоставлено)'].count) || 0,
+      salaryMedian: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length / 2)]);
+      })(),
+      salaryP25: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length * 0.25)]);
+      })(),
+      salaryP75: (() => {
+        if (!allSalarySamples.length) return 0;
+        const s = [...allSalarySamples].sort((a, b) => a - b);
+        return Math.round(s[Math.floor(s.length * 0.75)]);
+      })()
     },
     hrbpProgress,
     dirProgress,
     positions: positionsList,
+    rows: rawRows,
     topBenefits,
     bonuses: bonusStats,
     topCompetitors,
@@ -267,6 +387,7 @@ function getExtendedAnalytics(filters = {}) {
 }
 
 module.exports = {
-  calculatePercentiles,
+  calculateSalaryForkStats,
+  calculatePercentiles: calculateSalaryForkStats,
   getExtendedAnalytics
 };
