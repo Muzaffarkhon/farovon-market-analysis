@@ -9227,17 +9227,16 @@ var BM_STATE = {
   loading: false
 };
 
-function renderSourceSticker(sourceKey){
-  if(sourceKey === 'b1'){
-    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#FFE600,#F59E0B);color:#111827;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(245,158,11,0.28);flex:none;border:1px solid rgba(255,255,255,0.4)">B1</div>';
-  }
-  if(sourceKey === 'antal'){
-    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#EF4444,#B91C1C);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(239,68,68,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">AT</div>';
-  }
-  if(sourceKey === 'job_farovon'){
-    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#0284C7,#0369A1);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(2,132,199,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">HH</div>';
-  }
-  return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(16,185,129,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">FV</div>';
+function renderSourceBadge(sourceKey, isLicensed){
+  var label = 'Фаровон';
+  var isClosed = false;
+  if(sourceKey === 'b1'){ label = 'B1 (EY)'; }
+  else if(sourceKey === 'antal'){ label = 'Antal'; }
+  else if(sourceKey === 'job_farovon'){ label = 'Job Farovon'; }
+  else if(sourceKey === 'internal'){ label = 'Внутренний'; }
+
+  var licBadge = isLicensed ? '<span class="top-period-pill is-closed" style="margin-left:6px;font-size:11px;padding:1px 6px">Лицензия</span>' : '';
+  return '<span class="top-period-pill" style="margin-right:0"><span class="top-period-dot"></span> <b>' + label + '</b></span>' + licBadge;
 }
 
 function openBenchmarks(){
@@ -9250,23 +9249,21 @@ function openBenchmarks(){
   $('body').onclick = null;
 
   var body = $('body');
-  body.innerHTML = '<div class="bm-shell" style="max-width:1200px;margin:0 auto;padding:16px 20px 60px">' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">' +
-      '<div>' +
-        '<h1 style="margin:0 0 4px;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px">' +
-          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="stroke:var(--accent)">' + ICONS.chart + '</svg>' +
-          'Мультиисточниковый бенчмаркинг вознаграждений' +
-        '</h1>' +
-        '<div style="font-size:13px;color:var(--muted)">Сравнение заработных плат Фаровона с внешними провайдерами (B1, Antal), джоб-сайтами и внутренним сбором</div>' +
+  body.innerHTML = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-bottom:12px">' +
+      '<div class="dash-tab-strip" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto">' +
+        '<button class="sub-tab ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">' + ic('chart', 14) + 'Сравнение по должности</button>' +
+        '<button class="sub-tab ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">' + ic('link', 14) + 'Сопоставление должностей</button>' +
+        '<button class="sub-tab ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">' + ic('archive', 14) + 'Источники и датасеты</button>' +
       '</div>' +
-      '<div class="tab-bar" style="margin:0;background:var(--card);padding:4px;border-radius:10px;border:1px solid var(--line);display:flex;gap:4px">' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">' + ic('chart', 15) + 'Сравнение по должности</button>' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">' + ic('link', 15) + 'Сопоставление должностей</button>' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">' + ic('archive', 15) + 'Источники и датасеты</button>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex:none">' +
+        '<button id="btnBmExpMatrix" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto">' +
+          ic('download', 14) + 'Экспорт в CSV' +
+        '</button>' +
       '</div>' +
     '</div>' +
-    '<div id="bmContent">Загрузка данных…</div>' +
-  '</div>';
+    '<div id="bmContent" style="flex:1;min-height:0">Загрузка данных…</div>';
+
+  $('btnBmExpMatrix').onclick = exportBmMatrixCsv;
 
   loadBmInitialData();
 }
@@ -9332,47 +9329,47 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
   var statusBadge = '';
   if(ourMid > 0 && p25 > 0 && p75 > 0){
     if(ourMid >= p25 && ourMid <= p75){
-      statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green, #10b981);background:#10b98118;padding:2px 8px;border-radius:12px;border:1px solid #10b98140">🟢 В коридоре рынка (P25–P75)</span>';
+      statusBadge = '<span class="top-period-pill"><span class="top-period-dot"></span> В коридоре рынка (P25–P75)</span>';
     } else if(ourMid < p25){
       var d = Math.round(((p25 - ourMid) / p25) * 100);
-      statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--red, #ef4444);background:#ef444418;padding:2px 8px;border-radius:12px;border:1px solid #ef444440">🔴 Ниже рынка (−' + d + '% от P25)</span>';
+      statusBadge = '<span class="top-period-pill is-closed"><span class="top-period-dot"></span> Ниже рынка (−' + d + '% от P25)</span>';
     } else {
       var d = Math.round(((ourMid - p75) / p75) * 100);
-      statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#f59e0b;background:#f59e0b18;padding:2px 8px;border-radius:12px;border:1px solid #f59e0b40">🟡 Выше рынка (+' + d + '% от P75)</span>';
+      statusBadge = '<span class="top-period-pill" style="color:var(--warn);border-color:var(--warn-border)"><span class="top-period-dot" style="background:var(--warn)"></span> Выше рынка (+' + d + '% от P75)</span>';
     }
   }
 
-  return '<div style="margin:14px 0 6px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--line)">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
-      '<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Диаграмма коридора рынка vs Фаровон</span>' +
+  return '<div style="margin:14px 0 4px;padding:12px 14px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<span style="font-size:11px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
       statusBadge +
     '</div>' +
-    '<div style="position:relative;height:38px;margin:22px 10px 18px">' +
-      '<div style="position:absolute;left:0;right:0;top:14px;height:8px;background:var(--line);border-radius:4px"></div>' +
+    '<div style="position:relative;height:36px;margin:18px 8px 14px">' +
+      '<div style="position:absolute;left:0;right:0;top:14px;height:6px;background:var(--color-ash);border-radius:3px"></div>' +
       (p25 && p75 ?
-        '<div style="position:absolute;left:' + p25Pct + '%;width:' + Math.max(3, p75Pct - p25Pct) + '%;top:11px;height:14px;background:linear-gradient(90deg, #3b82f640, #6366f160);border:1px solid #6366f1;border-radius:6px" title="Рыночный коридор P25–P75: ' + p25.toLocaleString('ru-RU') + ' – ' + p75.toLocaleString('ru-RU') + '">' +
+        '<div style="position:absolute;left:' + p25Pct + '%;width:' + Math.max(3, p75Pct - p25Pct) + '%;top:12px;height:10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:4px" title="Рыночный коридор P25–P75: ' + p25.toLocaleString('ru-RU') + ' – ' + p75.toLocaleString('ru-RU') + '">' +
         '</div>'
       : '') +
       (p50 ?
-        '<div style="position:absolute;left:' + p50Pct + '%;top:4px;width:3px;height:28px;background:#6366f1;transform:translateX(-50%);z-index:2;border-radius:2px">' +
-          '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:800;color:#6366f1;white-space:nowrap;background:var(--card);padding:1px 5px;border-radius:4px;border:1px solid #6366f140;box-shadow:0 1px 3px rgba(0,0,0,0.1)">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
+        '<div style="position:absolute;left:' + p50Pct + '%;top:4px;width:2px;height:26px;background:var(--accent);transform:translateX(-50%);z-index:2;border-radius:1px">' +
+          '<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:600;color:var(--color-midnight-ink);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--color-ash);box-shadow:var(--shadow-xs)">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
         '</div>'
       : '') +
       (ourMid ?
         (ourFrom && ourTo && ourFrom !== ourTo ?
-          '<div style="position:absolute;left:' + ourFromPct + '%;width:' + Math.max(4, ourToPct - ourFromPct) + '%;top:28px;height:6px;background:#10b981;border-radius:3px;z-index:3" title="Вилка Фаровон: ' + ourFrom.toLocaleString('ru-RU') + ' – ' + ourTo.toLocaleString('ru-RU') + '">' +
+          '<div style="position:absolute;left:' + ourFromPct + '%;width:' + Math.max(4, ourToPct - ourFromPct) + '%;top:26px;height:5px;background:var(--ok);border-radius:2px;z-index:3" title="Вилка Фаровон: ' + ourFrom.toLocaleString('ru-RU') + ' – ' + ourTo.toLocaleString('ru-RU') + '">' +
           '</div>'
         : '') +
-        '<div style="position:absolute;left:' + ourMidPct + '%;top:18px;width:16px;height:16px;background:#10b981;border:2.5px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.3);border-radius:50%;transform:translateX(-50%);z-index:4">' +
-          '<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:800;color:#10b981;white-space:nowrap;background:var(--card);padding:1px 5px;border-radius:4px;border:1px solid #10b98140;box-shadow:0 1px 3px rgba(0,0,0,0.1)">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
+        '<div style="position:absolute;left:' + ourMidPct + '%;top:17px;width:14px;height:14px;background:var(--ok);border:2px solid #fff;box-shadow:var(--shadow-sm);border-radius:50%;transform:translateX(-50%);z-index:4">' +
+          '<div style="position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:600;color:var(--ok);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--ok-border);box-shadow:var(--shadow-xs)">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
         '</div>'
       : '') +
     '</div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:16px;border-top:1px dashed var(--line);padding-top:6px">' +
-      '<span>Шкала от: ' + Math.round(minVal / 0.85).toLocaleString('ru-RU') + '</span>' +
+    '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-fog);margin-top:14px;border-top:1px dashed var(--color-ash);padding-top:6px">' +
+      '<span>От: ' + Math.round(minVal / 0.85).toLocaleString('ru-RU') + '</span>' +
       (p25 ? '<span>P25: <b>' + p25.toLocaleString('ru-RU') + '</b></span>' : '') +
       (p75 ? '<span>P75: <b>' + p75.toLocaleString('ru-RU') + '</b></span>' : '') +
-      '<span>до: ' + Math.round(maxVal / 1.15).toLocaleString('ru-RU') + ' сом.</span>' +
+      '<span>До: ' + Math.round(maxVal / 1.15).toLocaleString('ru-RU') + ' сом.</span>' +
     '</div>' +
   '</div>';
 }
@@ -9405,39 +9402,54 @@ function renderBmCompare(){
   var positions = S.data.dictPositions || [];
   var selId = BM_STATE.selectedPosId;
 
-  var buildOptions = function(filterText){
+  var buildItemsHtml = function(filterText){
     var ft = String(filterText || '').toLowerCase().trim();
-    return positions.filter(function(p){
+    var filtered = positions.filter(function(p){
       return !ft || p.name.toLowerCase().indexOf(ft) !== -1;
-    }).map(function(p){
+    });
+
+    if(!filtered.length){
+      return '<div style="padding:20px;text-align:center;font-size:12.5px;color:var(--color-fog)">Должностей не найдено</div>';
+    }
+
+    return filtered.map(function(p){
       var isSel = (selId && (p.id == selId || String(p.id) === String(selId))) || (!selId && p.name === BM_STATE.selectedPosName);
-      return '<option value="' + (p.id || '') + '" data-name="' + esc(p.name) + '" ' + (isSel ? 'selected' : '') + '>' + esc(p.name) + '</option>';
+      var activeClass = isSel ? ' on' : '';
+      return '<button class="rail-item' + activeClass + '" data-posid="' + (p.id || '') + '" data-posname="' + esc(p.name) + '" style="text-align:left;padding:7px 10px;font-size:13px">' +
+        '<span>' + esc(p.name) + '</span>' +
+      '</button>';
     }).join('');
   };
 
-  c.innerHTML = '<div style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start">' +
-    '<div class="card" style="padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+  c.innerHTML = '<div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start">' +
+    '<div class="card" style="padding:14px;display:flex;flex-direction:column;max-height:calc(100vh - 170px)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-        '<label class="lbl" style="margin:0;font-weight:700">Должность</label>' +
-        '<button class="btn-ghost" id="btnBmExpMatrix" style="font-size:11px;padding:2px 6px;color:var(--accent);font-weight:600">' + ic('download', 12) + 'Экспорт матрицы</button>' +
+        '<span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Должности</span>' +
+        '<span style="font-size:11px;color:var(--color-fog)">' + positions.length + ' поз.</span>' +
       '</div>' +
-      '<input type="text" id="bmPosSearch" placeholder="🔍 Поиск по названию…" style="width:100%;margin-bottom:8px;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg)">' +
-      '<select id="bmPosSelect" size="14" style="width:100%;height:350px;margin-bottom:12px;font-size:13px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:4px">' + buildOptions() + '</select>' +
-      '<div id="bmPosMeta" style="font-size:12px;color:var(--muted);line-height:1.5;background:var(--bg);padding:10px;border-radius:8px;border:1px solid var(--line)">Загрузка данных…</div>' +
+      '<div style="position:relative;margin-bottom:8px">' +
+        '<input type="text" id="bmPosSearch" placeholder="Поиск должности…" style="font-size:12.5px;padding:6px 10px 6px 30px;width:100%;height:32px">' +
+        '<span style="position:absolute;left:8px;top:7px;color:var(--color-fog);pointer-events:none">' + icBare('search', 14) + '</span>' +
+      '</div>' +
+      '<div id="bmPosList" class="co-list-scroll" style="flex:1;min-height:260px;max-height:calc(100vh - 350px);overflow-y:auto;display:flex;flex-direction:column;gap:1px">' +
+        buildItemsHtml() +
+      '</div>' +
+      '<div id="bmPosMeta" style="margin-top:10px;font-size:12px;color:var(--color-charcoal);line-height:1.45;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 10px;border-radius:var(--radius-buttons)">Загрузка данных…</div>' +
     '</div>' +
-    '<div id="bmCompareDetail">Загрузка сравнения…</div>' +
+    '<div id="bmCompareDetail" style="min-width:0">Загрузка сравнения…</div>' +
   '</div>';
 
-  $('btnBmExpMatrix').onclick = exportBmMatrixCsv;
-
   $('bmPosSearch').oninput = function(){
-    $('bmPosSelect').innerHTML = buildOptions(this.value);
+    $('bmPosList').innerHTML = buildItemsHtml(this.value);
   };
 
-  $('bmPosSelect').onchange = function(){
-    BM_STATE.selectedPosId = this.value;
-    var opt = this.options[this.selectedIndex];
-    BM_STATE.selectedPosName = opt ? opt.dataset.name : '';
+  $('bmPosList').onclick = function(e){
+    var btn = e.target.closest('button[data-posid]');
+    if(!btn) return;
+    BM_STATE.selectedPosId = btn.dataset.posid;
+    BM_STATE.selectedPosName = btn.dataset.posname;
+    $('bmPosList').querySelectorAll('.rail-item').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
     loadBmCompareDetail();
   };
 
@@ -9449,14 +9461,12 @@ function loadBmCompareDetail(){
   var m = $('bmPosMeta');
   if(!d) return;
 
-  var selEl = $('bmPosSelect');
-  var opt = selEl ? selEl.options[selEl.selectedIndex] : null;
-  var posId = BM_STATE.selectedPosId || (opt ? opt.value : '');
-  var posName = (opt ? opt.dataset.name : '') || BM_STATE.selectedPosName || '';
+  var posId = BM_STATE.selectedPosId || '';
+  var posName = BM_STATE.selectedPosName || '';
 
   if(!posId && !posName) return;
 
-  d.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Загрузка сравнения…</div>';
+  d.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-fog)" class="sp"><i></i> Загрузка сравнения…</div>';
 
   call('apiBenchmarkCompare', S.token, posId, posName).then(function(res){
     if(!res || !res.ok || !res.result){
@@ -9473,16 +9483,16 @@ function loadBmCompareDetail(){
     if(m){
       m.innerHTML = '<b>Оклад Фаровон:</b> ' + (ourPayFrom ? ourPayFrom.toLocaleString('ru-RU') : '—') +
         ' – ' + (ourPayTo ? ourPayTo.toLocaleString('ru-RU') : '—') + ' сомони<br>' +
-        '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--muted)">не задана</span>');
+        '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--color-fog)">не задана</span>');
     }
 
     var compBadge = '';
     if(comp.compositeGapPercent != null){
       var isPositive = comp.compositeGapPercent >= 0;
-      var color = isPositive ? 'var(--green, #10b981)' : 'var(--red, #ef4444)';
       var sign = isPositive ? '+' : '';
-      compBadge = '<span style="display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:14px;font-weight:800;background:' + color + '18;color:' + color + ';border:1px solid ' + color + '40">' +
-        sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
+      var pillClass = isPositive ? 'top-period-pill' : 'top-period-pill is-closed';
+      compBadge = '<span class="' + pillClass + '" style="font-size:13px;padding:5px 12px;font-weight:600">' +
+        '<span class="top-period-dot"></span> ' + sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
     }
 
     var sourcesHtml = '';
@@ -9492,23 +9502,23 @@ function loadBmCompareDetail(){
     var intrStats = intr.stats || {};
     var intrRangeBar = renderSalaryRangeBar(intrStats, ourPayFrom, ourPayTo, ourMid);
 
-    sourcesHtml += '<div class="card" style="padding:16px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:14px">' +
+    sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-        '<div style="display:flex;align-items:center;gap:12px">' +
-          renderSourceSticker('internal') +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          renderSourceBadge('internal') +
           '<div>' +
-            '<b style="font-size:16px">' + esc(intr.sourceTitle) + '</b><br>' +
-            '<span style="font-size:12px;color:var(--muted)">Внутренние анкеты подразделений (' + (intr.observationsCount || 0) + ' наблюдений)</span>' +
+            '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(intr.sourceTitle) + '</b>' +
+            '<span style="font-size:12px;color:var(--color-fog);margin-left:6px">Внутренние анкеты (' + (intr.observationsCount || 0) + ' набл.)</span>' +
           '</div>' +
         '</div>' +
-        (intrStats.p50 ? '<b style="font-size:17px;color:var(--accent)">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
+        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent)">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:11.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:12px">нет данных</span>') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;font-size:12px;background:var(--bg);padding:8px 12px;border-radius:8px;text-align:center">' +
-        '<div><span style="color:var(--muted)">P10 / Min:</span><br><b>' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--muted)">P25:</span><br><b>' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--muted)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--muted)">P75:</span><br><b>' + (intrStats.p75 ? intrStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--muted)">P90 / Max:</span><br><b>' + (intrStats.max ? intrStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;font-size:12px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center">' +
+        '<div><span style="color:var(--color-fog)">P10:</span><br><b>' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--color-fog)">P25:</span><br><b>' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--color-fog)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--color-fog)">P75:</span><br><b>' + (intrStats.p75 ? intrStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '<div><span style="color:var(--color-fog)">P90:</span><br><b>' + (intrStats.max ? intrStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
       '</div>' +
       intrRangeBar +
     '</div>';
@@ -9516,43 +9526,42 @@ function loadBmCompareDetail(){
     // Внешние источники
     (r.external || []).forEach(function(ext){
       var extStats = ext.stats || {};
-      var licBadge = ext.isLicensed ? '<span class="badge" style="background:#f59e0b20;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #f59e0b40">Лицензия</span>' : '';
       var gapHtml = '';
       if(ext.gapPercent != null){
         var isPos = ext.gapPercent >= 0;
-        var col = isPos ? 'var(--green, #10b981)' : 'var(--red, #ef4444)';
-        gapHtml = '<span style="font-size:13px;font-weight:800;color:' + col + '">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
+        var col = isPos ? 'var(--ok)' : 'var(--no)';
+        gapHtml = '<span style="font-size:12.5px;font-weight:600;color:' + col + '">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
       }
 
       var extRangeBar = ext.hasData ? renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid) : '';
 
-      sourcesHtml += '<div class="card" style="padding:16px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:14px">' +
+      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-          '<div style="display:flex;align-items:center;gap:12px">' +
-            renderSourceSticker(ext.sourceKey) +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            renderSourceBadge(ext.sourceKey, ext.isLicensed) +
             '<div>' +
-              '<b style="font-size:16px">' + esc(ext.sourceTitle) + ' ' + licBadge + '</b><br>' +
-              '<span style="font-size:12px;color:var(--muted)">' + (ext.sourcePosition ? 'Сопоставлено с: «' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · Актуально на: ' + esc(ext.dataAsOf) : '') + '</span>' +
+              '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(ext.sourceTitle) + '</b>' +
+              '<span style="font-size:12px;color:var(--color-fog);margin-left:6px">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span>' +
             '</div>' +
           '</div>' +
           '<div style="text-align:right">' +
-            (extStats.p50 ? '<b style="font-size:17px;color:var(--accent)">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
+            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent)">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:11.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:12px">нет данных</span>') +
             (gapHtml ? '<br>' + gapHtml : '') +
           '</div>' +
         '</div>' +
         (ext.hasData ?
-          '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;font-size:12px;background:var(--bg);padding:8px 12px;border-radius:8px;text-align:center">' +
-            '<div><span style="color:var(--muted)">P10 / Min:</span><br><b>' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--muted)">P25:</span><br><b>' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--muted)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--muted)">P75:</span><br><b>' + (extStats.p75 ? extStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--muted)">P90 / Max:</span><br><b>' + (extStats.max ? extStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;font-size:12px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center">' +
+            '<div><span style="color:var(--color-fog)">P10:</span><br><b>' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--color-fog)">P25:</span><br><b>' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--color-fog)">P50 (Медиана):</span><br><b style="color:var(--accent)">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--color-fog)">P75:</span><br><b>' + (extStats.p75 ? extStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+            '<div><span style="color:var(--color-fog)">P90:</span><br><b>' + (extStats.max ? extStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
           '</div>' +
           extRangeBar
         :
-          '<div style="padding:14px;text-align:center;font-size:13px;color:var(--muted);background:var(--bg);border-radius:8px">' +
-            'Для этой должности нет сопоставленных наблюдений в активных датасетах этого источника. ' +
-            '<button class="btn-ghost" style="padding:2px 8px;font-size:13px;color:var(--accent);font-weight:700" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
+          '<div style="padding:12px;text-align:center;font-size:12.5px;color:var(--color-fog);background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
+            'Нет сопоставленных данных для этой должности. ' +
+            '<button class="btn-ghost" style="padding:2px 8px;font-size:12.5px;color:var(--accent);font-weight:600" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
           '</div>'
         ) +
       '</div>';
@@ -9562,15 +9571,15 @@ function loadBmCompareDetail(){
     var compStats = { p50: comp.compositeMedian };
     var compositeRangeBar = renderSalaryRangeBar(compStats, ourPayFrom, ourPayTo, ourMid);
 
-    d.innerHTML = '<div style="background:var(--card);padding:18px 20px;border-radius:14px;border:1px solid var(--line);margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+    d.innerHTML = '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between">' +
           '<div style="display:flex;align-items:center;gap:12px">' +
-            '<div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366F1,#4338CA);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,0.3);flex:none">' +
-              '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">' + ICONS.chart + '</svg>' +
+            '<div style="width:36px;height:36px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none">' +
+              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' + ICONS.chart + '</svg>' +
             '</div>' +
             '<div>' +
-              '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
-              '<div style="font-size:26px;font-weight:800;color:var(--accent);margin-top:2px">' +
+              '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
+              '<div style="font-size:22px;font-weight:700;color:var(--color-midnight-ink);letter-spacing:-0.02em;margin-top:1px">' +
                 (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
               '</div>' +
             '</div>' +
@@ -9593,14 +9602,14 @@ function renderBmMapping(){
     return '<option value="' + s.key + '" ' + (s.key === BM_STATE.selectedSourceKey ? 'selected' : '') + '>' + esc(s.title) + '</option>';
   }).join('');
 
-  c.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">' +
+  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div style="display:flex;align-items:center;gap:8px">' +
-      '<label class="lbl" style="margin:0;font-weight:700">Источник данных:</label>' +
-      '<select id="bmMapSrcSelect" style="padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg)">' + srcOpts + '</select>' +
+      '<label class="lbl" style="margin:0">Источник данных:</label>' +
+      '<select id="bmMapSrcSelect" style="height:32px;padding:0 8px;font-size:12.5px;width:auto">' + srcOpts + '</select>' +
     '</div>' +
     '<div style="display:flex;gap:8px">' +
-      '<button class="btn" id="btnBmSuggest" style="display:inline-flex;align-items:center;gap:6px">' +
-        ic('bolt', 15) + 'Автоподбор похожих должностей' +
+      '<button class="btn-primary" id="btnBmSuggest" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' +
+        ic('bolt', 14) + 'Автоподбор похожих должностей' +
       '</button>' +
     '</div>' +
   '</div>' +
@@ -9620,37 +9629,37 @@ function loadBmMappingsList(){
   var tbl = $('bmMapTable');
   if(!tbl) return;
 
-  tbl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">Загрузка сопоставлений…</div>';
+  tbl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--color-fog)" class="sp"><i></i> Загрузка сопоставлений…</div>';
 
   call('apiBenchmarkMappings', S.token, BM_STATE.selectedSourceKey).then(function(res){
     var mappings = (res && res.mappings) || [];
     if(mappings.length === 0){
-      tbl.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+      tbl.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--color-fog)">' +
         'Сопоставлений для этого источника пока нет. Нажмите <b>«Автоподбор похожих должностей»</b> или загрузите новый датасет.' +
       '</div>';
       return;
     }
 
     var rows = mappings.map(function(m){
-      var confLabel = m.confidence === 'exact' ? '🟢 Точное' : (m.confidence === 'close' ? '🟡 Близкое' : '⚪ Примерное');
+      var confLabel = m.confidence === 'exact' ? '<span class="top-period-pill"><span class="top-period-dot"></span> Точное</span>' : (m.confidence === 'close' ? '<span class="top-period-pill" style="color:var(--warn);border-color:var(--warn-border)"><span class="top-period-dot" style="background:var(--warn)"></span> Близкое</span>' : '<span class="top-period-pill is-closed"><span class="top-period-dot"></span> Примерное</span>');
       return '<tr>' +
-        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)"><b>' + esc(m.dict_position_name) + '</b></td>' +
-        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:11px;color:var(--muted)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
-        '<td style="padding:10px 12px;border-bottom:1px solid var(--line)"><span style="font-size:12px">' + confLabel + '</span></td>' +
-        '<td style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:right">' +
-          '<button class="btn-ghost" style="color:var(--red, #ef4444);padding:4px 8px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">' + ic('trash', 12) + 'Удалить</button>' +
+        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash);font-weight:550">' + esc(m.dict_position_name) + '</td>' +
+        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:11px;color:var(--color-fog)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
+        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash)">' + confLabel + '</td>' +
+        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash);text-align:right">' +
+          '<button class="btn-ghost" style="color:var(--no);padding:2px 6px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">' + ic('trash', 12) + 'Удалить</button>' +
         '</td>' +
       '</tr>';
     }).join('');
 
-    tbl.innerHTML = '<div class="card" style="background:var(--card);border-radius:12px;border:1px solid var(--line);overflow:hidden">' +
+    tbl.innerHTML = '<div class="card" style="padding:0;overflow:hidden">' +
       '<table style="width:100%;border-collapse:collapse;text-align:left;font-size:13px">' +
         '<thead>' +
-          '<tr style="background:var(--bg);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)">' +
-            '<th style="padding:10px 12px">Должность Фаровон</th>' +
-            '<th style="padding:10px 12px">Должность источника</th>' +
-            '<th style="padding:10px 12px">Точность</th>' +
-            '<th style="padding:10px 12px;text-align:right">Действие</th>' +
+          '<tr style="background:var(--color-paper-mist);border-bottom:1px solid var(--color-ash);font-size:11.5px;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">' +
+            '<th style="padding:8px 12px">Должность Фаровон</th>' +
+            '<th style="padding:8px 12px">Должность источника</th>' +
+            '<th style="padding:8px 12px">Точность</th>' +
+            '<th style="padding:8px 12px;text-align:right">Действие</th>' +
           '</tr>' +
         '</thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -9734,9 +9743,9 @@ function renderBmDatasets(){
   var c = $('bmContent');
   if(!c) return;
 
-  c.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-    '<div><b style="font-size:16px">Загруженные датасеты и источники</b></div>' +
-    '<div><button class="btn" id="btnBmUpload" style="display:inline-flex;align-items:center;gap:6px">' + ic('archive', 15) + 'Загрузить датасет</button></div>' +
+  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px">' +
+    '<div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
+    '<div><button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button></div>' +
   '</div>' +
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
 
@@ -9748,25 +9757,24 @@ function renderBmDatasets(){
     if(!el) return;
 
     if(list.length === 0){
-      el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
+      el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--color-fog)">' +
         'Пока нет загруженных датасетов. Нажмите <b>«Загрузить датасет»</b>, чтобы загрузить данные B1, Antal или Job Farovon.' +
       '</div>';
       return;
     }
 
     var cards = list.map(function(d){
-      var lic = d.is_licensed ? '<span class="badge" style="background:#f59e0b20;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #f59e0b40">Лицензия</span>' : '';
-      return '<div class="card" style="padding:14px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">' +
+      return '<div class="card" style="padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">' +
         '<div style="display:flex;align-items:center;gap:12px">' +
-          renderSourceSticker(d.source_key) +
+          renderSourceBadge(d.source_key, d.is_licensed) +
           '<div>' +
-            '<b style="font-size:15px">' + esc(d.title) + ' ' + lic + '</b><br>' +
-            '<span style="font-size:12px;color:var(--muted)">Источник: ' + esc(d.source_title) + ' · Дата отчёта: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+            '<b style="font-size:14.5px;color:var(--color-midnight-ink)">' + esc(d.title) + '</b><br>' +
+            '<span style="font-size:12px;color:var(--color-fog)">Источник: ' + esc(d.source_title) + ' · Отчёт: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<span style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--green, #10b981)20;color:var(--green, #10b981);font-weight:700">Активен</span>' +
-          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--red, #ef4444);font-size:12px;padding:4px 8px">' + ic('trash', 12) + 'Удалить</button>' +
+          '<span class="top-period-pill"><span class="top-period-dot"></span> Активен</span>' +
+          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--no);font-size:12px;padding:4px 8px">' + ic('trash', 12) + 'Удалить</button>' +
         '</div>' +
       '</div>';
     }).join('');
