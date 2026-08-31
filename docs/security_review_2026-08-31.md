@@ -16,10 +16,13 @@
 | P1-6 | CORS по белому списку вместо `cors()` `*`; переопределяется `CORS_ORIGINS` (`server.js`) |
 | P1-7 | Убран приём JWT из `?token=` query (`middleware/auth.js`); `jwt.verify`/`jwt.sign` с явным `algorithms: ['HS256']`. **Осталось:** короткоживущая подписанная ссылка для `export-csv`, срок токена < 30 дней + refresh |
 | P1-8 | `app.set('trust proxy', 1)` (`server.js`) — реальный `req.ip` за прокси Render |
+| P1-5 | Включён CSP вместо `contentSecurityPolicy:false` (`server.js`): внешние ресурсы только `telegram.org` + Google Fonts, `frame-ancestors` только Telegram, `object-src 'none'`, `base-uri`/`form-action` `'self'`. `script-src`/`script-src-attr` оставляют `'unsafe-inline'` (во фронте много инлайнового JS и ~20 `onclick=`). `X-Frame-Options` снят (перебивал бы `frame-ancestors`). Проверено локально: страница 200, заголовок выставляется |
+| P1-9 | `csvCell()` — гасит CSV-инъекцию (ведущие `= + - @` \t \r → апостроф) в `dashboardController.exportCSV` и в клиентском `exportDashboardCSV` (`public/index.html`) |
+| P1-10 | `missingSecrets()`: при заданном `TELEGRAM_BOT_TOKEN` требует и `TELEGRAM_WEBHOOK_SECRET` (`config/index.js`) |
 
 Новая зависимость: `express-rate-limit@^7.5.1`.
 
-**P0-1 (ротация секретов) — выполнена 2026-08-31** вручную: `JWT_SECRET`, `TURSO_AUTH_TOKEN` (база `farovon`), `TELEGRAM_WEBHOOK_SECRET` заменены в Render + `.env`, `setWebhook` перерегистрирован, `TURSO_DATABASE_URL` выправлен. Прод проверен: `/health` `db:ok`, вход и бот работают. Осталось прибрать заброшенную базу `farovon-market-analysis` (к ней всё ещё подходит утёкший в git токен) — детали в P0-1 ниже.
+**P0-1 (ротация секретов) — выполнена 2026-08-31** вручную: `JWT_SECRET`, `TURSO_AUTH_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` заменены в Render + `.env`, `setWebhook` перерегистрирован. Прод проверен: `/health` `db:ok`, вход и бот работают. На `farovon-market-analysis` (боевая база) сделан Turso `Invalidate tokens` — утёкший в git RW-токен теперь мёртв. Детали и остаточные хвосты — в P0-1 ниже.
 
 ⚠️ Код-изменения этой ветки (`security/review-2026-08-31`) на прод **не выкатывались** — там всё ещё `main`/`fadd7f7` без rate-limit и lockout. Нужен merge + deploy.
 
@@ -28,20 +31,27 @@
 ## P0 — критично
 
 ### P0-1 ✅ Ротация секретов из git-истории (сделано 2026-08-31)
-`src/config/index.js:4-6` фиксирует: RW-токен Turso и `JWT_SECRET` ранее были захардкожены и попали в историю git.
+`src/config/index.js:4-6` фиксирует: RW-токен Turso и `JWT_SECRET` ранее были захардкожены и попали в историю git (коммиты `f453d75`, `2e722d1`; убраны в `4255edf`).
 
-Что выяснилось при ротации: утёкший в историю Turso-токен (`rid 022dc4a4…`, `id БД 01a02e8e…`) был выписан для базы **`farovon-market-analysis`** — это отдельная, судя по всему заброшенная база. Прод работает на базе **`farovon`** (`id БД 01a031f8…`), её токен в историю не попадал (жил только в `.env`, а `.env` в git не коммитился — проверено `git log -- .env`).
+**Разбор баз Turso:**
+- **`farovon-market-analysis`** (Database, родитель) — **боевая база**. Подтверждено значением `TURSO_DATABASE_URL` в Render. Утёкший в историю RW-токен (`id БД 01a02e8e…`) был выписан именно на неё.
+- **`farovon`** (Branch, снимок от 23.08) — старая боковая копия. Локальный `.env` по ошибке смотрел на неё, поэтому ранние подсчёты («111 пользователей», «5 SHA-хэшей») были по этой копии, а не по проду.
+- `.env` в git никогда не коммитился (`git log -- .env` пуст) — токен ветки `farovon` не утекал.
 
-- [x] `JWT_SECRET` — заменён в Render + локальном `.env` (все сессии разлогинены, вход проверен)
-- [x] `TURSO_AUTH_TOKEN` — рабочий токen базы `farovon` в Render + `.env`; прод `/health` → `db:ok`, 111 пользователей
-- [x] `TELEGRAM_WEBHOOK_SECRET` — новый (64 hex), в Render + `.env` + `setWebhook`; бот отвечает на `/help`
-- [x] `TURSO_DATABASE_URL` в Render и `.env` выправлен на `libsql://farovon-muzaffarkhon.aws-eu-west-1.turso.io`
-- [ ] `TELEGRAM_BOT_TOKEN` — НЕ ротирован (в истории его не нашли; ротировать по желанию через @BotFather)
-- [ ] Удалить/проверить заброшенную базу `farovon-market-analysis` в панели Turso — это окончательно погасит утёкший в git токен
+- [x] `JWT_SECRET` — заменён в Render + `.env` (все сессии разлогинены, вход проверен)
+- [x] `TURSO_AUTH_TOKEN` — новый на Render; прод `/health` → `db:ok`
+- [x] `TELEGRAM_WEBHOOK_SECRET` — новый (64 hex) в Render + `.env` + `setWebhook`; бот отвечает
+- [x] **Turso `Invalidate tokens` на `farovon-market-analysis`** — утёкший в git RW-токен инвалидирован (ключ подписи повёрнут)
+- [ ] `TELEGRAM_BOT_TOKEN` — НЕ ротирован (в истории не найден; по желанию через @BotFather)
 - [ ] Проверить историю на `ADMIN_PASSWORD` / `CB_PASSWORD` (`src/tools/generateDataBundle.js`, `cleanTurso.js`)
-- [ ] `.env.bak.*` и `scratch/*.js` (помощники ротации) — можно удалить локально; в git они не попадают
+- [ ] Локальный `.env` перенастроить на `farovon-market-analysis` (боевую) + токен для неё — помощник `scratch/point-to-prod-db.js`
+- [ ] Удалить локальные `.env.bak.*` (в них старые секреты) и `scratch/*.js`
 
-**Остаточный риск:** пока база `farovon-market-analysis` жива, старый RW-токен из истории git к ней подходит. Данные там, вероятно, неактуальны, но лучше удалить базу или сделать `tokens invalidate` на ней.
+### P0-A ⬜ Тестовые учётки в проде
+В боевой базе живут 6 аккаунтов `testovyy.*` (создан 29.08). Среди них **`testovyy.a` — активная роль `admin`**, вход 31.08 — фактически чёрный ход с, вероятно, простым паролем.
+
+- [ ] Заархивировать/удалить все `testovyy.*` перед боевым запуском
+- [ ] В первую очередь — `testovyy.a` (тестовый администратор)
 
 ### P0-2 ✅ Эскалация привилегий в `saveUser`
 `src/controllers/adminController.js:112-210`. `VALID_ROLES` включает `'admin'`; нет проверки, что не-admin не может создать/повысить пользователя (или себя) до `admin`. Единственная защита — «последний админ». Как только конструктор ролей выдаёт `users:create`/`users:edit` роли `cb`/`hrbp`, эта роль может выписать себе admin-учётку.
@@ -70,11 +80,11 @@
 
 ## P1 — важно
 
-### P1-5 ⬜ CSP полностью выключен
+### P1-5 ✅ CSP полностью выключен
 `src/server.js:41-43`: `helmet({ contentSecurityPolicy: false })`. Фронт — большой `index.html` с обилием `innerHTML` и пользовательскими данными (компании, ФИО, заметки).
 
-- [ ] Включить узкий CSP, совместимый с Telegram Mini App: `default-src 'self'`; `script-src 'self' https://telegram.org`; `frame-ancestors https://web.telegram.org https://*.telegram.org`; `object-src 'none'`; `base-uri 'self'`
-- [ ] Проверить мини-апп после включения, донастроить директивы
+- [x] CSP включён с директивами (см. server.js). script-src оставляет 'unsafe-inline' — осознанный компромисс под текущий фронт
+- [ ] Проверить Telegram Mini App в бою после включения CSP (локально страница грузится)
 
 ### P1-6 ✅ CORS открыт всем
 `src/server.js:40`: `app.use(cors())` → `Access-Control-Allow-Origin: *`.
@@ -94,16 +104,16 @@
 
 - [x] `app.set('trust proxy', 1)` (`server.js`)
 
-### P1-9 ⬜ CSV-injection
+### P1-9 ✅ CSV-injection
 `/api/dashboard/export-csv` отдаёт CSV из пользовательских данных; значения на `= + - @` исполняются в Excel.
 
-- [ ] Экранировать опасные ведущие символы при выгрузке
-- [ ] Проверить парсер импорта `src/services/surveyImport.js`
+- [x] csvCell() экранирует ведущие = + - @ 	  (сервер + клиент)
+- [ ] Проверить парсер импорта src/services/surveyImport.js (импорт, не выгрузка — ниже риск)
 
-### P1-10 ⬜ `TELEGRAM_WEBHOOK_SECRET` не обязателен
+### P1-10 ✅ `TELEGRAM_WEBHOOK_SECRET` не обязателен
 Не входит в `REQUIRED_SECRETS` (`config/index.js:20-24`). Сейчас fail-closed, но по `.env.example` секрет «обязателен при заданном боте».
 
-- [ ] В `missingSecrets()`: если задан `TELEGRAM_BOT_TOKEN`, то `TELEGRAM_WEBHOOK_SECRET` обязателен
+- [x] missingSecrets(): TELEGRAM_WEBHOOK_SECRET обязателен при заданном TELEGRAM_BOT_TOKEN
 
 ---
 

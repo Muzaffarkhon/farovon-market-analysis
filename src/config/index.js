@@ -24,7 +24,13 @@ const REQUIRED_SECRETS = [
 ];
 
 config.missingSecrets = function missingSecrets() {
-  return REQUIRED_SECRETS.filter(([, key]) => !config[key]).map(([envName]) => envName);
+  const missing = REQUIRED_SECRETS.filter(([, key]) => !config[key]).map(([envName]) => envName);
+  // Вебхук-секрет обязателен, только если бот вообще подключён: без него
+  // telegramController.webhook отвечает 401 на всё, и бот молча не работает.
+  if (config.telegramBotToken && !config.telegramWebhookSecret) {
+    missing.push('TELEGRAM_WEBHOOK_SECRET');
+  }
+  return missing;
 };
 
 config.assertSecrets = function assertSecrets() {

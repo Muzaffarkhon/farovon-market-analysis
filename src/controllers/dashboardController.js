@@ -82,6 +82,14 @@ exports.getHRBPDashboard = async (req, res) => {
   }
 };
 
+// Защита от CSV-инъекции: Excel/Sheets исполняют содержимое ячейки, если оно
+// начинается с = + - @ или управляющего символа. Гасим ведущим апострофом.
+function csvCell(value) {
+  const s = String(value == null ? '' : value);
+  const safe = /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+  return '"' + safe.replace(/"/g, '""') + '"';
+}
+
 exports.exportCSV = async (req, res) => {
   try {
     const analytics = await getExtendedAnalytics(req.query || {});
@@ -89,7 +97,7 @@ exports.exportCSV = async (req, res) => {
 
     const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
     const rows = positions.map(p => [
-      '"' + (p.pos || '').replace(/"/g, '""') + '"',
+      csvCell(p.pos),
       p.count,
       p.withSalaryCount,
       p.min,
