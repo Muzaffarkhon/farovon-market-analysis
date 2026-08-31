@@ -1223,9 +1223,12 @@ function renderRail(){
 
   var fio = userLabel();
   $('railAv').textContent = fio.trim().slice(0,1).toUpperCase() || '?';
-  $('railFio').textContent = fio;
+  $('railFio').textContent = shortFio(fio);
+  $('railFio').title = fio;
   var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
-  $('railRole').textContent = roleNames[r] || r;
+  var roleName = roleNames[r] || r;
+  $('railRole').textContent = roleName;
+  $('railRole').title = roleName;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5679,6 +5682,15 @@ function getInitials(name){
   var p = name.trim().split(/\s+/);
   if(p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
   return (p[0][0] || '—').toUpperCase();
+}
+
+/** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
+ *  Неразрывные пробелы, чтобы инициалы не переносились. */
+function shortFio(name){
+  var p = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if(p.length <= 1) return p[0] || '';
+  var initials = p.slice(1).map(function(x){ return x.charAt(0).toUpperCase() + '.'; }).join(' ');
+  return p[0] + ' ' + initials;
 }
 
 var _orgClickTimer = null;

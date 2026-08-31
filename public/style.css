@@ -637,6 +637,11 @@ body.has-bar .wrap {
     flex: none;
   }
 
+  .rail-who {
+    min-width: 0; /* иначе flex-ребёнок с nowrap-текстом не сжимается и вылезает */
+    flex: 1;
+  }
+
   .rail-who b {
     display: block;
     font-size: 12.5px;
@@ -644,12 +649,17 @@ body.has-bar .wrap {
     line-height: 1.2;
     color: var(--color-charcoal);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .rail-who span {
+    display: block;
     font-size: 11px;
     color: var(--color-fog);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   #topNav {
