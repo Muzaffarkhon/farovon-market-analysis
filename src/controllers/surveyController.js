@@ -27,10 +27,11 @@ function cleanNumber(val, fieldName) {
  * данные другого. Строка «принадлежит» тому, кто первым её сохранил —
  * дальше правит только он сам (по ФИО) или admin/cb.
  */
-function isOwnedByOther(existingOwner, user) {
+function isOwnedByOther(existingOwner, user, ownerRowSource) {
   if (user.role === 'admin' || user.role === 'cb') return false;
+  if (String(ownerRowSource || '').trim().toLowerCase().startsWith('импорт')) return false;
   const owner = String(existingOwner || '').trim().toLowerCase();
-  if (!owner) return false;
+  if (!owner || owner === 'импорт') return false;
   const mine = String(user.fio || user.login || '').trim().toLowerCase();
   return owner !== mine;
 }
@@ -138,7 +139,18 @@ exports.saveSurveyData = async (req, res) => {
       });
     });
 
-    // 3. Журнал
+    // 3. Комментарий по подразделению — свободный текст ответственного о рынке
+    // труда. Одна запись на unit, хранится на строке divisions. Приходит с
+    // каждым сохранением (фронт держит его в S.note); пишем, только если поле
+    // вообще прислано — старый клиент без него ничего не затрёт.
+    if (note !== undefined) {
+      stmts.push({
+        sql: `UPDATE divisions SET survey_note = ? WHERE unit = ?`,
+        args: [String(note == null ? '' : note).trim().slice(0, 4000), unit]
+      });
+    }
+
+    // 4. Журнал
     stmts.push({
       sql: `INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)`,
       args: [
@@ -256,7 +268,7 @@ exports.saveSurveyDetails = async (req, res) => {
     if (touchedSids.length) {
       const placeholders = touchedSids.map(() => '?').join(',');
       const existing = await queryAll(
-        `SELECT sid, company, created_by FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
+        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
         [unit, ...touchedSids]);
       existing.forEach(x => { ownerBySid[x.sid] = x; });
     }
@@ -265,7 +277,7 @@ exports.saveSurveyDetails = async (req, res) => {
     if (Array.isArray(remove) && remove.length) {
       remove.forEach(sid => {
         const existing = ownerBySid[sid];
-        if (existing && isOwnedByOther(existing.created_by, req.user)) {
+        if (existing && isOwnedByOther(existing.created_by, req.user, existing.source)) {
           blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'remove' });
           return;
         }
@@ -281,7 +293,7 @@ exports.saveSurveyDetails = async (req, res) => {
       let sid = s.id;
       if (sid && !String(sid).startsWith('tmp')) {
         const existing = ownerBySid[sid];
-        if (existing && isOwnedByOther(existing.created_by, req.user)) {
+        if (existing && isOwnedByOther(existing.created_by, req.user, existing.source)) {
           blocked.push({ id: sid, company: existing.company, owner: existing.created_by, action: 'edit' });
           newIds.push(sid);
           return;

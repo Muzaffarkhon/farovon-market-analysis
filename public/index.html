@@ -2064,7 +2064,8 @@ function openUnit(unit, backTo){
                       .map(function(r){ return JSON.parse(JSON.stringify(r)); });
   S.surveys = S.data.surveys.filter(function(r){ return r.unit === unit; })
                             .map(function(r){ return JSON.parse(JSON.stringify(r)); });
-  S.added = []; S.removed = []; S.note = ''; S.dirty = false;
+  var uObj = (S.data.units || []).filter(function(x){ return x.unit === unit; })[0];
+  S.added = []; S.removed = []; S.note = (uObj && uObj.note) || ''; S.dirty = false;
 
   var d = null;
   if(!S.ro){
@@ -2686,8 +2687,8 @@ function openBatchSurveySheet(posName){
       co: co,
       id: exist ? exist.id : '',
       exist: !!exist,
-      payFrom: exist ? (exist.payFrom || '') : '',
-      payTo: exist ? (exist.payTo || '') : '',
+      payFrom: exist && exist.payFrom ? String(exist.payFrom) : '',
+      payTo: exist && exist.payTo ? String(exist.payTo) : '',
       cur: exist ? (exist.cur || 'сомони') : 'сомони',
       payPer: exist ? (exist.payPer || 'в месяц') : 'в месяц',
       posTheir: exist ? (exist.posTheir || '') : '',
@@ -2922,7 +2923,7 @@ function openBatchSurveySheet(posName){
       }
     }
     entries.forEach(function(item){
-      var isFilled = !!(item.payFrom.trim() || item.payTo.trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
+      var isFilled = !!(String(item.payFrom).trim() || String(item.payTo).trim() || item.bonSize.trim() || item.benefits.length || item.note.trim() || item.extra.trim() || item.posTheir.trim());
 
       var existIndex = S.surveys.findIndex(function(s){
         return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
@@ -2939,8 +2940,8 @@ function openBatchSurveySheet(posName){
           schedule: item.schedule.trim(),
           // Нормализуем к чистому числу-строке ("10000"): сервер и дашборд
           // читают это через Number(), а "10 000"/"10,000" туда не годятся.
-          payFrom: item.payFrom.trim() ? String(parseMoney(item.payFrom)) : '',
-          payTo: item.payTo.trim() ? String(parseMoney(item.payTo)) : '',
+          payFrom: String(item.payFrom).trim() ? String(parseMoney(item.payFrom)) : '',
+          payTo: String(item.payTo).trim() ? String(parseMoney(item.payTo)) : '',
           cur: item.cur,
           payPer: item.payPer,
           bonHas: item.bonHas,
@@ -3395,6 +3396,7 @@ function doSave(submit){
       u.done = after.done;
       u.ask = after.ask;
       u.surveys = S.surveys.length;
+      u.note = S.note;
     }
 
     // Часть строк принадлежит другому ответственному (см. isOwnedByOther
@@ -4798,10 +4800,12 @@ function userActs(u, compact){
   var login = esc(u.login);
 
   // Администратора и самого себя блокировать и архивировать нельзя: войти
-  // потом будет некому. Сервер это тоже проверяет — здесь просто не показываем
-  // кнопки, которые всё равно откажут.
+  // потом будет некому. Суперадминистратор (встроенная учётка «admin») может
+  // управлять остальными администраторами.
   var me = S.data && S.data.user ? String(S.data.user.login).toLowerCase() : '';
-  var locked = u.role === 'admin' || String(u.login).toLowerCase() === me;
+  var iAmSuper = me === 'admin';
+  var isSuperTarget = String(u.login).toLowerCase() === 'admin';
+  var locked = String(u.login).toLowerCase() === me || isSuperTarget || (u.role === 'admin' && !iAmSuper);
 
   if(compact){
     return '<button class="row-menu-trigger" title="Действия" aria-label="Действия с пользователем" onclick="openUserActions(event, \''+login+'\')">'+icBare('more',16)+'</button>';
@@ -4857,7 +4861,9 @@ function openUserActions(e, login){
   var u = (S.adminUsers || []).filter(function(item){ return item.login === login; })[0];
   if(!u) return;
   var me = S.data && S.data.user ? String(S.data.user.login).toLowerCase() : '';
-  var locked = u.role === 'admin' || String(u.login).toLowerCase() === me;
+  var iAmSuper = me === 'admin';
+  var isSuperTarget = String(u.login).toLowerCase() === 'admin';
+  var locked = String(u.login).toLowerCase() === me || isSuperTarget || (u.role === 'admin' && !iAmSuper);
   var actions = [
     { label:'Редактировать', icon:'pencil', run:function(){ openUserModal(login); } },
     { label:'Сбросить пароль', icon:'key', run:function(){ adminResetPwd(login); } }
@@ -4984,6 +4990,11 @@ function openUserModal(login){
   var u = login ? (S.adminUsers || []).filter(function(x){ return x.login === login; })[0] : null;
   var isEdit = !!u;
 
+  var meLogin = S.data && S.data.user ? String(S.data.user.login).toLowerCase() : '';
+  var iAmSuper = meLogin === 'admin';
+  var editingSuper = isEdit && String(u.login).toLowerCase() === 'admin';
+  var adminFieldsLocked = editingSuper || (isEdit && u.role === 'admin' && !iAmSuper);
+
   var userUnits = {};
   if(u && u.units) u.units.forEach(function(un){ userUnits[un] = true; });
 
@@ -5002,7 +5013,7 @@ function openUserModal(login){
       '</div>'+
       '<div>'+
         '<label class="lbl">Роль</label>'+
-        '<select id="umRole">'+ roleOptionsHtml(u ? u.role : 'user') +'</select>'+
+        '<select id="umRole" '+(adminFieldsLocked?'disabled style="opacity:.6;cursor:not-allowed"':'')+'>'+ roleOptionsHtml(u ? u.role : 'user') +'</select>'+
       '</div>'+
     '</div>'+
     '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
@@ -5011,7 +5022,7 @@ function openUserModal(login){
       '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
       '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
     '<div style="margin:8px 0 6px">'+
-      '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+'> Пользователь активен</label>'+
+      '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+' '+(adminFieldsLocked?'disabled':'')+'> Пользователь активен</label>'+
     '</div>'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'+
       '<div class="sec-title" style="margin:0">Закрепленные подразделения</div>'+

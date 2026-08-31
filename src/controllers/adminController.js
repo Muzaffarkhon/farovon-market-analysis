@@ -98,14 +98,20 @@ exports.getUsers = async (req, res) => {
  *
  * Возвращает текст ошибки либо null, если действие разрешено.
  */
+function isSuperadmin(login) {
+  return String(login || '').trim().toLowerCase() === 'admin';
+}
+
 function guardAdmin(actor, target, verb) {
   if (!target) return null;
   if (String(actor.login).toLowerCase() === String(target.login).toLowerCase()) {
     return `Нельзя ${verb} собственную учётную запись`;
   }
+  if (isSuperadmin(actor.login)) return null;
   if (target.role === 'admin') {
     return `Учётную запись администратора нельзя ${verb}. ` +
-           'Сначала передайте роль администратора другому сотруднику.';
+           'Сначала передайте роль администратора другому сотруднику, ' +
+           'либо попросите суперадминистратора (встроенная учётка «admin»).';
   }
   return null;
 }
@@ -176,6 +182,16 @@ exports.saveUser = async (req, res) => {
       // Через карточку админа тоже можно было и разжаловать, и снять галочку
       // «активен» — те же последствия, что и «Заблокировать».
       if (existing.role === 'admin') {
+        const actorIsSuper = isSuperadmin(req.user.login);
+        const targetIsSuper = isSuperadmin(existing.login);
+
+        if (targetIsSuper && (newRole !== 'admin' || active === false)) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Учётную запись суперадминистратора нельзя разжаловать или отключить.'
+          });
+        }
+
         const left = await otherActiveAdmins(existing.login);
         if (newRole !== 'admin' && left === 0) {
           return res.status(400).json({
@@ -183,11 +199,20 @@ exports.saveUser = async (req, res) => {
             error: 'Это единственный администратор. Сначала назначьте администратором кого-то ещё.'
           });
         }
-        if (active === false) {
-          return res.status(400).json({
-            ok: false,
-            error: 'Учётную запись администратора нельзя перевести в неактивные.'
-          });
+
+        if (!actorIsSuper) {
+          if (newRole !== 'admin') {
+            return res.status(403).json({
+              ok: false,
+              error: 'Разжаловать администратора может только суперадминистратор (встроенная учётка «admin»).'
+            });
+          }
+          if (active === false) {
+            return res.status(403).json({
+              ok: false,
+              error: 'Отключить администратора может только суперадминистратор (встроенная учётка «admin»).'
+            });
+          }
         }
       }
 

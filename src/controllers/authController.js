@@ -103,9 +103,13 @@ async function getUserPayload(user) {
   ] = await Promise.all([
     (async () => {
       try {
-        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key FROM divisions ORDER BY num ASC, unit ASC");
+        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note FROM divisions ORDER BY num ASC, unit ASC");
       } catch (e) {
-        return (await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC')).map(d => ({ ...d, group_key: '' }));
+        try {
+          return (await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key FROM divisions ORDER BY num ASC, unit ASC")).map(d => ({ ...d, survey_note: '' }));
+        } catch (e2) {
+          return (await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC')).map(d => ({ ...d, group_key: '', survey_note: '' }));
+        }
       }
     })(),
     queryAll('SELECT unit, actual FROM competitors'),
@@ -153,7 +157,8 @@ async function getUserPayload(user) {
       total: (compMap[d.unit] || {}).total || 0,
       done: (compMap[d.unit] || {}).done || 0,
       ask: (compMap[d.unit] || {}).ask || 0,
-      surveys: survMap[d.unit] || 0
+      surveys: survMap[d.unit] || 0,
+      note: d.survey_note || ''
     }));
   } else {
     visibleUnits = allUnits.filter(d => unitsList.includes(d.unit)).map(d => ({
@@ -163,7 +168,8 @@ async function getUserPayload(user) {
       total: (compMap[d.unit] || {}).total || 0,
       done: (compMap[d.unit] || {}).done || 0,
       ask: (compMap[d.unit] || {}).ask || 0,
-      surveys: survMap[d.unit] || 0
+      surveys: survMap[d.unit] || 0,
+      note: d.survey_note || ''
     }));
   }
 
