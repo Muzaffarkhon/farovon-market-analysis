@@ -204,10 +204,13 @@ class BenchmarkService {
    */
   async compare({ positionId, positionName, user }) {
     let posRow = null;
-    if (positionId) {
-      posRow = await queryOne('SELECT id, name, pay_from, pay_to FROM dictionary_positions WHERE id = ?', [positionId]);
-    } else if (positionName) {
-      posRow = await queryOne('SELECT id, name, pay_from, pay_to FROM dictionary_positions WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [positionName]);
+    const numId = Number(positionId);
+    if (positionId && !isNaN(numId) && numId > 0) {
+      posRow = await queryOne('SELECT id, name, pay_from, pay_to FROM dictionary_positions WHERE id = ?', [numId]);
+    }
+    const cleanName = String(positionName || '').trim();
+    if (!posRow && cleanName && cleanName !== 'undefined' && cleanName !== 'null') {
+      posRow = await queryOne('SELECT id, name, pay_from, pay_to FROM dictionary_positions WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [cleanName]);
     }
 
     if (!posRow) {

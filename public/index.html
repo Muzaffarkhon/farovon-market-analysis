@@ -434,7 +434,7 @@ var API_ROUTES = {
   apiBenchmarkDeleteMapping: function(args){ return fetchJson('/api/benchmarks/mappings/' + encodeURIComponent(args[1]) + '/delete', { method:'POST', token:args[0] }); },
   apiBenchmarkDryRun: function(args){ return fetchJson('/api/benchmarks/import/dry-run', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkCommit: function(args){ return fetchJson('/api/benchmarks/import/commit', { method:'POST', token:args[0], body:args[1] }); },
-  apiBenchmarkCompare: function(args){ return fetchJson('/api/benchmarks/compare?' + (args[1] ? 'positionId='+encodeURIComponent(args[1]) : 'positionName='+encodeURIComponent(args[2])), { method:'GET', token:args[0] }); }
+  apiBenchmarkCompare: function(args){ return fetchJson('/api/benchmarks/compare?' + (args[1] ? 'positionId='+encodeURIComponent(args[1])+'&' : '') + (args[2] ? 'positionName='+encodeURIComponent(args[2]) : ''), { method:'GET', token:args[0] }); }
 };
 
 var ERROR_MAP_RU = {
@@ -9275,7 +9275,8 @@ function renderBmCompare(){
   var selId = BM_STATE.selectedPosId;
 
   var posOptions = positions.map(function(p){
-    return '<option value="' + p.id + '" ' + (p.id == selId ? 'selected' : '') + '>' + esc(p.name) + '</option>';
+    var isSel = (selId && (p.id == selId || String(p.id) === String(selId))) || (!selId && p.name === BM_STATE.selectedPosName);
+    return '<option value="' + (p.id || '') + '" data-name="' + esc(p.name) + '" ' + (isSel ? 'selected' : '') + '>' + esc(p.name) + '</option>';
   }).join('');
 
   c.innerHTML = '<div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">' +
@@ -9289,6 +9290,8 @@ function renderBmCompare(){
 
   $('bmPosSelect').onchange = function(){
     BM_STATE.selectedPosId = this.value;
+    var opt = this.options[this.selectedIndex];
+    BM_STATE.selectedPosName = opt ? opt.dataset.name : '';
     loadBmCompareDetail();
   };
 
@@ -9298,11 +9301,18 @@ function renderBmCompare(){
 function loadBmCompareDetail(){
   var d = $('bmCompareDetail');
   var m = $('bmPosMeta');
-  if(!d || !BM_STATE.selectedPosId) return;
+  if(!d) return;
+
+  var selEl = $('bmPosSelect');
+  var opt = selEl ? selEl.options[selEl.selectedIndex] : null;
+  var posId = BM_STATE.selectedPosId || (opt ? opt.value : '');
+  var posName = (opt ? opt.dataset.name : '') || BM_STATE.selectedPosName || '';
+
+  if(!posId && !posName) return;
 
   d.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Загрузка сравнения…</div>';
 
-  call('apiBenchmarkCompare', S.token, BM_STATE.selectedPosId).then(function(res){
+  call('apiBenchmarkCompare', S.token, posId, posName).then(function(res){
     if(!res || !res.ok || !res.result){
       d.innerHTML = '<div class="err">' + ((res && res.error) || 'Ошибка загрузки данных сравнения') + '</div>';
       return;

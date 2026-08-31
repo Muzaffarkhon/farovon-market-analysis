@@ -134,18 +134,19 @@ exports.list = async (req, res) => {
       // «Использований» для должности — это ещё и штатное расписание: должность
       // может быть заведена в отделах, но пока не встречаться ни в одной анкете.
       const rows = await tryQuery(`
-        SELECT d.name, COALESCE(d.dirs, '') AS dirs, COALESCE(d.code, '') AS code,
+        SELECT d.id, d.name, COALESCE(d.dirs, '') AS dirs, COALESCE(d.code, '') AS code,
                COALESCE(d.pay_from, 0) AS pay_from, COALESCE(d.pay_to, 0) AS pay_to,
                (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
                   AND s.state != 'удалена') AS used,
                (SELECT COUNT(*) FROM unit_positions up WHERE up.position = d.name) AS units
         FROM dictionary_positions d ORDER BY d.name ASC`, `
-        SELECT d.name, '' AS dirs, '' AS code, 0 AS pay_from, 0 AS pay_to,
+        SELECT d.id, d.name, '' AS dirs, '' AS code, 0 AS pay_from, 0 AS pay_to,
                (SELECT COUNT(*) FROM surveys s WHERE (s.pos_our = d.name OR s.pos_their = d.name)
                   AND s.state != 'удалена') AS used,
                0 AS units
         FROM dictionary_positions d ORDER BY d.name ASC`);
       items = rows.map(r => ({
+        id: r.id,
         name: r.name,
         code: r.code || '',
         dirs: String(r.dirs || '').split(';').map(s => s.trim()).filter(Boolean),
