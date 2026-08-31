@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ quiet: true }); // dotenv v17 иначе печатает рекламный баннер в лог
 
 // У секретов намеренно нет значений по умолчанию: раньше рабочий RW-токен Turso и
 // ключ JWT лежали прямо в коде и попадали в историю git. Приложение должно падать
