@@ -72,6 +72,25 @@ class BenchmarkService {
   }
 
   /**
+   * Создать новый источник данных
+   */
+  async createSource({ key, title, kind, isLicensed, defaultCurrency, notes }) {
+    if (!key || !title) {
+      throw new Error('Укажите ключ и название источника');
+    }
+    const cleanKey = String(key).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const existing = await queryOne('SELECT key FROM data_sources WHERE key = ?', [cleanKey]);
+    if (existing) {
+      throw new Error(`Источник с кодом «${cleanKey}» уже зарегистрирован`);
+    }
+    await run(
+      'INSERT INTO data_sources (key, title, kind, is_licensed, default_currency, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [cleanKey, title.trim(), kind || 'consultancy', isLicensed ? 1 : 0, defaultCurrency || 'сомони', notes || '']
+    );
+    return await queryOne('SELECT * FROM data_sources WHERE key = ?', [cleanKey]);
+  }
+
+  /**
    * Получить список датасетов
    */
   async getDatasets(filter = {}) {

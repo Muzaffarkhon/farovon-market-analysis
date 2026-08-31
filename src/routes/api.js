@@ -85,6 +85,7 @@ router.post('/admin/roles/:key/delete', requireRoles('admin'), adminController.d
 
 // ─── Мультиисточниковый бенчмаркинг вознаграждений ───
 router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);
+router.post('/benchmarks/sources', requireCapability('benchmarks:import'), benchmarkController.createSource);
 router.get('/benchmarks/datasets', requireCapability('benchmarks:view'), benchmarkController.getDatasets);
 router.post('/benchmarks/datasets/:id/delete', requireCapability('benchmarks:import'), benchmarkController.deleteDataset);
 router.get('/benchmarks/positions/:sourceKey', requireCapability('benchmarks:view'), benchmarkController.getSourcePositions);

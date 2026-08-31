@@ -255,12 +255,18 @@ async function migrate() {
   await run('CREATE INDEX IF NOT EXISTS idx_position_map_dict ON position_map(dict_position_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_position_map_source ON position_map(source_position_id)');
 
-  // Сид базовых источников данных
+  // Сид базовых и расширенных источников данных рынка
   const defaultSources = [
     ['internal', 'Внутренний сбор', 'internal', 0, 'сомони', 'Точечные наблюдения по компаниям-конкурентам от HR BP и руководителей подразделений'],
-    ['job_farovon', 'Job Farovon (hh)', 'jobsite', 0, 'сомони', 'Выгрузка вакансий и резюме с джоб-платформы Farovon / HeadHunter'],
-    ['b1', 'B1 (Ernst & Young)', 'consultancy', 1, 'USD', 'Ежегодный обзор заработных плат B1 Salary Survey'],
-    ['antal', 'Antal International', 'consultancy', 1, 'USD', 'Исследование рынка труда и зарплат Antal']
+    ['b1', 'B1 (Ernst & Young)', 'consultancy', 1, 'USD', 'Ежегодный лицензионный обзор заработных плат и компенсаций B1 Salary Survey'],
+    ['antal', 'Antal International', 'consultancy', 1, 'USD', 'Исследование рынка труда и компенсаций Antal'],
+    ['korn_ferry', 'Korn Ferry (Hay Group)', 'consultancy', 1, 'USD', 'Глобальный обзор заработных плат и грейдов Korn Ferry Hay Group'],
+    ['pwc', 'PwC Pay & Benefits', 'consultancy', 1, 'USD', 'Обзор заработных плат и систем премирования PwC'],
+    ['mercer', 'Mercer TRS', 'consultancy', 1, 'USD', 'Total Remuneration Survey (TRS) Mercer'],
+    ['hh_ru', 'HeadHunter (Банк данных ЗП)', 'jobsite', 1, 'RUB', 'Аналитическая база реальных заработных плат HeadHunter'],
+    ['job_farovon', 'Job Farovon / Somon.tj', 'jobsite', 0, 'сомони', 'Выгрузка вакансий и резюме с джоб-платформы Farovon, Somon.tj и локальных сайтов'],
+    ['stat_tj', 'Агентство по статистике РТ', 'official', 0, 'сомони', 'Официальные данные о средней заработной плате по отраслям Республики Таджикистан'],
+    ['partner_survey', 'Партнёрский C&B обмен', 'direct', 0, 'сомони', 'Прямой опрос и обмен обезличенными вилками с доверенными компаниями-партнерами']
   ];
   for (const [key, title, kind, is_licensed, default_currency, notes] of defaultSources) {
     await run(

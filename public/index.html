@@ -426,6 +426,7 @@ var API_ROUTES = {
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
   apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); },
   apiBenchmarkSources: function(args){ return fetchJson('/api/benchmarks/sources', { method:'GET', token:args[0] }); },
+  apiBenchmarkCreateSource: function(args){ return fetchJson('/api/benchmarks/sources', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkDatasets: function(args){ return fetchJson('/api/benchmarks/datasets' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiBenchmarkPositions: function(args){ return fetchJson('/api/benchmarks/positions/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
   apiBenchmarkMappings: function(args){ return fetchJson('/api/benchmarks/mappings' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
@@ -9227,16 +9228,26 @@ var BM_STATE = {
   loading: false
 };
 
-function renderSourceBadge(sourceKey, isLicensed){
-  var label = 'Фаровон';
-  var isClosed = false;
-  if(sourceKey === 'b1'){ label = 'B1 (EY)'; }
-  else if(sourceKey === 'antal'){ label = 'Antal'; }
-  else if(sourceKey === 'job_farovon'){ label = 'Job Farovon'; }
-  else if(sourceKey === 'internal'){ label = 'Внутренний'; }
+function renderSourceBadge(sourceKey, isLicensed, customTitle){
+  var label = customTitle;
+  if(!label){
+    var src = (BM_STATE.sources || []).find(function(s){ return s.key === sourceKey; });
+    if(src) label = src.title;
+    else if(sourceKey === 'internal') label = 'Внутренний сбор';
+    else if(sourceKey === 'b1') label = 'B1 (EY)';
+    else if(sourceKey === 'antal') label = 'Antal';
+    else if(sourceKey === 'korn_ferry') label = 'Korn Ferry';
+    else if(sourceKey === 'pwc') label = 'PwC';
+    else if(sourceKey === 'mercer') label = 'Mercer';
+    else if(sourceKey === 'hh_ru') label = 'HeadHunter';
+    else if(sourceKey === 'job_farovon') label = 'Job Farovon';
+    else if(sourceKey === 'stat_tj') label = 'Агентство по статистике';
+    else if(sourceKey === 'partner_survey') label = 'Партнёрский опрос';
+    else label = sourceKey;
+  }
 
   var licBadge = isLicensed ? '<span class="top-period-pill is-closed" style="margin-left:6px;font-size:11px;padding:1px 6px">Лицензия</span>' : '';
-  return '<span class="top-period-pill" style="margin-right:0"><span class="top-period-dot"></span> <b>' + label + '</b></span>' + licBadge;
+  return '<span class="top-period-pill" style="margin-right:0"><span class="top-period-dot"></span> <b>' + esc(label) + '</b></span>' + licBadge;
 }
 
 function openBenchmarks(){
@@ -9743,13 +9754,17 @@ function renderBmDatasets(){
   var c = $('bmContent');
   if(!c) return;
 
-  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px">' +
+  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
-    '<div><button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button></div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
+      '<button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button>' +
+    '</div>' +
   '</div>' +
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
 
   $('btnBmUpload').onclick = openBmImportModal;
+  $('btnBmAddSource').onclick = openBmAddSourceModal;
 
   call('apiBenchmarkDatasets', S.token).then(function(res){
     var list = (res && res.datasets) || [];
@@ -9758,7 +9773,7 @@ function renderBmDatasets(){
 
     if(list.length === 0){
       el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--color-fog)">' +
-        'Пока нет загруженных датасетов. Нажмите <b>«Загрузить датасет»</b>, чтобы загрузить данные B1, Antal или Job Farovon.' +
+        'Пока нет загруженных датасетов. Нажмите <b>«Загрузить датасет»</b>, чтобы загрузить данные B1, Antal, Korn Ferry, PwC, Mercer или локальных джоб-бордов.' +
       '</div>';
       return;
     }
@@ -9799,6 +9814,113 @@ function renderBmDatasets(){
       }
     };
   });
+}
+
+function openBmAddSourceModal(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in" style="max-width:560px">' +
+    '<div class="sheet-hd"><b>Добавить новый источник данных рынка</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div id="bmsErr" class="err hidden" style="margin-top:8px"></div>' +
+    '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px">' +
+      '<div>' +
+        '<label class="lbl">Название источника</label>' +
+        '<input id="bmsTitle" placeholder="Например: KPMG Salary Benchmark 2026">' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">Уникальный код источника (латиницей)</label>' +
+        '<input id="bmsKey" placeholder="Например: kpmg">' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div>' +
+          '<label class="lbl">Тип источника</label>' +
+          '<select id="bmsKind">' +
+            '<option value="consultancy">Консалтинговое агентство</option>' +
+            '<option value="jobsite">Джоб-борд / Вакансии</option>' +
+            '<option value="official">Официальная статистика</option>' +
+            '<option value="direct">Прямой опрос / Партнеры</option>' +
+          '</select>' +
+        '</div>' +
+        '<div>' +
+          '<label class="lbl">Валюта по умолчанию</label>' +
+          '<select id="bmsCurr">' +
+            '<option value="сомони">TJS (сомони)</option>' +
+            '<option value="USD">USD ($)</option>' +
+            '<option value="RUB">RUB (₽)</option>' +
+            '<option value="EUR">EUR (€)</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin:6px 0">' +
+        '<input type="checkbox" id="bmsLic" style="width:auto;height:auto;cursor:pointer">' +
+        '<label for="bmsLic" style="margin:0;cursor:pointer;font-size:13px">Лицензионный платный обзор (требует бейдж лицензии)</label>' +
+      '</div>' +
+      '<div>' +
+        '<label class="lbl">Примечание / Методология</label>' +
+        '<textarea id="bmsNotes" placeholder="Описание выборки, охват отраслей или контакты провайдера…" style="height:60px"></textarea>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
+      '<button class="btn-ghost" data-x="1">Отмена</button>' +
+      '<button class="btn-primary" id="btnBmsSave">Сохранить источник</button>' +
+    '</div>' +
+  '</div>';
+
+  document.body.appendChild(el);
+
+  el.onclick = function(e){
+    if(e.target.dataset.x || e.target === el){ el.remove(); return; }
+  };
+
+  el.querySelector('#bmsTitle').oninput = function(){
+    var keyIn = el.querySelector('#bmsKey');
+    if(!keyIn.value || keyIn.dataset.autofilled){
+      keyIn.value = this.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '_').slice(0, 25);
+      keyIn.dataset.autofilled = '1';
+    }
+  };
+
+  el.querySelector('#btnBmsSave').onclick = function(){
+    var title = el.querySelector('#bmsTitle').value.trim();
+    var key = el.querySelector('#bmsKey').value.trim();
+    var kind = el.querySelector('#bmsKind').value;
+    var defaultCurrency = el.querySelector('#bmsCurr').value;
+    var isLicensed = el.querySelector('#bmsLic').checked;
+    var notes = el.querySelector('#bmsNotes').value.trim();
+    var errEl = el.querySelector('#bmsErr');
+
+    if(!title || !key){
+      errEl.textContent = 'Заполните название и код источника';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохранение…';
+
+    call('apiBenchmarkCreateSource', S.token, {
+      title: title,
+      key: key,
+      kind: kind,
+      defaultCurrency: defaultCurrency,
+      isLicensed: isLicensed,
+      notes: notes
+    }).then(function(res){
+      if(res && res.ok){
+        toast('Источник «' + title + '» успешно добавлен!');
+        el.remove();
+        loadBmInitialData();
+      } else {
+        errEl.textContent = (res && res.error) || 'Ошибка сохранения';
+        errEl.classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Сохранить источник';
+      }
+    }).catch(function(err){
+      errEl.textContent = err.message || 'Ошибка сети';
+      errEl.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = 'Сохранить источник';
+    });
+  };
 }
 
 function openBmImportModal(){

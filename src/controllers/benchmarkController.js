@@ -11,6 +11,17 @@ exports.getSources = async (req, res) => {
   }
 };
 
+exports.createSource = async (req, res) => {
+  try {
+    const { key, title, kind, isLicensed, defaultCurrency, notes } = req.body;
+    const source = await benchmarkService.createSource({ key, title, kind, isLicensed, defaultCurrency, notes });
+    res.json({ ok: true, source });
+  } catch (err) {
+    console.error('createSource error:', err);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+};
+
 exports.getDatasets = async (req, res) => {
   try {
     const { sourceKey, state } = req.query;
