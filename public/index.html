@@ -9227,6 +9227,19 @@ var BM_STATE = {
   loading: false
 };
 
+function renderSourceSticker(sourceKey){
+  if(sourceKey === 'b1'){
+    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#FFE600,#F59E0B);color:#111827;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(245,158,11,0.28);flex:none;border:1px solid rgba(255,255,255,0.4)">B1</div>';
+  }
+  if(sourceKey === 'antal'){
+    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#EF4444,#B91C1C);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(239,68,68,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">AT</div>';
+  }
+  if(sourceKey === 'job_farovon'){
+    return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#0284C7,#0369A1);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(2,132,199,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">HH</div>';
+  }
+  return '<div style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;font-weight:900;font-size:13px;box-shadow:0 3px 8px rgba(16,185,129,0.28);flex:none;border:1px solid rgba(255,255,255,0.2)">FV</div>';
+}
+
 function openBenchmarks(){
   S.appView = 'benchmarks';
   S.unit = null;
@@ -9247,9 +9260,9 @@ function openBenchmarks(){
         '<div style="font-size:13px;color:var(--muted)">Сравнение заработных плат Фаровона с внешними провайдерами (B1, Antal), джоб-сайтами и внутренним сбором</div>' +
       '</div>' +
       '<div class="tab-bar" style="margin:0;background:var(--card);padding:4px;border-radius:10px;border:1px solid var(--line);display:flex;gap:4px">' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">📊 Сравнение по должности</button>' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">🔗 Сопоставление должностей</button>' +
-        '<button class="tab-btn ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">📁 Источники и датасеты</button>' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">' + ic('chart', 15) + 'Сравнение по должности</button>' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">' + ic('link', 15) + 'Сопоставление должностей</button>' +
+        '<button class="tab-btn ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">' + ic('archive', 15) + 'Источники и датасеты</button>' +
       '</div>' +
     '</div>' +
     '<div id="bmContent">Загрузка данных…</div>' +
@@ -9406,7 +9419,7 @@ function renderBmCompare(){
     '<div class="card" style="padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
         '<label class="lbl" style="margin:0;font-weight:700">Должность</label>' +
-        '<button class="btn-ghost" id="btnBmExpMatrix" style="font-size:11px;padding:2px 6px;color:var(--accent);font-weight:600">📥 Экспорт матрицы</button>' +
+        '<button class="btn-ghost" id="btnBmExpMatrix" style="font-size:11px;padding:2px 6px;color:var(--accent);font-weight:600">' + ic('download', 12) + 'Экспорт матрицы</button>' +
       '</div>' +
       '<input type="text" id="bmPosSearch" placeholder="🔍 Поиск по названию…" style="width:100%;margin-bottom:8px;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg)">' +
       '<select id="bmPosSelect" size="14" style="width:100%;height:350px;margin-bottom:12px;font-size:13px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:4px">' + buildOptions() + '</select>' +
@@ -9481,9 +9494,12 @@ function loadBmCompareDetail(){
 
     sourcesHtml += '<div class="card" style="padding:16px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:14px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-        '<div>' +
-          '<b style="font-size:16px;display:flex;align-items:center;gap:6px">🏢 ' + esc(intr.sourceTitle) + '</b>' +
-          '<span style="font-size:12px;color:var(--muted)">Внутренние анкеты подразделений (' + (intr.observationsCount || 0) + ' наблюдений)</span>' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          renderSourceSticker('internal') +
+          '<div>' +
+            '<b style="font-size:16px">' + esc(intr.sourceTitle) + '</b><br>' +
+            '<span style="font-size:12px;color:var(--muted)">Внутренние анкеты подразделений (' + (intr.observationsCount || 0) + ' наблюдений)</span>' +
+          '</div>' +
         '</div>' +
         (intrStats.p50 ? '<b style="font-size:17px;color:var(--accent)">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
       '</div>' +
@@ -9512,9 +9528,12 @@ function loadBmCompareDetail(){
 
       sourcesHtml += '<div class="card" style="padding:16px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:14px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">' +
-          '<div>' +
-            '<b style="font-size:16px;display:flex;align-items:center;gap:6px">🌐 ' + esc(ext.sourceTitle) + ' ' + licBadge + '</b>' +
-            '<span style="font-size:12px;color:var(--muted)">' + (ext.sourcePosition ? 'Сопоставлено с: «' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · Актуально на: ' + esc(ext.dataAsOf) : '') + '</span>' +
+          '<div style="display:flex;align-items:center;gap:12px">' +
+            renderSourceSticker(ext.sourceKey) +
+            '<div>' +
+              '<b style="font-size:16px">' + esc(ext.sourceTitle) + ' ' + licBadge + '</b><br>' +
+              '<span style="font-size:12px;color:var(--muted)">' + (ext.sourcePosition ? 'Сопоставлено с: «' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · Актуально на: ' + esc(ext.dataAsOf) : '') + '</span>' +
+            '</div>' +
           '</div>' +
           '<div style="text-align:right">' +
             (extStats.p50 ? '<b style="font-size:17px;color:var(--accent)">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12px;color:var(--muted);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--muted);font-size:12px">нет данных</span>') +
@@ -9545,10 +9564,15 @@ function loadBmCompareDetail(){
 
     d.innerHTML = '<div style="background:var(--card);padding:18px 20px;border-radius:14px;border:1px solid var(--line);margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-          '<div>' +
-            '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
-            '<div style="font-size:26px;font-weight:800;color:var(--accent);margin-top:2px">' +
-              (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
+          '<div style="display:flex;align-items:center;gap:12px">' +
+            '<div style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366F1,#4338CA);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,0.3);flex:none">' +
+              '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">' + ICONS.chart + '</svg>' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:0.5px">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
+              '<div style="font-size:26px;font-weight:800;color:var(--accent);margin-top:2px">' +
+                (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
+              '</div>' +
             '</div>' +
           '</div>' +
           '<div>' + compBadge + '</div>' +
@@ -9576,7 +9600,7 @@ function renderBmMapping(){
     '</div>' +
     '<div style="display:flex;gap:8px">' +
       '<button class="btn" id="btnBmSuggest" style="display:inline-flex;align-items:center;gap:6px">' +
-        '⚡ Автоподбор похожих должностей' +
+        ic('bolt', 15) + 'Автоподбор похожих должностей' +
       '</button>' +
     '</div>' +
   '</div>' +
@@ -9602,7 +9626,7 @@ function loadBmMappingsList(){
     var mappings = (res && res.mappings) || [];
     if(mappings.length === 0){
       tbl.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
-        'Сопоставлений для этого источника пока нет. Нажмите <b>«⚡ Автоподбор похожих должностей»</b> или загрузите новый датасет.' +
+        'Сопоставлений для этого источника пока нет. Нажмите <b>«Автоподбор похожих должностей»</b> или загрузите новый датасет.' +
       '</div>';
       return;
     }
@@ -9614,7 +9638,7 @@ function loadBmMappingsList(){
         '<td style="padding:10px 12px;border-bottom:1px solid var(--line)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:11px;color:var(--muted)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
         '<td style="padding:10px 12px;border-bottom:1px solid var(--line)"><span style="font-size:12px">' + confLabel + '</span></td>' +
         '<td style="padding:10px 12px;border-bottom:1px solid var(--line);text-align:right">' +
-          '<button class="btn-ghost" style="color:var(--red, #ef4444);padding:4px 8px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">Удалить</button>' +
+          '<button class="btn-ghost" style="color:var(--red, #ef4444);padding:4px 8px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">' + ic('trash', 12) + 'Удалить</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -9712,7 +9736,7 @@ function renderBmDatasets(){
 
   c.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
     '<div><b style="font-size:16px">Загруженные датасеты и источники</b></div>' +
-    '<div><button class="btn" id="btnBmUpload" style="display:inline-flex;align-items:center;gap:6px">➕ Загрузить датасет</button></div>' +
+    '<div><button class="btn" id="btnBmUpload" style="display:inline-flex;align-items:center;gap:6px">' + ic('archive', 15) + 'Загрузить датасет</button></div>' +
   '</div>' +
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
 
@@ -9725,7 +9749,7 @@ function renderBmDatasets(){
 
     if(list.length === 0){
       el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--line)">' +
-        'Пока нет загруженных датасетов. Нажмите <b>«➕ Загрузить датасет»</b>, чтобы загрузить данные B1, Antal или Job Farovon.' +
+        'Пока нет загруженных датасетов. Нажмите <b>«Загрузить датасет»</b>, чтобы загрузить данные B1, Antal или Job Farovon.' +
       '</div>';
       return;
     }
@@ -9733,13 +9757,16 @@ function renderBmDatasets(){
     var cards = list.map(function(d){
       var lic = d.is_licensed ? '<span class="badge" style="background:#f59e0b20;color:#f59e0b;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #f59e0b40">Лицензия</span>' : '';
       return '<div class="card" style="padding:14px 18px;background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">' +
-        '<div>' +
-          '<b style="font-size:15px">' + esc(d.title) + ' ' + lic + '</b><br>' +
-          '<span style="font-size:12px;color:var(--muted)">Источник: ' + esc(d.source_title) + ' · Дата отчёта: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          renderSourceSticker(d.source_key) +
+          '<div>' +
+            '<b style="font-size:15px">' + esc(d.title) + ' ' + lic + '</b><br>' +
+            '<span style="font-size:12px;color:var(--muted)">Источник: ' + esc(d.source_title) + ' · Дата отчёта: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+          '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<span style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--green, #10b981)20;color:var(--green, #10b981);font-weight:700">Активен</span>' +
-          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--red, #ef4444);font-size:12px;padding:4px 8px">🗑 Удалить</button>' +
+          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--red, #ef4444);font-size:12px;padding:4px 8px">' + ic('trash', 12) + 'Удалить</button>' +
         '</div>' +
       '</div>';
     }).join('');
