@@ -24,7 +24,9 @@
 
 **P0-1 (ротация секретов) — выполнена 2026-08-31** вручную: `JWT_SECRET`, `TURSO_AUTH_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` заменены в Render + `.env`, `setWebhook` перерегистрирован. Прод проверен: `/health` `db:ok`, вход и бот работают. На `farovon-market-analysis` (боевая база) сделан Turso `Invalidate tokens` — утёкший в git RW-токен теперь мёртв. Детали и остаточные хвосты — в P0-1 ниже.
 
-⚠️ Код-изменения этой ветки (`security/review-2026-08-31`) на прод **не выкатывались** — там всё ещё `main`/`fadd7f7` без rate-limit и lockout. Нужен merge + deploy.
+✅ Ветка влита в `main` (`062e099`) и задеплоена на Render 2026-08-31. Прод проверен: `/health` `db:ok` (миграция `failed_login_count`/`locked_until` прошла), CSP-заголовок отдаётся, `X-Frame-Options` снят, `?token=` в query → 401, битый логин → 401 (не 500), CORS чужому origin не отдаёт ACAO.
+
+Остаётся проверить вручную: **Telegram Mini App открывается в бою** (новый CSP + снятый XFO) и **вход реального пользователя** (новый `JWT_SECRET`).
 
 ---
 
