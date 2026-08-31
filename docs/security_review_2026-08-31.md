@@ -134,7 +134,7 @@ CSV на дашборде собирается в браузере (сервер
 - [x] **`errorHandler`** — 5xx → «Внутренняя ошибка сервера», детали только в лог; текст 4xx остаётся
 - [x] **bcrypt cost** 10 → 12 (`authController`, `adminController`, `telegramController`)
 - [x] **`crypto.timingSafeEqual`** для сравнения вебхук-секрета (`safeEqual()`)
-- [ ] **`npm audit` / Dependabot** в CI (на выходных подняли `node-telegram-bot-api` 0.66→2.1, −9 алертов — закрепить процессом)
+- [x] **`npm audit` / Dependabot в CI**: `.github/workflows/ci.yml` (npm ci → `npm audit --omit=dev --audit-level=high` → syntax-gate → auditFrontend → npm test) + `.github/dependabot.yml` (еженедельные PR по npm и github-actions, мелочь сгруппирована)
 - [x] **Проход по `innerHTML` (XSS)**: аудит фронта — esc() применяется системно (пред-экранирование в переменные), нет single-quote-атрибутов с подстановкой, нет value/dataset→innerHTML, нет eval/new Function/document.write/insertAdjacentHTML, ask({html}) везде статичный или esc(). Живой дыры не найдено. Харденинг: esc() теперь гасит и одинарную кавычку (&#39;)
 - [ ] **Скоуп токена Turso** — минимально необходимые права; отдельные токены для оффлайн-скриптов
 - [ ] **`express.json({ limit })`** — снизить для обычных роутов, 10 МБ оставить только на импорт

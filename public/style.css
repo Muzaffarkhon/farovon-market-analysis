@@ -6564,6 +6564,7 @@ html.compact {
   border-radius: var(--radius-sm); padding: 12px 14px; }
 
 .r2-caps { display: flex; flex-direction: column; gap: 16px; }
+.r2-group { display: block; }
 .r2-group-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   color: var(--muted); margin-bottom: 6px; }
 .r2-cap { display: flex; align-items: center; gap: 10px; padding: 7px 4px; font-size: 12.5px;

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Уязвимости в прод-зависимостях: падаем на high и critical.
+      # moderate/low приходят отдельными PR от Dependabot, сборку не рушат.
+      - name: npm audit (prod, high+)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Синтаксис ключевых модулей — тот же ручной CI-gate, что в отчётах.
+      - name: Syntax check
+        run: |
+          node --check src/server.js
+          node --check src/db/migrate.js
+          node --check src/config/capabilities.js
+          node --check src/routes/api.js
+
+      # Проверка фронта: классы без CSS, иконки, соответствие call() маршрутам.
+      # Информационно — вывод в лог, сборку не рушит.
+      - name: Frontend audit
+        run: node src/tools/auditFrontend.js || true
+
+      - name: Tests
+        run: npm test
