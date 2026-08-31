@@ -37,8 +37,8 @@ router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
 // всех HR BP). Кто именно видит её, кроме admin, теперь настраивается в
 // конструкторе ролей (dashboard:view) — раньше было зашито requireRoles(...).
-router.all('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
-router.all('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
+router.post('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
+router.post('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
 router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboardController.exportCSV);
 // Журнал выгрузок: фронт вызывает перед скачиванием CSV (файл собирается в браузере).
 router.post('/audit/export', requireCapability('dashboard:view'), dashboardController.logExport);

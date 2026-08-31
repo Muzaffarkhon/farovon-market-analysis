@@ -137,9 +137,9 @@ CSV на дашборде собирается в браузере (сервер
 - [x] **`npm audit` / Dependabot в CI**: `.github/workflows/ci.yml` (npm ci → `npm audit --omit=dev --audit-level=high` → syntax-gate → auditFrontend → npm test) + `.github/dependabot.yml` (еженедельные PR по npm и github-actions, мелочь сгруппирована)
 - [x] **Проход по `innerHTML` (XSS)**: аудит фронта — esc() применяется системно (пред-экранирование в переменные), нет single-quote-атрибутов с подстановкой, нет value/dataset→innerHTML, нет eval/new Function/document.write/insertAdjacentHTML, ask({html}) везде статичный или esc(). Живой дыры не найдено. Харденинг: esc() теперь гасит и одинарную кавычку (&#39;)
 - [ ] **Скоуп токена Turso** — минимально необходимые права; отдельные токены для оффлайн-скриптов
-- [ ] **`express.json({ limit })`** — снизить для обычных роутов, 10 МБ оставить только на импорт
-- [ ] `router.all()` на `/api/dashboard/*` (`routes/api.js:36-37`) — сузить до нужных методов
-- [ ] Проверить, что helmet HSTS не переопределён
+- [x] **`express.json`** — 512 КБ на обычных роутах, отдельный парсер 15 МБ только на /api/admin/import-survey; urlencoded 512 КБ
+- [x] `router.all` на /api/dashboard/{extended,hrbp} → `router.post` (фронт использует POST)
+- [x] HSTS: helmet ставит по умолчанию, на проде `strict-transport-security: max-age=31536000; includeSubDomains` — не переопределён
 
 ---
 

@@ -87,8 +87,18 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Тело запроса: обычным роутам хватает с запасом 512 КБ. Большой JSON нужен
+// только импорту опроса зарплат (весь CSV приходит строкой в теле) — для него
+// отдельный парсер на 15 МБ. Так на остальные эндпоинты нельзя залить мегабайты
+// мусора, заставляя сервер их буферизовать и парсить.
+const jsonSmall = express.json({ limit: '512kb' });
+const jsonLarge = express.json({ limit: '15mb' });
+app.use((req, res, next) => {
+  if (req.path === '/api/admin/import-survey') return jsonLarge(req, res, next);
+  return jsonSmall(req, res, next);
+});
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
 if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
