@@ -270,6 +270,7 @@ function parseMoney(v){
  */
 var ICONS = {
   dashboard: '<path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  chart: '<path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   eye: '<path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/>',
   'eye-off': '<path d="M10.6 5.2A9.6 9.6 0 0112 5c6.5 0 10.5 7 10.5 7a18 18 0 01-2.5 3.3M6.2 6.7A17.8 17.8 0 001.5 12S5.5 19 12 19a9.3 9.3 0 004.2-.95M9.9 9.9a3.2 3.2 0 004.2 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   admin: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.6"/>',
@@ -3636,6 +3637,7 @@ function renderDashboard(){
   var tabs = [
     { id:'overview', icon:'dashboard', label:'Обзор' },
     { id:'salaries', icon:'wallet', label:'Зарплатные вилки' },
+    { id:'benchmarks', icon:'chart', label:'Бенчмаркинг' },
     { id:'registry', icon:'table', label:'Реестр данных' },
     { id:'progress', icon:'target', label:'Прогресс по HR BP' },
     { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
@@ -3658,7 +3660,7 @@ function renderDashboard(){
 
   // Общий фильтр — только направление и HR BP (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
-  var filterHidden = (S.dashTab === 'progress');
+  var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
   h += '<div id="dashFilterBar" class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:'+(filterHidden ? 'none' : 'flex')+';align-items:center;flex-wrap:wrap">'+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
@@ -3679,6 +3681,10 @@ function renderDashboard(){
   // Слушатели событий дашборда
   $('body').querySelectorAll('button[data-dtab]').forEach(function(btn){
     btn.onclick = function(){
+      if(this.dataset.dtab === 'benchmarks'){
+        openBenchmarks();
+        return;
+      }
       S.dashTab = this.dataset.dtab;
       $('body').querySelectorAll('button[data-dtab]').forEach(function(b){ b.classList.remove('on'); });
       this.classList.add('on');
