@@ -8,6 +8,9 @@ yarn-error.log*
 .env
 .env.local
 .env.production
+.env.bak*
+.env.*.bak*
+.env.*.local
 
 # Database file (generated)
 data/market.db
