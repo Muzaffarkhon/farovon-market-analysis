@@ -362,6 +362,7 @@ var API_ROUTES = {
   apiDictSave: function(args){ return fetchJson('/api/admin/dictionary/' + args[1], { method:'POST', token:args[0], body:args[2] }); },
   apiDictDelete: function(args){ return fetchJson('/api/admin/dictionary/' + args[1] + '/delete', { method:'POST', token:args[0], body:args[2] }); },
   apiCBDashboardExtended: function(args){ return fetchJson('/api/dashboard/extended', { method:'POST', token:args[0], body:args[1] }); },
+  apiAuditExport: function(args){ return fetchJson('/api/audit/export', { method:'POST', token:args[0], body:args[1] }); },
   apiDashboard: function(args){ return fetchJson('/api/dashboard/hrbp', { method:'POST', token:args[0] }); },
   apiAdminGetUsers: function(args){ return fetchJson('/api/admin/users', { method:'GET', token:args[0] }); },
   apiAdminSaveUser: function(args){ return fetchJson('/api/admin/users', { method:'POST', token:args[0], body:args[1] }); },
@@ -4643,6 +4644,16 @@ function exportDashboardCSV(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Файл отчёта CSV сформирован и скачан');
+
+  // Журнал выгрузок: кто/когда/откуда/что. Не блокирует скачивание.
+  try {
+    call('apiAuditExport', S.token, {
+      kind: 'дашборд: ' + (S.dashTab || 'salaries'),
+      rows: rows.length,
+      format: 'csv',
+      filters: S.dashFilters || {}
+    });
+  } catch(e){}
 }
 
 function declOfNum(n, titles){

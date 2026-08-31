@@ -40,6 +40,8 @@ router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 router.all('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
 router.all('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
 router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboardController.exportCSV);
+// Журнал выгрузок: фронт вызывает перед скачиванием CSV (файл собирается в браузере).
+router.post('/audit/export', requireCapability('dashboard:view'), dashboardController.logExport);
 
 // Панель Администратора. Доступ к разделам теперь по конструктору ролей
 // (см. src/config/capabilities.js) вместо жёстко зашитых requireRoles(...).

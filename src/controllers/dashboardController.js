@@ -1,5 +1,41 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
-const { queryAll, queryOne } = require('../db/database');
+const { queryAll, queryOne, run } = require('../db/database');
+
+/**
+ * Журналирование выгрузок данных из системы. CSV на дашборде формируется в
+ * браузере (сервер файла не видит), поэтому фронт перед скачиванием дёргает
+ * этот эндпоинт: пишем кто / когда / откуда (IP) / что именно и в каком объёме.
+ * Тело: { kind, rows, format, filters }.
+ */
+exports.logExport = async (req, res) => {
+  try {
+    const b = req.body || {};
+    const kind = String(b.kind || 'dashboard').slice(0, 40);
+    const format = String(b.format || 'csv').slice(0, 12);
+    const rows = Number.isFinite(+b.rows) ? Math.max(0, Math.trunc(+b.rows)) : null;
+    let filters = '';
+    try {
+      filters = b.filters ? JSON.stringify(b.filters).slice(0, 300) : '';
+    } catch (e) { filters = ''; }
+
+    const detail = `формат=${format}; раздел=${kind}` +
+      (rows != null ? `; строк=${rows}` : '') +
+      (filters ? `; фильтры=${filters}` : '') +
+      `; UA=${String(req.get('user-agent') || '').slice(0, 120)}`;
+
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      (req.user && req.user.login) || '?',
+      'экспорт данных',
+      detail,
+      req.ip || ''
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('logExport error:', err.message);
+    // Не мешаем пользователю скачать файл, даже если журнал недоступен.
+    res.json({ ok: false });
+  }
+};
 
 exports.getCBDashboard = async (req, res) => {
   try {

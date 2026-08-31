@@ -6,6 +6,14 @@ const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('..
 
 const LINK_TTL_MINUTES = 10;
 
+// Все сообщения бота уходят с parse_mode: 'HTML' (см. telegramService). ФИО и
+// логин вводит администратор — символы < > & в них ломают разметку, а то и
+// подставляют теги. Экранируем перед вставкой в текст сообщения.
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 const HELP_TEXT = 'Доступные команды:\n' +
   '/login — получить логин и пароль для входа\n' +
   '/status — мои подразделения и прогресс заполнения\n' +
@@ -97,9 +105,12 @@ const REMOVE_KEYBOARD = { reply_markup: { remove_keyboard: true } };
 function generateTempPassword() {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let code = '';
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     code += chars[crypto.randomInt(0, chars.length)];
   }
+  // Гарантируем цифру и букву: заменяем два первых символа на заведомо
+  // цифру и заведомо букву (позиции случайны за счёт остального кода).
+  code = '23456789'[crypto.randomInt(0, 8)] + 'ABCDEFGHJKLMNPQRSTUVWXYZ'[crypto.randomInt(0, 24)] + code.slice(2);
   return 'Fv-' + code;
 }
 
@@ -123,8 +134,8 @@ async function resetAndSendCredentials(user, source) {
   const platformUrl = config.webappUrl || 'https://farovon-market-analysis.onrender.com';
 
   const msg = `🔐 <b>Данные для входа в систему «Обзор рынка»:</b>\n\n` +
-    `👤 <b>Логин:</b> <code>${user.login}</code>\n` +
-    `🔑 <b>Временный пароль:</b> <code>${tempPassword}</code>\n\n` +
+    `👤 <b>Логин:</b> <code>${escHtml(user.login)}</code>\n` +
+    `🔑 <b>Временный пароль:</b> <code>${escHtml(tempPassword)}</code>\n\n` +
     `⚠️ <i>Рекомендуем сменить этот пароль в профиле сразу после входа.</i>\n\n` +
     `🌐 <b>Ссылка на платформу:</b>\n${platformUrl}`;
 
@@ -142,7 +153,7 @@ async function resetAndSendCredentials(user, source) {
   if (!sent) return { ok: false, reason: 'send_failed' };
 
   await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [
-    bcrypt.hashSync(tempPassword, 10),
+    bcrypt.hashSync(tempPassword, 12),
     new Date().toISOString(),
     user.id
   ]);
@@ -192,7 +203,7 @@ async function handleStart(chatId, token) {
         user.id
       ]);
       await sendTelegramMessage(chatId,
-        `Готово, ${user.fio}! Telegram привязан — теперь сюда будут приходить напоминания о заполнении обзора рынка.\n\n${HELP_TEXT}`,
+        `Готово, ${escHtml(user.fio)}! Telegram привязан — теперь сюда будут приходить напоминания о заполнении обзора рынка.\n\n${HELP_TEXT}`,
         REMOVE_KEYBOARD);
       return;
     }
@@ -200,7 +211,7 @@ async function handleStart(chatId, token) {
 
   const already = await findByChatId(chatId);
   if (already) {
-    await sendTelegramMessage(chatId, `Здравствуйте, ${already.fio}! Аккаунт уже привязан.\n\n${HELP_TEXT}`, REMOVE_KEYBOARD);
+    await sendTelegramMessage(chatId, `Здравствуйте, ${escHtml(already.fio)}! Аккаунт уже привязан.\n\n${HELP_TEXT}`, REMOVE_KEYBOARD);
     return;
   }
 
@@ -247,7 +258,7 @@ async function handleContact(chatId, fromId, contact) {
     match.id
   ]);
   await sendTelegramMessage(chatId,
-    `Готово, ${match.fio}! Telegram привязан по номеру телефона.\n\n${HELP_TEXT}`,
+    `Готово, ${escHtml(match.fio)}! Telegram привязан по номеру телефона.\n\n${HELP_TEXT}`,
     REMOVE_KEYBOARD);
 }
 
@@ -259,7 +270,7 @@ async function handleStatus(chatId) {
 
   const unitsList = (user.units || '').split(';').map(s => s.trim()).filter(Boolean);
   if (!unitsList.length) {
-    await sendTelegramMessage(chatId, `Здравствуйте, ${user.fio}! За вами пока не закреплено подразделение — обратитесь к администратору.`);
+    await sendTelegramMessage(chatId, `Здравствуйте, ${escHtml(user.fio)}! За вами пока не закреплено подразделение — обратитесь к администратору.`);
     return;
   }
 
@@ -278,7 +289,7 @@ async function handleStatus(chatId) {
     (unitsList.length > 10 ? `\n• и ещё ${unitsList.length - 10}` : '');
 
   await sendTelegramMessage(chatId,
-    `📊 <b>${user.fio}</b>\n\n` +
+    `📊 <b>${escHtml(user.fio)}</b>\n\n` +
     `Подразделений: <b>${unitsList.length}</b>\n` +
     `Участников рынка: <b>${done}/${comps.length}</b> проверено\n` +
     `Записей по должностям: <b>${survs.length}</b>\n\n${unitLines}`);
@@ -298,7 +309,7 @@ async function handleUnlink(chatId) {
   if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG); return; }
 
   await run('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id]);
-  await sendTelegramMessage(chatId, `Telegram отвязан от аккаунта ${user.fio}. Привязать заново — командой /link.`);
+  await sendTelegramMessage(chatId, `Telegram отвязан от аккаунта ${escHtml(user.fio)}. Привязать заново — командой /link.`);
 }
 
 /** Старые сообщения с inline-кнопками «Да, отвязать»/«Отмена» могли остаться
@@ -316,9 +327,18 @@ async function handleStaleCallback(cb) {
 /** Публичный эндпоинт — сюда Telegram шлёт входящие сообщения после setWebHook.
  *  Секретный заголовок проверяем сами: без него любой мог бы слать сюда что угодно
  *  от имени бота. */
+/** Сравнение секретов за постоянное время — чтобы по времени ответа нельзя
+ *  было побайтово подобрать секрет. Разная длина → сразу не совпало. */
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a || ''), 'utf8');
+  const bufB = Buffer.from(String(b || ''), 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 exports.webhook = async (req, res) => {
   const secret = req.headers['x-telegram-bot-api-secret-token'];
-  if (!config.telegramWebhookSecret || secret !== config.telegramWebhookSecret) {
+  if (!config.telegramWebhookSecret || !safeEqual(secret, config.telegramWebhookSecret)) {
     return res.status(401).end();
   }
 

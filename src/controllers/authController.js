@@ -7,7 +7,19 @@ const { benefitsToList } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
 
 function hashPassword(pwd) {
-  return bcrypt.hashSync(String(pwd || ''), 10);
+  return bcrypt.hashSync(String(pwd || ''), 12);
+}
+
+// Требования к новому паролю (смена в профиле). Внутренний инструмент, но
+// «123456» тоже быть не должно: минимум 8 символов, хотя бы одна буква и одна
+// цифра. Возвращает текст ошибки либо null.
+function passwordPolicyError(pwd) {
+  const s = String(pwd || '');
+  if (s.length < 8) return 'Пароль должен содержать минимум 8 символов';
+  if (!/[A-Za-zА-Яа-я]/.test(s) || !/[0-9]/.test(s)) {
+    return 'Пароль должен содержать хотя бы одну букву и одну цифру';
+  }
+  return null;
 }
 
 // Блокировка учётки при подборе пароля: после MAX_FAILED_LOGINS неудач подряд
@@ -502,8 +514,12 @@ exports.changePassword = async (req, res) => {
   const rawNew = req.body && req.body.newPassword;
   const oldPassword = String(rawOld || '');
   const newPassword = String(rawNew || '').trim();
-  if (!oldPassword || !newPassword || newPassword.length < 6) {
-    return res.status(400).json({ ok: false, error: 'Новый пароль должен содержать минимум 6 символов' });
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ ok: false, error: 'Введите текущий и новый пароль' });
+  }
+  const policyErr = passwordPolicyError(newPassword);
+  if (policyErr) {
+    return res.status(400).json({ ok: false, error: policyErr });
   }
 
   try {

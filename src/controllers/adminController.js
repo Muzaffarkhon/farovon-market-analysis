@@ -7,7 +7,7 @@ const { hasCapability } = require('../middleware/auth');
 const surveyImport = require('../services/surveyImport');
 
 function hashPassword(pwd) {
-  return bcrypt.hashSync(String(pwd || ''), 10);
+  return bcrypt.hashSync(String(pwd || ''), 12);
 }
 
 function makeLogin(fio, existingLogins) {
