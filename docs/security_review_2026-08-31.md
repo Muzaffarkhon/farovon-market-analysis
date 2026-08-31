@@ -93,13 +93,13 @@
 
 - [x] `cors({ origin: <allowlist>, credentials: false })` — список из `CORS_ORIGINS` или дефолт (`webappUrl` + `web.telegram.org` + onrender)
 
-### P1-7 🟡 JWT из query-строки + длинный срок жизни
+### P1-7 ✅ JWT из query-строки + длинный срок жизни
 `src/middleware/auth.js:15-17` принимает `req.query.token`; `morgan('dev')` пишет URL и на проде; `config.jwtExpiresIn = '30d'` (`config/index.js:11`).
 
 - [x] Убрать приём токена из query (`middleware/auth.js`)
 - [x] `jwt.verify` / `jwt.sign` с `algorithms: ['HS256']`
 - [ ] Для `/api/dashboard/export-csv` — короткоживущая подписанная ссылка (сейчас фронт формирует CSV сам, серверный эндпоинт UI не вызывает)
-- [ ] Сократить срок токена (1–7 дней) + refresh-механизм
+- [x] Срок токена 30д → 7д (JWT_EXPIRES_IN override); persistToken() сохраняет свежий токен при каждом /auth/resume + тихое продление раз в 3ч и при возврате на вкладку
 
 ### P1-8 ✅ `trust proxy` не выставлен
 `src/server.js`: нет `app.set('trust proxy', 1)`. За прокси Render `req.ip` = IP прокси → IP в `audit_log` бесполезны (`authController.js:411-416`).
