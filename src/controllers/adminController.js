@@ -139,6 +139,20 @@ exports.saveUser = async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа' });
     }
 
+    // Эскалация привилегий: право users:create/users:edit можно делегировать
+    // через конструктор ролей другой роли (cb, hrbp...). Без этой проверки её
+    // носитель мог бы выписать себе или другому учётку с role='admin' либо
+    // тронуть существующего администратора. Роль admin и правку админских
+    // учёток оставляем строго за самим админом.
+    if (req.user.role !== 'admin') {
+      if (targetRole === 'admin') {
+        return res.status(403).json({ ok: false, error: 'Роль «admin» может назначать только администратор.' });
+      }
+      if (existing && existing.role === 'admin') {
+        return res.status(403).json({ ok: false, error: 'Изменять учётную запись администратора может только администратор.' });
+      }
+    }
+
     const unitsStr = Array.isArray(units) ? units.join('; ') : (units || '');
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
 

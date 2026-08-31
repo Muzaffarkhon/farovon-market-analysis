@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   units TEXT DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1,
   archived_at DATETIME, -- NULL = обычный пользователь; иначе — в архиве, не виден в списке и не может войти
+  failed_login_count INTEGER NOT NULL DEFAULT 0, -- подряд идущих неудачных входов; сбрасывается при успешном
+  locked_until DATETIME, -- NULL = не заблокирован; иначе ISO-время, до которого вход по паролю запрещён
   last_login_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

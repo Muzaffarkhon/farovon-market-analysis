@@ -23,6 +23,10 @@ if (missing.length) {
 
 const app = express();
 
+// За прокси Render: без этого req.ip = адрес прокси, и IP в audit_log
+// бесполезны, а rate-limit считал бы всех клиентов за одного.
+app.set('trust proxy', 1);
+
 // Проверка подключения к базе данных и запуск идемпотентных миграций
 (async () => {
   try {
@@ -37,7 +41,22 @@ const app = express();
 })();
 
 // Middleware
-app.use(cors());
+// CORS по белому списку вместо `cors()` (который отдавал Access-Control-Allow-Origin: *
+// всем подряд). Фронтенд отдаётся тем же сервером — межсайтовые запросы к API
+// делает только Telegram Mini App. Список origin'ов можно переопределить
+// переменной CORS_ORIGINS (через запятую).
+const corsOrigins = (process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : [config.webappUrl, 'https://web.telegram.org', 'https://farovon-market-analysis.onrender.com']
+).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    // Запросы без Origin (curl, серверные, health-пинги, same-origin GET) не блокируем.
+    if (!origin || corsOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  credentials: false
+}));
 app.use(helmet({
   contentSecurityPolicy: false // Для работы Telegram Mini App Web SDK
 }));

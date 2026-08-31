@@ -10,6 +10,15 @@ function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 10);
 }
 
+// Блокировка учётки при подборе пароля: после MAX_FAILED_LOGINS неудач подряд
+// вход по паролю запрещается на LOCK_MINUTES минут. Счётчик обнуляется при
+// первом успешном входе. Работает поверх общего rate-limit по IP
+// (src/middleware/rateLimit.js) — тот бьёт по адресу, этот по конкретной учётке.
+const MAX_FAILED_LOGINS = 8;
+const LOCK_MINUTES = 15;
+
+const isBcryptHash = (h) => /^\$2[aby]\$/.test(String(h || ''));
+
 function verifyPassword(pwd, user) {
   if (!user) return false;
   if (user.password_hash) {
@@ -28,7 +37,7 @@ function makeToken(user) {
   return jwt.sign(
     { id: user.id, login: user.login, role: user.role, fio: user.fio },
     config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
+    { expiresIn: config.jwtExpiresIn, algorithm: 'HS256' }
   );
 }
 
@@ -402,11 +411,56 @@ exports.login = async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Учетная запись заблокирована' });
     }
 
+    const now = new Date().toISOString();
+
+    // Учётка временно заблокирована после серии неудачных попыток?
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const mins = Math.max(1, Math.ceil((new Date(user.locked_until) - new Date()) / 60000));
+      await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+        user.login, 'вход отклонён', `Учётка заблокирована ещё ${mins} мин (подбор пароля)`, req.ip || ''
+      ]);
+      return res.status(429).json({
+        ok: false,
+        error: `Слишком много неудачных попыток. Вход в эту учётную запись временно заблокирован (~${mins} мин).`
+      });
+    }
+
     if (!verifyPassword(password, user)) {
+      const failed = (user.failed_login_count || 0) + 1;
+      if (failed >= MAX_FAILED_LOGINS) {
+        const lockUntil = new Date(Date.now() + LOCK_MINUTES * 60000).toISOString();
+        await run('UPDATE users SET failed_login_count = 0, locked_until = ? WHERE id = ?', [lockUntil, user.id]);
+        await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+          user.login, 'учётка заблокирована', `${MAX_FAILED_LOGINS} неудачных входов подряд, блок на ${LOCK_MINUTES} мин`, req.ip || ''
+        ]);
+        return res.status(429).json({
+          ok: false,
+          error: `Слишком много неудачных попыток. Вход в эту учётную запись заблокирован на ${LOCK_MINUTES} минут.`
+        });
+      }
+      await run('UPDATE users SET failed_login_count = ? WHERE id = ?', [failed, user.id]);
       return res.status(401).json({ ok: false, error: 'Неверный логин или пароль' });
     }
 
-    const now = new Date().toISOString();
+    // Успешный вход: снимаем счётчик/блок, если были.
+    if (user.failed_login_count || user.locked_until) {
+      await run('UPDATE users SET failed_login_count = 0, locked_until = NULL WHERE id = ?', [user.id]);
+    }
+
+    // Разовая миграция старых несолёных SHA-256-хэшей на bcrypt — прозрачно,
+    // при первом же входе с верным паролем. Ветка SHA в verifyPassword
+    // останется, пока по журналу не убедимся, что таких хэшей не осталось.
+    if (!isBcryptHash(user.password_hash)) {
+      try {
+        await run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [hashPassword(password), now, user.id]);
+        await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+          user.login, 'миграция пароля', 'Хэш пароля переведён с SHA-256 на bcrypt при входе', req.ip || ''
+        ]);
+      } catch (e) {
+        console.error('Password rehash error:', e.message);
+      }
+    }
+
     await run('UPDATE users SET last_login_at = ? WHERE id = ?', [now, user.id]);
     await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
       user.login,
