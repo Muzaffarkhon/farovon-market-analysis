@@ -2212,6 +2212,42 @@ $('btnBack').onclick = function(){
 // ═══════════════════════════════════════════════════════════
 // ЭКРАН: подразделение (две вкладки)
 // ═══════════════════════════════════════════════════════════
+/** Насколько заполнена запись анкеты — для выбора представителя при слиянии
+ *  данных площадок смежной группы. */
+function svFilledScore(r){
+  var n = 0;
+  ['payFrom','payTo','posTheir','grade','bonSize','extra','source','trust','note','schedule'].forEach(function(k){
+    if(String(r[k] == null ? '' : r[k]).trim()) n++;
+  });
+  if(Array.isArray(r.benefits) && r.benefits.length) n++;
+  if(r.bonHas === 'да') n++;
+  return n;
+}
+
+/** Смежная группа, режим «заполнить раз»: сводим анкеты всех площадок группы
+ *  к одному представителю на пару «должность × компания». Представитель —
+ *  самая заполненная запись; при равенстве приоритет у текущего подразделения,
+ *  затем у более свежей. Локально работаем как с записями текущего unit. */
+function mergeGroupSurveys(rows, unit){
+  var by = {};
+  (rows || []).forEach(function(r){
+    var k = norm(r.posOur) + '|' + norm(r.company);
+    var cur = by[k];
+    if(!cur){ by[k] = r; return; }
+    var sc = svFilledScore(r), scCur = svFilledScore(cur);
+    if(sc > scCur ||
+       (sc === scCur && r.unit === unit && cur.unit !== unit) ||
+       (sc === scCur && String(r.at || '') > String(cur.at || ''))){
+      by[k] = r;
+    }
+  });
+  return Object.keys(by).map(function(k){
+    var x = JSON.parse(JSON.stringify(by[k]));
+    x.unit = unit;
+    return x;
+  });
+}
+
 function openUnit(unit, backTo){
   S.backTo = backTo || renderUnits;
   S.appView = 'unit';
@@ -2222,6 +2258,12 @@ function openUnit(unit, backTo){
                       .map(function(r){ return JSON.parse(JSON.stringify(r)); });
   S.surveys = S.data.surveys.filter(function(r){ return r.unit === unit; })
                             .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+  // Смежная группа: Шаг 2 работает на всю группу — подставляем сведённые данные
+  // всех её площадок (см. mergeGroupSurveys). Сохранение уходит с groupKey.
+  var _grp = currentUnitGroup();
+  if(_grp && S.data.surveysByGroup && S.data.surveysByGroup[_grp]){
+    S.surveys = mergeGroupSurveys(S.data.surveysByGroup[_grp], unit);
+  }
   var uObj = (S.data.units || []).filter(function(x){ return x.unit === unit; })[0];
   S.added = []; S.removed = []; S.note = (uObj && uObj.note) || ''; S.dirty = false;
 
@@ -2624,8 +2666,13 @@ function money(r){
   return s + (r.cur ? ' ' + r.cur : '') + (r.payPer ? ' ' + r.payPer : '');
 }
 
-/** Список актуальных компаний текущего подразделения (с шага 1) */
+/** Список актуальных компаний текущего подразделения (с шага 1).
+ *  В смежной группе — общий список компаний всех площадок группы. */
 function getUnitActualCompanies(){
+  var grp = currentUnitGroup();
+  if(grp && S.data.companiesByGroup && (S.data.companiesByGroup[grp] || []).length){
+    return S.data.companiesByGroup[grp].slice();
+  }
   var cos = [];
   var seen = {};
   // Компании с отметкой «актуально» или «уточнить»
@@ -2744,8 +2791,8 @@ function renderTabSurvey(){
     }
 
     if(currentUnitGroup()){
-      h += '<p class="step-hint">Список объединён по всем площадкам смежной группы — '+
-           'должность вносится один раз, не по каждой площадке отдельно.</p>';
+      h += '<p class="step-hint">'+ic('units', 13)+' Смежная группа «'+esc(currentUnitGroup())+'»: '+
+           'заполняете один раз — данные сохранятся сразу во все площадки группы.</p>';
     }
 
     h += '<div class="pos-grid">' + G.groups.map(function(g, gi){
@@ -3130,9 +3177,12 @@ function openBatchSurveySheet(posName){
             S.surveys.push(record);
           }
         } else if(existIndex >= 0){
-          // Если запись была, но пользователь всё стёр
+          // Если запись была, но пользователь всё стёр.
           var removedRec = S.surveys[existIndex];
-          if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
+          if(currentUnitGroup()){
+            // В группе удаляем по паре «должность × компания» во всех площадках.
+            S.removed.push({ posOur: posName, company: item.co });
+          } else if(removedRec.id && removedRec.id.indexOf('tmp') !== 0){
             S.removed.push(removedRec.id);
           }
           S.surveys.splice(existIndex, 1);
@@ -3523,9 +3573,12 @@ function doSave(submit){
   var p1 = call('apiSave', S.token, {
     unit: unitAtSave, rows: S.rows, added: S.added, note: S.note, submit: !!submit });
 
+  var saveGroup = currentUnitGroup();
   var needSurvey = S.surveys.length > 0 || S.removed.length > 0;
   var p2 = needSurvey
-    ? call('apiSaveSurvey', S.token, { unit: unitAtSave, upsert: S.surveys, remove: S.removed })
+    ? call('apiSaveSurvey', S.token, saveGroup
+        ? { unit: unitAtSave, groupKey: saveGroup, upsert: S.surveys, remove: S.removed }
+        : { unit: unitAtSave, upsert: S.surveys, remove: S.removed })
     : Promise.resolve({ ok:true, newIds:[], added:0, updated:0, removed:0 });
 
   Promise.all([p1, p2]).then(function(res){
@@ -3546,6 +3599,18 @@ function doSave(submit){
 
     S.dirty = false;
     store.del(LS_DRAFT + unitAtSave);
+
+    // Смежная группа: сервер применил upsert/remove ко всем площадкам и не
+    // возвращает пер-строчные ID — локальный кэш не патчим, а перечитываем
+    // истину целиком (doRefresh_ → onLoaded).
+    if(b && b.group){
+      S.removed = [];
+      // Конкуренты Шага 1 всё же могли сохраниться (p1) — их ID подхватит refresh.
+      toast(submit ? 'Отправлено. Спасибо!' :
+        'Сохранено — применено ко всем площадкам группы (' + (b.units || '?') + ')', 'ok');
+      doRefresh_();
+      return;
+    }
 
     // Конкуренты: добавленные получили ID — переносим в основной список
     S.added.forEach(function(x, k){

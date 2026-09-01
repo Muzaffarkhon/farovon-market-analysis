@@ -4,6 +4,35 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
 const { benefitsToList } = require('./surveyController');
+
+// Приведение строки surveys к форме для фронта. Вынесено, чтобы одинаково
+// маппить и анкеты пользователя, и анкеты смежной группы (для «заполнить раз
+// на всю группу»).
+function mapSurveyRow(s) {
+  return {
+    id: s.sid,
+    unit: s.unit,
+    company: s.company,
+    posOur: s.pos_our,
+    posTheir: s.pos_their || '',
+    grade: s.grade || '',
+    payFrom: s.pay_from || '',
+    payTo: s.pay_to || '',
+    cur: s.cur || 'сомони',
+    payPer: s.pay_per || 'в месяц',
+    bonHas: s.bon_has || 'не знаю',
+    bonSize: s.bon_size || '',
+    bonType: s.bon_type || '',
+    bonPer: s.bon_per || '',
+    schedule: s.schedule || '',
+    benefits: benefitsToList(s.benefits),
+    note: s.note || '',
+    source: s.source || '',
+    trust: s.trust || '',
+    by: s.created_by || '',
+    at: s.created_at || ''
+  };
+}
 const { CAPABILITIES } = require('../config/capabilities');
 
 function hashPassword(pwd) {
@@ -189,6 +218,7 @@ async function getUserPayload(user) {
   const positionsByUnit = {};
   const positionsByGroup = {};
   const companiesByGroup = {};
+  const surveysByGroup = {}; // groupKey -> [строки анкет всех площадок группы] (для «заполнить раз на всю группу»)
 
   const userCompetitorsPromise = (myUnits.length > 0)
     ? queryAll(`SELECT * FROM competitors WHERE unit IN (${myUnits.map(() => '?').join(',')})`, myUnits)
@@ -224,9 +254,10 @@ async function getUserPayload(user) {
 
       if (unitsInGroup.length) {
         const up = unitsInGroup.map(() => '?').join(',');
-        const [posRows, compRowsGroup] = await Promise.all([
+        const [posRows, compRowsGroup, survRowsGroup] = await Promise.all([
           queryAll(`SELECT unit, position FROM unit_positions WHERE unit IN (${up})`, unitsInGroup),
-          queryAll(`SELECT unit, company FROM competitors WHERE unit IN (${up})`, unitsInGroup)
+          queryAll(`SELECT unit, company FROM competitors WHERE unit IN (${up})`, unitsInGroup),
+          queryAll(`SELECT * FROM surveys WHERE unit IN (${up}) AND state != 'удалена'`, unitsInGroup)
         ]);
 
         posRows.forEach(r => {
@@ -241,6 +272,13 @@ async function getUserPayload(user) {
           if (!g) return;
           if (!companiesByGroup[g]) companiesByGroup[g] = new Set();
           companiesByGroup[g].add(r.company);
+        });
+
+        survRowsGroup.forEach(r => {
+          const g = unitToGroup[r.unit];
+          if (!g) return;
+          if (!surveysByGroup[g]) surveysByGroup[g] = [];
+          surveysByGroup[g].push(mapSurveyRow(r));
         });
       }
     } catch (e) {}
@@ -306,34 +344,9 @@ async function getUserPayload(user) {
       by: c.updated_by || '',
       at: c.updated_at || ''
     })),
-    surveys: userSurveys.map(s => ({
-      id: s.sid,
-      unit: s.unit,
-      company: s.company,
-      posOur: s.pos_our,
-      posTheir: s.pos_their || '',
-      grade: s.grade || '',
-      payFrom: s.pay_from || '',
-      payTo: s.pay_to || '',
-      cur: s.cur || 'сомони',
-      payPer: s.pay_per || 'в месяц',
-      bonHas: s.bon_has || 'не знаю',
-      bonSize: s.bon_size || '',
-      bonType: s.bon_type || '',
-      bonPer: s.bon_per || '',
-      schedule: s.schedule || '',
-      // Массив, а не строка: фронт держит льготы списком (чипы с
-      // множественным выбором) и вызывает на них .map. Строка из базы
-      // роняла отрисовку всего шага 2.
-      benefits: benefitsToList(s.benefits),
-      note: s.note || '',
-      source: s.source || '',
-      trust: s.trust || '',
-      // svCard() уже читает r.by/r.at для подписи «кто и когда внёс запись» —
-      // поле просто никогда не приходило с сервера, подпись не появлялась.
-      by: s.created_by || '',
-      at: s.created_at || ''
-    })),
+    // benefits приводятся к массиву (фронт держит льготы списком и зовёт .map);
+    // by/at нужны svCard() для подписи «кто и когда внёс». См. mapSurveyRow.
+    surveys: userSurveys.map(mapSurveyRow),
     // openAddSheet() ищет подсказки по компании как c.name/c.seg/c.region (объекты),
     // а не по голым строкам — раньше здесь были только имена, автодополнение
     // компаний было сломано (TypeError при вводе 2+ символов).
@@ -352,6 +365,7 @@ async function getUserPayload(user) {
     // Смежные группы площадок (group_key) — см. комментарий выше по коду.
     positionsByGroup: setsToArrays(positionsByGroup),
     companiesByGroup: setsToArrays(companiesByGroup),
+    surveysByGroup,
     segments,
     regions,
     // Список компаний в стоп-листе ("нельзя включать в обзор") — сейчас нет ни

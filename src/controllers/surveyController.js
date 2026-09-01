@@ -3,6 +3,12 @@ const { queryOne, queryAll, run, batch } = require('../db/database');
 const ALLOWED_CURRENCIES = ['сомони', 'usd', 'rub', 'eur', 'доллар', 'рубль', 'евро', 'tjs'];
 const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в час (чтс)', 'в смену', 'в год', 'в день'];
 
+// Нормализация для сопоставления должностей/компаний (то же, что norm() на
+// фронте): регистр, ё→е, схлопнутые пробелы, trim.
+function norm(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+}
+
 function cleanNumber(val, fieldName) {
   if (val === undefined || val === null || val === '') return 0;
   // Пробел, запятая и точка — разделители тысяч ("10 000" / "10,000" / "10.000").
@@ -177,7 +183,7 @@ exports.saveSurveyData = async (req, res) => {
 };
 
 exports.saveSurveyDetails = async (req, res) => {
-  const { unit, upsert, remove } = req.body;
+  const { unit, upsert, remove, groupKey } = req.body;
   if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
@@ -253,6 +259,107 @@ exports.saveSurveyDetails = async (req, res) => {
     if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
     }
+
+    // ── Смежная группа: «заполнил раз → на все площадки» ────────────────────
+    // Если пришёл groupKey — валидированные записи применяются ко ВСЕМ
+    // подразделениям группы, а remove приходит парами {posOur, company}.
+    // Строки внутри группы считаем общими (isOwnedByOther не применяем).
+    const cleanGroupKey = groupKey ? String(groupKey).trim() : '';
+    if (cleanGroupKey) {
+      const groupUnits = (await queryAll(
+        'SELECT unit FROM divisions WHERE group_key = ?', [cleanGroupKey]
+      )).map(r => r.unit).filter(Boolean);
+
+      if (groupUnits.length < 2 || !groupUnits.includes(String(unit).trim())) {
+        // Не настоящая группа или unit не из неё — падаем на обычный путь.
+      } else if (groupUnits.length > 50) {
+        return res.status(400).json({ ok: false, error: 'Слишком большая смежная группа' });
+      } else {
+        const isElevated = req.user.role === 'admin' || req.user.role === 'cb' || req.user.role === 'hrbp';
+        const myUnits = Array.isArray(req.user.units) ? req.user.units : [];
+        if (!isElevated && !groupUnits.some(u => myUnits.includes(u))) {
+          return res.status(403).json({ ok: false, error: 'Нет доступа к смежной группе этого подразделения' });
+        }
+
+        const nowIso = new Date().toISOString();
+        const ph = groupUnits.map(() => '?').join(',');
+        const existingRows = await queryAll(
+          `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна'`,
+          groupUnits
+        );
+        // индекс: unit -> "posKey|coKey" -> sid
+        const idx = {};
+        existingRows.forEach(r => {
+          const k = norm(r.pos_our) + '|' + norm(r.company);
+          (idx[r.unit] = idx[r.unit] || {})[k] = r.sid;
+        });
+
+        const gStmts = [];
+        let upserted = 0;
+        validatedItems.forEach(s => {
+          const k = norm(s.posOur) + '|' + norm(s.company);
+          groupUnits.forEach(gu => {
+            const sid = (idx[gu] || {})[k];
+            if (sid) {
+              gStmts.push({
+                sql: `UPDATE surveys
+                      SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
+                          bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
+                      WHERE sid = ? AND unit = ?`,
+                args: [
+                  s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
+                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+                  sid, gu
+                ]
+              });
+            } else {
+              const newSid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '_' + norm(gu).slice(0, 4);
+              gStmts.push({
+                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+                args: [
+                  newSid, gu, s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
+                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+                  req.user.fio || req.user.login, nowIso, period.name
+                ]
+              });
+            }
+            upserted++;
+          });
+        });
+
+        // remove: пары {posOur, company} → удаляем во всех площадках группы
+        let removedPairs = 0;
+        (Array.isArray(remove) ? remove : []).forEach(rm => {
+          if (!rm || typeof rm !== 'object') return;
+          const k = norm(rm.posOur || rm.pos_our) + '|' + norm(rm.company);
+          groupUnits.forEach(gu => {
+            const sid = (idx[gu] || {})[k];
+            if (sid) {
+              gStmts.push({ sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?", args: [sid, gu] });
+              removedPairs++;
+            }
+          });
+        });
+
+        gStmts.push({
+          sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+          args: [
+            req.user.login,
+            'сохранение данных по должностям (смежная группа)',
+            `Группа: ${cleanGroupKey}, площадок: ${groupUnits.length}, записей: ${validatedItems.length}, удалено пар: ${(Array.isArray(remove) ? remove.length : 0)}`
+          ]
+        });
+
+        if (gStmts.length > 0) await batch(gStmts);
+
+        return res.json({
+          ok: true, group: true, units: groupUnits.length,
+          upserted, removed: removedPairs, newIds: [], blocked: []
+        });
+      }
+    }
+    // ── /Смежная группа ───────────────────────────────────────────────────
 
     const now = new Date().toISOString();
     const newIds = [];
