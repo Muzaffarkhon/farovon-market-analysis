@@ -129,6 +129,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   const posMap = {};
   const rawRows = []; // сырые наблюдения для вкладки «Реестр данных»
   const allSalarySamples = []; // для общей медианы рынка (вкладка «Обзор»)
+  const regionSamples = {};    // регион → {froms,tos,mids} для вкладки «По регионам»
   const benefitStats = {};
   const bonusStats = { hasBonus: 0, noBonus: 0, unknown: 0, types: {}, periods: {} };
   const compRank = {};
@@ -141,6 +142,28 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
     if (filterDir && uInfo.dir !== filterDir) return;
     if (filterHrbp && uInfo.hrbp !== filterHrbp) return;
+
+    // Пер-регион вилки для вкладки «По регионам» — собираем ДО фильтра по
+    // региону, чтобы в таблице были все регионы сразу (в пределах выбранных
+    // направления / HR BP / видимости пользователя).
+    {
+      const rg = (uInfo.region || '').trim();
+      if (rg) {
+        const _pf = Number(s.pay_from) || 0;
+        const _pt = Number(s.pay_to) || 0;
+        const _hr = looksHourly((s.pay_per || '').trim(), _pf, _pt);
+        const _pfm = toMonthly(_pf, _hr);
+        const _ptm = toMonthly(_pt, _hr);
+        const _m = (_pfm > 0 && _ptm > 0) ? (_pfm + _ptm) / 2 : (_pfm || _ptm || 0);
+        if (_m > 0) {
+          const b = regionSamples[rg] || (regionSamples[rg] = { froms: [], tos: [], mids: [] });
+          if (_pfm > 0) b.froms.push(_pfm);
+          if (_ptm > 0) b.tos.push(_ptm);
+          b.mids.push(_m);
+        }
+      }
+    }
+
     if (filterRegion && (uInfo.region || '') !== filterRegion) return;
 
     const posOur = (s.pos_our || '').trim();
@@ -342,6 +365,14 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     Object.keys(unitMap).map(k => (unitMap[k].region || '').trim()).filter(Boolean)
   )].sort((a, b) => a.localeCompare(b, 'ru'));
 
+  // Вилки по регионам — вкладка «По регионам». Мин/P25/Медиана/P75/Макс/Средн.
+  // по всем наблюдениям региона (месячный эквивалент, ЧТС приведена).
+  const regionStats = Object.keys(regionSamples).map(rg => {
+    const b = regionSamples[rg];
+    const st = calculateSalaryForkStats(b.froms, b.tos, b.mids);
+    return { region: rg, count: b.mids.length, min: st.min, p25: st.p25, median: st.median, p75: st.p75, max: st.max, avg: st.avg };
+  }).sort((a, b) => b.median - a.median);
+
   // Топ льгот
   const topBenefits = Object.keys(benefitStats).map(k => ({
     name: k,
@@ -395,6 +426,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     hrbpProgress,
     dirProgress,
     regions,
+    regionStats,
     positions: positionsList,
     rows: rawRows,
     topBenefits,
