@@ -37,10 +37,35 @@ exports.logExport = async (req, res) => {
   }
 };
 
+/**
+ * Область видимости дашборда. admin/cb видят весь рынок (null — без
+ * ограничения). Остальные роли — только доступные им подразделения; логика
+ * ролей та же, что в getHRBPDashboard: HR BP — подразделения, где он указан
+ * HR BP (либо HR BP не задан вовсе); dir_head и прочие ограниченные роли —
+ * закреплённые за ними подразделения/направления (users.units).
+ *
+ * Возвращает предикат по строке divisions {unit, dir, hrbp, …} либо null.
+ */
+function dashboardUnitFilter(user) {
+  if (!user || user.role === 'admin' || user.role === 'cb') return null;
+  const units = Array.isArray(user.units) ? user.units : [];
+  const fio = String(user.fio || '').toLowerCase();
+  return (d) => {
+    if (user.role === 'hrbp') {
+      return d.hrbp ? String(d.hrbp).toLowerCase() === fio : true;
+    }
+    return units.includes(d.unit) || (!!d.dir && units.includes(d.dir));
+  };
+}
+
 exports.getCBDashboard = async (req, res) => {
   try {
     const filters = req.body || req.query || {};
-    const analytics = await getExtendedAnalytics(filters);
+    const unitFilter = dashboardUnitFilter(req.user);
+    const analytics = await getExtendedAnalytics(filters, { unitFilter });
+    if (analytics && typeof analytics === 'object' && !Array.isArray(analytics)) {
+      analytics.scoped = !!unitFilter; // фронт покажет пометку «только ваши подразделения»
+    }
     res.json(analytics);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -128,7 +153,9 @@ function csvCell(value) {
 
 exports.exportCSV = async (req, res) => {
   try {
-    const analytics = await getExtendedAnalytics(req.query || {});
+    // Та же область видимости, что и у дашборда — не-admin/cb не выгрузит
+    // рынок целиком через этот эндпоинт.
+    const analytics = await getExtendedAnalytics(req.query || {}, { unitFilter: dashboardUnitFilter(req.user) });
     const positions = analytics.positions || [];
 
     const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
