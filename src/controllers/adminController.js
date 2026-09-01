@@ -486,7 +486,7 @@ async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
 }
 
 exports.saveDivision = async (req, res) => {
-  const { unit, dir, head, resp, hrbp, note, group, org_role, is_survey_target } = req.body;
+  const { unit, dir, head, resp, hrbp, note, group, region, org_role, is_survey_target } = req.body;
   if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
   }
@@ -540,6 +540,7 @@ exports.saveDivision = async (req, res) => {
     }
 
     const cleanGroup = group !== undefined && group !== null ? String(group).trim() : null;
+    const cleanRegion = region !== undefined && region !== null ? String(region).trim() : null;
     const cleanOrgRole = org_role !== undefined && org_role !== null ? String(org_role).trim() : null;
     const cleanSurveyTarget = is_survey_target !== undefined && is_survey_target !== null ? Number(is_survey_target) : null;
 
@@ -551,11 +552,12 @@ exports.saveDivision = async (req, res) => {
           hrbp = COALESCE(?, hrbp),
           note = COALESCE(?, note),
           group_key = COALESCE(?, group_key),
+          region = COALESCE(?, region),
           org_role = COALESCE(?, org_role),
           is_survey_target = COALESCE(?, is_survey_target),
           updated_at = CURRENT_TIMESTAMP
       WHERE unit = ?
-    `, [cleanDir, head, resp, hrbp, note, cleanGroup, cleanOrgRole, cleanSurveyTarget, cleanUnit]);
+    `, [cleanDir, head, resp, hrbp, note, cleanGroup, cleanRegion, cleanOrgRole, cleanSurveyTarget, cleanUnit]);
 
     // Двусторонняя синхронизация пользователей (добавление новому и снятие со старого)
     if (existing) {
