@@ -1161,10 +1161,14 @@ function renderRail(){
   // серверная роль это уже разрешает — см. src/routes/api.js).
   var isElevated = (r === 'admin' || r === 'cb');
 
+  // activeView — какому S.appView соответствует пункт для подсветки «активен».
+  // У пунктов report / hrbp_summary / dept_assign сам view === null (клик
+  // обрабатывается отдельно, через openDash/openDeptAssign), а экран после них
+  // выставляет S.appView в 'dash_hrbp' / 'dept_assign' — по нему и подсвечиваем.
   var items = [];
   items.push({ id:'home', view:'home', label:'Главная', icon: ICONS.home });
   if(isElevated){
-    items.push({ id:'report', view:null, label:'Отчёт по подразделениям', icon: ICONS.clipboard });
+    items.push({ id:'report', view:null, activeView:'dash_hrbp', label:'Отчёт по подразделениям', icon: ICONS.clipboard });
   } else {
     items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
   }
@@ -1175,10 +1179,10 @@ function renderRail(){
     items.push({ id:'benchmarks', view:'benchmarks', label:'Бенчмаркинг', icon: ICONS.chart || ICONS.dashboard });
   }
   if(r === 'hrbp'){
-    items.push({ id:'hrbp_summary', view:null, label:'Сводка по HR BP', icon: ICONS.clipboard });
+    items.push({ id:'hrbp_summary', view:null, activeView:'dash_hrbp', label:'Сводка по HR BP', icon: ICONS.clipboard });
   }
   if(r === 'dir_head'){
-    items.push({ id:'dept_assign', view:null, label:'Назначить ответственных', icon: ICONS.clipboard });
+    items.push({ id:'dept_assign', view:null, activeView:'dept_assign', label:'Назначить ответственных', icon: ICONS.clipboard });
   }
 
   var adminItems = [];
@@ -1199,7 +1203,7 @@ function renderRail(){
   }
 
   var h = items.map(function(it){
-    var on = (S.appView === it.view && S.unit === null) ? ' on' : '';
+    var on = (S.appView === (it.activeView || it.view) && S.unit === null) ? ' on' : '';
     return '<button class="rail-item'+on+'" data-rail="'+it.id+'" title="'+esc(it.label)+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg><span>'+esc(it.label)+'</span></button>';
   }).join('');
 
@@ -1903,7 +1907,7 @@ function renderHome(){
     navCards.push({ label:'Назначить ответственных', desc:'Закрепить отделы направления за сотрудниками', icon:'users', run:openDeptAssign });
   }
   if(canSeeAdmin()){
-    navCards.push({ label:'Админка', desc:'Пользователи, оргструктура, справочники, период', icon:'admin', run:function(){ S.adminTab = S.adminTab || 'users'; openAdminPanel(); } });
+    navCards.push({ label:'Админка', desc:'Пользователи, оргструктура, справочники, период', icon:'admin', run:function(){ S.adminTab = 'users'; openAdminPanel(); } });
   }
 
   var nextStep = '';
@@ -7673,8 +7677,11 @@ function openDeptAssign(){
   S.appView = 'dept_assign';
   S.unit = null;
   saveNavState();
+  renderTopNav();
   S.backTo = null;
-  setTop('Назначить ответственных', userLabel(), true);
+  // Пункт верхнего уровня, не подэкран — «Назад» без S.backTo уводила
+  // в «Мои подразделения».
+  setTop('Назначить ответственных', userLabel(), false);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Загружаем…</div>';
@@ -9121,8 +9128,11 @@ function openDash(){
   S.appView = 'dash_hrbp';
   S.unit = null;
   saveNavState();
+  renderTopNav();
   S.backTo = null;
-  setTop('Сводка по подразделениям', '', true);
+  // Пункт верхнего уровня (рельса / «Главная»), не подэкран — стрелки «Назад»
+  // здесь быть не должно: без S.backTo она уводила в «Мои подразделения».
+  setTop('Сводка по подразделениям', '', false);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
