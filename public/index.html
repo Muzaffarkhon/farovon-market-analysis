@@ -9202,9 +9202,9 @@ function openDash(){
           return '<button class="sub-tab'+on+'" data-sumtab="'+t.id+'">'+ic(t.icon, 14)+esc(t.label)+'</button>';
         }).join('')+
       '</div>'+
-      '<div id="dashSumSearchBox" class="search-wrap" style="flex:1;min-width:200px;margin:0;'+(S.dashSumTab==='dirs'?'display:none;':'')+'">'+
+      '<div id="dashSumSearchBox" class="search-wrap search-wrap--r" style="flex:1;min-width:200px;margin:0;'+(S.dashSumTab==='dirs'?'display:none;':'')+'">'+
         icBare('search', 14)+
-        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…" style="min-height:30px;padding:4px 8px;font-size:12.5px">'+
+        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…" style="min-height:30px;padding:4px 32px 4px 10px;font-size:12.5px">'+
       '</div>'+
       '<div id="dashSumCount" style="font-size:12px;color:var(--muted);'+(S.dashSumTab==='dirs'?'display:none;':'')+'"></div>'+
     '</div>';

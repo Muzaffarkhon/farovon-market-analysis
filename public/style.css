@@ -4310,10 +4310,10 @@ label.lbl {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 8px 14px;
-  margin-bottom: 8px;
+  padding: 6px 12px;
+  margin-bottom: 6px;
   position: sticky;
-  top: -16px;
+  top: 0;
   z-index: 20;
   box-shadow: var(--shadow-xs);
 }
@@ -4414,9 +4414,9 @@ label.lbl {
 }
 
 .page-head-v {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  margin-top: 2px;
+  margin-top: 1px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4424,16 +4424,16 @@ label.lbl {
 }
 
 .page-head-s {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* Цифры вынесены в шапку: раньше они шли отдельной строкой-заголовком
    капсом и стоили ещё одной высоты. */
 .page-head-stats {
   display: flex;
-  gap: 22px;
+  gap: 16px;
   flex: none;
 }
 
@@ -4444,7 +4444,7 @@ label.lbl {
 }
 
 .phs b {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -4458,8 +4458,14 @@ label.lbl {
   flex: none;
   width: auto;
   margin-left: auto;
-  min-height: 32px;
+  min-height: 30px;
   padding: 0 14px;
+}
+
+/* Лупа справа от поля поиска (по запросу — на экране «Сводка по подразделениям»). */
+.search-wrap--r > svg {
+  left: auto;
+  right: 11px;
 }
 
 /* Иконка лупы стоит ВНУТРИ строки поиска слева, поле сдвинуто под неё.
