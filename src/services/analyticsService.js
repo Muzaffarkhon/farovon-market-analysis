@@ -53,13 +53,18 @@ function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
   return { min, p25, median, p75, max, avg, spread };
 }
 
-async function getExtendedAnalytics(filters = {}) {
+async function getExtendedAnalytics(filters = {}, opts = {}) {
   const filterDir = (filters.dir || '').trim();
   const filterHrbp = (filters.hrbp || '').trim();
   const searchPos = (filters.search || '').trim().toLowerCase();
 
+  // Ограничение видимости по роли: для не-admin/cb дашборд и весь его расчёт
+  // (вилки, медиана рынка, реестр) считаются только по доступным пользователю
+  // подразделениям. Предикат по строке divisions приходит из контроллера.
+  const unitFilter = typeof opts.unitFilter === 'function' ? opts.unitFilter : null;
+
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
-  const [divisions, competitors, surveys, posDict] = await Promise.all([
+  const [divisionsRaw, competitors, surveys, posDict] = await Promise.all([
     queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
     queryAll('SELECT unit, actual FROM competitors'),
     queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
@@ -80,6 +85,11 @@ async function getExtendedAnalytics(filters = {}) {
       };
     }
   });
+
+  // Отфильтрованная оргструктура — вся математика ниже идёт только по этим
+  // подразделениям. allowedUnits === null означает «без ограничения» (admin/cb).
+  const divisions = unitFilter ? divisionsRaw.filter(unitFilter) : divisionsRaw;
+  const allowedUnits = unitFilter ? new Set(divisions.map(d => d.unit)) : null;
 
   // 1. Оргструктура
   const unitMap = {};
@@ -121,6 +131,7 @@ async function getExtendedAnalytics(filters = {}) {
 
   surveys.forEach(s => {
     const un = s.unit || '';
+    if (allowedUnits && !allowedUnits.has(un)) return;
     const uInfo = unitMap[un] || { dir: '', hrbp: '', resp: '' };
 
     if (filterDir && uInfo.dir !== filterDir) return;

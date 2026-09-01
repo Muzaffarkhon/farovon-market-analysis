@@ -3808,6 +3808,12 @@ function renderDashboard(){
     '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
 
+  // Не-admin/cb видят дашборд только по своим подразделениям — честно помечаем,
+  // чтобы цифры не принимали за весь рынок.
+  if(d.scoped){
+    h += '<div class="info" style="margin-bottom:8px">'+ic('eye', 13)+' Показаны данные только по вашим подразделениям.</div>';
+  }
+
   // 3. Сводная строка KPI перед графиками (turn-19a)
   h += '<div id="dashKpiRow">' + renderDashKpiRow(sm) + '</div>';
 
