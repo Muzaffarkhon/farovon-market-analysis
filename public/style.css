@@ -4462,12 +4462,6 @@ label.lbl {
   padding: 0 14px;
 }
 
-/* Лупа справа от поля поиска (по запросу — на экране «Сводка по подразделениям»). */
-.search-wrap--r > svg {
-  left: auto;
-  right: 11px;
-}
-
 /* Иконка лупы стоит ВНУТРИ строки поиска слева, поле сдвинуто под неё.
    Базовое правило потерялось при переработке шапки — без него <svg> вставал
    отдельной строкой над input (у input width:100%), лупа «висела» сверху. */
@@ -4633,6 +4627,13 @@ label.lbl {
   color: var(--subtle);
 }
 
+/* Лупа справа (по запросу — поиск на «Сводке по подразделениям»). Двойной
+   класс, чтобы перебить .search-wrap > svg, стоящее в файле раньше. */
+.search-wrap.search-wrap--r > svg {
+  left: auto;
+  right: 11px;
+}
+
 .search-wrap input,
 .compact .search-wrap input {
   padding-left: 34px;
@@ -4682,11 +4683,20 @@ label.lbl {
   box-shadow: var(--shadow-xs);
 }
 
-#dictBox .tblwrap--page,
-#dashSumTabBody .tblwrap--page {
+#dictBox .tblwrap--page {
   height: calc(100vh - 140px) !important;
   min-height: calc(100vh - 140px) !important;
   max-height: calc(100vh - 140px) !important;
+}
+
+/* «Сводка по подразделениям»: над таблицей ещё шапка периода + строка вкладок
+   с поиском. При 100vh-140 всё вместе не влезало в .wrap (у него overflow-y:
+   auto) — прокручивался сам .wrap и уносил вкладки «По подразделениям / По
+   направлениям» вверх. Отдаём таблице ровно то, что остаётся. */
+#dashSumTabBody .tblwrap--page {
+  height: calc(100vh - 166px) !important;
+  min-height: calc(100vh - 166px) !important;
+  max-height: calc(100vh - 166px) !important;
 }
 
 @media (max-width: 700px) {
