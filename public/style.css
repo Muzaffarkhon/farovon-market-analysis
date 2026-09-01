@@ -401,8 +401,13 @@ body.has-bar .wrap {
 }
 
 .co-list-scroll {
-  max-height: calc(100vh - 320px);
-  min-height: 200px;
+  /* Экран подразделения живёт внутри .wrap (overflow-y:auto). Если список
+     компаний вырастает так, что шапка карточки + список + «Добавить» +
+     комментарий + место под нижнюю панель не влезают в .wrap, начинает
+     скроллиться .wrap — и получается двойная прокрутка. Ограничиваем список
+     с запасом на всю обвязку, чтобы прокручивался только он сам. */
+  max-height: calc(100vh - 430px);
+  min-height: 180px;
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
