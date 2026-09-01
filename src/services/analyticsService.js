@@ -56,6 +56,7 @@ function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
 async function getExtendedAnalytics(filters = {}, opts = {}) {
   const filterDir = (filters.dir || '').trim();
   const filterHrbp = (filters.hrbp || '').trim();
+  const filterRegion = (filters.region || '').trim();
   const searchPos = (filters.search || '').trim().toLowerCase();
 
   // Ограничение видимости по роли: для не-admin/cb дашборд и весь его расчёт
@@ -65,7 +66,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
   const [divisionsRaw, competitors, surveys, posDict] = await Promise.all([
-    queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
+    // region добавлена миграцией; на не мигрированной базе колонки может не быть.
+    queryAll("SELECT num, dir, unit, head, resp, hrbp, COALESCE(region,'') AS region FROM divisions")
+      .catch(() => queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions')
+        .then(rows => rows.map(r => ({ ...r, region: '' })))),
     queryAll('SELECT unit, actual FROM competitors'),
     queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
     queryAll('SELECT name, COALESCE(pay_from,0) AS pay_from, COALESCE(pay_to,0) AS pay_to FROM dictionary_positions')
@@ -99,6 +103,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       head: d.head || '',
       resp: d.resp || '',
       hrbp: d.hrbp || '',
+      region: (d.region || '').trim(),
       totalComp: 0,
       doneComp: 0,
       askComp: 0,
@@ -132,10 +137,11 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   surveys.forEach(s => {
     const un = s.unit || '';
     if (allowedUnits && !allowedUnits.has(un)) return;
-    const uInfo = unitMap[un] || { dir: '', hrbp: '', resp: '' };
+    const uInfo = unitMap[un] || { dir: '', hrbp: '', resp: '', region: '' };
 
     if (filterDir && uInfo.dir !== filterDir) return;
     if (filterHrbp && uInfo.hrbp !== filterHrbp) return;
+    if (filterRegion && (uInfo.region || '') !== filterRegion) return;
 
     const posOur = (s.pos_our || '').trim();
     const company = (s.company || '').trim();
@@ -172,8 +178,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       if (mid > 0) allSalarySamples.push(mid);
     }
 
-    // Регион и сырой ID_Бизнес живут в примечании импортированных строк
-    // («Собрал: …; Регион: Худжанд; ID_Бизнес: 11»). Для ручных анкет — пусто.
+    // Регион: приоритет — структурный регион подразделения (divisions.region);
+    // если не задан, падаем на разбор примечания импортированных строк
+    // («Собрал: …; Регион: Худжанд; ID_Бизнес: 11»). Для ручных анкет без
+    // региона подразделения — пусто.
     const regionMatch = note.match(/Регион:\s*([^;·]+)/i);
     const idbizMatch = note.match(/ID_Бизнес[^:]*:\s*([0-9 ,]+)/i);
     rawRows.push({
@@ -181,7 +189,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       dir: uInfo.dir || '',
       unit: un,
       company,
-      region: regionMatch ? regionMatch[1].trim() : '',
+      region: (uInfo.region || '') || (regionMatch ? regionMatch[1].trim() : ''),
       idbiz: idbizMatch ? idbizMatch[1].trim() : '',
       posOur,
       posTheir: (s.pos_their || '').trim(),
@@ -328,6 +336,12 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     return g;
   }).sort((a, b) => b.pct - a.pct);
 
+  // Список регионов для фильтра дашборда — из оргструктуры (не из наблюдений),
+  // чтобы набор опций был стабильным и уже суженным по видимости пользователя.
+  const regions = [...new Set(
+    Object.keys(unitMap).map(k => (unitMap[k].region || '').trim()).filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'ru'));
+
   // Топ льгот
   const topBenefits = Object.keys(benefitStats).map(k => ({
     name: k,
@@ -380,6 +394,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     },
     hrbpProgress,
     dirProgress,
+    regions,
     positions: positionsList,
     rows: rawRows,
     topBenefits,

@@ -146,7 +146,7 @@ var S = {
   appView:'units', // 'units' | 'dashboard' | 'admin'
   dashTab:'overview', // 'overview' | 'salaries' | 'registry' | 'progress' | 'benefits'
   adminTab:'users', // 'users' | 'divisions' | 'period' | 'tools'
-  dashFilters:{ dir:'', hrbp:'', search:'' },
+  dashFilters:{ dir:'', hrbp:'', region:'', search:'' },
   dashData:null, adminUsers:null, adminDivs:null,
   rows:[], added:[],                 // конкуренты
   surveys:[], removed:[],            // данные по должностям
@@ -3795,8 +3795,9 @@ function renderDashboard(){
   // 2. Компактная панель фильтров в 1 аккуратную строку
   var allDirs = (d.dirProgress || []).map(function(x){ return x.dir; }).filter(function(x){ return x && x !== 'Без направления'; });
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
+  var allRegions = (d.regions || []);
 
-  // Общий фильтр — только направление и HR BP (поиск у «Вилок» и «Реестра»
+  // Общий фильтр — направление, HR BP, регион (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
   h += '<div id="dashFilterBar" class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:'+(filterHidden ? 'none' : 'flex')+';align-items:center;flex-wrap:wrap">'+
@@ -3804,6 +3805,8 @@ function renderDashboard(){
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
       items:[{ v:'', label:'Все HR BP' }].concat(allHrbps.map(function(x){ return { v:x, label:x }; })) })+
+    (allRegions.length ? niceSelect({ id:'dashRegion', value:S.dashFilters.region, width:170,
+      items:[{ v:'', label:'Все регионы' }].concat(allRegions.map(function(x){ return { v:x, label:x }; })) }) : '')+
     '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
     '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
@@ -3840,11 +3843,13 @@ function renderDashboard(){
 
   wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
   wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
+  wireNiceSelect('dashRegion', function(v){ S.dashFilters.region = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
-    S.dashFilters = { dir:'', hrbp:'', search:'' };
+    S.dashFilters = { dir:'', hrbp:'', region:'', search:'' };
     setNiceSelect('dashDir', '');
     setNiceSelect('dashHrbp', '');
+    setNiceSelect('dashRegion', '');
     fetchDashboard(true);
   };
 
@@ -7527,6 +7532,18 @@ function openDivisionModal(unit, opts){
     '<label class="lbl">HR BP</label>'+
     (restricted ? lockedField(d.hrbp) : pickField('dmHrbp', d.hrbp, 'Выбрать из пользователей'))+
     (restricted ? '' :
+      '<label class="lbl">Регион <span style="font-weight:400;color:var(--muted)">'+
+        '(город / регион подразделения — разрез на дашборде)</span></label>'+
+      '<input id="dmRegion" list="dmRegionList" value="'+esc(d.region || '')+'" '+
+        'placeholder="например: Душанбе — оставьте пустым, если не нужно">'+
+      '<datalist id="dmRegionList">'+
+        uniqSortedList(
+          (((S.data && S.data.regions) || [])
+            .concat((S.adminDivs || []).map(function(x){ return x.region; })))
+            .filter(Boolean)
+        ).map(function(x){ return '<option value="'+esc(x)+'">'; }).join('')+
+      '</datalist>')+
+    (restricted ? '' :
       '<label class="lbl">Смежная группа <span style="font-weight:400;color:var(--muted)">'+
         '(площадки с одинаковой структурой должностей — разные только регионом)</span></label>'+
       '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
@@ -7606,11 +7623,13 @@ function openDivisionModal(unit, opts){
   var isDirty = function(){
     var note = el.querySelector('#dmNote').value.trim();
     var group = restricted ? (d.group_key || '') : el.querySelector('#dmGroup').value.trim();
+    var region = restricted ? (d.region || '') : el.querySelector('#dmRegion').value.trim();
     var roleEl = el.querySelector('#dmOrgRole');
     var orgRoleVal = roleEl ? roleEl.value : (d.org_role || 'line');
     return picked.dir !== (d.dir || '') || picked.head !== (d.head || '') ||
       picked.resp !== (d.resp || '') || picked.hrbp !== (d.hrbp || '') ||
-      note !== (d.note || '') || group !== (d.group_key || '') || orgRoleVal !== (d.org_role || 'line');
+      note !== (d.note || '') || group !== (d.group_key || '') ||
+      region !== (d.region || '') || orgRoleVal !== (d.org_role || 'line');
   };
   guardClose(el, isDirty);
 
@@ -7625,6 +7644,7 @@ function openDivisionModal(unit, opts){
       hrbp: picked.hrbp,
       note: el.querySelector('#dmNote').value.trim(),
       group: restricted ? d.group_key || '' : el.querySelector('#dmGroup').value.trim(),
+      region: restricted ? d.region || '' : el.querySelector('#dmRegion').value.trim(),
       org_role: orgRoleVal,
       is_survey_target: orgRoleVal === 'governance' ? 0 : 1
     };
@@ -7640,6 +7660,7 @@ function openDivisionModal(unit, opts){
         d.hrbp = payload.hrbp;
         d.note = payload.note;
         d.group_key = payload.group;
+        d.region = payload.region;
         d.org_role = payload.org_role;
         d.is_survey_target = payload.is_survey_target;
 
