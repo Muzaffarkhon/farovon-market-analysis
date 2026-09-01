@@ -401,7 +401,7 @@ body.has-bar .wrap {
 }
 
 .co-list-scroll {
-  max-height: calc(100vh - 380px);
+  max-height: calc(100vh - 320px);
   min-height: 200px;
   overflow-y: auto;
   padding-right: 6px;
@@ -1917,18 +1917,18 @@ label.lbl {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
   gap: 12px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 14px;
+  padding-bottom: 8px;
 }
 
 .batch-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
+  gap: 5px;
+  margin: 8px 0;
 }
 
 /* turn-7b — плоская редактируемая таблица для десктопа: одна строка на
@@ -2053,7 +2053,7 @@ label.lbl {
   border: 1px solid var(--line);
   border-left: 4px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 10px 18px;
+  padding: 6px 14px;
   box-shadow: var(--shadow-xs);
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
@@ -2092,8 +2092,8 @@ label.lbl {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  min-height: 36px;
+  gap: 14px;
+  min-height: 30px;
 }
 
 .b-co-left {
@@ -2175,18 +2175,19 @@ label.lbl {
 }
 
 .b-co-actions .seg {
-  min-width: 320px;
+  min-width: 330px;
   padding: 2px;
   margin: 0;
   gap: 3px;
 }
 
 .b-co-actions .seg button {
-  min-height: 32px;
-  height: 32px;
-  font-size: 12.5px;
+  min-height: 28px;
+  height: 28px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 0 14px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .batch-more-panel {
@@ -2228,7 +2229,7 @@ label.lbl {
 
 .batch-co-title {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 13px;
   color: var(--text);
   display: flex;
   align-items: center;
