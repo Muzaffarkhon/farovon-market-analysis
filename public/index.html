@@ -369,6 +369,7 @@ function cycleTheme(){
     list.push({ group:'Действия', label:'Переключить тему оформления', icon:'dashboard', run:cycleTheme });
     list.push({ group:'Действия', label:'Обновить данные', icon:'refresh', run:doRefresh });
     list.push({ group:'Действия', label:'Как заполнять', icon:'help', run:openHelp });
+    list.push({ group:'Действия', label:'Пройти обучение по интерфейсу', icon:'target', run:function(){ startTour(); } });
     list.push({ group:'Действия', label:'Профиль', icon:'profile', run:openProfile });
     list.push({ group:'Действия', label:'Выйти из системы', icon:'logout', danger:true, run:doLogout });
     return list;
@@ -2047,69 +2048,209 @@ function openHelp(){
     '<div class="callout-h">Можно заполнять в несколько заходов — просто сохраняйте по ходу. '+
       'Когда всё готово, нажмите «Сохранить и отправить как готовое» на шаге 1. '+
       'Любое окно закрывается клавишей Esc.</div>'+
-    '<div style="height:14px"></div>'+
-    '<button class="btn-primary" data-x="1">Понятно</button></div>';
+    '<div class="howto-acts">'+
+      '<button class="btn-line" id="howtoTour">'+ic('target', 14)+'Пройти обучение по интерфейсу</button>'+
+      '<button class="btn-primary" data-x="1">Понятно</button>'+
+    '</div></div>';
   document.body.appendChild(el);
   el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x) el.remove();
+    if(e.target === el || e.target.dataset.x){ el.remove(); return; }
+    if(e.target.closest('#howtoTour')){ el.remove(); startTour(); }
   });
 }
 
-/**
- * Онбординг первого входа (макеты turn-14b/14c): 3-шаговая карусель поверх
- * первого экрана, «Пропустить» / «Далее» → «Начать работу».
- * Флаг «показан» хранится в localStorage (ключ LS_OB, общий с инлайновой
- * подсказкой в renderUnits). Кросс-девайсную защиту от сброса кэша Telegram
- * дал бы серверный users.onboarding_seen + эндпоинт — это отдельная доработка
- * бэкенда, за рамками правки вёрстки.
- */
-function showOnboarding(){
-  if(store.get(LS_OB) === '1') return;
-  if(document.querySelector('.ob-sheet')) return;
+// ═══════════════════════════════════════════════════════════
+// ОНБОРДИНГ — подсвечивающий тур по реальному интерфейсу (Фаза 6)
+// ═══════════════════════════════════════════════════════════
+// Вместо трёх текстовых слайдов — «прожектор» по живым элементам экрана:
+// затемняем всё, кроме нужной кнопки/карточки, и рядом показываем подсказку
+// «куда нажать и что выбрать». Роль-зависимый набор шагов. Флаг прохождения
+// в LS_OB (тот же, что гасит подсказку-карточку в renderUnits). Запустить
+// заново — «Помощь» → «Пройти обучение» или ⌘K → «Пройти обучение».
 
-  var slides = [
-    { ic:'units', title:'Откройте своё подразделение',
-      text:'Если подразделений несколько — заполните каждое по очереди.' },
-    { ic:'clipboard', title:'Отметьте компании рынка',
-      text:'По каждой компании выберите: актуальна для сравнения, нет, или нужно уточнить позже.' },
-    { ic:'check', title:'Готово!',
-      text:'Инструкцию «Как заполнять» можно открыть в любой момент из меню профиля.' }
-  ];
-  var i = 0;
+function tourSteps(){
+  var r = S.data && S.data.user && S.data.user.role;
+  var elevated = (r === 'admin' || r === 'cb');
 
-  var el = document.createElement('div');
-  el.className = 'sheet ob-sheet';
-  el.innerHTML = '<div class="sheet-in ob-in"></div>';
-  document.body.appendChild(el);
-
-  function finish(){ store.set(LS_OB, '1'); el.remove(); }
-
-  function draw(){
-    var s = slides[i];
-    var last = i === slides.length - 1;
-    el.querySelector('.ob-in').innerHTML =
-      '<div class="ob-slide">'+
-        '<div class="ob-ic">'+icBare(s.ic, 30)+'</div>'+
-        '<div class="ob-title">'+esc(s.title)+'</div>'+
-        '<div class="ob-text">'+esc(s.text)+'</div>'+
-      '</div>'+
-      '<div class="ob-dots">'+slides.map(function(_, n){
-        return '<span class="ob-dot'+(n===i?' on':'')+'"></span>';
-      }).join('')+'</div>'+
-      '<div class="ob-nav">'+
-        (last ? '' : '<button class="btn-ghost" data-ob="skip">Пропустить</button>')+
-        '<button class="btn-primary" data-ob="next" style="width:auto;flex:1">'+(last?'Начать работу':'Далее')+'</button>'+
-      '</div>';
+  if(elevated){
+    return [
+      { sel:'.rail-item[data-nav], .nav-btn[data-nav]', title:'Разделы',
+        body:'Слева (или снизу на телефоне) — переходы между разделами: отчёт, дашборд, бенчмаркинг, админка.' },
+      { sel:'#btnCmdk', title:'Быстрый поиск — Ctrl/⌘ + K',
+        body:'Отсюда можно за пару клавиш попасть в любой раздел, открыть подразделение или выполнить действие.' },
+      { sel:'#topPeriodBadge, .rail-item[data-nav="dashboard"], .nav-btn[data-nav="dashboard"]', title:'Аналитика рынка',
+        body:'На «Дашборде» — зарплатные вилки, перцентили, гэп к рынку и прогресс по HR BP.', optional:true },
+      { sel:'#btnTheme', title:'Тема оформления',
+        body:'Светлая, тёмная или «как в системе» — переключается здесь.' }
+    ];
   }
 
-  el.addEventListener('click', function(e){
-    var act = e.target.closest('[data-ob]');
-    if(!act) return;
-    if(act.dataset.ob === 'skip'){ finish(); return; }
-    if(i < slides.length - 1){ i++; draw(); } else { finish(); }
-  });
+  return [
+    { sel:'#unitsContainer .unit', waitFor:true, title:'Начните с вашего подразделения',
+      body:'Нажмите на карточку — внутри два шага: отметить компании и внести данные по рынку.',
+      cta:'Открыть подразделение', ctaClicks:true },
+    { sel:'.b-co-actions .seg, .batch-card .seg', waitFor:true, title:'Шаг 1. Отметьте компании',
+      body:'По каждой компании нажмите одну из трёх кнопок: «Актуально» — важна для сравнения, «Не актуально» — нет, «Уточнить» — вернётесь к ней позже.' },
+    { sel:'.unit-step-tabs .sub-tab:last-child, [data-tab="survey"]', waitFor:true, title:'Шаг 2. Данные по рынку',
+      body:'Здесь главное — внесите оклад, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.' },
+    { sel:'#btnHelp', title:'Инструкция всегда рядом',
+      body:'Полное описание «Как заполнять» открывается здесь в любой момент. Готово — можно работать.' }
+  ];
+}
 
-  draw();
+var _tourActive = false;
+
+function showOnboarding(){
+  if(store.get(LS_OB) === '1') return;
+  startTour();
+}
+
+function startTour(){
+  if(_tourActive) return;
+  var steps = tourSteps().slice();
+  if(!steps.length){ store.set(LS_OB, '1'); return; }
+
+  // Тур заполнителя начинается со списка подразделений. Если человек сейчас
+  // в другом разделе (запустил «Пройти обучение» из меню) и нет несохранённых
+  // правок — сначала возвращаемся туда.
+  var role = S.data && S.data.user && S.data.user.role;
+  var elevated = (role === 'admin' || role === 'cb');
+  if(!elevated && S.appView !== 'units' && !S.dirty && typeof renderUnits === 'function'){
+    try { renderUnits(); } catch(e){}
+  }
+
+  _tourActive = true;
+  var i = 0;
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  var mask = document.createElement('div');
+  mask.className = 'tour-mask';
+  var hole = document.createElement('div');
+  hole.className = 'tour-hole';
+  var tip = document.createElement('div');
+  tip.className = 'tour-tip';
+  mask.appendChild(hole);
+  document.body.appendChild(mask);
+  document.body.appendChild(tip);
+
+  function done(){
+    _tourActive = false;
+    store.set(LS_OB, '1');
+    mask.remove(); tip.remove();
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('resize', place);
+  }
+
+  function findEl(sel){
+    var list = sel.split(',');
+    for(var k = 0; k < list.length; k++){
+      var e = document.querySelector(list[k].trim());
+      if(e && e.getBoundingClientRect().width > 0) return e;
+    }
+    return null;
+  }
+
+  function waitFor(sel, cb, tries){
+    tries = tries || 0;
+    var e = findEl(sel);
+    if(e) return cb(e);
+    if(tries > 40) return cb(null); // ~2 c
+    setTimeout(function(){ waitFor(sel, cb, tries + 1); }, 50);
+  }
+
+  var curTarget = null;
+
+  function place(){
+    if(!curTarget) return;
+    var r = curTarget.getBoundingClientRect();
+    var pad = 6;
+    hole.style.top = (r.top - pad) + 'px';
+    hole.style.left = (r.left - pad) + 'px';
+    hole.style.width = (r.width + pad * 2) + 'px';
+    hole.style.height = (r.height + pad * 2) + 'px';
+
+    // куда ставить подсказку: под элементом, если снизу есть место, иначе над
+    var tipH = tip.offsetHeight || 160;
+    var below = r.bottom + 12 + tipH < window.innerHeight;
+    var top = below ? r.bottom + 12 : Math.max(12, r.top - tipH - 12);
+    var left = Math.min(Math.max(12, r.left), window.innerWidth - (tip.offsetWidth || 320) - 12);
+    tip.style.top = top + 'px';
+    tip.style.left = left + 'px';
+  }
+
+  function render(){
+    var s = steps[i];
+    var last = i === steps.length - 1;
+    tip.innerHTML =
+      '<div class="tour-step">' + (i + 1) + ' / ' + steps.length + '</div>' +
+      '<div class="tour-title">' + esc(s.title) + '</div>' +
+      '<div class="tour-body">' + esc(s.body) + '</div>' +
+      '<div class="tour-nav">' +
+        '<button class="btn-ghost" data-t="skip">Пропустить</button>' +
+        (i > 0 ? '<button class="btn-line" data-t="prev">Назад</button>' : '') +
+        '<button class="btn-primary" data-t="next">' +
+          (s.ctaClicks && s.cta ? esc(s.cta) : (last ? 'Готово' : 'Далее')) +
+        '</button>' +
+      '</div>';
+    // после вставки узнаём высоту и позиционируем
+    requestAnimationFrame(place);
+  }
+
+  function go(dir){
+    var s = steps[i];
+    // Если шаг «кликом открывает» экран — нажимаем целевой элемент и ждём след.
+    if(dir > 0 && s && s.ctaClicks && curTarget){
+      var t = curTarget;
+      curTarget = null;
+      t.click();
+      i++;
+      setTimeout(step, 250);
+      return;
+    }
+    i += dir;
+    if(i < 0) i = 0;
+    if(i >= steps.length){ done(); return; }
+    step();
+  }
+
+  function step(){
+    var s = steps[i];
+    var apply = function(el){
+      if(!el){
+        // элемент не появился — если шаг необязательный, пропускаем дальше;
+        // иначе аккуратно завершаем.
+        if(s.optional && i < steps.length - 1){ i++; return step(); }
+        return done();
+      }
+      curTarget = el;
+      el.scrollIntoView({ block:'center', behavior: reduce ? 'auto' : 'smooth' });
+      setTimeout(function(){ render(); place(); }, reduce ? 0 : 180);
+    };
+    if(s.waitFor) waitFor(s.sel, apply);
+    else apply(findEl(s.sel));
+  }
+
+  function onKey(e){
+    if(e.key === 'Escape'){ e.preventDefault(); done(); }
+    else if(e.key === 'ArrowRight' || e.key === 'Enter'){ e.preventDefault(); go(1); }
+    else if(e.key === 'ArrowLeft'){ e.preventDefault(); go(-1); }
+  }
+
+  tip.addEventListener('click', function(e){
+    var b = e.target.closest('[data-t]');
+    if(!b) return;
+    if(b.dataset.t === 'skip') return done();
+    if(b.dataset.t === 'prev') return go(-1);
+    go(1);
+  });
+  mask.addEventListener('click', function(e){
+    // клик по затемнению = пропустить; клик по «дырке» проваливается к элементу
+    if(e.target === mask) done();
+  });
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('resize', place);
+
+  step();
 }
 
 function onLoaded(data){
@@ -2383,7 +2524,7 @@ function renderUnits(){
       '<li>Нажмите <b>«Сохранить»</b> внизу экрана.</li>'+
       '</ol><div class="ob-act">'+
       '<button id="obMore">'+ic('book')+'Инструкция</button>'+
-      '<button id="obHide" class="btn-primary" style="width:auto">Понятно, скрыть</button>'+
+      '<button id="obHide" class="btn-primary onboard-hide">Понятно, скрыть</button>'+
       '</div></div>';
   }
 

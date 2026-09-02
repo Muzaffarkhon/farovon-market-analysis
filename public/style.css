@@ -8160,3 +8160,82 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .rail-avatar, .rail-av, .profile-av, .org-avatar-circle, .u-avatar {
   border-radius: var(--r-md) !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ФАЗА 6 — обучающий тур («прожектор» по интерфейсу)
+   ════════════════════════════════════════════════════════════════════ */
+.tour-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+.tour-hole {
+  position: absolute;
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 9999px rgba(6, 12, 24, 0.62);
+  pointer-events: none;
+  transition: top 0.25s var(--ease-out), left 0.25s var(--ease-out),
+              width 0.25s var(--ease-out), height 0.25s var(--ease-out);
+}
+.tour-tip {
+  position: fixed;
+  z-index: 91;
+  width: min(340px, calc(100vw - 32px));
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+  padding: 16px 16px 14px;
+  transition: top 0.25s var(--ease-out), left 0.25s var(--ease-out);
+}
+.tour-step {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.tour-title {
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 6px 0 4px;
+}
+.tour-body {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.tour-nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.tour-nav .btn-ghost { margin-right: auto; }
+.tour-nav .btn-primary { flex: 1; }
+.tour-nav .btn-primary,
+.tour-nav .btn-line {
+  min-height: 34px;
+  font-size: 13px;
+  padding: 0 14px;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-hole, .tour-tip { transition: none; }
+}
+
+.howto-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.howto-acts .btn-line,
+.howto-acts .btn-primary {
+  flex: 1;
+  min-width: 160px;
+  width: auto;
+}
+.onboard-hide { width: auto; }
