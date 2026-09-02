@@ -5390,7 +5390,7 @@ function renderAdminUsers(){
   var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
       '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(search)+'"></div>'+
-    '<select id="uRole" style="flex:none;width:auto;min-width:180px">'+
+    '<select id="uRole" class="toolbar-select">'+
       '<option value="">Все роли ('+users.length+')</option>'+
       '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
       '<option value="cb"'+(roleFilter==='cb'?' selected':'')+'>C&B Аналитики (cb)</option>'+
@@ -8502,28 +8502,28 @@ function renderAdminAudit(){
       if(pg < 1) pg = 1;
       var pageRows = filtered.slice((pg - 1) * LOG_PER_PAGE, pg * LOG_PER_PAGE);
 
-      var logH = '<div class="toolbar" style="margin-bottom:8px;flex:none">'+
+      var logH = '<div class="toolbar audit-toolbar">'+
         '<div class="search-wrap">'+icBare('search')+
           '<input id="auditSearch" placeholder="Поиск по логину или деталям…" value="'+esc(filterSearch||'')+'"></div>'+
-        '<select id="auditAction" style="flex:none;width:auto;min-width:180px">'+
+        '<select id="auditAction" class="toolbar-select">'+
           '<option value="">Все действия ('+logs.length+')</option>'+
           actions.map(function(act){
             return '<option value="'+esc(act)+'"'+(filterAct===act?' selected':'')+'>'+esc(act)+'</option>';
           }).join('')+
         '</select>'+
         tblCount(filtered.length, logs.length, ['запись', 'записи', 'записей'])+
-        '<button id="btnAuditReload" class="btn-line toolbar-act" style="min-height:32px;font-size:12.5px;padding:0 12px">'+ic('refresh',14)+'Обновить</button>'+
+        '<button id="btnAuditReload" class="btn-line toolbar-act">'+ic('refresh',14)+'Обновить</button>'+
       '</div>';
 
-      logH += '<div class="tblwrap tblwrap--page" style="flex:1 1 0;min-height:0!important;height:auto!important;max-height:none!important"><table class="co-tbl co-tbl--pin">'+
+      logH += '<div class="tblwrap tblwrap--page audit-tblwrap"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Время</th><th>Логин</th><th>Действие</th><th>Детали</th></tr></thead><tbody>'+
         pageRows.map(function(l){
           var act = String(l.action || '').trim() || '—';
           return '<tr>'+
-            '<td style="white-space:nowrap;font-size:12px;color:var(--muted)">'+esc(fmtDateTime(l.dt))+'</td>'+
+            '<td class="log-time">'+esc(fmtDateTime(l.dt))+'</td>'+
             '<td><b>'+esc(l.login)+'</b></td>'+
             '<td><span class="log-act'+(act === '—' ? ' log-act--none' : '')+'">'+esc(act)+'</span></td>'+
-            '<td style="font-size:12.5px;color:var(--muted)">'+esc(l.detail)+'</td>'+
+            '<td class="log-detail">'+esc(l.detail)+'</td>'+
           '</tr>';
         }).join('')+
         '</tbody></table></div>';
@@ -8999,9 +8999,9 @@ function renderAdminRoles(){
   $('adminContent').innerHTML =
     '<div class="roles2">'+
       '<div class="roles2-bar">'+
-        '<p class="step-hint" style="margin:0;flex:1">Слева \u2014 роли, справа \u2014 что роль видит и делает в админке. У \u00abАдминистратора\u00bb доступ всегда полный. Особые полномочия структурных ролей заданы в коде \u2014 здесь показаны для справки.</p>'+
-        '<button id="roleAdd" class="btn-line" style="min-height:34px;padding:0 14px;font-size:12.5px;flex-shrink:0;width:auto">'+ic('users',14)+' Добавить роль</button>'+
-        '<button id="roleSaveAll" class="btn-primary" style="min-height:34px;padding:0 18px;font-size:12.5px;flex-shrink:0;width:auto">'+ic('check',14)+' Сохранить</button>'+
+        '<p class="step-hint roles2-hint">Слева \u2014 роли, справа \u2014 что роль видит и делает в админке. У \u00abАдминистратора\u00bb доступ всегда полный. Особые полномочия структурных ролей заданы в коде \u2014 здесь показаны для справки.</p>'+
+        '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'+
+        '<button id="roleSaveAll" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'+
       '</div>'+
       '<div class="roles2-body">'+
         '<div class="roles2-list">'+listHtml+'</div>'+
@@ -9027,7 +9027,7 @@ function roleDetailHtml(r, groups){
   head += '<span class="r2-key">'+esc(r.key)+'</span>';
   if(!r.is_protected){
     var canDel = r.users === 0;
-    head += '<button id="roleDel" class="btn-line btn-danger" '+(canDel?'':'disabled title="Роль назначена пользователям \u2014 сначала смените им роль"')+' style="min-height:30px;padding:0 12px;font-size:12px;width:auto;margin-left:auto">'+ic('trash',13)+' Удалить</button>';
+    head += '<button id="roleDel" class="btn-line btn-danger roles2-del" '+(canDel?'':'disabled title="Роль назначена пользователям \u2014 сначала смените им роль"')+'>'+ic('trash',13)+' Удалить</button>';
   }
   head += '</div>';
 
@@ -9414,19 +9414,17 @@ function openBenchmarks(){
   $('body').onclick = null;
 
   var body = $('body');
-  body.innerHTML = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-bottom:12px">' +
-      '<div class="dash-tab-strip" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto">' +
+  body.innerHTML = '<div class="sub-tabs sub-tabs--sticky dash-tabbar bm-tabbar">' +
+      '<div class="dash-tab-strip">' +
         '<button class="sub-tab ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">' + ic('chart', 14) + 'Сравнение по должности</button>' +
         '<button class="sub-tab ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">' + ic('link', 14) + 'Сопоставление должностей</button>' +
         '<button class="sub-tab ' + (BM_STATE.tab === 'datasets' ? 'on' : '') + '" onclick="switchBmTab(\'datasets\')">' + ic('archive', 14) + 'Источники и датасеты</button>' +
       '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px;flex:none">' +
-        '<button id="btnBmExpMatrix" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto">' +
-          ic('download', 14) + 'Экспорт в CSV' +
-        '</button>' +
-      '</div>' +
+      '<button id="btnBmExpMatrix" class="btn-line dash-filter-export">' +
+        ic('download', 14) + 'Экспорт в CSV' +
+      '</button>' +
     '</div>' +
-    '<div id="bmContent" style="flex:1;min-height:0">Загрузка данных…</div>';
+    '<div id="bmContent" class="bm-content">Загрузка данных…</div>';
 
   $('btnBmExpMatrix').onclick = exportBmMatrixCsv;
 
