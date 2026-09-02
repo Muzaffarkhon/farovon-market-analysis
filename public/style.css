@@ -144,9 +144,9 @@
     --warn-soft: rgba(245, 158, 11, 0.15);
     --warn-border: rgba(245, 158, 11, 0.35);
 
-    --sh-1: 0 1px 2px 0 rgb(0 0 0 / 0.45);
-    --sh-2: 0 4px 12px -2px rgb(0 0 0 / 0.5);
-    --sh-3: 0 12px 32px -8px rgb(0 0 0 / 0.6);
+    --sh-1: 0 1px 2px 0 rgb(4 8 18 / 0.5);
+    --sh-2: 0 6px 16px -3px rgb(4 8 18 / 0.55);
+    --sh-3: 0 16px 40px -10px rgb(2 6 16 / 0.62);
   }
 }
 
@@ -199,9 +199,9 @@ body.dark,
 
   /* те же значения, что в @media-блоке выше — чтобы явная тёмная и системная
      тёмная давали одинаковые тени (раньше этот блок их не переопределял). */
-  --sh-1: 0 1px 2px 0 rgb(0 0 0 / 0.45);
-  --sh-2: 0 4px 12px -2px rgb(0 0 0 / 0.5);
-  --sh-3: 0 12px 32px -8px rgb(0 0 0 / 0.6);
+  --sh-1: 0 1px 2px 0 rgb(4 8 18 / 0.5);
+  --sh-2: 0 6px 16px -3px rgb(4 8 18 / 0.55);
+  --sh-3: 0 16px 40px -10px rgb(2 6 16 / 0.62);
 }
 
 /* Явный выбор «светлая» — перекрывает тёмную ОС (@media выше исключён guard'ом).
@@ -5624,7 +5624,7 @@ html.compact {
   bottom: 16px !important;
   right: 16px !important;
   left: auto !important;
-  z-index: 99999 !important;
+  z-index: 1000 !important; /* тосты — поверх всех слоёв */
   display: flex !important;
   flex-direction: column-reverse !important;
   gap: 8px !important;
@@ -6805,12 +6805,20 @@ html.compact {
   line-height: 1.15;
   color: var(--text);
 }
-/* Имя — мягкий градиент (акцент экрана, а не неон) */
+/* Имя — тональный градиент: почти весь текст цвета --text, лёгкий увод
+   в акцент только к концу строки (не «AI-неон» во всю ширину).
+   Важно: в @supports задаём background-IMAGE, а не шорткат background —
+   иначе он сбрасывает background-clip обратно на border-box. */
 .home-hi-name {
-  background: linear-gradient(120deg, var(--text) 10%, var(--accent) 120%);
+  background-image: linear-gradient(100deg, var(--text) 55%, var(--accent) 135%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+@supports (color: color-mix(in oklab, white, black)) {
+  .home-hi-name {
+    background-image: linear-gradient(100deg, var(--text) 55%, color-mix(in oklab, var(--accent) 65%, var(--text)) 130%);
+  }
 }
 .home-role { font-size: 14.5px; color: var(--muted); margin-top: 3px; }
 
@@ -8101,4 +8109,54 @@ html.compact {
   width: 100%;
   justify-content: center;
   font-size: 13.5px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   TASTE-SKILL PASS — доступность и микро-полировка (по redesign-skill)
+   ════════════════════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* Видимое кольцо фокуса для клавиатуры — было только у input/select/textarea.
+   Требование доступности, не опция. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+/* мышью по кнопке кольцо не показываем */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+.cmdk-item:focus-visible,
+.rail-item:focus-visible,
+.nav-btn:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Физический отклик нажатия на любой кнопке (не только на карточках) */
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active { transform: none; }
+}
+
+/* Заголовки не бросают одно слово на последнюю строку; абзацы — аккуратный перенос */
+h1, h2, h3, .home-hi, .sec-title, .card-hd b, .fill-card-hd b, .fill-sec-hd b {
+  text-wrap: balance;
+}
+p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
+  text-wrap: pretty;
+}
+
+/* Аватары — скруглённый квадрат вместо круга (менее «дефолтный» вид) */
+.rail-avatar, .rail-av, .profile-av, .org-avatar-circle, .u-avatar {
+  border-radius: var(--r-md) !important;
 }

@@ -7,6 +7,11 @@
        до применения style.css и не мигал в тёмной ОС. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Совместный сбор и анализ данных о зарплатах, бонусах и льготах на рынке труда — для руководителей направлений, HR BP, C&amp;B и компаний-участников обзора.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Обзор рынка вознаграждений · Фаровон">
+  <meta property="og:description" content="Совместный сбор и анализ рыночных зарплат, бонусов и льгот.">
+  <meta name="robots" content="noindex">
   <!-- Фаза 1: применяем сохранённый выбор темы до первой отрисовки, чтобы не
        было вспышки. 'system' (или отсутствие ключа) — атрибут не ставим,
        работает @media prefers-color-scheme. -->
@@ -3579,7 +3584,7 @@ function openBatchSurveySheet(posName){
     }
     var cm = document.createElement('div');
     cm.className = 'sheet';
-    cm.style.zIndex = '9999';
+    cm.style.zIndex = '120'; // поверх шита (60) и ⌘K (80)
     cm.innerHTML = '<div class="sheet-in um-modal" style="max-width:440px;box-shadow:var(--shadow-lg)">' +
       '<div class="sheet-hd"><b style="color:var(--warn);display:flex;align-items:center;gap:6px">' + ic('warn', 18) + 'Несохранённые изменения</b></div>' +
       '<p style="font-size:14px;color:var(--muted);margin:12px 0 16px;line-height:1.45">' +
