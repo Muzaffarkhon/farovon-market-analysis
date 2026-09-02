@@ -3835,21 +3835,21 @@ function renderDashKpiRow(sm){
   // отжимают таблицу вниз. На других вкладках строка пустая и схлопывается.
   if(S.dashTab !== 'overview') return '';
   sm = sm || {};
-  function tile(label, val, sub, subCls){
+  function tile(label, val, sub, warn){
     return '<div class="kpi-card"><div class="kpi-t">'+label+'</div>'+
       '<div class="kpi-v">'+val+'</div>'+
-      (sub ? '<div style="font-size:11.5px;font-weight:600;margin-top:2px;color:'+(subCls||'var(--muted)')+'">'+sub+'</div>' : '')+
+      (sub ? '<div class="kpi-s'+(warn?' is-warn':'')+'">'+sub+'</div>' : '')+
     '</div>';
   }
   var med = sm.salaryMedian || 0;
-  return '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:10px">'+
+  return '<div class="kpi-grid kpi-grid--dash">'+
     tile('Записей по рынку', (sm.totalSurveyRecords||0), (sm.recordsWithSalary||0)+' с окладом')+
     tile('Компаний в опросе', (sm.companiesInSurvey||0), '')+
     tile('Медиана рынка', med ? med.toLocaleString('ru-RU')+' c' : '—',
       (sm.salaryP25 && sm.salaryP75) ? 'P25 '+sm.salaryP25.toLocaleString('ru-RU')+' · P75 '+sm.salaryP75.toLocaleString('ru-RU') : '')+
     tile('Должностей', (sm.positionsCount||0),
       sm.unmappedRecords ? sm.unmappedRecords+' записей без сопоставления' : '',
-      sm.unmappedRecords ? 'var(--warn)' : '')+
+      !!sm.unmappedRecords)+
   '</div>';
 }
 
@@ -3978,11 +3978,11 @@ function renderDashboard(){
     { id:'progress', icon:'target', label:'Прогресс по HR BP' },
     { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
   ];
-  var h = '<div class="sub-tabs sub-tabs--sticky" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-bottom:8px">'+
-    '<div class="dash-tab-strip" style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow-x:auto">'+
+  var h = '<div class="sub-tabs sub-tabs--sticky dash-tabbar">'+
+    '<div class="dash-tab-strip">'+
       tabs.map(function(t){
         var on = S.dashTab === t.id ? ' on' : '';
-        return '<button class="sub-tab'+on+'" style="flex:none" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
+        return '<button class="sub-tab'+on+'" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
       }).join('')+
     '</div>'+
     '<div id="dashKpiFrame" class="kpi-group-frame"></div>'+
@@ -3996,15 +3996,15 @@ function renderDashboard(){
   // Общий фильтр — направление, HR BP, регион (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
-  h += '<div id="dashFilterBar" class="toolbar dash-filters" style="margin-bottom:8px;gap:6px;display:'+(filterHidden ? 'none' : 'flex')+';align-items:center;flex-wrap:wrap">'+
+  h += '<div id="dashFilterBar" class="toolbar dash-filters"'+(filterHidden ? ' style="display:none"' : '')+'>'+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
       items:[{ v:'', label:'Все HR BP' }].concat(allHrbps.map(function(x){ return { v:x, label:x }; })) })+
     (allRegions.length ? niceSelect({ id:'dashRegion', value:S.dashFilters.region, width:170,
       items:[{ v:'', label:'Все регионы' }].concat(allRegions.map(function(x){ return { v:x, label:x }; })) }) : '')+
-    '<button id="btnDashReset" class="btn-ghost" style="padding:0 8px;min-height:32px;font-size:12px;white-space:nowrap">Сбросить</button>'+
-    '<button id="btnDashExport" class="btn-line" style="min-height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;width:auto;margin-left:auto">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
+    '<button id="btnDashReset" class="btn-ghost dash-filter-reset">Сбросить</button>'+
+    '<button id="btnDashExport" class="btn-line dash-filter-export">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
 
   // Не-admin/cb видят дашборд только по своим подразделениям — честно помечаем,
@@ -4268,10 +4268,9 @@ function renderOverviewTab(d){
   }
 
   var cardHd = function(title, hint){
-    return '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;'+
-      'padding:12px 14px;border-bottom:1px solid var(--line)">'+
-      '<b style="font-size:13px;letter-spacing:-.01em">'+esc(title)+'</b>'+
-      (hint ? '<span style="font-size:11.5px;color:var(--muted)">'+esc(hint)+'</span>' : '')+
+    return '<div class="card-hd">'+
+      '<b>'+esc(title)+'</b>'+
+      (hint ? '<span class="card-hd-hint">'+esc(hint)+'</span>' : '')+
     '</div>';
   };
 
@@ -4335,8 +4334,8 @@ function renderOverviewTab(d){
     withGap.slice().sort(function(a, b){ return a.gapPct - b.gapPct; }).slice(0, 6).forEach(function(p){
       var behind = p.gapPct < 0;
       h += overviewBarRow(p.pos,
-        '<span style="color:'+(behind ? 'var(--danger,#dc2626)' : 'var(--ok)')+'">'+(behind ? '−' : '+')+Math.abs(p.gapPct)+'%</span> · мед '+p.median.toLocaleString('ru-RU'),
-        Math.min(100, Math.abs(p.gapPct) * 2.5), behind ? 'var(--danger,#dc2626)' : 'var(--ok)');
+        '<span style="color:'+(behind ? 'var(--no)' : 'var(--ok)')+'">'+(behind ? '−' : '+')+Math.abs(p.gapPct)+'%</span> · мед '+p.median.toLocaleString('ru-RU'),
+        Math.min(100, Math.abs(p.gapPct) * 2.5), behind ? 'var(--no)' : 'var(--ok)');
     });
   } else {
     h += '<div style="font-size:11.5px;color:var(--muted);padding:10px 2px;line-height:1.45">'+
@@ -4482,7 +4481,7 @@ function renderSalariesTab(positions){
     }
     var gapCell = (p.gapPct == null)
       ? '<span style="color:var(--muted)">—</span>'
-      : '<b style="color:'+(p.gapPct < 0 ? 'var(--danger,#dc2626)' : 'var(--ok)')+'">'+
+      : '<b style="color:'+(p.gapPct < 0 ? 'var(--no)' : 'var(--ok)')+'">'+
           (p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>';
     h += '<tr class="sal-row" onclick="toggleSalRow(this)">'+
       '<td><b>'+esc(p.pos)+'</b></td>'+
@@ -4498,7 +4497,7 @@ function renderSalariesTab(positions){
       (has ? salForkNums(p) : '')+
       (hasOur ? '<div style="font-size:12px;margin:6px 0;color:var(--muted)">Оклад Фаровона по этой должности: <b>'+
         (p.ourFrom ? p.ourFrom.toLocaleString('ru-RU') : '—')+' – '+(p.ourTo ? p.ourTo.toLocaleString('ru-RU') : '—')+' c</b>'+
-        (p.gapPct != null ? ' · гэп к медиане рынка: <b style="color:'+(p.gapPct < 0 ? 'var(--danger,#dc2626)' : 'var(--ok)')+'">'+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>' : '')+
+        (p.gapPct != null ? ' · гэп к медиане рынка: <b style="color:'+(p.gapPct < 0 ? 'var(--no)' : 'var(--ok)')+'">'+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>' : '')+
       '</div>' : '')+
       salCoTable(p)+
     '</td></tr>';
@@ -4516,7 +4515,7 @@ function renderSalariesTab(positions){
     var has = p.min > 0;
     var nm = esc(p.pos);
     var gap = (p.gapPct == null) ? ''
-      : ' · <b style="color:'+(p.gapPct < 0 ? 'var(--danger,#dc2626)' : 'var(--ok)')+'">гэп '+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>';
+      : ' · <b style="color:'+(p.gapPct < 0 ? 'var(--no)' : 'var(--ok)')+'">гэп '+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>';
     return '<div class="rcard">'+
       '<div class="rcard-hd"><b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
         '<span class="pill p-mid">'+p.count+' зап.</span></div>'+
