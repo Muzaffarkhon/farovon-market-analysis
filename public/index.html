@@ -2003,9 +2003,9 @@ function renderHome(){
 
   var firstName = esc(String(u.fio || u.login || '').trim().split(/\s+/)[0] || u.login);
 
-  var h = '<div class="home-scroll" style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0;padding:2px 2px 28px">';
+  var h = '<div class="home-scroll">';
   h += '<div class="home-hero">'+
-      '<div class="home-hi">Здравствуйте, ' + firstName + '</div>'+
+      '<div class="home-hi">Здравствуйте, <span class="home-hi-name">' + firstName + '</span></div>'+
       '<div class="home-role">' + esc(roleNames[r] || r) + '</div>'+
     '</div>';
 
@@ -2020,10 +2020,10 @@ function renderHome(){
   '</div>';
 
   if(agg.ask){
-    h += '<div class="note" style="margin-top:12px">На уточнении: <b>' + agg.ask + '</b> — эти компании ещё не считаются проверенными.</div>';
+    h += '<div class="note home-hint">На уточнении: <b>' + agg.ask + '</b> — эти компании ещё не считаются проверенными.</div>';
   }
 
-  h += '<div class="sec-title" style="margin-top:18px">Разделы</div>';
+  h += '<div class="sec-title home-sec">Разделы</div>';
   h += '<div class="home-cards">' + navCards.map(function(c, i){
     return '<button class="home-card" data-i="' + i + '">'+
       '<span class="home-card-ic">' + ic(c.icon, 18) + '</span>'+
@@ -2033,7 +2033,7 @@ function renderHome(){
   }).join('') + '</div>';
 
   if(nextStep){
-    h += '<div class="info" style="margin-top:16px">' + ic('target', 14) + ' ' + esc(nextStep) + '</div>';
+    h += '<div class="info home-hint">' + ic('target', 14) + ' ' + esc(nextStep) + '</div>';
   }
 
   h += '</div>';
