@@ -2534,11 +2534,11 @@ function renderTabComp(){
 
   var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
 
-  h += '<div class="card batch-card-wrap" style="padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-xs);margin-bottom:14px">';
+  h += '<div class="card batch-card-wrap fill-card">';
 
-  h += '<div class="batch-card-header" style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)">';
-  h += '<b style="font-size:15px">Компании подразделения</b>';
-  h += '<div style="font-size:12px;color:var(--muted);margin-top:1px">Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</div>';
+  h += '<div class="batch-card-header fill-card-hd">';
+  h += '<b>Компании подразделения</b>';
+  h += '<span>Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</span>';
   h += '</div>';
 
   h += '<div class="co-list-scroll">';
@@ -2559,8 +2559,8 @@ function renderTabComp(){
   }
 
   h += '<div style="margin-top:14px">';
-  h += '<label class="lbl" style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">Комментарий по подразделению</label>';
-  h += '<textarea id="unitNote" style="min-height:44px;height:44px;padding:6px 10px;font-size:12.5px;resize:vertical;margin-bottom:0" placeholder="Что важно знать о рынке труда вашего подразделения"'+
+  h += '<label class="fill-note-lbl">Комментарий по подразделению</label>';
+  h += '<textarea id="unitNote" class="fill-note-ta" placeholder="Что важно знать о рынке труда вашего подразделения"'+
        (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
   h += '</div>';
 
