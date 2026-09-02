@@ -17,6 +17,10 @@ data/market.db
 data/market.db-journal
 data/market.db-wal
 data/market.db-shm
+data/local.db
+data/local.db-journal
+data/local.db-wal
+data/local.db-shm
 
 # Backups and archives
 *.bak

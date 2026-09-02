@@ -66,12 +66,26 @@
   --shadow-md: 0 8px 24px -4px rgba(20, 30, 40, 0.14);
   --shadow-lg: 0 8px 24px rgba(30, 41, 59, 0.12);
 
-  --tap: 36px;
+  /* Фаза 1 редизайна: зона нажатия поднята с 36px до 44px (требование ≥44px). */
+  --tap: 44px;
+  /* Единые кривая и длительности анимации — заводятся здесь, экраны переходят
+     на них по мере редизайна (Фазы 2+). */
+  --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+  --dur-fast: 0.16s;
+  --dur-mid: 0.3s;
   font-size: 14px;
 }
 
+/* ─── Тема: три состояния ───────────────────────────────────────────────
+   1. bare :root выше       — полная светлая палитра (состояние «система + светлая ОС»)
+   2. @media dark           — тёмная для системной тёмной ОС; guard :not([data-theme="light"])
+                              чтобы явный выбор «светлая» в тумблере побеждал ОС
+   3. [data-theme="dark"]   — явный выбор «тёмная» (+ легаси-классы .dark)
+   4. [data-theme="light"]  — явный выбор «светлая», перекрывает тёмную ОС
+   Значения тёмной палитры намеренно продублированы в блоках 2 и 3 — это
+   единственный способ покрыть и системный, и явный режим на CSS-переменных. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #090d16;
     --card: #111827;
     --card-hover: #1f2937;
@@ -124,7 +138,7 @@
 
 html.dark,
 body.dark,
-[data-theme="dark"] {
+:root[data-theme="dark"] {
   --bg: #090d16;
   --card: #111827;
   --card-hover: #1f2937;
@@ -167,6 +181,65 @@ body.dark,
   --warn-hover: #fbbf24;
   --warn-soft: rgba(245, 158, 11, 0.15);
   --warn-border: rgba(245, 158, 11, 0.35);
+
+  /* те же значения, что в @media-блоке выше — чтобы явная тёмная и системная
+     тёмная давали одинаковые тени (раньше этот блок их не переопределял). */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+}
+
+/* Явный выбор «светлая» — перекрывает тёмную ОС (@media выше исключён guard'ом).
+   Зеркалит светлые значения из bare :root. */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --card-2: #f8fafc;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --text: #0f172a;
+  --muted: #475569;
+  --subtle: #64748b;
+
+  --color-canvas-white: #ffffff;
+  --color-paper-mist: #f5f5f5;
+  --color-ash: #e5e5e5;
+  --color-smoke: #d4d4d4;
+  --color-pebble: #c8c8c8;
+  --color-midnight-ink: #0a0a0a;
+  --color-charcoal: #171717;
+  --color-graphite: #262626;
+  --color-slate: #404040;
+  --color-steel: #525252;
+  --color-fog: #737373;
+  --color-silver: #a3a3a3;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-border: #bfdbfe;
+
+  --ok: #16a34a;
+  --ok-hover: #15803d;
+  --ok-soft: #dcfce7;
+  --ok-border: #bbf7d0;
+
+  --no: #dc2626;
+  --no-hover: #b91c1c;
+  --no-soft: #fee2e2;
+  --no-border: #fecaca;
+
+  --warn: #ea580c;
+  --warn-hover: #c2410c;
+  --warn-soft: #ffedd5;
+  --warn-border: #fed7aa;
+
+  --shadow-xs: 0 1px 4px 0 rgba(20, 30, 40, 0.08);
+  --shadow-sm: 0 4px 12px -2px rgba(20, 30, 40, 0.1);
+  --shadow-md: 0 8px 24px -4px rgba(20, 30, 40, 0.14);
+  --shadow-lg: 0 8px 24px rgba(30, 41, 59, 0.12);
 }
 
 * {
@@ -6697,4 +6770,138 @@ html.compact {
   .home-stats { grid-template-columns: repeat(2, 1fr); }
   .home-cards { grid-template-columns: 1fr; }
   .home-hi { font-size: 20px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ФАЗА 1 РЕДИЗАЙНА — переключатель темы (система / светлая / тёмная)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Квадратная иконочная кнопка в шапке рядом с «Помощь» / «⋮». */
+.btn-icon-sq {
+  min-width: var(--tap);
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.btn-icon-sq svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* Плавающая кнопка темы на экране входа (там нет шапки). */
+.theme-fab {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.theme-fab:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+.theme-fab svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-fab,
+  .theme-fab:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ── Фаза 1: разделитель и активный пункт в меню «⋮» ── */
+.menu-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+.menu button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Фаза 1: хлебные крошки в шапке ── */
+#ttl.is-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 0;
+}
+.crumb-link {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: auto;
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex: none;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.crumb-link:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.crumb-sep {
+  color: var(--color-silver);
+  margin: 0 1px;
+  flex: none;
+  font-weight: 400;
+}
+.crumb-cur {
+  color: var(--text);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crumb-root {
+  color: var(--muted);
+  padding: 3px 6px;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* ── Фаза 1: на узком экране плашка периода в шапке распирала строку и
+   выталкивала «Помощь» и «⋮» за край экрана (меню становилось недоступно).
+   Период и так виден на «Главной» и в баннере периода — в шапке телефона он
+   лишний. Освобождаем место под хлебные крошки и кнопку меню.
+   По ширине окна, а не по .compact: класс .tg (а с ним .compact) ставится
+   в любом браузере, где загрузился telegram-web-app.js, — на десктопе плашку
+   прятать не нужно. ── */
+@media (max-width: 620px) {
+  #topPeriodBadge {
+    display: none;
+  }
 }

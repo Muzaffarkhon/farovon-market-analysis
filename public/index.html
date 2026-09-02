@@ -2,7 +2,24 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Фаза 0 редизайна: убраны maximum-scale/user-scalable (запрет зума — нарушение
+       WCAG 1.4.4); добавлен color-scheme, чтобы браузер красил системный UI и фон
+       до применения style.css и не мигал в тёмной ОС. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <!-- Фаза 1: применяем сохранённый выбор темы до первой отрисовки, чтобы не
+       было вспышки. 'system' (или отсутствие ключа) — атрибут не ставим,
+       работает @media prefers-color-scheme. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('farovon_theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) {}
+    })();
+  </script>
   <title>Обзор рынка вознаграждений</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232563eb'/%3E%3Cpath d='M4 19V10M12 19V5M20 19V13' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +32,7 @@
 
 <!-- ══════════ ВХОД ══════════ -->
 <div id="scrLogin" class="login hidden">
+  <button id="btnThemeLogin" class="theme-fab" aria-label="Тема оформления" title="Тема: как в системе"></button>
   <!-- Видна только от 1024px (см. .login-brand в style.css) — на мобильном
        вход остаётся прежним центрированным экраном. -->
   <div class="login-brand">
@@ -79,6 +97,7 @@
       <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
       <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
       <div id="topPeriodBadge"></div>
+      <button id="btnTheme" class="btn-ghost btn-icon-sq" aria-label="Тема оформления" title="Тема: как в системе"></button>
       <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
       <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
               aria-label="Меню">⋮</button>
@@ -161,6 +180,60 @@ var store = {
   set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k] = v; } },
   del: function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
+
+// ═══════════════════════════════════════════════════════════
+// ТЕМА ОФОРМЛЕНИЯ (Фаза 1 редизайна)
+// ═══════════════════════════════════════════════════════════
+// Три состояния: 'system' (по ОС) → 'light' → 'dark' → 'system'.
+// 'system' = атрибут data-theme снят, работает @media prefers-color-scheme.
+// Ключ ASCII (в отличие от LS_TOKEN и др.) — новый стандарт для ключей.
+var LS_THEME = 'farovon_theme';
+var THEME_ORDER = ['system', 'light', 'dark'];
+var THEME_LABEL = { system: 'как в системе', light: 'светлая', dark: 'тёмная' };
+var THEME_ICON = {
+  system: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+};
+
+function currentTheme(){
+  var t = store.get(LS_THEME);
+  return THEME_ORDER.indexOf(t) > -1 ? t : 'system';
+}
+
+function applyTheme(t){
+  if(t === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  ['btnTheme', 'btnThemeLogin'].forEach(function(id){
+    var b = document.getElementById(id);
+    if(!b) return;
+    b.innerHTML = THEME_ICON[t];
+    b.title = 'Тема: ' + THEME_LABEL[t] + ' — нажмите, чтобы сменить';
+    b.setAttribute('aria-label', 'Тема оформления: ' + THEME_LABEL[t]);
+  });
+}
+
+function cycleTheme(){
+  var next = THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length];
+  if(next === 'system') store.del(LS_THEME);
+  else store.set(LS_THEME, next);
+  applyTheme(next);
+}
+
+(function initTheme(){
+  applyTheme(currentTheme());
+  ['btnTheme', 'btnThemeLogin'].forEach(function(id){
+    var b = document.getElementById(id);
+    if(b) b.addEventListener('click', cycleTheme);
+  });
+  // Когда тема = 'system', реагируем на смену темы ОС на лету.
+  if(window.matchMedia){
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onOS = function(){ if(currentTheme() === 'system') applyTheme('system'); };
+    if(mq.addEventListener) mq.addEventListener('change', onOS);
+    else if(mq.addListener) mq.addListener(onOS);
+  }
+})();
 
 /**
  * Скользящая сессия. Токен живёт 7 дней; /auth/resume при каждом успешном
@@ -1156,92 +1229,26 @@ function renderRail(){
     rb.onclick = toggleRailCollapse;
   }
 
-  // Admin/CB не заполняют анкеты сами — вместо «Мои подразделения» им
-  // нужен отчёт по всем подразделениям (та же сводка, что видит HR BP,
-  // серверная роль это уже разрешает — см. src/routes/api.js).
-  var isElevated = (r === 'admin' || r === 'cb');
-
-  // activeView — какому S.appView соответствует пункт для подсветки «активен».
-  // У пунктов report / hrbp_summary / dept_assign сам view === null (клик
-  // обрабатывается отдельно, через openDash/openDeptAssign), а экран после них
-  // выставляет S.appView в 'dash_hrbp' / 'dept_assign' — по нему и подсвечиваем.
-  var items = [];
-  items.push({ id:'home', view:'home', label:'Главная', icon: ICONS.home });
-  if(isElevated){
-    items.push({ id:'report', view:null, activeView:'dash_hrbp', label:'Отчёт по подразделениям', icon: ICONS.clipboard });
-  } else {
-    items.push({ id:'units', view:'units', label:'Подразделения', icon: ICONS.units });
-  }
-  if(canSeeDashboard()){
-    items.push({ id:'dashboard', view:'dashboard', label:'Дашборд', icon: ICONS.dashboard });
-  }
-  if(hasCap('benchmarks:view') || isElevated){
-    items.push({ id:'benchmarks', view:'benchmarks', label:'Бенчмаркинг', icon: ICONS.chart || ICONS.dashboard });
-  }
-  if(r === 'hrbp'){
-    items.push({ id:'hrbp_summary', view:null, activeView:'dash_hrbp', label:'Сводка по HR BP', icon: ICONS.clipboard });
-  }
-  if(r === 'dir_head'){
-    items.push({ id:'dept_assign', view:null, activeView:'dept_assign', label:'Назначить ответственных', icon: ICONS.clipboard });
+  var m = navModel();
+  function railBtn(it){
+    var on = it.active && it.active() ? ' on' : '';
+    return '<button class="rail-item'+on+'" data-nav="'+it.key+'" title="'+esc(it.label)+'">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'+
+      '<span>'+esc(it.label)+'</span></button>';
   }
 
-  var adminItems = [];
-  if(canSeeAdmin()){
-    var allAdmin = [
-      { id:'users', atab:'users', label:'Пользователи', icon: ICONS.users, cap:'users:view' },
-      { id:'archive', atab:'archive', label:'Архив', icon: ICONS.archive, cap:'users:view' },
-      { id:'divisions', atab:'divisions', label:'Оргструктура', icon: ICONS.units, cap:'divisions:view' },
-      { id:'dict', atab:'dict', label:'Справочники', icon: ICONS.book, cap:'dictionary:view' },
-      { id:'period', atab:'period', label:'Период сбора', icon: ICONS.clock, cap:'period:view' },
-      { id:'tools', atab:'tools', label:'Сервисные утилиты', icon: ICONS.wrench, cap:'service:view' },
-      { id:'audit', atab:'audit', label:'Журнал действий', icon: ICONS.clipboard, cap:'service:view' },
-      { id:'roles', atab:'roles', label:'Роли и доступы', icon: ICONS.shield, adminOnly:true }
-    ];
-    adminItems = allAdmin.filter(function(t){
-      return t.adminOnly ? S.data.user.role === 'admin' : hasCap(t.cap);
-    });
+  var h = m.primary.map(railBtn).join('');
+  if(m.admin.length){
+    h += '<div class="rail-sec-label">Администрирование</div>';
+    h += m.admin.map(railBtn).join('');
   }
-
-  var h = items.map(function(it){
-    var on = (S.appView === (it.activeView || it.view) && S.unit === null) ? ' on' : '';
-    return '<button class="rail-item'+on+'" data-rail="'+it.id+'" title="'+esc(it.label)+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg><span>'+esc(it.label)+'</span></button>';
-  }).join('');
-
-  if(adminItems.length){
-    h += '<div class="rail-sec-label" style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding:12px 10px 4px;margin-top:8px;border-top:1px solid var(--line)">Администрирование</div>';
-    h += adminItems.map(function(it){
-      var on = (S.appView === 'admin' && S.adminTab === it.atab) ? ' on' : '';
-      return '<button class="rail-item'+on+'" data-rail-atab="'+it.atab+'" title="'+esc(it.label)+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+it.icon+'</svg><span>'+esc(it.label)+'</span></button>';
-    }).join('');
-  }
-
   $('railNav').innerHTML = h;
 
+  var all = m.primary.concat(m.admin);
   $('railNav').onclick = function(e){
-    var atabBtn = e.target.closest('button[data-rail-atab]');
-    if(atabBtn){
-      var atab = atabBtn.dataset.railAtab;
-      S.appView = 'admin';
-      S.adminTab = atab;
-      S.unit = null;
-      renderTopNav();
-      openAdminPanel();
-      return;
-    }
-    var b = e.target.closest('button[data-rail]');
+    var b = e.target.closest('button[data-nav]');
     if(!b) return;
-    var it = items.filter(function(x){ return x.id === b.dataset.rail; })[0];
-    if(!it) return;
-    if(it.id === 'hrbp_summary' || it.id === 'report'){ openDash(); return; }
-    if(it.id === 'dept_assign'){ openDeptAssign(); return; }
-    if(it.view === S.appView && S.unit === null) return;
-    if(S.dirty){
-      askDirty('Переключить раздел').then(function(yes){
-        if(yes){ S.dirty = false; switchView(it.view); }
-      });
-    } else {
-      switchView(it.view);
-    }
+    navGo(all.filter(function(x){ return x.key === b.dataset.nav; })[0]);
   };
 
   var fio = userLabel();
@@ -1394,89 +1401,160 @@ function canSeeDashboard(){
   return hasCap('dashboard:view');
 }
 
+// ═══════════════════════════════════════════════════════════
+// ЕДИНАЯ МОДЕЛЬ НАВИГАЦИИ (Фаза 1 редизайна)
+// ═══════════════════════════════════════════════════════════
+// Раньше список пунктов и правила видимости по роли были продублированы в
+// renderRail(), renderTopNav() и меню «⋮» — с расхождениями в подписях
+// («Дашборд» / «Аналитический дашборд») и в наборе. Теперь все три
+// поверхности строятся из navModel(): один набор, одни правила, одни клики.
+function mkActive(view){
+  return function(){ return S.appView === view && S.unit === null; };
+}
+
+function navModel(){
+  var u = (S.data && S.data.user) || {};
+  var role = u.role;
+  var elevated = (role === 'admin' || role === 'cb');
+
+  var primary = [];
+  primary.push({ key:'home', label:'Главная', icon:'home',
+    active:mkActive('home'), inTabs:true, run:function(){ switchView('home'); } });
+
+  if(elevated){
+    // Admin/CB не заполняют анкеты сами — им нужен отчёт по всем
+    // подразделениям (та же сводка, что видит HR BP).
+    primary.push({ key:'report', label:'Отчёт по подразделениям', icon:'clipboard',
+      active:mkActive('dash_hrbp'), inTabs:false, run:function(){ openDash(); } });
+  } else {
+    primary.push({ key:'units', label:'Подразделения', icon:'units',
+      active:mkActive('units'), inTabs:true, run:function(){ switchView('units'); } });
+  }
+
+  if(canSeeDashboard()){
+    primary.push({ key:'dashboard', label:'Дашборд', icon:'dashboard',
+      active:mkActive('dashboard'), inTabs:true, run:function(){ switchView('dashboard'); } });
+  }
+  if(hasCap('benchmarks:view') || elevated){
+    primary.push({ key:'benchmarks', label:'Бенчмаркинг', icon:'chart',
+      active:mkActive('benchmarks'), inTabs:true, run:function(){ switchView('benchmarks'); } });
+  }
+  if(role === 'hrbp'){
+    primary.push({ key:'hrbp_summary', label:'Сводка по HR BP', icon:'clipboard',
+      active:mkActive('dash_hrbp'), inTabs:false, run:function(){ openDash(); } });
+  }
+  if(role === 'dir_head'){
+    primary.push({ key:'dept_assign', label:'Назначить ответственных', icon:'clipboard',
+      active:mkActive('dept_assign'), inTabs:false, run:function(){ openDeptAssign(); } });
+  }
+
+  var adminAll = [
+    { key:'users', atab:'users', label:'Пользователи', icon:'users', cap:'users:view' },
+    { key:'archive', atab:'archive', label:'Архив', icon:'archive', cap:'users:view' },
+    { key:'divisions', atab:'divisions', label:'Оргструктура', icon:'units', cap:'divisions:view' },
+    { key:'dict', atab:'dict', label:'Справочники', icon:'book', cap:'dictionary:view' },
+    { key:'period', atab:'period', label:'Период сбора', icon:'clock', cap:'period:view' },
+    { key:'tools', atab:'tools', label:'Сервисные утилиты', icon:'wrench', cap:'service:view' },
+    { key:'audit', atab:'audit', label:'Журнал действий', icon:'clipboard', cap:'service:view' },
+    { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
+  ];
+  var admin = canSeeAdmin() ? adminAll.filter(function(t){
+    return t.adminOnly ? role === 'admin' : hasCap(t.cap);
+  }).map(function(t){
+    t.active = (function(atab){
+      return function(){ return S.appView === 'admin' && S.adminTab === atab; };
+    })(t.atab);
+    t.run = (function(atab){
+      return function(){ S.adminTab = atab; switchView('admin'); };
+    })(t.atab);
+    return t;
+  }) : [];
+
+  // Компактная точка входа в админку для узких поверхностей (вкладки, меню «⋮»).
+  var adminEntry = admin.length ? {
+    key:'admin', label:'Панель администратора', tabLabel:'Админка', icon:'admin',
+    active:function(){ return S.appView === 'admin'; }, inTabs:true,
+    run:function(){ switchView('admin'); }
+  } : null;
+
+  var utility = [
+    { key:'refresh', label:'Обновить данные', icon:'refresh', run:function(){ doRefresh(); } },
+    { key:'help', label:'Как заполнять', icon:'help', run:function(){ openHelp(); } },
+    { key:'profile', label:'Профиль', icon:'profile', run:function(){ openProfile(); } },
+    { key:'out', label:'Выйти', icon:'logout', danger:true, run:function(){ doLogout(); } }
+  ];
+
+  return { primary:primary, admin:admin, adminEntry:adminEntry, utility:utility };
+}
+
+/** Активировать пункт навигации с проверкой несохранённого черновика. */
+function navGo(item){
+  if(!item) return;
+  if(item.active && item.active()) return;
+  if(S.dirty){
+    askDirty('Переключить раздел').then(function(yes){
+      if(yes){ S.dirty = false; item.run(); }
+    });
+  } else {
+    item.run();
+  }
+}
+
 /**
  * Меню в шапке. Раньше было полноэкранным оверлеем (.sheet) — по просьбе
  * пользователя переделано в панель, закреплённую у шапки справа, с
  * закрытием по X. Действует одинаково на мобильном и десктопе.
  */
 $('btnMenu').onclick = function(){
-  var r = S.data && S.data.user && S.data.user.role;
-  var isElevated = (r === 'admin' || r === 'cb');
-  var items = [];
-  if(canSeeDashboard()) {
-    items.push(['dash_analytics', 'dashboard', 'Аналитический дашборд']);
-  }
-  if(canSeeAdmin()) {
-    items.push(['admin_panel', 'admin', 'Панель администратора']);
-  }
-  if(r === 'hrbp') {
-    items.push(['dash_hrbp', 'clipboard', 'Сводка по HR BP']);
-  }
-  if(r === 'dir_head') {
-    items.push(['dept_assign', 'clipboard', 'Назначить ответственных']);
-  }
-  if(isElevated){
-    items.push(['dash_hrbp', 'clipboard', 'Отчёт по подразделениям']);
-  } else {
-    items.push(['units_view', 'units', 'Мои подразделения']);
-  }
-  items.push(['refresh', 'refresh', 'Обновить данные']);
-  items.push(['help', 'help', 'Как заполнять']);
-  items.push(['profile', 'profile', 'Профиль']);
-  items.push(['out', 'logout', 'Выйти']);
+  var m = navModel();
+  // Меню — самая полная поверхность: все разделы + служебные действия.
+  var groups = [ m.primary.slice() ];
+  if(m.adminEntry) groups[0].push(m.adminEntry);
+  groups.push(m.utility);
+
+  var flat = [];
+  var body = groups.map(function(g, gi){
+    return (gi ? '<div class="menu-sep"></div>' : '') + g.map(function(it){
+      flat.push(it);
+      var on = it.active && it.active() ? ' on' : '';
+      return '<button class="'+(it.danger ? 'btn-danger' : '')+on+'" data-nav="'+it.key+'">'+
+        ic(it.icon)+esc(it.label)+'</button>';
+    }).join('');
+  }).join('');
 
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
     '<div class="menu-pop-hd"><b>'+esc(userLabel())+'</b>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
-    '<div class="menu">'+ items.map(function(it){
-      return '<button data-go="'+it[0]+'"'+(it[0]==='out'?' class="btn-danger"':'')+'>'+ic(it[1])+esc(it[2])+'</button>';
-    }).join('') +'</div></div>';
+    '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
 
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
-    var b = e.target.closest('button[data-go]');
+    var b = e.target.closest('button[data-nav]');
     if(!b) return;
     el.remove();
-    var g = b.dataset.go;
-    if(g === 'dash_analytics') switchView('dashboard');
-    else if(g === 'admin_panel') switchView('admin');
-    else if(g === 'dash_hrbp') openDash();
-    else if(g === 'dept_assign') openDeptAssign();
-    else if(g === 'units_view') switchView('units');
-    else if(g === 'refresh') doRefresh();
-    else if(g === 'help') openHelp();
-    else if(g === 'profile') openProfile();
-    else if(g === 'out') doLogout();
+    var it = flat.filter(function(x){ return x.key === b.dataset.nav; })[0];
+    if(!it) return;
+    // Служебные действия (refresh/help/profile/out) — прямой вызов, без
+    // проверки черновика через navGo (она нужна только при смене раздела).
+    if(it.key === 'refresh' || it.key === 'help' || it.key === 'profile' || it.key === 'out') it.run();
+    else navGo(it);
   });
 };
 
 function renderTopNav(){
   renderRail();
-  var r = S.data && S.data.user && S.data.user.role;
   var topNav = $('topNav');
-  var btns = [];
-  btns.push({ id:'home', icon:'home', label:'Главная' });
-  if(r !== 'admin' && r !== 'cb'){
-    btns.push({ id:'units', icon:'units', label:'Подразделения' });
-  }
-  if(canSeeDashboard()){
-    btns.push({ id:'dashboard', icon:'dashboard', label:'Дашборд' });
-  }
-  var isElevated = (r === 'admin' || r === 'cb');
-  if(hasCap('benchmarks:view') || isElevated){
-    btns.push({ id:'benchmarks', icon:'chart', label:'Бенчмаркинг' });
-  }
-  if(canSeeAdmin()){
-    btns.push({ id:'admin', icon:'admin', label:'Админка' });
-  }
+  var m = navModel();
+  var tabs = m.primary.filter(function(it){ return it.inTabs; });
+  if(m.adminEntry) tabs.push(m.adminEntry);
 
   // Полоска вкладок нужна только когда переключать есть что: у dir_head после
   // того, как дашборд стал недоступен, остался один пункт «Подразделения» —
   // вкладка из одной кнопки, ведущая на текущий же экран.
-  if(btns.length < 2 || S.unit !== null){
+  if(tabs.length < 2 || S.unit !== null){
     topNav.classList.add('hidden');
     document.body.classList.remove('has-topnav');
     return;
@@ -1484,23 +1562,15 @@ function renderTopNav(){
   topNav.classList.remove('hidden');
   document.body.classList.add('has-topnav');
 
-  topNav.innerHTML = btns.map(function(b){
-    var on = S.appView === b.id ? ' on' : '';
-    return '<button class="nav-btn'+on+'" data-view="'+b.id+'">'+ic(b.icon)+esc(b.label)+'</button>';
+  topNav.innerHTML = tabs.map(function(it){
+    var on = it.active && it.active() ? ' on' : '';
+    return '<button class="nav-btn'+on+'" data-nav="'+it.key+'">'+ic(it.icon)+esc(it.tabLabel || it.label)+'</button>';
   }).join('');
 
   topNav.onclick = function(e){
-    var b = e.target.closest('button[data-view]');
+    var b = e.target.closest('button[data-nav]');
     if(!b) return;
-    var v = b.dataset.view;
-    if(v === S.appView && S.unit === null) return;
-    if(S.dirty){
-      askDirty('Переключить раздел').then(function(yes){
-        if(yes){ S.dirty = false; switchView(v); }
-      });
-    } else {
-      switchView(v);
-    }
+    navGo(tabs.filter(function(x){ return x.key === b.dataset.nav; })[0]);
   };
 }
 
@@ -2192,9 +2262,54 @@ function updateTopPeriodBadge(){
     '</span>';
 }
 
+/**
+ * Хлебные крошки для шапки (Фаза 1 редизайна). Строятся из состояния, без
+ * изменения 13 вызовов setTop(). Возвращают путь [{label, go?}] — последний
+ * элемент текущий (не ссылка), предыдущие ведут на родительский экран.
+ */
+function crumbTrail(title){
+  if(S.unit){
+    return [
+      { label:'Подразделения', go:function(){ (S.backTo || renderUnits)(); } },
+      { label: title || S.unit }
+    ];
+  }
+  if(S.appView === 'admin'){
+    return [ { label:'Администрирование' }, { label: title || 'Раздел' } ];
+  }
+  return [ { label: title } ];
+}
+
+/** Переход «назад»/по крошке с проверкой несохранённого черновика. */
+function navBack(fn){
+  var go = function(){ S.dirty = false; fn(); };
+  if(!S.dirty){ go(); return; }
+  askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+}
+
 function setTop(title, sub, back, icon){
-  $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
-  $('btnBack').classList.toggle('hidden', !back);
+  var trail = crumbTrail(title);
+  if(trail.length >= 2){
+    $('ttl').innerHTML = trail.map(function(c, i){
+      var sep = i ? '<span class="crumb-sep" aria-hidden="true">›</span>' : '';
+      if(i === trail.length - 1) return sep + '<span class="crumb-cur">'+esc(c.label)+'</span>';
+      if(!c.go) return sep + '<span class="crumb-root">'+esc(c.label)+'</span>';
+      return sep + '<button type="button" class="crumb-link" data-crumb="'+i+'">'+esc(c.label)+'</button>';
+    }).join('');
+    $('ttl').classList.add('is-crumbs');
+    $('btnBack').classList.add('hidden'); // крошки заменяют кнопку «Назад»
+    $('ttl').onclick = function(e){
+      var b = e.target.closest('button[data-crumb]');
+      if(!b) return;
+      var c = trail[+b.dataset.crumb];
+      if(c && c.go) navBack(c.go);
+    };
+  } else {
+    $('ttl').classList.remove('is-crumbs');
+    $('ttl').onclick = null;
+    $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
+    $('btnBack').classList.toggle('hidden', !back);
+  }
   // has-bar на <body> (не на #body) — CSS-правила отступа под липкую панель и
   // подъёма тостов написаны как `body.has-bar …`; раньше класс вешался на
   // #body, правила не срабатывали и панель наезжала на низ контента.
@@ -2204,9 +2319,7 @@ function setTop(title, sub, back, icon){
   window.scrollTo(0,0);
 }
 $('btnBack').onclick = function(){
-  var go = function(){ S.dirty = false; (S.backTo || renderUnits)(); };
-  if(!S.dirty){ go(); return; }
-  askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+  navBack(S.backTo || renderUnits);
 };
 
 // ═══════════════════════════════════════════════════════════
