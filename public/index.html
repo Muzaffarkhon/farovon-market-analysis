@@ -2164,9 +2164,14 @@ function renderUnits(){
       '<input id="unitFilter" placeholder="Быстрый поиск подразделения…" autocomplete="off"></div>';
   }
 
-  h += '<div class="sec-title">Подразделений: '+u.length+' · компаний: '+totalAll+' · проверено '+doneAll+
-       (askAll ? ' · на уточнении '+askAll : '') +
-       ' · записей: '+svAll+'</div>';
+  h += '<div class="units-summary">'+
+    '<span class="us-h">'+u.length+'</span> '+declOfNum(u.length, ['подразделение','подразделения','подразделений'])+
+    '<span class="us-dot"></span>'+
+    '<b>'+doneAll+'</b> из '+totalAll+' '+declOfNum(totalAll, ['компании проверено','компаний проверено','компаний проверено'])+
+    (askAll ? '<span class="us-dot"></span><span class="us-ask">'+askAll+' на уточнении</span>' : '')+
+    '<span class="us-dot"></span>'+
+    '<b>'+svAll+'</b> '+declOfNum(svAll, ['запись по рынку','записи по рынку','записей по рынку'])+
+    '</div>';
   h += '<div id="unitsContainer">' + renderUnitCards(u) + '</div>';
   $('body').innerHTML = h;
 
@@ -2202,16 +2207,28 @@ function renderUnitCards(list){
     var pu = (S.data.positionsByUnit && S.data.positionsByUnit[x.unit]) || [];
     var totalSlots = x.total * (pu.length || 0);
     var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
+
+    // Статус для мгновенной читаемости списка — не надо вчитываться в полосы.
+    var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
+    var st = (x.done === 0 && sv === 0) ? { k:'none', t:'Не начато' }
+           : (step1done && sv > 0)      ? { k:'ok',   t:'Готово' }
+           :                             { k:'part', t:'В работе' };
+
     return '<div class="unit" data-u="'+esc(x.unit)+'">'+
-      '<div class="u-body"><div class="u-name" title="'+esc(x.unit)+'">'+esc(x.unit)+'</div>'+
-      '<div class="u-dir">'+esc(x.dir)+'</div>'+
-      '<div class="u-bars">'+
-        bar2('Участники рынка', x.done, x.total, pct, askPct) +
-        bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
+      '<div class="u-body">'+
+        '<div class="u-top">'+
+          '<div class="u-name" title="'+esc(x.unit)+'">'+esc(x.unit)+'</div>'+
+          '<span class="u-status is-'+st.k+'">'+st.t+'</span>'+
+        '</div>'+
+        '<div class="u-dir">'+esc(x.dir)+'</div>'+
+        '<div class="u-bars">'+
+          bar2('Участники рынка', x.done, x.total, pct, askPct) +
+          bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
+        '</div>'+
+        ((x.ask||0) ? '<div class="u-ask">'+ic('warn')+'требует уточнения: '+x.ask+'</div>' : '')+
       '</div>'+
-      ((x.ask||0) ? '<div class="u-ask">'+ic('warn')+'требует уточнения: '+x.ask+'</div>' : '')+
-      '</div>'+
-      '<div class="u-chev">›</div></div>';
+      '<div class="u-chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none">'+ICONS.chevron+'</svg></div>'+
+    '</div>';
   }).join('');
 }
 
