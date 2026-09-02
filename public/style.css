@@ -7171,3 +7171,138 @@ html.compact {
     height: 40px;
   }
 }
+
+/* ── Фаза 2: экран заполнения — Шаг 2 (данные по рынку) ── */
+
+/* Заголовок секции вне карточки (аналог .fill-card-hd, но без рамки-обёртки) */
+.fill-sec-hd {
+  margin: 4px 0 10px;
+}
+.fill-sec-hd b {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.fill-sec-hd span {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Полоса прогресса — единый класс вместо инлайновых u-bar-track */
+.fill-progress {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--card-2);
+  overflow: hidden;
+}
+.fill-progress > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.3s var(--ease-out);
+}
+.fill-progress.is-done > i {
+  background: var(--ok);
+}
+.fill-progress--sm {
+  width: 120px;
+  height: 6px;
+}
+.fill-toolbar-prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.fill-toolbar-prog b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Карточка должности — те же паттерны, что у .unit / .batch-card */
+.pos {
+  border-radius: var(--r-md);
+  transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out),
+              transform 0.15s var(--ease-out);
+}
+.pos:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--sh-2);
+  transform: translateY(-1px);
+}
+.pos-head {
+  padding: 14px 16px;
+}
+.pos-name {
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.pos-sub {
+  font-size: 13px;
+  margin-top: 3px;
+}
+.pos-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+.pos-edit {
+  min-height: 34px;
+  font-size: 13px;
+  padding: 4px 14px;
+  flex: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .pos-head {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .pos-edit {
+    width: 100%;
+    min-height: 40px;
+  }
+}
+
+/* Шаг-вкладки на телефоне: вертикальный стек — обе целиком читаются,
+   крупные тап-цели (перебиваем .compact .sub-tabs { overflow-x:auto; nowrap }). */
+@media (max-width: 560px) {
+  .unit-sticky-bar {
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .unit-step-tabs {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    overflow: visible;
+  }
+  .unit-step-tabs .sub-tab {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13.5px;
+    padding: 8px 10px;
+    border-radius: var(--r-xs);
+    border-bottom: none;
+  }
+  .unit-step-tabs .sub-tab.on {
+    background: var(--accent-soft);
+  }
+  .unit-step-tabs .sub-tab .badge {
+    margin-left: 0 !important;
+  }
+  .unit-head-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+    flex: none;
+  }
+}

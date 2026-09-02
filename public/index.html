@@ -2899,11 +2899,9 @@ function renderTabSurvey(){
   var tbSlot = $('unitHeadToolbar');
   if(tbSlot){
     if(mc.totalSlots > 0){
-      tbSlot.innerHTML = '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--color-fog);white-space:nowrap">'+
+      tbSlot.innerHTML = '<div class="fill-toolbar-prog">'+
         '<span>Заполнено <b>' + mc.filledCount + '</b> из <b>' + mc.totalSlots + '</b> (' + mc.pct + '%)</span>'+
-        '<div class="u-bar-track" style="width:120px;height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:0">'+
-          '<i style="display:block;height:100%;width:' + mc.pct + '%;background:' + (mc.pct>=100?'var(--ok)':'var(--accent)') + ';transition:width .2s"></i>'+
-        '</div>'+
+        '<div class="fill-progress fill-progress--sm'+(mc.pct>=100?' is-done':'')+'"><i style="width:' + mc.pct + '%"></i></div>'+
       '</div>';
     } else {
       tbSlot.innerHTML = '';
@@ -2916,16 +2914,15 @@ function renderTabSurvey(){
          'Добавьте должность кнопкой ниже — она попадёт и в справочник.<br><br>' +
          'Вносите данные пакетом сразу по всем компаниям.</div>';
   } else {
-    var titleText = mc.totalSlots > 0
-      ? 'Данные по рынку · заполнено ' + mc.filledCount + ' из ' + mc.totalSlots + ' карточек (' + mc.pct + '%)'
-      : 'Должности подразделения · ' + S.surveys.length + ' записей';
-
-    h += '<div class="sec-title">' + titleText + '</div>';
+    h += '<div class="fill-sec-hd">'+
+      '<b>Данные по рынку</b>'+
+      '<span>' + (mc.totalSlots > 0
+        ? 'заполнено ' + mc.filledCount + ' из ' + mc.totalSlots + ' карточек (' + mc.pct + '%)'
+        : S.surveys.length + ' ' + declOfNum(S.surveys.length, ['запись','записи','записей'])) + '</span>'+
+    '</div>';
 
     if(mc.totalSlots > 0){
-      h += '<div class="u-bar-track" style="margin: 0 0 14px; height: 6px; background: var(--line); border-radius: 4px; overflow: hidden;">' +
-        '<i style="display:block; height:100%; width:' + mc.pct + '%; background:' + (mc.pct>=100?'var(--ok)':'var(--accent)') + '; transition:width .2s"></i>' +
-      '</div>';
+      h += '<div class="fill-progress'+(mc.pct>=100?' is-done':'')+'" style="margin:0 0 14px"><i style="width:' + mc.pct + '%"></i></div>';
     }
 
     if(currentUnitGroup()){
@@ -2953,7 +2950,7 @@ function renderTabSurvey(){
             ? esc(cos.slice(0,3).join(', ')) + (cos.length > 3 ? ' и ещё ' + (cos.length-3) : '')
             : 'данных пока нет') +'</div></div>';
       x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
-      x += '<button type="button" class="btn-ghost" style="padding:4px 8px;min-height:30px;font-size:12.5px" data-open-pos="'+esc(g.pos)+'">'+
+      x += '<button type="button" class="btn-ghost pos-edit" data-open-pos="'+esc(g.pos)+'">'+
              ic('pencil', 14) + (filled ? 'Править' : 'Внести') + '</button>';
       x += '</div>';
       x += '</div>';
