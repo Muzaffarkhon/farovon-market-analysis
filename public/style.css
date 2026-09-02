@@ -7395,3 +7395,81 @@ html.compact {
   white-space: nowrap;
   flex: none;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ФАЗА 2 — тела вкладок дашборда (таблицы, заголовки секций)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Обёртка-скроллер вкладки (была одинаковым инлайновым style= в 4 местах) */
+.dash-tab-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 16px;
+}
+
+/* Заголовок секции внутри вкладки: название слева + поиск/действия справа */
+.dash-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
+.dash-sec-head > b {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.dash-sec-n {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 4px;
+}
+.dash-sec-search {
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+.dash-sec-search input {
+  min-height: 36px;
+  font-size: 13px;
+}
+
+.dash-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 2px 10px;
+}
+.dash-legend-warn {
+  color: var(--warn);
+}
+
+/* Таблицы дашборда — читабельнее (#15) */
+.co-tbl {
+  font-size: 14px;
+}
+.co-tbl th {
+  padding: 10px 14px;
+}
+.co-tbl td {
+  padding: 10px 14px;
+}
+.co-tbl td.num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.tblwrap {
+  border-radius: var(--r-md);
+}
+
+/* Ярлык секции — минимальный бамп читаемости, остаётся компактным */
+.sec-title {
+  font-size: 12px;
+}
