@@ -7759,3 +7759,33 @@ html.compact {
 
 /* Счётчик чисел не должен «прыгать» по ширине при разгоне */
 [data-countup] { font-variant-numeric: tabular-nums; }
+
+/* ── Фаза 3: появление модалок / шитов ── */
+@keyframes fx-scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fx-sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@keyframes fx-sheet-pop {
+  from { transform: scale(0.965); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@keyframes fx-menu-pop {
+  from { transform: translateY(-6px) scale(0.98); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: fx-scrim-in 0.16s ease; }
+  .sheet-in { animation: fx-sheet-up 0.28s var(--ease-out); }
+  .menu-pop { animation: fx-menu-pop 0.18s var(--ease-out); transform-origin: top right; }
+  .row-menu-pop { animation: fx-menu-pop 0.14s var(--ease-out); }
+}
+@media (min-width: 640px) {
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet-in { animation: fx-sheet-pop 0.22s var(--ease-out); }
+  }
+}
