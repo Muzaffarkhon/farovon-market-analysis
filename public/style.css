@@ -7629,3 +7629,26 @@ html.compact {
 .tool-card:not(.is-accent) .tool-card-acts button {
   flex: 1;
 }
+
+/* ── Фаза 2: насыщенное пустое состояние (иконка + заголовок + подсказка) ── */
+.empty--lg {
+  padding: 40px 16px;
+  border-radius: var(--r-md);
+}
+.empty--lg .empty-ic {
+  display: block;
+  color: var(--line-strong);
+  line-height: 0;
+  margin-bottom: 10px;
+}
+.empty--lg b {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  margin-bottom: 4px;
+}
+.empty--lg > span:not(.empty-ic) {
+  display: block;
+  font-size: 13px;
+}

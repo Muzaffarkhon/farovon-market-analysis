@@ -8132,9 +8132,9 @@ function drawDict(){
   if(!items.length){
     h += S.dictQ
       ? '<div class="empty">Ничего не найдено</div>'
-      : '<div class="empty" style="padding:40px 16px">'+
-          '<div style="color:var(--line-strong);margin-bottom:10px;line-height:0">'+icBare('units', 40)+'</div>'+
-          '<b style="display:block;color:var(--text);font-size:14px;margin-bottom:4px">Справочник «'+esc(meta.label)+'» пока пуст</b>'+
+      : '<div class="empty empty--lg">'+
+          '<span class="empty-ic">'+icBare('units', 40)+'</span>'+
+          '<b>Справочник «'+esc(meta.label)+'» пока пуст</b>'+
           '<span>Добавьте первую запись кнопкой «+ Добавить '+esc(meta.one)+'» выше</span>'+
         '</div>';
     $('dictBox').innerHTML = h;
