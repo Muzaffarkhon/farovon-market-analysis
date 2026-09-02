@@ -50,21 +50,31 @@
   --warn-soft: #ffedd5;
   --warn-border: #fed7aa;
 
-  --radius-tags: 9999px;
-  --radius-cards: 10px;
-  --radius-inputs: 8px;
-  --radius-buttons: 8px;
-  --radius-largecards: 10px;
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-lg: 10px;
-  --radius-full: 9999px;
+  /* Радиусы — честная шкала: в интерфейсе ровно три значения. Прежние имена
+     оставлены псевдонимами, чтобы не править сотни мест разом. */
+  --r-xs: 8px;      /* поля, кнопки, мелкие карточки, чипы-действия */
+  --r-md: 10px;     /* карточки, крупные блоки, модалки, sheet */
+  --r-pill: 9999px; /* теги, тумблеры, круглые плашки */
+  --radius-inputs: var(--r-xs);
+  --radius-buttons: var(--r-xs);
+  --radius-sm: var(--r-xs);
+  --radius-cards: var(--r-md);
+  --radius-largecards: var(--r-md);
+  --radius: var(--r-md);
+  --radius-lg: var(--r-md);
+  --radius-tags: var(--r-pill);
+  --radius-full: var(--r-pill);
 
-  --shadow-subtle: 0 1px 4px 0 rgba(20, 30, 40, 0.08);
-  --shadow-xs: 0 1px 4px 0 rgba(20, 30, 40, 0.08);
-  --shadow-sm: 0 4px 12px -2px rgba(20, 30, 40, 0.1);
-  --shadow-md: 0 8px 24px -4px rgba(20, 30, 40, 0.14);
-  --shadow-lg: 0 8px 24px rgba(30, 41, 59, 0.12);
+  /* Тени — три уровня высоты, одна логика в светлой и тёмной теме
+     (тёмные значения переопределяют только --sh-1..3, псевдонимы наследуют). */
+  --sh-1: 0 1px 4px 0 rgba(20, 30, 40, 0.08);       /* покой: карточка на полотне */
+  --sh-2: 0 4px 12px -2px rgba(20, 30, 40, 0.10);   /* приподнято: hover, поповер */
+  --sh-3: 0 8px 24px 0 rgba(30, 41, 59, 0.12);      /* оверлей: модалка, drawer */
+  --shadow-subtle: var(--sh-1);
+  --shadow-xs: var(--sh-1);
+  --shadow-sm: var(--sh-2);
+  --shadow-md: var(--sh-3);
+  --shadow-lg: var(--sh-3);
 
   /* Фаза 1 редизайна: зона нажатия поднята с 36px до 44px (требование ≥44px). */
   --tap: 44px;
@@ -129,10 +139,9 @@
     --warn-soft: rgba(245, 158, 11, 0.15);
     --warn-border: rgba(245, 158, 11, 0.35);
 
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+    --sh-1: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+    --sh-2: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+    --sh-3: 0 12px 32px -8px rgb(0 0 0 / 0.6);
   }
 }
 
@@ -184,10 +193,9 @@ body.dark,
 
   /* те же значения, что в @media-блоке выше — чтобы явная тёмная и системная
      тёмная давали одинаковые тени (раньше этот блок их не переопределял). */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+  --sh-1: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+  --sh-2: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+  --sh-3: 0 12px 32px -8px rgb(0 0 0 / 0.6);
 }
 
 /* Явный выбор «светлая» — перекрывает тёмную ОС (@media выше исключён guard'ом).
@@ -236,10 +244,9 @@ body.dark,
   --warn-soft: #ffedd5;
   --warn-border: #fed7aa;
 
-  --shadow-xs: 0 1px 4px 0 rgba(20, 30, 40, 0.08);
-  --shadow-sm: 0 4px 12px -2px rgba(20, 30, 40, 0.1);
-  --shadow-md: 0 8px 24px -4px rgba(20, 30, 40, 0.14);
-  --shadow-lg: 0 8px 24px rgba(30, 41, 59, 0.12);
+  --sh-1: 0 1px 4px 0 rgba(20, 30, 40, 0.08);
+  --sh-2: 0 4px 12px -2px rgba(20, 30, 40, 0.10);
+  --sh-3: 0 8px 24px 0 rgba(30, 41, 59, 0.12);
 }
 
 * {

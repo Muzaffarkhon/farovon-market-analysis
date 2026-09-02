@@ -25,7 +25,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=1788000000000">
+  <!-- Без ручного ?v=… : сервер отдаёт style.css/js с Cache-Control: no-cache,
+       no-store (см. src/server.js) — браузер и так берёт свежую версию. -->
+  <link rel="stylesheet" href="/style.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -130,15 +132,21 @@
 (function(){
   var tg = window.Telegram && window.Telegram.WebApp;
   if(!tg) return;
+  // telegram-web-app.js подключён в <head> — заглушка window.Telegram.WebApp
+  // существует В ЛЮБОМ браузере, не только внутри Telegram. Раньше по факту её
+  // наличия ставился класс .tg (→ .compact), и веб-версия постоянно работала в
+  // «телеграм-компакт» режиме. Признак реального клиента Telegram: непустой
+  // initData, либо известная платформа (вне Telegram platform === 'unknown').
+  var inTelegram = !!(tg.initData && tg.initData.length) ||
+                   (tg.platform && tg.platform !== 'unknown');
+  if(!inTelegram) return;
   tg.ready();
   if(tg.expand) tg.expand();
   if(tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-  // Внутри Telegram окно уже, чем обычный мобильный браузер, и рядом с ним
-  // всегда стоит собственная шапка клиента. Интерфейс, рассчитанный на
-  // телефон, здесь выглядит крупным: вкладки перестают помещаться в строку,
-  // карточки занимают экран целиком. Помечаем документ — компактный режим
-  // ниже включается и по этой метке, независимо от ширины: на десктопном
-  // Telegram окно шире 560px, но тесноты это не отменяет.
+  // Внутри Telegram окно уже обычного мобильного браузера и рядом стоит шапка
+  // клиента — интерфейс кажется крупным. Метка включает компактный режим ниже
+  // независимо от ширины (десктопный Telegram шире 560px, но тесноты это не
+  // отменяет). На узком экране компактный режим и так включит медиазапрос.
   document.documentElement.classList.add('tg');
 })();
 
@@ -3802,11 +3810,6 @@ function openDashboard(){
   fetchDashboard(false);
 }
 
-// Инлайновая текстовая сводка в строке вкладок убрана — дублировала плиточный
-// ряд renderDashKpiRow. Оставлена пустой, чтобы не трогать разметку шапки и
-// код тихого обновления, который пишет в #dashKpiFrame.
-function renderKpiFrame(){ return ''; }
-
 /**
  * Сводная строка KPI над графиками дашборда (макет turn-19a): масштаб данных
  * и доверие к ним, одним взглядом перед любой из вкладок. Цифры — из
@@ -3866,7 +3869,7 @@ function fetchDashboard(quiet){
     }
     S.dashData = r;
     if(quiet && $('dashTabContent') && $('dashKpiFrame')){
-      $('dashKpiFrame').innerHTML = renderKpiFrame(r.summary || {});
+      $('dashKpiFrame').innerHTML = '';
       if($('dashKpiRow')) $('dashKpiRow').innerHTML = renderDashKpiRow(r.summary || {});
       $('dashTabContent').innerHTML = renderCurrentDashTab();
     } else {
@@ -3968,9 +3971,7 @@ function renderDashboard(){
         return '<button class="sub-tab'+on+'" style="flex:none" data-dtab="'+t.id+'">'+ic(t.icon)+esc(t.label)+'</button>';
       }).join('')+
     '</div>'+
-    '<div id="dashKpiFrame" class="kpi-group-frame">'+
-      renderKpiFrame(sm)+
-    '</div>'+
+    '<div id="dashKpiFrame" class="kpi-group-frame"></div>'+
   '</div>';
 
   // 2. Компактная панель фильтров в 1 аккуратную строку
@@ -5773,169 +5774,6 @@ function ensureAdminUsers(){
   }).catch(function(){});
 }
 
-function promptAssignStaffToDir(fio, targetDir){
-  var el = document.createElement('div');
-  el.className = 'sheet sheet--dialog';
-
-  var roles = [
-    {
-      type: 'hrbp',
-      title: 'Закрепить как HR BP всего направления',
-      desc: 'Каскадно назначит сотрудника HR BP во все отделы направления «' + targetDir + '»'
-    },
-    {
-      type: 'head',
-      title: 'Назначить руководителем направления',
-      desc: 'Каскадно назначит сотрудника руководителем всех отделов направления «' + targetDir + '»'
-    }
-  ];
-
-  var h = '<div class="sheet-in dlg" style="max-width:480px">'+
-    '<div class="sheet-hd" style="margin-bottom:8px">'+
-      '<b style="font-size:16px;font-weight:700">Назначить на направление?</b>'+
-      '<button class="btn-ghost" data-x="1" style="padding:4px 8px;min-height:auto">' + ic('close', 14) + '</button>'+
-    '</div>'+
-    '<div style="background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'+
-      '<div class="org-avatar-circle" style="background:#0284c7;width:34px;height:34px;font-size:12px;flex:none">'+getInitials(fio)+'</div>'+
-      '<div style="min-width:0;flex:1">'+
-        '<div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(fio)+'</div>'+
-        '<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Направление: <b>'+esc(targetDir)+'</b></div>'+
-      '</div>'+
-    '</div>'+
-    '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Выберите назначаемую роль:</div>'+
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
-      roles.map(function(r){
-        return '<button type="button" class="org-role-select-card" data-role="'+r.type+'" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%">'+
-          '<div style="font-weight:600;font-size:13px;color:var(--accent)">' + esc(r.title) + '</div>'+
-          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;white-space:normal">' + esc(r.desc) + '</div>'+
-        '</button>';
-      }).join('')+
-    '</div>'+
-    '<div style="display:flex;justify-content:flex-end">'+
-      '<button type="button" class="btn-line" data-x="1" style="min-height:34px;font-size:13px;padding:0 16px">Отмена</button>'+
-    '</div>'+
-  '</div>';
-
-  el.innerHTML = h;
-  document.body.appendChild(el);
-
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x || e.target.closest('[data-x]')){
-      el.remove();
-      return;
-    }
-    var card = e.target.closest('button[data-role]');
-    if(!card) return;
-    var roleType = card.dataset.role;
-    el.remove();
-
-    call('apiAdminBatchAssignDivision', S.token, { dir: targetDir, roleType: roleType, personName: fio }).then(function(res){
-      if(res && res.ok){
-        var roleTitle = roleType === 'hrbp' ? 'HR BP' : 'руководителем';
-        toast('Сотрудник «' + fio + '» назначен ' + roleTitle + ' направления «' + targetDir + '»', 'ok');
-        (S.adminDivs || []).forEach(function(d){ if(d.dir === targetDir) d[roleType] = fio; });
-        saveNavState();
-        renderAdminDivisions();
-      } else {
-        toast((res && res.error) || 'Ошибка назначения', 'err');
-      }
-    }).catch(function(){
-      toast('Нет связи с сервером', 'err');
-    });
-  });
-}
-
-function promptAssignStaffToUnit(fio, targetUnit){
-  var d = (S.adminDivs || []).find(function(x){ return x.unit === targetUnit; });
-  if(!d) return;
-
-  var el = document.createElement('div');
-  el.className = 'sheet sheet--dialog';
-
-  var roles = [
-    {
-      type: 'resp',
-      title: 'Ответственный за обзор рынка (resp)',
-      curr: d.resp,
-      desc: 'Отвечает за заполнение данных по рынку и проверку участников'
-    },
-    {
-      type: 'head',
-      title: 'Руководитель отдела (head)',
-      curr: d.head,
-      desc: 'Курирует подразделение и видит прогресс команды'
-    },
-    {
-      type: 'hrbp',
-      title: 'Закреплённый HR BP (hrbp)',
-      curr: d.hrbp,
-      desc: 'Курирует C&B процессы и методологию'
-    }
-  ];
-
-  var h = '<div class="sheet-in dlg" style="max-width:480px">'+
-    '<div class="sheet-hd" style="margin-bottom:8px">'+
-      '<b style="font-size:16px;font-weight:700">Назначить сотрудника в отдел?</b>'+
-      '<button class="btn-ghost" data-x="1" style="padding:4px 8px;min-height:auto">' + ic('close', 14) + '</button>'+
-    '</div>'+
-    '<div style="background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'+
-      '<div class="org-avatar-circle" style="background:#0284c7;width:34px;height:34px;font-size:12px;flex:none">'+getInitials(fio)+'</div>'+
-      '<div style="min-width:0;flex:1">'+
-        '<div style="font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(fio)+'</div>'+
-        '<div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Отдел: <b>'+esc(targetUnit)+'</b></div>'+
-      '</div>'+
-    '</div>'+
-    '<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px">Выберите назначаемую роль:</div>'+
-    '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
-      roles.map(function(r){
-        var repl = r.curr ? ('<div style="font-size:11px;color:var(--warn);margin-top:4px;white-space:normal;line-height:1.3">Заменит текущего: <b>' + esc(r.curr) + '</b></div>') : '';
-        return '<button type="button" class="org-role-select-card" data-role="'+r.type+'" style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%">'+
-          '<div style="font-weight:600;font-size:13px;color:var(--accent)">' + esc(r.title) + '</div>'+
-          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35;white-space:normal">' + esc(r.desc) + '</div>'+
-          repl +
-        '</button>';
-      }).join('')+
-    '</div>'+
-    '<div style="display:flex;justify-content:flex-end">'+
-      '<button type="button" class="btn-line" data-x="1" style="min-height:34px;font-size:13px;padding:0 16px">Отмена</button>'+
-    '</div>'+
-  '</div>';
-
-  el.innerHTML = h;
-  document.body.appendChild(el);
-
-  el.addEventListener('click', function(e){
-    if(e.target === el || e.target.dataset.x || e.target.closest('[data-x]')){
-      el.remove();
-      return;
-    }
-    var card = e.target.closest('button[data-role]');
-    if(!card) return;
-    var field = card.dataset.role;
-    el.remove();
-
-    var payload = { unit: targetUnit };
-    payload[field] = fio;
-    call('apiAdminSaveDivision', S.token, payload).then(function(res){
-      if(res && res.ok){
-        toast('Сотрудник «' + fio + '» назначен в отдел «' + targetUnit + '»', 'ok');
-        d[field] = fio;
-        (S.adminUsers || []).forEach(function(u){
-          if(u.fio && u.fio.toLowerCase() === fio.toLowerCase()){
-            u.unit = targetUnit;
-          }
-        });
-        saveNavState();
-        renderAdminDivisions();
-      } else {
-        toast((res && res.error) || 'Ошибка назначения', 'err');
-      }
-    }).catch(function(){
-      toast('Нет связи с сервером', 'err');
-    });
-  });
-}
-
 // ── Персональный стек отмены (только своя сессия) ───────────────────────────
 // Максимум 10 шагов. Стек живёт в S.myUndoStack — сбрасывается при перезагрузке.
 function pushUndo(record){
@@ -6012,122 +5850,6 @@ function popUndo(){
       toast('Не удалось отменить', 'err');
     });
   }
-}
-
-function confirmMoveDivision(unit, targetDir, oldDir, parentUnit){
-  // parentUnit: если указан — отдел становится подотделом (Ур. 4);
-  //             null — прямое подчинение направлению (Ур. 3)
-  parentUnit = parentUnit || null;
-  var isSubunit = !!parentUnit;
-
-  var dlgHtml = isSubunit
-    ? 'Прикрепить подразделение <b>«' + esc(unit) + '»</b><br>как подотдел внутри <b>«' + esc(parentUnit) + '»</b>?<br><span style="font-size:12px;color:var(--muted)">Направление останется: <b>«' + esc(targetDir) + '»</b></span><br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-top:8px"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>'
-    : 'Перенести подразделение <b>«' + esc(unit) + '»</b><br>из направления <b>«' + esc(oldDir || 'Без направления') + '»</b><br>в направление <b>«' + esc(targetDir) + '»</b>?<br><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;margin-top:8px"><input type="checkbox" id="chkCascadeComp" checked> Каскадно обновить направление в связях участников рынка</label>';
-
-  ask({
-    title: isSubunit ? 'Прикрепить как подотдел?' : 'Переместить подразделение?',
-    html: dlgHtml,
-    ok: isSubunit ? 'Прикрепить' : 'Переместить'
-  }).then(function(yes){
-    if(!yes) return;
-    var chk = document.getElementById('chkCascadeComp');
-    var cascade = chk ? chk.checked : true;
-    // Сохраняем состояние ДО изменения
-    var curDiv4419 = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
-    pushUndo({ action: 'move_unit', unit: unit, oldDir: oldDir || (curDiv4419 && curDiv4419.dir) || '', oldParentUnit: curDiv4419 && curDiv4419.parent_unit, label: 'перенос «' + unit + '»' });
-    call('apiAdminMoveDivision', S.token, { unit: unit, targetDir: targetDir, parentUnit: parentUnit, cascadeCompetitors: cascade }).then(function(res){
-      if(res && res.ok){
-        var msg = isSubunit
-          ? 'Подразделение «' + unit + '» прикреплено под «' + parentUnit + '»'
-          : 'Подразделение «' + unit + '» перенесено в «' + targetDir + '»';
-        toast(msg, 'ok');
-        // Обновляем локальный кэш adminDivs
-        (S.adminDivs || []).forEach(function(d){
-          if(d.unit === unit){
-            d.dir = targetDir;
-            d.parent_unit = parentUnit;
-          }
-        });
-        if(isSubunit && parentUnit){
-          var pDiv1 = (S.adminDivs || []).find(function(x){ return x.unit === parentUnit; });
-          if(pDiv1 && pDiv1.parent_unit){
-            // parentUnit сам является подотделом 4-го уровня -> открываем оба уровня (L3 и L4)
-            S.expandedDir = targetDir;
-            S.expandedUnit = pDiv1.parent_unit;
-            S.expandedSubUnit = parentUnit;
-          } else {
-            // parentUnit является отделом 3-го уровня
-            S.expandedDir = targetDir;
-            S.expandedUnit = parentUnit;
-            S.expandedSubUnit = '';
-          }
-        } else {
-          S.expandedDir = targetDir;
-          S.expandedUnit = '';
-          S.expandedSubUnit = '';
-        }
-        S.selectedOrgNode = { type: 'unit', unit: unit, dir: targetDir };
-        saveNavState();
-        renderAdminDivisions();
-      } else {
-        toast((res && res.error) || 'Ошибка перемещения', 'err');
-      }
-    }).catch(function(){
-      toast('Нет связи с сервером', 'err');
-    });
-  });
-}
-
-function confirmPromoteToDir(unit){
-  ask({
-    title: 'Сделать направлением (Уровень 2)?',
-    html: 'Преобразовать подразделение <b>«' + esc(unit) + '»</b> в самостоятельное направление компании верхнего уровня?<br><br><span style="font-size:12px;color:var(--muted)">Оно появится на 2-м уровне оргструктуры и сможет содержать собственные отделы.</span>',
-    ok: 'Преобразовать'
-  }).then(function(yes){
-    if(!yes) return;
-    call('apiAdminSaveDivision', S.token, { unit: unit, dir: unit }).then(function(res){
-      if(res && res.ok){
-        toast('Подразделение «' + unit + '» стало направлением', 'ok');
-        var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
-        if(d) d.dir = unit;
-        S.expandedDir = unit;
-        saveNavState();
-        renderAdminDivisions();
-      } else {
-        toast((res && res.error) || 'Ошибка преобразования', 'err');
-      }
-    }).catch(function(){
-      toast('Нет связи с сервером', 'err');
-    });
-  });
-}
-
-function confirmDemoteDirToUnit(dir, targetDir){
-  ask({
-    title: 'Переместить как отдел?',
-    html: 'Переместить направление <b>«' + esc(dir) + '»</b> и сделать его отделом внутри направления <b>«' + esc(targetDir) + '»</b>?<br><br><span style="font-size:12px;color:var(--muted)">Все отделы этого направления также будут объединены в «' + esc(targetDir) + '».</span>',
-    ok: 'Переместить'
-  }).then(function(yes){
-    if(!yes) return;
-    // Сохраняем снимок ДО изменения (все отделы этого направления)
-    var snapUnits = (S.adminDivs || []).filter(function(x){ return x.dir === dir; }).map(function(x){ return { unit: x.unit, oldDir: x.dir, oldParentUnit: x.parent_unit }; });
-    pushUndo({ action: 'demote_dir', units: snapUnits, label: 'объединение «' + dir + '» → «' + targetDir + '»' });
-    call('apiAdminMoveDivision', S.token, { unit: dir, targetDir: targetDir, cascadeCompetitors: true }).then(function(res){
-      if(res && res.ok){
-        toast('Направление «' + dir + '» перемещено в «' + targetDir + '»', 'ok');
-        (S.adminDivs || []).forEach(function(d){
-          if(d.unit === dir || d.dir === dir) d.dir = targetDir;
-        });
-        S.expandedDir = targetDir;
-        saveNavState();
-        renderAdminDivisions();
-      } else {
-        toast((res && res.error) || 'Ошибка перемещения', 'err');
-      }
-    }).catch(function(){
-      toast('Нет связи с сервером', 'err');
-    });
-  });
 }
 
 function batchAssignDirection(dir, roleType){
