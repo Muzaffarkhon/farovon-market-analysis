@@ -8406,76 +8406,56 @@ function removeDictItem(name){
 
 // ─── Вкладка: Сервисные утилиты ───
 function renderAdminTools(){
-  var h = '<div style="overflow-y:auto;flex:1;min-height:0;padding-bottom:16px">'+
+  function toolCard(o){
+    return '<div class="tool-card'+(o.accent ? ' is-accent' : '')+'">'+
+      '<div class="tool-card-body">'+
+        '<div class="tool-card-t">'+ic(o.icon, 16)+esc(o.title)+'</div>'+
+        '<div class="tool-card-d">'+o.desc+'</div>'+
+      '</div>'+
+      '<div class="tool-card-acts">'+ o.actions.map(function(a){
+        return '<button class="'+(a.cls || 'btn-primary')+'" onclick="'+a.onclick+'">'+ic(a.icon, 14)+esc(a.label)+'</button>';
+      }).join('') +'</div>'+
+    '</div>';
+  }
+
+  var h = '<div class="dash-tab-scroll">'+
     '<div class="sec-title">Состояние данных</div>'+
     '<div id="dataStatus"><div class="sp"><i></i> Считаем…</div></div>'+
-    '<div class="sec-title" style="margin-top:16px">Загрузка данных</div>'+
-    '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px;margin-bottom:16px">'+
-      '<div class="card" style="padding:16px;border-color:var(--accent-border);background:var(--accent-soft);grid-column:1/-1">'+
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
-          '<div style="flex:1;min-width:280px">'+
-            '<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;color:var(--accent)">'+ic('download',16)+'Загрузить опрос зарплат из файла</div>'+
-            '<div style="font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.4">CSV-выгрузка листа «Ответы». Сначала проверка: разбор колонок, привязка ID_Бизнес к подразделению, сверка каждой ячейки. Затем отчёт — и только потом заливка (от имени админа, транзакцией). Ничего не пишется, пока вы не подтвердите.</div>'+
-          '</div>'+
-          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-            '<button class="btn-primary" style="min-height:34px;font-size:12.5px;padding:0 14px;width:auto" onclick="importSurveyFile()">'+ic('download',14)+'Выбрать файл…</button>'+
-          '</div>'+
-        '</div>'+
-        '<input type="file" id="importSurveyInput" accept=".csv,text/csv" style="display:none">'+
-      '</div>'+
+
+    '<div class="sec-title tool-sec-t">Загрузка данных</div>'+
+    '<div class="tool-grid">'+
+      toolCard({ icon:'download', accent:true, title:'Загрузить опрос зарплат из файла',
+        desc:'CSV-выгрузка листа «Ответы». Сначала проверка: разбор колонок, привязка ID_Бизнес к подразделению, сверка каждой ячейки. Затем отчёт — и только потом заливка (от имени админа, транзакцией). Ничего не пишется, пока вы не подтвердите.',
+        actions:[{ label:'Выбрать файл…', icon:'download', onclick:'importSurveyFile()' }] })+
+      '<input type="file" id="importSurveyInput" accept=".csv,text/csv" style="display:none">'+
     '</div>'+
-    '<div class="sec-title" style="margin-top:16px">Сервисные утилиты обслуживания</div>'+
-    '<div class="kpi-grid" style="grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px;margin-bottom:16px">'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px;border-color:var(--accent-border);background:var(--accent-soft);grid-column:1/-1">'+
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
-          '<div style="flex:1;min-width:280px">'+
-            '<div style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;color:var(--accent)">'+ic('unlock',16)+'Снятие блокировок записей (каскадно)</div>'+
-            '<div style="font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.4">Снимает авторские блокировки («Администратор C&amp;B» и др.) со строк рынка и анкет. Каскадно открывает возможность редактирования ответственным по всем подразделениям.</div>'+
-          '</div>'+
-          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-            '<button class="btn-primary" style="min-height:34px;font-size:12.5px;padding:0 14px;width:auto" onclick="openLocksModal()">'+ic('users',14)+'Выборочно по ролям / авторам…</button>'+
-            '<button class="btn-danger" style="min-height:34px;font-size:12.5px;padding:0 14px;width:auto" onclick="adminUnlockQuick(\'all\')">'+ic('unlock',14)+'Снять со всех (1 клик)</button>'+
-          '</div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
-        '<div>'+
-          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('broom',15)+'Нормализация справочника компаний</div>'+
-          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает недостающие компании.</div>'+
-        '</div>'+
-        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника\')">'+ic('wrench',14)+'Запустить нормализацию</button>'+
-      '</div>'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
-        '<div>'+
-          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('link',15)+'Проверка привязки к оргструктуре</div>'+
-          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Обновляет направление, ответственного и HR BP по оргструктуре и выявляет подразделения с несовпадающими названиями.</div>'+
-        '</div>'+
-        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки\')">'+ic('search',14)+'Проверить привязки</button>'+
-      '</div>'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
-        '<div>'+
-          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('units',15)+'Загрузить штатное расписание</div>'+
-          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Заводит должности по каждому подразделению из штатного расписания (1340 пар по 285 отделам) и проставляет коды. Безопасно для повторного запуска.</div>'+
-        '</div>'+
-        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')">'+ic('download',14)+'Загрузить штатку</button>'+
-      '</div>'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
-        '<div>'+
-          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('book',15)+'Сверить компании с рынком</div>'+
-          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие без перезаписи ручных полей.</div>'+
-        '</div>'+
-        '<button class="btn-primary" style="width:100%;min-height:32px;font-size:12.5px" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний\')">'+ic('refresh',14)+'Сверить компании</button>'+
-      '</div>'+
-      '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px">'+
-        '<div>'+
-          '<div style="font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:6px">'+ic('link',15)+'Раздать компании по направлениям</div>'+
-          '<div style="font-size:12.5px;color:var(--muted);margin:6px 0 12px;line-height:1.4">Выдаёт базовый набор компаний тем отделам направления, где ещё нет ни одной строки. Не затрагивает отделы с ручным заполнением.</div>'+
-        '</div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-          '<button class="btn-primary" style="flex:1;min-height:32px;font-size:12px;padding:0 8px;white-space:nowrap" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')">'+ic('check',13)+'Раздать</button>'+
-          '<button class="btn-danger" style="flex:1;min-height:32px;font-size:12px;padding:0 8px;white-space:nowrap" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу\')">'+ic('block',13)+'Отменить</button>'+
-        '</div>'+
-      '</div>'+
+
+    '<div class="sec-title tool-sec-t">Сервисные утилиты обслуживания</div>'+
+    '<div class="tool-grid">'+
+      toolCard({ icon:'unlock', accent:true, title:'Снятие блокировок записей (каскадно)',
+        desc:'Снимает авторские блокировки («Администратор C&amp;B» и др.) со строк рынка и анкет. Каскадно открывает возможность редактирования ответственным по всем подразделениям.',
+        actions:[
+          { label:'Выборочно по ролям / авторам…', icon:'users', onclick:'openLocksModal()' },
+          { label:'Снять со всех (1 клик)', icon:'unlock', cls:'btn-danger', onclick:"adminUnlockQuick('all')" }
+        ] })+
+      toolCard({ icon:'broom', title:'Нормализация справочника компаний',
+        desc:'Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает недостающие компании.',
+        actions:[{ label:'Запустить нормализацию', icon:'wrench', onclick:"runMaintenanceTool('clean_segments', 'Нормализация справочника')" }] })+
+      toolCard({ icon:'link', title:'Проверка привязки к оргструктуре',
+        desc:'Обновляет направление, ответственного и HR BP по оргструктуре и выявляет подразделения с несовпадающими названиями.',
+        actions:[{ label:'Проверить привязки', icon:'search', onclick:"runMaintenanceTool('fix_links', 'Проверка привязки')" }] })+
+      toolCard({ icon:'units', title:'Загрузить штатное расписание',
+        desc:'Заводит должности по каждому подразделению из штатного расписания (1340 пар по 285 отделам) и проставляет коды. Безопасно для повторного запуска.',
+        actions:[{ label:'Загрузить штатку', icon:'download', onclick:"runMaintenanceTool('import_staffing', 'Загрузка штатного расписания')" }] })+
+      toolCard({ icon:'book', title:'Сверить компании с рынком',
+        desc:'Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие без перезаписи ручных полей.',
+        actions:[{ label:'Сверить компании', icon:'refresh', onclick:"runMaintenanceTool('import_company_dirs', 'Сверка компаний')" }] })+
+      toolCard({ icon:'link', title:'Раздать компании по направлениям',
+        desc:'Выдаёт базовый набор компаний тем отделам направления, где ещё нет ни одной строки. Не затрагивает отделы с ручным заполнением.',
+        actions:[
+          { label:'Раздать', icon:'check', onclick:"runBulkTool('distribute_companies', 'Раздать компании по направлениям')" },
+          { label:'Отменить', icon:'block', cls:'btn-danger', onclick:"runBulkTool('undo_distribute', 'Отменить раздачу')" }
+        ] })+
     '</div>'+
   '</div>';
 
