@@ -1454,48 +1454,89 @@ function applyRailCollapse(){
  * его лишний раз безвредно. Пункты те же, что в topNav/меню ⋮, чтобы
  * не разъезжались правила видимости по роли в трёх разных местах.
  */
-function renderRail(){
-  var rail = $('rail');
-  if(!rail || !S.data) return;
-  var r = S.data.user.role;
+// ═══════════════════════════════════════════════════════════
+// ЕДИНЫЙ КОМПОНЕНТ НАВИГАЦИИ
+// ═══════════════════════════════════════════════════════════
+// Три поверхности (рельса на десктопе, нижняя полоса вкладок на телефоне,
+// меню «⋮») строятся ОДНОЙ функцией renderNav() из navModel(): один рендер
+// кнопки (navRenderBtn), один обработчик кликов (navHandleClick), одна
+// проверка черновика (navGo). renderRail/renderTopNav оставлены псевдонимами
+// — их зовут из ~11 мест по коду.
 
-  applyRailCollapse();
-  var rb = $('railBrand');
-  if(rb){
-    rb.onclick = toggleRailCollapse;
-  }
+var NAV_ROLE_NAMES = {
+  admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP',
+  dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник'
+};
 
-  var m = navModel();
-  function railBtn(it){
-    var on = it.active && it.active() ? ' on' : '';
-    return '<button class="rail-item'+on+'" data-nav="'+it.key+'" title="'+esc(it.label)+'">'+
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'+
-      '<span>'+esc(it.label)+'</span></button>';
-  }
-
-  var h = m.primary.map(railBtn).join('');
-  if(m.admin.length){
-    h += '<div class="rail-sec-label">Администрирование</div>';
-    h += m.admin.map(railBtn).join('');
-  }
-  $('railNav').innerHTML = h;
-
-  var all = m.primary.concat(m.admin);
-  $('railNav').onclick = function(e){
-    var b = e.target.closest('button[data-nav]');
-    if(!b) return;
-    navGo(all.filter(function(x){ return x.key === b.dataset.nav; })[0]);
-  };
-
-  var fio = userLabel();
-  $('railAv').textContent = fio.trim().slice(0,1).toUpperCase() || '?';
-  $('railFio').textContent = shortFio(fio);
-  $('railFio').title = fio;
-  var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
-  var roleName = roleNames[r] || r;
-  $('railRole').textContent = roleName;
-  $('railRole').title = roleName;
+function navRenderBtn(it, cls){
+  var on = it.active && it.active() ? ' on' : '';
+  var danger = it.danger ? ' btn-danger' : '';
+  var lbl = esc((cls === 'nav-btn' && it.tabLabel) || it.label);
+  var icon = cls === 'rail-item'
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'
+    : ic(it.icon);
+  return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'" title="'+esc(it.label)+'">'+
+    icon+'<span>'+lbl+'</span></button>';
 }
+
+// Разрешает data-nav в элемент модели и выполняет его (служебные действия —
+// напрямую, смену раздела — через navGo с проверкой черновика).
+function navHandleClick(e){
+  var b = e.target.closest('button[data-nav]');
+  if(!b) return;
+  var m = navModel();
+  var all = m.primary.concat(m.admin, m.adminEntry ? [m.adminEntry] : [], m.utility);
+  var it = all.filter(function(x){ return x.key === b.dataset.nav; })[0];
+  if(!it) return;
+  if(it.key === 'refresh' || it.key === 'help' || it.key === 'profile' || it.key === 'out') it.run();
+  else navGo(it);
+}
+
+function renderNav(){
+  if(!S.data) return;
+  var m = navModel();
+
+  // 1. Рельса (десктоп, от 1024px)
+  var rail = $('rail');
+  if(rail){
+    applyRailCollapse();
+    if($('railBrand')) $('railBrand').onclick = toggleRailCollapse;
+
+    var rh = m.primary.map(function(it){ return navRenderBtn(it, 'rail-item'); }).join('');
+    if(m.admin.length){
+      rh += '<div class="rail-sec-label">Администрирование</div>';
+      rh += m.admin.map(function(it){ return navRenderBtn(it, 'rail-item'); }).join('');
+    }
+    $('railNav').innerHTML = rh;
+    $('railNav').onclick = navHandleClick;
+
+    var fio = userLabel();
+    $('railAv').textContent = fio.trim().slice(0, 1).toUpperCase() || '?';
+    $('railFio').textContent = shortFio(fio); $('railFio').title = fio;
+    var rn = NAV_ROLE_NAMES[S.data.user.role] || S.data.user.role;
+    $('railRole').textContent = rn; $('railRole').title = rn;
+  }
+
+  // 2. Нижняя полоса вкладок (телефон). Нужна, только когда переключать есть
+  // что (иначе одна кнопка на текущий же экран) и мы не внутри подразделения.
+  var topNav = $('topNav');
+  if(topNav){
+    var tabs = m.primary.filter(function(it){ return it.inTabs; });
+    if(m.adminEntry) tabs.push(m.adminEntry);
+    if(tabs.length < 2 || S.unit !== null){
+      topNav.classList.add('hidden');
+      document.body.classList.remove('has-topnav');
+    } else {
+      topNav.classList.remove('hidden');
+      document.body.classList.add('has-topnav');
+      topNav.innerHTML = tabs.map(function(it){ return navRenderBtn(it, 'nav-btn'); }).join('');
+      topNav.onclick = navHandleClick;
+    }
+  }
+}
+
+// Псевдонимы — вызываются из setTop/switchView/админки и т.д.
+function renderRail(){ renderNav(); }
 
 // ═══════════════════════════════════════════════════════════
 // СТАРТ
@@ -1741,21 +1782,14 @@ function navGo(item){
  * пользователя переделано в панель, закреплённую у шапки справа, с
  * закрытием по X. Действует одинаково на мобильном и десктопе.
  */
-$('btnMenu').onclick = function(){
+// Меню «⋮» — третья поверхность того же компонента: самая полная (все разделы
+// + служебные действия), строится из navModel() тем же navRenderBtn.
+function openNavMenu(){
   var m = navModel();
-  // Меню — самая полная поверхность: все разделы + служебные действия.
-  var groups = [ m.primary.slice() ];
-  if(m.adminEntry) groups[0].push(m.adminEntry);
-  groups.push(m.utility);
-
-  var flat = [];
+  var groups = [ m.primary.concat(m.adminEntry ? [m.adminEntry] : []), m.utility ];
   var body = groups.map(function(g, gi){
-    return (gi ? '<div class="menu-sep"></div>' : '') + g.map(function(it){
-      flat.push(it);
-      var on = it.active && it.active() ? ' on' : '';
-      return '<button class="'+(it.danger ? 'btn-danger' : '')+on+'" data-nav="'+it.key+'">'+
-        ic(it.icon)+esc(it.label)+'</button>';
-    }).join('');
+    return (gi ? '<div class="menu-sep"></div>' : '') +
+      g.map(function(it){ return navRenderBtn(it, 'menu-item'); }).join('');
   }).join('');
 
   var el = document.createElement('div');
@@ -1768,47 +1802,12 @@ $('btnMenu').onclick = function(){
 
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
-    var b = e.target.closest('button[data-nav]');
-    if(!b) return;
-    el.remove();
-    var it = flat.filter(function(x){ return x.key === b.dataset.nav; })[0];
-    if(!it) return;
-    // Служебные действия (refresh/help/profile/out) — прямой вызов, без
-    // проверки черновика через navGo (она нужна только при смене раздела).
-    if(it.key === 'refresh' || it.key === 'help' || it.key === 'profile' || it.key === 'out') it.run();
-    else navGo(it);
+    if(e.target.closest('button[data-nav]')){ el.remove(); navHandleClick(e); }
   });
-};
-
-function renderTopNav(){
-  renderRail();
-  var topNav = $('topNav');
-  var m = navModel();
-  var tabs = m.primary.filter(function(it){ return it.inTabs; });
-  if(m.adminEntry) tabs.push(m.adminEntry);
-
-  // Полоска вкладок нужна только когда переключать есть что: у dir_head после
-  // того, как дашборд стал недоступен, остался один пункт «Подразделения» —
-  // вкладка из одной кнопки, ведущая на текущий же экран.
-  if(tabs.length < 2 || S.unit !== null){
-    topNav.classList.add('hidden');
-    document.body.classList.remove('has-topnav');
-    return;
-  }
-  topNav.classList.remove('hidden');
-  document.body.classList.add('has-topnav');
-
-  topNav.innerHTML = tabs.map(function(it){
-    var on = it.active && it.active() ? ' on' : '';
-    return '<button class="nav-btn'+on+'" data-nav="'+it.key+'">'+ic(it.icon)+esc(it.tabLabel || it.label)+'</button>';
-  }).join('');
-
-  topNav.onclick = function(e){
-    var b = e.target.closest('button[data-nav]');
-    if(!b) return;
-    navGo(tabs.filter(function(x){ return x.key === b.dataset.nav; })[0]);
-  };
 }
+$('btnMenu').onclick = openNavMenu;
+
+function renderTopNav(){ renderNav(); }
 
 function switchView(v){
   S.appView = v;
