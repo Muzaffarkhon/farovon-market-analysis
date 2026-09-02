@@ -7473,3 +7473,53 @@ html.compact {
 .sec-title {
   font-size: 12px;
 }
+
+/* ── Фаза 2: дашборд — под-вкладки «Прогресс» и «Льготы» ── */
+.dash-subtab-bar {
+  justify-content: space-between;
+}
+.seg--subtabs {
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+.dash-mass-reminder {
+  width: auto;
+  font-size: 12.5px;
+  min-height: 34px;
+  padding: 0 14px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+@media (max-width: 560px) {
+  .dash-mass-reminder {
+    width: 100%;
+    white-space: normal;
+    margin-left: 0;
+  }
+}
+
+.bonuses-card {
+  margin-bottom: 12px;
+  padding: 20px 22px;
+}
+.bonuses-card-t {
+  font-weight: 650;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+}
+.bonuses-card-nums {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.bonuses-card-nums .is-ok { color: var(--ok); }
+.bonuses-card-nums .is-no { color: var(--no); }
+.bonuses-card-nums .is-muted { color: var(--muted); }
+.bonuses-card-bar {
+  height: 12px;
+  margin: 8px 0;
+}
+.bonuses-card-bar .prog-bar-fill {
+  background: var(--ok);
+}

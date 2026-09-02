@@ -4981,18 +4981,16 @@ function renderProgressTab(hrbpList, dirList){
   S.dashProgSubTab = S.dashProgSubTab || 'hrbp';
   var isHrbp = (S.dashProgSubTab === 'hrbp');
 
-  var h = '<div class="toolbar" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
-    '<div class="seg" style="margin:0;padding:0;gap:4px">'+
+  var h = '<div class="toolbar dash-subtab-bar">'+
+    '<div class="seg seg--subtabs">'+
       '<button class="seg-btn'+(isHrbp?' on':'')+'" data-progtab="hrbp">' + ic('users', 14) + 'По HR BP ('+hrbpList.length+')</button>'+
       '<button class="seg-btn'+(!isHrbp?' on':'')+'" data-progtab="dirs">' + ic('units', 14) + 'По Дирекциям ('+dirList.length+')</button>'+
     '</div>';
 
   if(S.data && (S.data.user.role === 'admin' || S.data.user.role === 'cb')){
-    h += '<div style="margin-left:auto;display:flex;align-items:center;gap:6px">'+
-      '<button id="btnMassReminder" class="btn-primary" style="width:auto;font-size:12.5px;min-height:32px;padding:0 12px;white-space:nowrap">'+
-        ic('megaphone', 14)+'Напомнить всем должникам в Telegram'+
-      '</button>'+
-    '</div>';
+    h += '<button id="btnMassReminder" class="btn-primary dash-mass-reminder">'+
+      ic('megaphone', 14)+'Напомнить всем должникам в Telegram'+
+    '</button>';
   }
   h += '</div>';
 
@@ -5057,8 +5055,8 @@ function renderBenefitsTab(benefits, bonuses, topComps){
   S.dashBenefitsSubTab = S.dashBenefitsSubTab || 'benefits';
   var curTab = S.dashBenefitsSubTab;
 
-  var h = '<div class="toolbar" style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
-    '<div class="seg" style="margin:0;padding:0;gap:4px">'+
+  var h = '<div class="toolbar dash-subtab-bar">'+
+    '<div class="seg seg--subtabs">'+
       '<button class="seg-btn'+(curTab==='benefits'?' on':'')+'" data-bentab="benefits">' + ic('medal', 14) + 'Популярность льгот ('+benefits.length+')</button>'+
       '<button class="seg-btn'+(curTab==='bonuses'?' on':'')+'" data-bentab="bonuses">' + ic('wallet', 14) + 'Премии и бонусы</button>'+
       '<button class="seg-btn'+(curTab==='comps'?' on':'')+'" data-bentab="comps">' + ic('units', 14) + 'Топ компаний ('+topComps.length+')</button>'+
@@ -5099,15 +5097,15 @@ function renderBenefitsTab(benefits, bonuses, topComps){
       var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
       var unkPct = bTotal ? Math.round((bonuses.unknown / bTotal) * 100) : 0;
 
-      return '<div class="card" style="margin-bottom:12px;padding:20px 24px">'+
-        '<div style="font-weight:700;font-size:15px;margin-bottom:10px">Наличие премий и бонусов в компаниях рынка</div>'+
-        '<div class="fork-nums" style="margin-bottom:10px;font-size:13px">'+
-          '<span style="color:var(--ok)">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
-          '<span style="color:var(--no)">Без премий: <b>'+(bonuses.noBonus||0)+' ('+noPct+'%)</b></span>'+
-          (bonuses.unknown ? '<span style="color:var(--muted)">Не указано: <b>'+bonuses.unknown+' ('+unkPct+'%)</b></span>' : '')+
+      return '<div class="card bonuses-card">'+
+        '<div class="bonuses-card-t">Наличие премий и бонусов в компаниях рынка</div>'+
+        '<div class="fork-nums bonuses-card-nums">'+
+          '<span class="is-ok">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
+          '<span class="is-no">Без премий: <b>'+(bonuses.noBonus||0)+' ('+noPct+'%)</b></span>'+
+          (bonuses.unknown ? '<span class="is-muted">Не указано: <b>'+bonuses.unknown+' ('+unkPct+'%)</b></span>' : '')+
         '</div>'+
-        '<div class="prog-bar-bg" style="height:12px;margin:8px 0">'+
-          '<div class="prog-bar-fill" style="width:'+hasPct+'%;background:var(--ok)"></div>'+
+        '<div class="prog-bar-bg bonuses-card-bar">'+
+          '<div class="prog-bar-fill" style="width:'+hasPct+'%"></div>'+
         '</div>'+
       '</div>';
     } else if(tab === 'comps'){
