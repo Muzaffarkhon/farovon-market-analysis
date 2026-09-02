@@ -530,6 +530,8 @@ function restoreNavState(){
     if(!raw) return false;
     var nav = JSON.parse(raw);
     if(nav && typeof nav === 'object'){
+      // Совместимость: старое имя раздела «Отчёт по подразделениям».
+      if(nav.appView === 'dash_hrbp') nav.appView = 'progress';
       if(nav.appView) S.appView = nav.appView;
       if(nav.unit) S.unit = nav.unit;
       if(nav.tab) S.tab = nav.tab;
@@ -1702,7 +1704,7 @@ function navModel(){
     // Admin/CB не заполняют анкеты сами — им нужен отчёт по всем
     // подразделениям (та же сводка, что видит HR BP).
     primary.push({ key:'report', label:'Отчёт по подразделениям', icon:'clipboard',
-      active:mkActive('dash_hrbp'), inTabs:false, run:function(){ openDash(); } });
+      active:mkActive('progress'), inTabs:false, run:function(){ openProgress(); } });
   } else {
     primary.push({ key:'units', label:'Подразделения', icon:'units',
       active:mkActive('units'), inTabs:true, run:function(){ switchView('units'); } });
@@ -1718,7 +1720,7 @@ function navModel(){
   }
   if(role === 'hrbp'){
     primary.push({ key:'hrbp_summary', label:'Сводка по HR BP', icon:'clipboard',
-      active:mkActive('dash_hrbp'), inTabs:false, run:function(){ openDash(); } });
+      active:mkActive('progress'), inTabs:false, run:function(){ openProgress(); } });
   }
   if(role === 'dir_head'){
     primary.push({ key:'dept_assign', label:'Назначить ответственных', icon:'clipboard',
@@ -2281,7 +2283,7 @@ function onLoaded(data){
   else if(S.appView === 'unit' && S.unit) openUnit(S.unit);
   else if(S.appView === 'dashboard') openDashboard();
   else if(S.appView === 'benchmarks') openBenchmarks();
-  else if(S.appView === 'dash_hrbp') openDash();
+  else if(S.appView === 'progress') openProgress();
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
@@ -2343,7 +2345,7 @@ function renderHome(){
   // Карточки-разделы — те же назначения, что в боковой панели.
   var navCards = [];
   if(isElevated){
-    navCards.push({ label:'Отчёт по подразделениям', desc:'Прогресс сбора по всем направлениям', icon:'clipboard', run:openDash });
+    navCards.push({ label:'Отчёт по подразделениям', desc:'Прогресс сбора по всем направлениям', icon:'clipboard', run:openProgress });
   } else {
     navCards.push({ label:'Мои подразделения', desc:'Участники рынка и данные по окладам', icon:'units', run:renderUnits });
   }
@@ -2354,7 +2356,7 @@ function renderHome(){
     navCards.push({ label:'Бенчмаркинг', desc:'Сравнение вознаграждений по внешним источникам', icon:'chart', run:openBenchmarks });
   }
   if(r === 'hrbp'){
-    navCards.push({ label:'Сводка по HR BP', desc:'Состояние по направлениям, открытие периода', icon:'clipboard', run:openDash });
+    navCards.push({ label:'Сводка по HR BP', desc:'Состояние по направлениям, открытие периода', icon:'clipboard', run:openProgress });
   }
   if(r === 'dir_head'){
     navCards.push({ label:'Назначить ответственных', desc:'Закрепить отделы направления за сотрудниками', icon:'users', run:openDeptAssign });
@@ -9609,10 +9611,12 @@ function wireAdminRoles(groups){
 }
 
 // ═══════════════════════════════════════════════════════════
-// СВОДКА ПО HR BP (быстрый вид)
+// ОТЧЁТ ПО ПОДРАЗДЕЛЕНИЯМ — прогресс заполнения + управление периодом.
+// Это НЕ аналитический дашборд (openDashboard): здесь таблица «кто что
+// заполнил», без зарплатных вилок и перцентилей. Данные — apiDashboard.
 // ═══════════════════════════════════════════════════════════
-function openDash(){
-  S.appView = 'dash_hrbp';
+function openProgress(){
+  S.appView = 'progress';
   S.unit = null;
   saveNavState();
   renderTopNav();
@@ -9793,7 +9797,7 @@ function openDash(){
         $('dashSumTblBox').onclick = function(e){
           var tr = e.target.closest('tr[data-u]');
           if(!tr) return;
-          openUnit(tr.dataset.u, openDash);
+          openUnit(tr.dataset.u, openProgress);
         };
       }
     }
@@ -9831,14 +9835,14 @@ function openDash(){
       }
     };
     function afterPeriod(res){
-      if(!res || !res.ok){ toast((res&&res.error)||'Не удалось изменить период'); openDash(); return; }
+      if(!res || !res.ok){ toast((res&&res.error)||'Не удалось изменить период'); openProgress(); return; }
       S.data.period = res.period;
       var isElevated = (S.data.user.role === 'admin' || S.data.user.role === 'cb');
       S.ro = !!(res.period.state === 'закрыт' && S.data.user.role !== 'hrbp' && !isElevated);
       toast('Период ' + res.period.state);
-      openDash();
+      openProgress();
     }
-    function periodFail(){ toast('Нет связи'); openDash(); }
+    function periodFail(){ toast('Нет связи'); openProgress(); }
   });
 }
 
