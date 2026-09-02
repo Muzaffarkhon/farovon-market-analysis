@@ -99,6 +99,10 @@
       <button id="btnBack" class="btn-ghost hidden" style="min-width:auto;padding:0 6px">‹ Назад</button>
       <h1 id="ttl">Мои подразделения<span class="sub" id="ttlSub"></span></h1>
       <div id="topPeriodBadge"></div>
+      <button id="btnCmdk" class="btn-ghost top-cmdk" aria-label="Поиск по системе" title="Поиск и переходы (Ctrl/⌘ + K)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <span class="top-cmdk-hint"><kbd>⌘K</kbd></span>
+      </button>
       <button id="btnTheme" class="btn-ghost btn-icon-sq" aria-label="Тема оформления" title="Тема: как в системе"></button>
       <button id="btnHelp" class="btn-ghost" style="min-width:auto">Помощь</button>
       <button id="btnMenu" class="btn-ghost" style="min-width:auto;font-size:18px;padding:0 8px"
@@ -318,6 +322,140 @@ function cycleTheme(){
       }
     }
   }).observe(body, { childList: true });
+})();
+
+// ═══════════════════════════════════════════════════════════
+// ПОИСК И ПЕРЕХОДЫ — Ctrl/⌘ + K (Фаза 4)
+// ═══════════════════════════════════════════════════════════
+// Одно окно, чтобы из любой точки прыгнуть в раздел, в своё подразделение
+// или выполнить действие — без блужданий по меню.
+(function cmdkModule(){
+  var el = null, items = [], filtered = [], sel = 0;
+
+  function nrm(s){ return String(s || '').toLowerCase().replace(/ё/g, 'е').trim(); }
+
+  function score(hay, q){
+    hay = nrm(hay);
+    if(!q) return 1;
+    var i = hay.indexOf(q);
+    if(i < 0){
+      var words = q.split(/\s+/).filter(Boolean);
+      return words.length > 1 && words.every(function(w){ return hay.indexOf(w) >= 0; }) ? 0.4 : 0;
+    }
+    if(i === 0) return 3;
+    if(/\s/.test(hay.charAt(i - 1))) return 2;
+    return 1;
+  }
+
+  function buildItems(){
+    var list = [];
+    if(!(window.S && S.data)) return list;
+    var m = navModel();
+    m.primary.forEach(function(it){
+      list.push({ group:'Разделы', label:it.label, icon:it.icon, run:function(){ navGo(it); } });
+    });
+    (m.admin || []).forEach(function(it){
+      list.push({ group:'Администрирование', label:it.label, icon:it.icon, run:function(){ navGo(it); } });
+    });
+    (S.data.units || []).forEach(function(u){
+      list.push({ group:'Мои подразделения', label:u.unit, sub:u.dir, icon:'units',
+        run:(function(name){ return function(){ openUnit(name); }; })(u.unit) });
+    });
+    list.push({ group:'Действия', label:'Переключить тему оформления', icon:'dashboard', run:cycleTheme });
+    list.push({ group:'Действия', label:'Обновить данные', icon:'refresh', run:doRefresh });
+    list.push({ group:'Действия', label:'Как заполнять', icon:'help', run:openHelp });
+    list.push({ group:'Действия', label:'Профиль', icon:'profile', run:openProfile });
+    list.push({ group:'Действия', label:'Выйти из системы', icon:'logout', danger:true, run:doLogout });
+    return list;
+  }
+
+  function render(q){
+    var nq = nrm(q);
+    filtered = items.map(function(it){
+      var s = Math.max(score(it.label, nq), it.sub ? score(it.sub, nq) * 0.8 : 0, score(it.group, nq) * 0.5);
+      return { it:it, s:s };
+    }).filter(function(x){ return x.s > 0; })
+      .sort(function(a, b){ return b.s - a.s; })
+      .map(function(x){ return x.it; }).slice(0, 40);
+
+    if(sel >= filtered.length) sel = Math.max(0, filtered.length - 1);
+    var listEl = el.querySelector('.cmdk-list');
+    if(!filtered.length){
+      listEl.innerHTML = '<div class="cmdk-empty">Ничего не найдено</div>';
+      return;
+    }
+    var lastGroup = null, h = '';
+    filtered.forEach(function(it, i){
+      if(it.group !== lastGroup){ h += '<div class="cmdk-group">' + esc(it.group) + '</div>'; lastGroup = it.group; }
+      h += '<button class="cmdk-item' + (i === sel ? ' on' : '') + (it.danger ? ' is-danger' : '') + '" data-i="' + i + '">'+
+        '<span class="cmdk-item-ic">' + ic(it.icon || 'chevron', 15) + '</span>'+
+        '<span class="cmdk-item-t">' + esc(it.label) + (it.sub ? ' <span class="cmdk-item-sub">' + esc(it.sub) + '</span>' : '') + '</span>'+
+      '</button>';
+    });
+    listEl.innerHTML = h;
+    var on = listEl.querySelector('.cmdk-item.on');
+    if(on) on.scrollIntoView({ block:'nearest' });
+  }
+
+  function close(){
+    if(!el) return;
+    el.remove(); el = null;
+  }
+
+  function exec(i){
+    var it = filtered[i];
+    if(!it) return;
+    close();
+    setTimeout(it.run, 0);
+  }
+
+  function onKey(e){
+    if(!el) return;
+    if(e.key === 'Escape'){ e.preventDefault(); close(); return; }
+    var inp = el.querySelector('.cmdk-input');
+    if(e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(filtered.length - 1, sel + 1); render(inp.value); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(0, sel - 1); render(inp.value); }
+    else if(e.key === 'Enter'){ e.preventDefault(); exec(sel); }
+  }
+
+  function open(){
+    if(el || !(window.S && S.data)) return;
+    items = buildItems(); sel = 0;
+    el = document.createElement('div');
+    el.className = 'cmdk-scrim';
+    el.innerHTML = '<div class="cmdk-box" role="dialog" aria-label="Поиск по системе">'+
+      '<div class="cmdk-hd">'+
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'+
+        '<input class="cmdk-input" type="text" placeholder="Куда перейти или что сделать…" autocomplete="off" spellcheck="false">'+
+        '<kbd class="cmdk-esc">esc</kbd>'+
+      '</div>'+
+      '<div class="cmdk-list"></div>'+
+    '</div>';
+    document.body.appendChild(el);
+    var input = el.querySelector('.cmdk-input');
+    input.addEventListener('input', function(){ sel = 0; render(this.value); });
+    el.addEventListener('click', function(e){
+      if(e.target === el){ close(); return; }
+      var b = e.target.closest('.cmdk-item');
+      if(b) exec(+b.dataset.i);
+    });
+    el.querySelector('.cmdk-list').addEventListener('mousemove', function(e){
+      var b = e.target.closest('.cmdk-item');
+      if(b && +b.dataset.i !== sel){ sel = +b.dataset.i; render(input.value); }
+    });
+    el.addEventListener('keydown', onKey);
+    render('');
+    input.focus();
+  }
+
+  document.addEventListener('keydown', function(e){
+    if((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')){
+      e.preventDefault();
+      if(el) close(); else open();
+    }
+  });
+  var trigger = document.getElementById('btnCmdk');
+  if(trigger) trigger.addEventListener('click', open);
 })();
 
 /**
