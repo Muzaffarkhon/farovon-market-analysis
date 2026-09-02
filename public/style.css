@@ -1175,13 +1175,55 @@ label.lbl {
   display: block;
 }
 
+/* Экран входа — один адаптивный макет (было: брендовая панель просто
+   display:none на мобильном, и телефон/планшет оставались без контекста).
+   < 960px  — брендовый блок компактно сверху, под ним форма.
+   ≥ 960px  — сплит-экран: брендовая панель слева, форма справа. */
 .login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: var(--text);
+}
+
+.login-brand .brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 12px var(--accent-border);
+}
+
+.login-brand h1 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+  max-width: 22ch;
+}
+
+.login-brand p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 42ch;
+}
+
+/* На мобильном мелкий логотип в колонке формы дублирует .login-brand. */
+.login .logo {
   display: none;
 }
 
-/* На десктопе вход — сплит-экран: брендовая панель слева, форма справа
-   (на мобильном #scrLogin остаётся прежним центрированным блоком выше). */
-@media (min-width: 1024px) {
+@media (min-width: 960px) {
   #scrLogin.login {
     max-width: none;
     margin: 0;
@@ -1192,52 +1234,48 @@ label.lbl {
   }
 
   .login-brand {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     flex: 1;
-    background: linear-gradient(155deg, var(--accent-hover) 0%, var(--accent) 55%, var(--accent) 100%);
+    justify-content: center;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+    margin: 0;
+    padding: 56px clamp(40px, 6vw, 88px);
+    background: linear-gradient(155deg, var(--accent-hover) 0%, var(--accent) 60%, var(--accent) 100%);
     color: #fff;
-    padding: 56px;
   }
 
   .login-brand .brand-mark {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
     background: rgba(255, 255, 255, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 24px;
+    box-shadow: none;
   }
 
   .login-brand h1 {
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    font-size: 30px;
     line-height: 1.25;
-    margin: 0 0 10px;
-    max-width: 420px;
+    max-width: 16ch;
   }
 
   .login-brand p {
-    font-size: 14.5px;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.82);
     line-height: 1.6;
-    max-width: 400px;
-    margin: 0;
+    max-width: 40ch;
   }
 
   .login-form-col {
-    width: 460px;
+    width: 480px;
     flex: none;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     background: var(--card);
-    padding: 0 40px;
+    padding: 0 clamp(32px, 5vw, 56px);
+  }
+
+  .login .logo {
+    display: block;
   }
 
   .login-form-col .logo,
