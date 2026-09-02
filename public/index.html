@@ -4650,7 +4650,7 @@ function renderOverviewTab(d){
       '<div style="font-size:12.5px;color:var(--muted);line-height:1.45;margin-bottom:10px">'+
         'Мультиисточниковое сопоставление вилок Фаровона с рыночными перцентилями P25–P75 и сводной медианой.'+
       '</div>'+
-      '<button class="btn" style="width:100%;font-size:12.5px;padding:6px 12px;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openBenchmarks()">'+
+      '<button class="btn-line bmk-goto" onclick="openBenchmarks()">'+
         ic('chart', 14)+' Перейти к бенчмаркингу →'+
       '</button>'+
     '</div></div>';
@@ -10146,21 +10146,21 @@ function openBmSuggestModal(){
     el.className = 'sheet';
 
     var itemsHtml = list.map(function(item, idx){
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--line);font-size:13px">' +
-        '<div>' +
-          '<b>' + esc(item.sourcePosition.label) + '</b> <span style="font-size:11px;color:var(--muted)">(Источник)</span><br>' +
-          '<span style="color:var(--accent)">→ ' + esc(item.suggestedDictPosition.name) + '</span>' +
+      return '<div class="bmap-row">' +
+        '<div class="bmap-row-info">' +
+          '<b>' + esc(item.sourcePosition.label) + '</b> <span class="bmap-src">(Источник)</span><br>' +
+          '<span class="bmap-target">' + ic('chevron', 11) + esc(item.suggestedDictPosition.name) + '</span>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="font-size:12px;font-weight:700;color:var(--green, #10b981)">' + item.similarity + '%</span>' +
-          '<button class="btn" style="padding:4px 10px;font-size:12px" data-bmapply="' + idx + '">Связать</button>' +
+        '<div class="bmap-row-act">' +
+          '<span class="bmap-sim">' + item.similarity + '%</span>' +
+          '<button class="btn-line bmap-link-btn" data-bmapply="' + idx + '">Связать</button>' +
         '</div>' +
       '</div>';
     }).join('');
 
-    el.innerHTML = '<div class="sheet-in" style="max-width:650px">' +
+    el.innerHTML = '<div class="sheet-in bmap-modal">' +
       '<div class="sheet-hd"><b>Предложения по сопоставлению должностей</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
-      '<div style="max-height:400px;overflow-y:auto;margin:12px 0">' + itemsHtml + '</div>' +
+      '<div class="bmap-list">' + itemsHtml + '</div>' +
     '</div>';
 
     document.body.appendChild(el);
@@ -10178,7 +10178,7 @@ function openBmSuggestModal(){
         }).then(function(res){
           if(res && res.ok){
             toast('Связано: ' + item.sourcePosition.label + ' ↔ ' + item.suggestedDictPosition.name);
-            btn.parentElement.innerHTML = '<span style="color:var(--green, #10b981);font-size:12px">✓ Связано</span>';
+            btn.parentElement.innerHTML = '<span class="bmap-done">' + ic('check', 12) + 'Связано</span>';
             loadBmMappingsList();
           } else {
             toast((res && res.error) || 'Ошибка');
@@ -10371,10 +10371,10 @@ function openBmImportModal(){
     return '<option value="' + s.key + '">' + esc(s.title) + '</option>';
   }).join('');
 
-  el.innerHTML = '<div class="sheet-in" style="max-width:750px">' +
+  el.innerHTML = '<div class="sheet-in bmi-modal">' +
     '<div class="sheet-hd"><b>Загрузка датасета обзора заработных плат</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
-    '<div id="bmImpErr" class="err hidden" style="margin-top:8px"></div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">' +
+    '<div id="bmImpErr" class="err hidden"></div>' +
+    '<div class="bmi-grid">' +
       '<div>' +
         '<label class="lbl">Источник</label>' +
         '<select id="bmiSource">' + srcOptions + '</select>' +
@@ -10395,13 +10395,13 @@ function openBmImportModal(){
         '<input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '">' +
       '</div>' +
     '</div>' +
-    '<label class="lbl" style="margin-top:12px">Вставьте данные (таблица CSV / TSV из Excel или PDF):</label>' +
-    '<textarea id="bmiText" rows="6" placeholder="Должность,P25,P50,P75\nГлавный бухгалтер,8000,12000,16000" style="width:100%;font-family:monospace;font-size:12px"></textarea>' +
-    '<div id="bmiPreview" style="margin-top:12px"></div>' +
-    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
+    '<label class="lbl bmi-lbl">Вставьте данные (таблица CSV / TSV из Excel или PDF):</label>' +
+    '<textarea id="bmiText" class="bmi-text" rows="6" placeholder="Должность,P25,P50,P75\nГлавный бухгалтер,8000,12000,16000"></textarea>' +
+    '<div id="bmiPreview" class="bmi-preview-slot"></div>' +
+    '<div class="bmi-acts">' +
       '<button class="btn-ghost" data-x="1">Отмена</button>' +
-      '<button class="btn-line" id="btnBmiDryRun">🔍 Проверить (Dry Run)</button>' +
-      '<button class="btn" id="btnBmiCommit" disabled>Импортировать в базу</button>' +
+      '<button class="btn-line" id="btnBmiDryRun">' + ic('search', 14) + 'Проверить без записи</button>' +
+      '<button class="btn-primary" id="btnBmiCommit" disabled>Импортировать в базу</button>' +
     '</div>' +
   '</div>';
 
@@ -10433,7 +10433,7 @@ function openBmImportModal(){
       title: $('bmiTitle').value.trim(),
       dataAsOf: $('bmiDataAsOf').value
     }).then(function(res){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').textContent = '🔍 Проверить (Dry Run)';
+      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
       if(!res || !res.ok){
         $('bmImpErr').textContent = (res && res.error) || 'Ошибка проверки';
         $('bmImpErr').classList.remove('hidden');
@@ -10443,13 +10443,13 @@ function openBmImportModal(){
       dryRunReport = res.report;
       $('btnBmiCommit').disabled = false;
 
-      var prevHtml = '<div style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px">' +
+      var prevHtml = '<div class="bmi-result">' +
         '<b>Результат проверки:</b> Найдено ' + dryRunReport.validRows + ' валидных строк. Новых должностей для источника: ' + dryRunReport.newPositionsCount + '<br>' +
-        (dryRunReport.errors.length ? '<span style="color:var(--red, #ef4444)">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span style="color:var(--green, #10b981)">Ошибок нет</span>') +
+        (dryRunReport.errors.length ? '<span class="bmi-result-err">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>') +
       '</div>';
       $('bmiPreview').innerHTML = prevHtml;
     }).catch(function(err){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').textContent = '🔍 Проверить (Dry Run)';
+      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
       $('bmImpErr').textContent = err.message || 'Ошибка связи';
       $('bmImpErr').classList.remove('hidden');
     });
