@@ -7737,3 +7737,25 @@ html.compact {
   flex: 1;
   min-height: 0;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ФАЗА 3 — анимации (уважают prefers-reduced-motion)
+   ════════════════════════════════════════════════════════════════════ */
+@keyframes fx-view-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Появление содержимого при переходе между экранами */
+  #body.fx-view {
+    animation: fx-view-in 0.30s var(--ease-out);
+  }
+
+  /* Иконка в карточке раздела «Главной» — лёгкий отклик */
+  .home-card-ic { transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out), transform 0.15s var(--ease-out); }
+  .home-card:hover .home-card-ic { transform: scale(1.06); }
+}
+
+/* Счётчик чисел не должен «прыгать» по ширине при разгоне */
+[data-countup] { font-variant-numeric: tabular-nums; }

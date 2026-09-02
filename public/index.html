@@ -243,6 +243,83 @@ function cycleTheme(){
   }
 })();
 
+// ═══════════════════════════════════════════════════════════
+// АНИМАЦИИ (Фаза 3)
+// ═══════════════════════════════════════════════════════════
+// Один слой на всё приложение: экран #body перерисовывается целиком при
+// каждой навигации — по этому событию проигрываем мягкое появление,
+// «разгоняем» полосы прогресса от нуля и запускаем счётчики чисел
+// (элементы с data-countup). Всё уважает prefers-reduced-motion.
+(function fxLayer(){
+  var body = document.getElementById('body');
+  if(!body || !window.MutationObserver) return;
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if(window.matchMedia){
+    var mqm = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var upd = function(){ reduce = mqm.matches; };
+    if(mqm.addEventListener) mqm.addEventListener('change', upd);
+    else if(mqm.addListener) mqm.addListener(upd);
+  }
+
+  var easeOut = function(t){ return 1 - Math.pow(1 - t, 3); };
+
+  function fmtNum(n){ return Number(n || 0).toLocaleString('ru-RU'); }
+
+  function countUp(el){
+    var target = parseFloat(el.getAttribute('data-countup'));
+    var suffix = el.getAttribute('data-countup-suffix') || '';
+    if(!isFinite(target)){ return; }
+    var final = fmtNum(target) + suffix;
+    // Фон-вкладка / reduced-motion / нечего разгонять — сразу финальное.
+    if(reduce || target <= 0 || (document.hidden)){ el.textContent = final; return; }
+    var dur = 600, t0 = null, myTok = (el._cuTok = (el._cuTok || 0) + 1);
+    el.textContent = '0' + suffix;
+    function step(ts){
+      if(el._cuTok !== myTok) return; // перерисовали — эта анимация неактуальна
+      if(t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / dur);
+      el.textContent = fmtNum(Math.round(target * easeOut(p))) + suffix;
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    // Страховка: если rAF не тикает (скрытая вкладка) — гарантируем финал.
+    setTimeout(function(){ if(el._cuTok === myTok) el.textContent = final; }, dur + 120);
+  }
+
+  function growBars(){
+    if(reduce) return;
+    body.querySelectorAll('.fill-progress > i, .u-bar-track > i, .prog-bar-fill').forEach(function(bar){
+      var w = bar.style.width;
+      if(!w || w === '0%' || w === '0px') return;
+      bar.style.width = '0%';
+      var restore = function(){ bar.style.width = w; };
+      requestAnimationFrame(function(){ requestAnimationFrame(restore); });
+      setTimeout(restore, 80); // страховка на случай скрытой вкладки
+    });
+  }
+
+  function run(){
+    if(!reduce){
+      body.classList.remove('fx-view');
+      void body.offsetWidth; // сброс анимации, чтобы проиграть заново
+      body.classList.add('fx-view');
+    }
+    growBars();
+    body.querySelectorAll('[data-countup]').forEach(countUp);
+  }
+
+  var pending;
+  new MutationObserver(function(muts){
+    for(var i = 0; i < muts.length; i++){
+      if(muts[i].addedNodes && muts[i].addedNodes.length){
+        clearTimeout(pending);
+        pending = setTimeout(run, 0);
+        return;
+      }
+    }
+  }).observe(body, { childList: true });
+})();
+
 /**
  * Скользящая сессия. Токен живёт 7 дней; /auth/resume при каждом успешном
  * ответе возвращает новый. Раньше свежий токен клали только в S.token и не
@@ -1958,8 +2035,16 @@ function renderHome(){
   var periodOpen = p.state !== 'закрыт';
 
   function stat(val, label, hint, cls){
+    var vHtml;
+    if(typeof val === 'number'){
+      vHtml = '<span data-countup="'+val+'">0</span>';
+    } else if(typeof val === 'string' && /^\d+%$/.test(val)){
+      vHtml = '<span data-countup="'+parseInt(val, 10)+'" data-countup-suffix="%">0%</span>';
+    } else {
+      vHtml = val;
+    }
     return '<div class="home-stat">'+
-      '<div class="home-stat-v">'+val+'</div>'+
+      '<div class="home-stat-v">'+vHtml+'</div>'+
       '<div class="home-stat-l">'+esc(label)+'</div>'+
       (hint ? '<div class="home-stat-h'+(cls ? ' '+cls : '')+'">'+esc(hint)+'</div>' : '')+
     '</div>';
@@ -3836,8 +3921,9 @@ function renderDashKpiRow(sm){
   if(S.dashTab !== 'overview') return '';
   sm = sm || {};
   function tile(label, val, sub, warn){
+    var vHtml = (typeof val === 'number') ? '<span data-countup="'+val+'">0</span>' : val;
     return '<div class="kpi-card"><div class="kpi-t">'+label+'</div>'+
-      '<div class="kpi-v">'+val+'</div>'+
+      '<div class="kpi-v">'+vHtml+'</div>'+
       (sub ? '<div class="kpi-s'+(warn?' is-warn':'')+'">'+sub+'</div>' : '')+
     '</div>';
   }
