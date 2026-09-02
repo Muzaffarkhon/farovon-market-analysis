@@ -114,8 +114,8 @@
       <div class="bar-in" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div class="prog"><b id="progT"></b><i id="progS"></i></div>
         <div style="display:flex;align-items:center;gap:8px">
-          <button id="btnNext" class="btn-line" style="width:auto;min-height:32px;font-size:12.5px;padding:0 14px">Перейти к шагу 2 →</button>
-          <button id="btnSave" class="btn-primary" style="width:auto;min-height:32px;font-size:12.5px;padding:0 16px">Сохранить</button>
+          <button id="btnNext" class="btn-line" style="width:auto;min-height:32px;font-size:13.5px;padding:0 14px">Перейти к шагу 2 →</button>
+          <button id="btnSave" class="btn-primary" style="width:auto;min-height:32px;font-size:13.5px;padding:0 16px">Сохранить</button>
         </div>
       </div>
     </div>
@@ -1340,7 +1340,7 @@ function openPicker(opts){
       h += '<div class="pk-add"><button type="button" class="btn-line" id="pkAdd" '+
         'style="color:var(--accent);border-color:var(--accent)">'+
         '+ Добавить: <b>'+esc(q.value.trim())+'</b></button>'+
-        '<p style="font-size:12.5px;color:var(--muted);margin:8px 2px 0">'+
+        '<p style="font-size:13.5px;color:var(--muted);margin:8px 2px 0">'+
         (opts.addUnit
           ? 'Должность добавится в штатку подразделения «'+esc(opts.addUnit)+'».'
           : 'Значение попадёт в «Справочник» и станет доступно всем.')+'</p></div>';
@@ -1493,7 +1493,7 @@ function renderRail(){
  */
 (function loginScreen(){
   $('loginHelp').innerHTML =
-    '<p style="text-align:center;color:var(--muted);font-size:13px;margin-top:16px">'+
+    '<p style="text-align:center;color:var(--muted);font-size:14px;margin-top:16px">'+
     'Логин и пароль присылает бот. Не приходил — обратитесь к своему HR BP.</p>';
 })();
 
@@ -1878,7 +1878,7 @@ function openPassword(forced){
   el.innerHTML = '<div class="sheet-in">'+
     '<div class="sheet-hd"><b>'+(forced ? 'Требуется сменить пароль' : 'Сменить пароль')+'</b>'+
       (forced ? '' : '<button class="btn-ghost" data-x="1">Закрыть</button>')+'</div>'+
-    (forced ? '<p style="font-size:13px;color:var(--muted);margin:2px 0 10px">Вы вошли по временному паролю. Придумайте свой — без этого продолжить нельзя.</p>' : '')+
+    (forced ? '<p style="font-size:14px;color:var(--muted);margin:2px 0 10px">Вы вошли по временному паролю. Придумайте свой — без этого продолжить нельзя.</p>' : '')+
     '<div id="pwErr" class="err hidden"></div>'+
     '<label class="lbl" style="margin-top:6px">Текущий'+(forced ? ' (временный)' : '')+' пароль</label>'+
     '<input id="pwOld" type="password" autocomplete="current-password">'+
@@ -1888,7 +1888,7 @@ function openPassword(forced){
     '<input id="pwNew2" type="password" autocomplete="new-password">'+
     '<div style="height:16px"></div>'+
     '<button id="pwGo" class="btn-primary">Сменить пароль</button>'+
-    '<p style="font-size:13px;color:var(--muted);margin:14px 0 0;text-align:center">'+
+    '<p style="font-size:14px;color:var(--muted);margin:14px 0 0;text-align:center">'+
       'Запишите новый пароль — восстановить его нельзя,<br>только выдать новый через HR BP.</p>'+
     '</div>';
   document.body.appendChild(el);
@@ -1965,7 +1965,7 @@ function openTelegramLink(){
     box.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 4px 0">'+
         '<div style="width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);'+
           'display:flex;align-items:center;justify-content:center;margin-bottom:12px">'+icBare('link', 24)+'</div>'+
-        '<p style="color:var(--muted);font-size:13.5px;line-height:1.5;margin:0">'+
+        '<p style="color:var(--muted);font-size:14.5px;line-height:1.5;margin:0">'+
           'Откройте бота'+(botUser?' <b>@'+esc(botUser)+'</b>':'')+', наберите <b>/link</b> и нажмите '+
           'кнопку «Отправить номер телефона» — привяжется по номеру из вашего профиля.</p>'+
       '</div>'+
@@ -1973,7 +1973,7 @@ function openTelegramLink(){
       '<a href="https://t.me/'+esc(botUser)+'" target="_blank" class="btn-primary" '+
         'style="display:flex;align-items:center;justify-content:center;text-decoration:none">'+
         'Открыть '+(botUser?'@'+esc(botUser):'бота')+'</a>'+
-      '<p style="color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;text-align:center">'+
+      '<p style="color:var(--muted);font-size:13.5px;line-height:1.5;margin-top:14px;text-align:center">'+
         'Или ссылка с кодом (действует '+r.expiresInMinutes+' минут) — у части клиентов Telegram '+
         'сама подставляет команду, тогда останется нажать «Отправить»:</p>'+
       '<a href="'+esc(r.deepLink)+'" target="_blank" class="btn-line" '+
@@ -2727,8 +2727,8 @@ function renderTabComp(){
 
   var tbHtml = '<div class="search-wrap" style="max-width:240px;width:100%;min-width:160px">'+icBare('search')+
       '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>'+
-    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:12px">' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + '</span>'+
-    (!S.ro && S.rows.length > 0 ? '<button type="button" class="btn-ghost toolbar-act" id="btnMarkAllActual" style="font-size:12px;padding:0 8px;min-height:30px;white-space:nowrap">' +
+    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:13px">' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + '</span>'+
+    (!S.ro && S.rows.length > 0 ? '<button type="button" class="btn-ghost toolbar-act" id="btnMarkAllActual" style="font-size:13px;padding:0 8px;min-height:30px;white-space:nowrap">' +
          (isAllActual ? ic('close', 13) + 'Снять отметку' : ic('check', 13) + 'Отметить все «Актуально»') + '</button>' : '');
   var tbSlot = $('unitHeadToolbar');
   if(tbSlot) tbSlot.innerHTML = tbHtml;
@@ -2778,7 +2778,7 @@ function renderTabComp(){
   h += '</div>';
 
   if(!S.ro){
-    h += '<button id="btnAdd" class="btn-line" style="margin-top:8px;min-height:34px;font-size:12.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
+    h += '<button id="btnAdd" class="btn-line" style="margin-top:8px;min-height:34px;font-size:13.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
   }
 
   h += '<div style="margin-top:14px">';
@@ -2886,9 +2886,9 @@ function rowCard(r, i, isNew){
   h += '</div>';
 
   h += '<div class="more hidden batch-more-panel">';
-  h += '<div style="font-size:11.5px;color:var(--muted);margin:4px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);margin:4px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
   h += chips('type', S.data.ref.types, r.type, false);
-  h += '<div style="font-size:11.5px;color:var(--muted);margin:8px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);margin:8px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
   h += chips('prio', S.data.ref.priorities, r.prio, false);
   h += '<label class="lbl" style="margin-top:8px">Комментарий'+
        (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
@@ -3449,7 +3449,7 @@ function openBatchSurveySheet(posName){
       '<div class="sheet-hd">'+
         '<div>'+
           '<b>Должность: '+esc(posName)+'</b>'+
-          '<div style="font-size:12px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
+          '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
         '</div>'+
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
@@ -3582,7 +3582,7 @@ function openBatchSurveySheet(posName){
     cm.style.zIndex = '9999';
     cm.innerHTML = '<div class="sheet-in um-modal" style="max-width:440px;box-shadow:var(--shadow-lg)">' +
       '<div class="sheet-hd"><b style="color:var(--warn);display:flex;align-items:center;gap:6px">' + ic('warn', 18) + 'Несохранённые изменения</b></div>' +
-      '<p style="font-size:13px;color:var(--muted);margin:12px 0 16px;line-height:1.45">' +
+      '<p style="font-size:14px;color:var(--muted);margin:12px 0 16px;line-height:1.45">' +
         'Вы изменили данные по должности <b>«' + esc(posName) + '»</b>. Сохранить их перед выходом?' +
       '</p>' +
       '<div style="display:flex;flex-direction:column;gap:8px">' +
@@ -4358,7 +4358,7 @@ function salCoRows(pos){
       payStr += ' <small style="color:var(--muted)">(ЧТС ' + esc(String(h)) + ' × 168 ч)</small>';
     }
     var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
-    var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:10.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
+    var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:11.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
     return '<tr>'+
       '<td><b>'+esc(c.company)+'</b><br><small style="color:var(--muted)">'+esc(c.unit)+'</small></td>'+
       '<td>'+payStr+'</td>'+
@@ -4402,7 +4402,7 @@ function salForkCard(pos, idx){
         '<div class="fork-track-p25-p75" style="left:'+p25Pct+'%;width:'+wPct+'%"></div>'+
         '<div class="fork-track-med" style="left:'+medPct+'%"></div>'+
       '</div>'
-    : '<div style="font-size:12.5px;color:var(--muted);margin:6px 0">Нет числовых данных по окладу</div>';
+    : '<div style="font-size:13.5px;color:var(--muted);margin:6px 0">Нет числовых данных по окладу</div>';
 
   return '<div class="fork-box" id="posCard_'+idx+'">'+
     '<div class="fork-hd" onclick="togglePosBody(\''+bodyId+'\')">'+
@@ -4537,8 +4537,8 @@ function donutChart(items){
 function overviewBarRow(name, right, pct, color){
   return '<div class="ov-row" style="display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center;'+
       'padding:9px 4px;border-bottom:1px solid var(--line)">'+
-    '<div style="font-weight:700;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</div>'+
-    '<div style="font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap">'+right+'</div>'+
+    '<div style="font-weight:700;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</div>'+
+    '<div style="font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap">'+right+'</div>'+
     '<div class="ov-track" style="grid-column:1/-1;height:6px;border-radius:4px;background:var(--card-2)">'+
       '<div class="ov-fill" style="height:100%;border-radius:4px;width:'+Math.max(2, Math.min(100, pct))+'%;background:'+(color||'var(--accent)')+'"></div>'+
     '</div>'+
@@ -4589,7 +4589,7 @@ function renderOverviewTab(d){
       cardHd('Записи по направлениям', dirArr.length + ' ' + declOfNum(dirArr.length, ['направление','направления','направлений']))+
       '<div style="display:flex;gap:12px;align-items:center;padding:12px 14px;flex-wrap:wrap">'+
         donutChart(donutItems)+
-        '<div style="flex:1;min-width:130px;font-size:11.5px;font-weight:600">'+
+        '<div style="flex:1;min-width:130px;font-size:12.5px;font-weight:600">'+
           donutItems.map(function(it){
             return '<div style="display:flex;align-items:center;gap:7px;padding:3px 0">'+
               '<span style="width:10px;height:10px;border-radius:3px;flex:none;background:'+it.color+'"></span>'+
@@ -4626,7 +4626,7 @@ function renderOverviewTab(d){
         Math.min(100, Math.abs(p.gapPct) * 2.5), behind ? 'var(--no)' : 'var(--ok)');
     });
   } else {
-    h += '<div style="font-size:11.5px;color:var(--muted);padding:10px 2px;line-height:1.45">'+
+    h += '<div style="font-size:12.5px;color:var(--muted);padding:10px 2px;line-height:1.45">'+
       'Заполните оклады Фаровона по должностям: Справочники → Должности. Тогда здесь будет отставание/опережение к медиане рынка.</div>';
   }
   h += '</div></div>';
@@ -4647,7 +4647,7 @@ function renderOverviewTab(d){
   h += '<div class="card" style="padding:0;overflow:hidden">'+
     cardHd('Внешний бенчмаркинг', 'B1, Antal, Job Farovon')+
     '<div style="padding:12px 14px">'+
-      '<div style="font-size:12.5px;color:var(--muted);line-height:1.45;margin-bottom:10px">'+
+      '<div style="font-size:13.5px;color:var(--muted);line-height:1.45;margin-bottom:10px">'+
         'Мультиисточниковое сопоставление вилок Фаровона с рыночными перцентилями P25–P75 и сводной медианой.'+
       '</div>'+
       '<button class="btn-line bmk-goto" onclick="openBenchmarks()">'+
@@ -4702,7 +4702,7 @@ function renderSalariesTab(positions){
     h += '<div class="sal-unmapped-banner">'+ic('warn', 15)+
       '<span><b>'+unmappedCnt+'</b> '+declOfNum(unmappedCnt, ['запись','записи','записей'])+
       ' без сопоставленной должности — в вилки не входят</span>'+
-      '<button class="btn-line" id="salToReg" style="margin-left:auto;min-height:30px;padding:0 12px;font-size:12px;white-space:nowrap">Открыть в реестре</button>'+
+      '<button class="btn-line" id="salToReg" style="margin-left:auto;min-height:30px;padding:0 12px;font-size:13px;white-space:nowrap">Открыть в реестре</button>'+
     '</div>';
   }
 
@@ -4765,7 +4765,7 @@ function renderSalariesTab(positions){
         (hasOur ? '<div class="rbar-our" style="left:'+pcOf(p.ourMid).toFixed(1)+'%" title="Фаровон: '+p.ourMid.toLocaleString('ru-RU')+'"></div>' : '')+
       '</div>';
     } else {
-      bar = '<span style="color:var(--muted);font-size:12px">нет числовых данных</span>';
+      bar = '<span style="color:var(--muted);font-size:13px">нет числовых данных</span>';
     }
     var gapCell = (p.gapPct == null)
       ? '<span style="color:var(--muted)">—</span>'
@@ -4783,7 +4783,7 @@ function renderSalariesTab(positions){
     '</tr>'+
     '<tr class="sal-detail hidden"><td colspan="8">'+
       (has ? salForkNums(p) : '')+
-      (hasOur ? '<div style="font-size:12px;margin:6px 0;color:var(--muted)">Оклад Фаровона по этой должности: <b>'+
+      (hasOur ? '<div style="font-size:13px;margin:6px 0;color:var(--muted)">Оклад Фаровона по этой должности: <b>'+
         (p.ourFrom ? p.ourFrom.toLocaleString('ru-RU') : '—')+' – '+(p.ourTo ? p.ourTo.toLocaleString('ru-RU') : '—')+' c</b>'+
         (p.gapPct != null ? ' · гэп к медиане рынка: <b style="color:'+(p.gapPct < 0 ? 'var(--no)' : 'var(--ok)')+'">'+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>' : '')+
       '</div>' : '')+
@@ -4925,7 +4925,7 @@ function renderRegistryTab(rows){
   h += '<div class="toolbar" style="margin-bottom:8px;gap:6px;display:flex;align-items:center;flex-wrap:wrap">'+
     '<div class="search-wrap" style="flex:1 1 220px;min-width:180px;max-width:320px">'+icBare('search')+
       '<input id="regSearch" placeholder="Поиск: компания, должность, кто собрал…" value="'+esc(S.dashRegSearch)+'"></div>'+
-    '<button id="regUnmap" class="btn-line" style="min-height:32px;font-size:12.5px;padding:0 12px;white-space:nowrap'+
+    '<button id="regUnmap" class="btn-line" style="min-height:32px;font-size:13.5px;padding:0 12px;white-space:nowrap'+
       (S.dashRegUnmapped ? ';border-color:var(--accent);color:var(--accent);background:var(--accent-soft)' : '')+'">'+
       ic('warn', 14)+'Только несопоставленные ('+unmappedTotal+')</button>'+
     tblCount(filtered.length, rows.length, ['запись', 'записи', 'записей'])+
@@ -4948,10 +4948,10 @@ function renderRegistryTab(rows){
     var hourly = regIsHourly(r);
     var per = regPerLabel(r);
     var payFromCell = hourly
-      ? '<span class="pill p-mid" style="font-size:10.5px">'+esc(String(r.payFrom))+'</span>'
+      ? '<span class="pill p-mid" style="font-size:11.5px">'+esc(String(r.payFrom))+'</span>'
       : (r.payFrom ? Number(r.payFrom).toLocaleString('ru-RU') : '—');
     var ourCell = regIsUnmapped(r)
-      ? '<span class="pill p-mid" style="font-size:10.5px">не сопоставлено</span>'
+      ? '<span class="pill p-mid" style="font-size:11.5px">не сопоставлено</span>'
       : esc(r.posOur);
     var benN = (r.benefits || []).length;
     h += '<tr class="reg-row" data-reg="'+idx+'">'+
@@ -4965,8 +4965,8 @@ function renderRegistryTab(rows){
       '<td class="num">'+(r.payTo ? Number(r.payTo).toLocaleString('ru-RU') : '—')+'</td>'+
       '<td><span style="white-space:nowrap">'+esc(per)+'</span></td>'+
       '<td class="num">'+(r.bonSize ? esc(r.bonSize) : '<span style="color:var(--muted)">—</span>')+'</td>'+
-      '<td>'+(benN ? '<span class="pill p-ok" style="font-size:10.5px">'+benN+'</span>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
-      '<td><span class="btn-link" style="font-size:11.5px;white-space:nowrap;color:var(--accent);cursor:pointer">открыть ›</span></td>'+
+      '<td>'+(benN ? '<span class="pill p-ok" style="font-size:11.5px">'+benN+'</span>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
+      '<td><span class="btn-link" style="font-size:12.5px;white-space:nowrap;color:var(--accent);cursor:pointer">открыть ›</span></td>'+
     '</tr>';
   });
 
@@ -4987,11 +4987,11 @@ function renderRegistryTab(rows){
     h += '<div class="rcard reg-row" data-reg="'+idx+'" style="cursor:pointer">'+
       '<div class="rcard-hd">'+
         '<b class="rcard-title" title="'+esc(r.company || '')+'">'+esc(r.company || '—')+'</b>'+
-        '<span class="pill '+(hourly?'p-mid':'p-ok')+'" style="font-size:10.5px">'+esc(pay)+' '+esc(regPerLabel(r).split(' / ')[1] || '')+'</span>'+
+        '<span class="pill '+(hourly?'p-mid':'p-ok')+'" style="font-size:11.5px">'+esc(pay)+' '+esc(regPerLabel(r).split(' / ')[1] || '')+'</span>'+
       '</div>'+
       '<div class="rcard-meta">'+
         (regIsUnmapped(r)
-          ? '<span class="pill p-mid" style="font-size:10px">не сопоставлено</span> '
+          ? '<span class="pill p-mid" style="font-size:11px">не сопоставлено</span> '
           : '<b style="color:var(--text)">'+esc(r.posOur)+'</b> ')+
         '← '+esc(r.posTheir || '—')+
       '</div>'+
@@ -5006,13 +5006,13 @@ function renderRegistryTab(rows){
   // Пагинация
   if(totalPages > 1){
     h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;flex-wrap:wrap">'+
-      '<span style="font-size:12px;color:var(--muted)">'+
+      '<span style="font-size:13px;color:var(--muted)">'+
         ((pg - 1) * REG_PER_PAGE + 1)+'–'+Math.min(pg * REG_PER_PAGE, filtered.length)+' из '+filtered.length+
       '</span>'+
       '<div style="display:flex;gap:4px">'+
-        '<button class="btn-line" id="regPrev" style="min-height:30px;padding:0 10px;font-size:12px"'+(pg <= 1 ? ' disabled' : '')+'>‹ Назад</button>'+
-        '<span style="font-size:12px;color:var(--muted);align-self:center;padding:0 6px">стр. '+pg+' / '+totalPages+'</span>'+
-        '<button class="btn-line" id="regNext" style="min-height:30px;padding:0 10px;font-size:12px"'+(pg >= totalPages ? ' disabled' : '')+'>Вперёд ›</button>'+
+        '<button class="btn-line" id="regPrev" style="min-height:30px;padding:0 10px;font-size:13px"'+(pg <= 1 ? ' disabled' : '')+'>‹ Назад</button>'+
+        '<span style="font-size:13px;color:var(--muted);align-self:center;padding:0 6px">стр. '+pg+' / '+totalPages+'</span>'+
+        '<button class="btn-line" id="regNext" style="min-height:30px;padding:0 10px;font-size:13px"'+(pg >= totalPages ? ' disabled' : '')+'>Вперёд ›</button>'+
       '</div>'+
     '</div>';
   }
@@ -5070,17 +5070,17 @@ function openSurveyRecModal(r){
     : '<span style="color:var(--muted)">не указан</span>';
   var chips = (r.benefits || []).length
     ? '<div style="display:flex;flex-wrap:wrap;gap:5px">' + r.benefits.map(function(b){
-        return '<span class="pill p-ok" style="font-size:10.5px">'+esc(b)+'</span>';
+        return '<span class="pill p-ok" style="font-size:11.5px">'+esc(b)+'</span>';
       }).join('') + '</div>'
     : '<span style="color:var(--muted)">не указаны</span>';
   var ourVal = regIsUnmapped(r)
-    ? '<span class="pill p-mid" style="font-size:11px">не сопоставлено</span>'
+    ? '<span class="pill p-mid" style="font-size:12px">не сопоставлено</span>'
     : esc(r.posOur);
 
   function row(dt, dd){
     return '<div style="display:grid;grid-template-columns:130px 1fr;gap:2px 14px;padding:8px 0;border-bottom:1px solid var(--line)">'+
-      '<div style="color:var(--muted);font-weight:700;font-size:12px">'+dt+'</div>'+
-      '<div style="font-weight:600;font-size:12.5px">'+dd+'</div></div>';
+      '<div style="color:var(--muted);font-weight:700;font-size:13px">'+dt+'</div>'+
+      '<div style="font-weight:600;font-size:13.5px">'+dd+'</div></div>';
   }
 
   var el = document.createElement('div');
@@ -5088,10 +5088,10 @@ function openSurveyRecModal(r){
   el.innerHTML = '<div class="sheet-in um-modal" style="max-width:560px">'+
     '<div class="sheet-hd"><b>'+esc(r.posTheir || 'Наблюдение')+'</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<div style="font-size:12px;color:var(--muted);margin:-6px 0 8px">'+
+    '<div style="font-size:13px;color:var(--muted);margin:-6px 0 8px">'+
       esc(r.company || '—')+' · '+esc(r.region || '—')+' · '+regDate(r.date)+'</div>'+
     '<div style="padding:2px 0 4px">'+
-      row('Оклад', '<b style="font-size:15px">'+pay+'</b> <span style="font-size:12px;color:var(--muted)">'+esc(per)+'</span>')+
+      row('Оклад', '<b style="font-size:15px">'+pay+'</b> <span style="font-size:13px;color:var(--muted)">'+esc(per)+'</span>')+
       (regIsHourly(r) ? row('Внимание', '<span style="color:var(--warn)">Часовая ставка — в месячные медианы не входит</span>') : '')+
       row('Наша должность', ourVal)+
       row('Направление', esc(r.dir || '—'))+
@@ -5161,7 +5161,7 @@ function renderRegionsTab(rows){
 
   var h = '<div class="dash-tab-scroll">';
   h += '<div class="sec-title" style="margin-top:2px">Зарплаты по регионам ('+rows.length+') · месячный эквивалент, сомони</div>';
-  h += '<div style="font-size:11.5px;color:var(--muted);margin:2px 2px 8px;display:flex;gap:14px;flex-wrap:wrap">'+
+  h += '<div style="font-size:12.5px;color:var(--muted);margin:2px 2px 8px;display:flex;gap:14px;flex-wrap:wrap">'+
     '<span><span class="rbar-lg-cor"></span> коридор P25–P75</span>'+
     '<span><span class="rbar-lg-med"></span> медиана</span>'+
   '</div>';
@@ -5181,7 +5181,7 @@ function renderRegionsTab(rows){
           '<div class="rbar-cor" style="left:'+pc(r.p25).toFixed(1)+'%;width:'+Math.max(2, pc(r.p75) - pc(r.p25)).toFixed(1)+'%"></div>'+
           '<div class="rbar-med" style="left:'+pc(r.median).toFixed(1)+'%"></div>'+
         '</div>'
-      : '<span style="color:var(--muted);font-size:12px">нет числовых данных</span>';
+      : '<span style="color:var(--muted);font-size:13px">нет числовых данных</span>';
     h += '<tr>'+
       '<td><b>'+esc(r.region)+'</b></td>'+
       '<td class="num">'+r.count+'</td>'+
@@ -5802,7 +5802,7 @@ function openUserModal(login){
     '</div>'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">'+
       '<div class="sec-title" style="margin:0">Закрепленные подразделения</div>'+
-      '<label class="checkline" style="font-size:12px;cursor:pointer;user-select:none;color:var(--text);display:inline-flex;align-items:center;gap:6px">'+
+      '<label class="checkline" style="font-size:13px;cursor:pointer;user-select:none;color:var(--text);display:inline-flex;align-items:center;gap:6px">'+
         '<input type="checkbox" id="umOnlyChecked"> Показать только закреплённые'+
       '</label>'+
     '</div>'+
@@ -6050,7 +6050,7 @@ function renderAdminArchive(){
 
 // ─── Вкладка: Оргструктура ───
 function loadAdminDivisions(){
-  $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px">Загрузка оргструктуры...</div>';
+  $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка оргструктуры...</div>';
   call('apiAdminGetDivisions', S.token).then(function(r){
     if(!r || !r.ok){
       var msg = (r && (r.message || r.error)) || 'Ошибка загрузки оргструктуры';
@@ -6160,8 +6160,8 @@ function batchAssignDirection(dir, roleType){
 
   ask({
     title: title,
-    html: '<p style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Назначение применится ко всем отделам направления <b>«' + esc(dir) + '»</b> каскадно.</p>' +
-      '<select id="batchPersonSelect" style="width:100%;height:36px;font-size:13px;border-radius:6px;border:1px solid var(--line);padding:0 8px">' +
+    html: '<p style="font-size:13.5px;color:var(--muted);margin-bottom:8px">Назначение применится ко всем отделам направления <b>«' + esc(dir) + '»</b> каскадно.</p>' +
+      '<select id="batchPersonSelect" style="width:100%;height:36px;font-size:14px;border-radius:6px;border:1px solid var(--line);padding:0 8px">' +
         '<option value="">-- Выберите сотрудника --</option>' + options +
       '</select>',
     ok: 'Применить ко всем отделам'
@@ -6453,14 +6453,14 @@ function renderAdminDivisions(){
                 '<div class="org-root-card org-control-card' + (isAuditActive ? ' is-active-card' : '') + '" draggable="true" data-org-type="unit" data-dir="'+esc(auditDir)+'" data-u="'+esc(auditUnitName)+'" title="Служба внутреннего аудита — независимый орган контроля СД (клик — открыть состав)">'+
                   '<div style="width:100%">'+
                     '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">'+
-                      '<div class="org-root-title" style="font-size:12.5px;height:auto;min-height:auto">'+esc(auditUnitName)+'</div>'+
+                      '<div class="org-root-title" style="font-size:13.5px;height:auto;min-height:auto">'+esc(auditUnitName)+'</div>'+
                       '<span style="font-size:9px;font-weight:700;color:var(--no);background:var(--no-soft);padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.03em;flex-shrink:0">Контроль СД</span>'+
                     '</div>'+
                     '<div style="display:flex;align-items:center;gap:10px">'+
                       '<div class="org-root-avatar" style="width:34px;height:34px;background:var(--no-soft);color:var(--no)">'+getInitials(auditHead || auditUnitName)+'</div>'+
                       '<div style="overflow:hidden;flex:1">'+
-                        '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(auditHead ? esc(auditHead) : 'Руководитель не назначен')+'</div>'+
-                        '<div style="font-size:10.5px;color:var(--muted)">Служба аудита</div>'+
+                        '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(auditHead ? esc(auditHead) : 'Руководитель не назначен')+'</div>'+
+                        '<div style="font-size:11.5px;color:var(--muted)">Служба аудита</div>'+
                       '</div>'+
                     '</div>'+
                   '</div>'+
@@ -6640,7 +6640,7 @@ function renderAdminDivisions(){
 
     // 3. Плавающий фиксированный виджет зума (неподвижен при скролле и зуме)
     h += '<div class="org-bottom-zoom-pill">'+
-      '<button class="btn-ghost" id="btnFindMe" style="padding:2px 8px;min-height:26px;font-size:11.5px;font-weight:600;color:var(--accent)">Найти меня</button>'+
+      '<button class="btn-ghost" id="btnFindMe" style="padding:2px 8px;min-height:26px;font-size:12.5px;font-weight:600;color:var(--accent)">Найти меня</button>'+
       '<div style="width:1px;height:16px;background:var(--line);margin:0 2px"></div>'+
       '<button class="org-zoom-btn" id="btnZoomOut" title="Уменьшить">−</button>'+
       '<span class="org-zoom-pct" id="btnZoomReset" title="Сбросить к 100%">'+Math.round(S.orgZoom * 100)+'%</span>'+
@@ -6682,7 +6682,7 @@ function renderAdminDivisions(){
         '<div class="org-drawer-header">'+
           '<div>'+
             '<div class="org-drawer-title">'+esc(selTitle)+'</div>'+
-            '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+esc(selNode && selNode.dir ? selNode.dir : 'Направление')+ '</div>'+
+            '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+esc(selNode && selNode.dir ? selNode.dir : 'Направление')+ '</div>'+
           '</div>'+
           '<div style="display:flex;align-items:center;gap:4px">'+
             '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:4px 8px;min-height:28px">' + ic('pencil', 13) + '</button>'+
@@ -6698,7 +6698,7 @@ function renderAdminDivisions(){
 
         '<div class="org-drawer-search">'+
           '<div class="search-wrap" style="width:100%">'+icBare('search', 13)+
-            '<input id="staffSearch" placeholder="Найти по имени или должности…" value="'+esc(staffSearch)+'" style="height:32px;font-size:12px"></div>'+
+            '<input id="staffSearch" placeholder="Найти по имени или должности…" value="'+esc(staffSearch)+'" style="height:32px;font-size:13px"></div>'+
         '</div>'+
 
         '<div class="org-drawer-body">'+
@@ -6709,17 +6709,17 @@ function renderAdminDivisions(){
               return '<div class="org-staff-row org-leader-drop-zone" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" data-drop-role="'+(ldr.roleType||'head')+'" title="Зажмите для переноса или перетащите сюда сотрудника для смены руководителя">'+
                 '<div class="org-avatar-circle" style="background:var(--accent)">'+getInitials(ldr.fio)+'</div>'+
                 '<div style="flex:1;overflow:hidden">'+
-                  '<div style="font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
+                  '<div style="font-size:13.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
                     esc(ldr.fio)+
                     '<span class="org-badge-role">'+esc(ldr.badge)+'</span>'+
                   '</div>'+
-                  '<div style="font-size:11px;color:var(--muted)">'+esc(ldr.role)+'</div>'+
+                  '<div style="font-size:12px;color:var(--muted)">'+esc(ldr.role)+'</div>'+
                 '</div>'+
                 '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
               '</div>';
             }).join('') :
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители</div>'+
-            '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm);padding:16px 12px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
+            '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm);padding:16px 12px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
           )+
 
           // Подчинённые / Все сотрудники
@@ -6728,12 +6728,12 @@ function renderAdminDivisions(){
             return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или на руководителя вверху">'+
               '<div class="org-avatar-circle" style="background:var(--subtle)">'+getInitials(u.fio)+'</div>'+
               '<div style="flex:1;overflow:hidden">'+
-                '<div style="font-size:12px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
-                '<div style="font-size:11px;color:var(--muted)">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
+                '<div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
+                '<div style="font-size:12px;color:var(--muted)">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
               '</div>'+
               '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
             '</div>';
-          }).join('') : '<p style="padding:12px;color:var(--muted);font-size:12px;text-align:center">Сотрудники не найдены</p>')+
+          }).join('') : '<p style="padding:12px;color:var(--muted);font-size:13px;text-align:center">Сотрудники не найдены</p>')+
 
         '</div>'+
       '</div>'; // org-drawer-body, org-right-drawer end
@@ -6762,7 +6762,7 @@ function renderAdminDivisions(){
             '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
             '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
             '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
-            '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:12px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
+            '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:13px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
           '</tr>';
         }).join('')+
       '</tbody></table></div></div>';
@@ -7430,47 +7430,47 @@ function openStaffModal(unitName){
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in dlg" style="max-width:480px">'+
     '<div class="sheet-hd">'+
-      '<div><b>'+esc(d.unit)+'</b><div style="font-size:12px;color:var(--muted);font-weight:400">'+esc(d.dir || 'Без направления')+'</div></div>'+
+      '<div><b>'+esc(d.unit)+'</b><div style="font-size:13px;color:var(--muted);font-weight:400">'+esc(d.dir || 'Без направления')+'</div></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button>'+
     '</div>'+
     (d.parent_unit ?
       '<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);padding:6px 10px;border-radius:6px;margin:8px 0">'+
-        '<span style="font-size:11.5px;color:var(--text)">Подотдел внутри: <b>«'+esc(d.parent_unit)+'»</b></span>'+
-        '<button type="button" id="btnDetachInModal" class="btn-line" style="font-size:11px;min-height:24px;padding:0 8px;border-color:var(--accent);color:var(--accent)">Открепить на Уровень 3</button>'+
+        '<span style="font-size:12.5px;color:var(--text)">Подотдел внутри: <b>«'+esc(d.parent_unit)+'»</b></span>'+
+        '<button type="button" id="btnDetachInModal" class="btn-line" style="font-size:12px;min-height:24px;padding:0 8px;border-color:var(--accent);color:var(--accent)">Открепить на Уровень 3</button>'+
       '</div>' : '')+
-    '<div style="margin:12px 0 6px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Ответственные лица</div>'+
+    '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Ответственные лица</div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:11px">'+getInitials(d.head || 'Р')+'</div>'+
+        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:12px">'+getInitials(d.head || 'Р')+'</div>'+
         '<div style="flex:1">'+
-          '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+(d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted)">Руководитель отдела</div>'+
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
+          '<div style="font-size:12px;color:var(--muted)">Руководитель отдела</div>'+
         '</div>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:11px">'+getInitials(d.resp || 'О')+'</div>'+
+        '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:12px">'+getInitials(d.resp || 'О')+'</div>'+
         '<div style="flex:1">'+
-          '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+(d.resp ? esc(d.resp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted)">Ответственный за обзор рынка</div>'+
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.resp ? esc(d.resp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
+          '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка</div>'+
         '</div>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:11px">'+getInitials(d.hrbp || 'H')+'</div>'+
+        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:12px">'+getInitials(d.hrbp || 'H')+'</div>'+
         '<div style="flex:1">'+
-          '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted)">HR BP направления</div>'+
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
+          '<div style="font-size:12px;color:var(--muted)">HR BP направления</div>'+
         '</div>'+
       '</div>'+
     '</div>'+
     (uStaff.length ?
-      '<div style="margin:12px 0 6px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Сотрудники отдела ('+uStaff.length+')</div>'+
+      '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Сотрудники отдела ('+uStaff.length+')</div>'+
       '<div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:14px">'+
         uStaff.map(function(u){
           return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px">'+
-            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:10px">'+getInitials(u.fio)+'</div>'+
+            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:11px">'+getInitials(u.fio)+'</div>'+
             '<div style="flex:1;overflow:hidden">'+
-              '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
-              '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+
+              '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
+              '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+
             '</div>'+
           '</div>';
         }).join('')+
@@ -7525,43 +7525,43 @@ function openDirStaffModal(dirName){
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in dlg" style="max-width:500px">'+
     '<div class="sheet-hd">'+
-      '<div><b>'+esc(dirName)+'</b><div style="font-size:12px;color:var(--muted);font-weight:400">Направление • '+dList.length+' подразделений</div></div>'+
+      '<div><b>'+esc(dirName)+'</b><div style="font-size:13px;color:var(--muted);font-weight:400">Направление • '+dList.length+' подразделений</div></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button>'+
     '</div>'+
-    '<div style="margin:12px 0 6px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Руководство направления</div>'+
+    '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Руководство направления</div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:11px">'+getInitials(dirHead || 'Р')+'</div>'+
+        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:12px">'+getInitials(dirHead || 'Р')+'</div>'+
         '<div style="flex:1">'+
-          '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+(dirHead ? esc(dirHead) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted)">Руководитель направления</div>'+
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(dirHead ? esc(dirHead) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
+          '<div style="font-size:12px;color:var(--muted)">Руководитель направления</div>'+
         '</div>'+
       '</div>'+
       (dirResp ?
         '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-          '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:11px">'+getInitials(dirResp)+'</div>'+
+          '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:12px">'+getInitials(dirResp)+'</div>'+
           '<div style="flex:1">'+
-            '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+esc(dirResp)+'</div>'+
-            '<div style="font-size:11px;color:var(--muted)">Ответственный за обзор рынка аппарата</div>'+
+            '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+esc(dirResp)+'</div>'+
+            '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка аппарата</div>'+
           '</div>'+
         '</div>' : '')+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:11px">'+getInitials(dirHrbp || 'H')+'</div>'+
+        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:12px">'+getInitials(dirHrbp || 'H')+'</div>'+
         '<div style="flex:1">'+
-          '<div style="font-size:12.5px;font-weight:600;color:var(--text)">'+(dirHrbp ? esc(dirHrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:11px;color:var(--muted)">HR BP направления</div>'+
+          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(dirHrbp ? esc(dirHrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
+          '<div style="font-size:12px;color:var(--muted)">HR BP направления</div>'+
         '</div>'+
       '</div>'+
     '</div>'+
     (dirStaff.length ?
-      '<div style="margin:12px 0 6px 0;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Сотрудники аппарата ('+dirStaff.length+')</div>'+
+      '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Сотрудники аппарата ('+dirStaff.length+')</div>'+
       '<div style="max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:14px">'+
         dirStaff.map(function(u){
           return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px">'+
-            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:10px">'+getInitials(u.fio)+'</div>'+
+            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:11px">'+getInitials(u.fio)+'</div>'+
             '<div style="flex:1;overflow:hidden">'+
-              '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
-              '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+
+              '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
+              '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+
             '</div>'+
           '</div>';
         }).join('')+
@@ -8063,7 +8063,7 @@ function drawDeptAssign(){
         '<input id="deptSearch" placeholder="Поиск по отделу, ответственным…" value="'+esc(search)+'"></div>'+
       tblCount(filtered.length, divs.length, ['отдел', 'отдела', 'отделов'])+
     '</div>'+
-    '<button id="btnBulkAssign" class="btn-primary toolbar-act" style="min-height:32px;font-size:12.5px;padding:0 14px;white-space:nowrap">'+
+    '<button id="btnBulkAssign" class="btn-primary toolbar-act" style="min-height:32px;font-size:13.5px;padding:0 14px;white-space:nowrap">'+
       ic('users', 14)+'Назначить на все отделы'+
     '</button>'+
   '</div>';
@@ -8084,7 +8084,7 @@ function drawDeptAssign(){
           '</button>'+
         '</td>'+
         '<td style="text-align:center">'+
-          '<button class="btn-ghost" data-u="'+esc(d.unit)+'" title="Детальные настройки (руководитель, ответственный, заметка)" style="border:1px solid var(--line);min-height:32px;padding:0 8px;font-size:12px">'+ic('pencil', 13)+'</button>'+
+          '<button class="btn-ghost" data-u="'+esc(d.unit)+'" title="Детальные настройки (руководитель, ответственный, заметка)" style="border:1px solid var(--line);min-height:32px;padding:0 8px;font-size:13px">'+ic('pencil', 13)+'</button>'+
         '</td>'+
       '</tr>';
     }).join('') : '<tr><td colspan="4"><div class="empty">Ничего не найдено</div></td></tr>')+
@@ -8099,7 +8099,7 @@ function drawDeptAssign(){
     return '<div class="rcard'+(isAssigned?'':' is-warn')+'">'+
       '<div class="rcard-hd">'+
         '<b class="rcard-title" title="'+nm+'">'+nm+'</b>'+
-        '<button class="btn-ghost" data-u="'+nm+'" title="Детальные настройки" style="border:1px solid var(--line);min-height:28px;padding:0 8px;font-size:12px;flex:none">'+ic('pencil', 13)+'</button>'+
+        '<button class="btn-ghost" data-u="'+nm+'" title="Детальные настройки" style="border:1px solid var(--line);min-height:28px;padding:0 8px;font-size:13px;flex:none">'+ic('pencil', 13)+'</button>'+
       '</div>'+
       '<div class="rcard-sub">'+(isAssigned
         ? '<span style="font-weight:600">'+esc(curAssignee)+'</span>'
@@ -8190,7 +8190,7 @@ function openBulkDeptAssignModal(myDir, employees){
   el.innerHTML = '<div class="sheet-in dlg" style="max-width:440px">'+
     '<div class="sheet-hd"><b>Массовое назначение ответственного</b>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<p class="dlg-x" style="font-size:13px;color:var(--muted);margin-bottom:12px">'+
+    '<p class="dlg-x" style="font-size:14px;color:var(--muted);margin-bottom:12px">'+
       'Сотрудник будет назначен ответственным на все <b>'+divs.length+' '+declOfNum(divs.length, ['отдел', 'отдела', 'отделов'])+'</b> направления «'+esc(myDir)+'».'+
     '</p>'+
     '<label class="lbl">Сотрудник *</label>'+
@@ -8535,7 +8535,7 @@ function openDictItem(name){
       '<button type="button" class="pick" id="dcDirsBtn"><span id="dcDirsTxt"></span>'+
         icBare('chevron', 16)+'</button>'+
       '<div id="dcDirs" class="chips chips--ro"></div>'+
-      '<p style="font-size:12.5px;color:var(--muted);margin:8px 2px 0">'+(kind === 'companies'
+      '<p style="font-size:13.5px;color:var(--muted);margin:8px 2px 0">'+(kind === 'companies'
         ? 'Компания попадёт в карту тех направлений, что отмечены.'
         : 'Должность попадёт в штатку подразделений этих направлений.')+'</p>';
   }
@@ -8546,7 +8546,7 @@ function openDictItem(name){
         '<div><input id="dcPayFrom" type="number" inputmode="numeric" min="0" placeholder="от" value="'+(cur.payFrom || '')+'"></div>'+
         '<div><input id="dcPayTo" type="number" inputmode="numeric" min="0" placeholder="до" value="'+(cur.payTo || '')+'"></div>'+
       '</div>'+
-      '<p style="font-size:12.5px;color:var(--muted);margin:6px 2px 0">Используется на дашборде вилок для колонок «Мы» и «Гэп к рынку». Пусто — сравнения не будет.</p>';
+      '<p style="font-size:13.5px;color:var(--muted);margin:6px 2px 0">Используется на дашборде вилок для колонок «Мы» и «Гэп к рынку». Пусто — сравнения не будет.</p>';
   }
 
   el.innerHTML = '<div class="sheet-in">'+
@@ -9004,8 +9004,8 @@ function showImportReport(fileName, csv, res){
   function kpi(label, val, hint){
     return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0">'+
       '<div style="font-size:20px;font-weight:700;line-height:1.1">'+val+'</div>'+
-      '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">'+esc(label)+'</div>'+
-      (hint ? '<div style="font-size:11px;color:var(--accent);margin-top:2px">'+esc(hint)+'</div>' : '')+
+      '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+esc(label)+'</div>'+
+      (hint ? '<div style="font-size:12px;color:var(--accent);margin-top:2px">'+esc(hint)+'</div>' : '')+
     '</div>';
   }
 
@@ -9031,8 +9031,8 @@ function showImportReport(fileName, csv, res){
 
   // распределение по подразделениям
   if(r.unitsList && r.unitsList.length){
-    h += '<details style="margin-bottom:10px"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Подразделения ('+r.unitsList.length+')'+(r.unitsNew && r.unitsNew.length ? ' — будет создано новых: '+r.unitsNew.length : '')+'</summary>'+
-      '<div style="font-size:12px;padding:6px 0 0;line-height:1.6">'+r.unitsList.map(function(u){
+    h += '<details style="margin-bottom:10px"><summary style="cursor:pointer;font-size:13.5px;color:var(--muted)">Подразделения ('+r.unitsList.length+')'+(r.unitsNew && r.unitsNew.length ? ' — будет создано новых: '+r.unitsNew.length : '')+'</summary>'+
+      '<div style="font-size:13px;padding:6px 0 0;line-height:1.6">'+r.unitsList.map(function(u){
         var isNew = (r.unitsNew || []).indexOf(u) >= 0;
         return '<span class="badge '+(isNew?'b-user':'b-cb')+'" style="margin:0 4px 4px 0;display:inline-block">'+esc(u)+(isNew?' • новое':'')+'</span>';
       }).join('')+'</div></details>';
@@ -9040,7 +9040,7 @@ function showImportReport(fileName, csv, res){
 
   // пропущенные ячейки
   if(issues.length){
-    h += '<div style="font-weight:600;font-size:12.5px;margin:8px 0 4px">Пропущенные ячейки ('+r.cellIssues+(issues.length < r.cellIssues ? ', показаны первые '+issues.length : '')+')</div>'+
+    h += '<div style="font-weight:600;font-size:13.5px;margin:8px 0 4px">Пропущенные ячейки ('+r.cellIssues+(issues.length < r.cellIssues ? ', показаны первые '+issues.length : '')+')</div>'+
       '<div class="tblwrap" style="max-height:180px;margin-bottom:10px"><table class="co-tbl"><thead><tr>'+
       '<th>Строка</th><th>Колонка</th><th>Значение</th><th>Причина</th></tr></thead><tbody>'+
       issues.map(function(c){
@@ -9050,20 +9050,20 @@ function showImportReport(fileName, csv, res){
 
   // строки без компании
   if(r.skippedRows && r.skippedRows.length){
-    h += '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Отбраковано строк: '+
+    h += '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Отбраковано строк: '+
       r.skippedRows.map(function(s){ return 'стр.'+s.row+' ('+esc(s.reason)+')'; }).join(', ')+'</div>';
   }
 
   // дубли в базе + выбор действия
   var dupAction = 'skip';
   if(dups.length){
-    h += '<div style="font-weight:600;font-size:12.5px;margin:8px 0 4px">Уже есть в системе ('+r.duplicatesInDb+(dups.length < r.duplicatesInDb ? ', показаны первые '+dups.length : '')+')</div>'+
+    h += '<div style="font-weight:600;font-size:13.5px;margin:8px 0 4px">Уже есть в системе ('+r.duplicatesInDb+(dups.length < r.duplicatesInDb ? ', показаны первые '+dups.length : '')+')</div>'+
       '<div class="tblwrap" style="max-height:150px;margin-bottom:8px"><table class="co-tbl"><thead><tr>'+
       '<th>Строка</th><th>Подразделение</th><th>Компания</th><th>Должность</th><th class="num">Зарплата</th></tr></thead><tbody>'+
       dups.map(function(d){
         return '<tr><td class="num">'+d.row+'</td><td>'+esc(d.unit)+'</td><td>'+esc(d.company)+'</td><td>'+esc(d.pos_their)+'</td><td class="num">'+d.pay_from+'</td></tr>';
       }).join('')+'</tbody></table></div>'+
-      '<div style="display:flex;gap:14px;font-size:12.5px;margin-bottom:12px">'+
+      '<div style="display:flex;gap:14px;font-size:13.5px;margin-bottom:12px">'+
         '<label class="checkline" style="cursor:pointer"><input type="radio" name="impDup" value="skip" checked> Пропустить дубли</label>'+
         '<label class="checkline" style="cursor:pointer"><input type="radio" name="impDup" value="update"> Обновить существующие</label>'+
       '</div>';
@@ -9123,19 +9123,19 @@ function openLocksModal(){
       if(!locks.length){
         $('locksBody').innerHTML = '<div class="empty" style="padding:24px 16px;text-align:center">'+
           '<b style="color:var(--ok);font-size:15px">Все записи разблокированы!</b><br>'+
-          '<span style="color:var(--muted);font-size:13px;margin-top:6px;display:inline-block">В системе нет удерживаемых записей. Ответственные сотрудники могут свободно вносить изменения.</span></div>';
+          '<span style="color:var(--muted);font-size:14px;margin-top:6px;display:inline-block">В системе нет удерживаемых записей. Ответственные сотрудники могут свободно вносить изменения.</span></div>';
         return;
       }
       var totalComps = 0, totalSurvs = 0;
       locks.forEach(function(l){ totalComps += (l.comps||0); totalSurvs += (l.survs||0); });
 
-      var h = '<div style="margin-bottom:12px;font-size:13px;color:var(--muted);line-height:1.4">'+
+      var h = '<div style="margin-bottom:12px;font-size:14px;color:var(--muted);line-height:1.4">'+
         'Всего удерживается: <b>'+totalComps+'</b> компаний, <b>'+totalSurvs+'</b> анкет должностей. '+
         'Выберите, с кого снять блокировки:</div>';
 
       h += '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">'+
-        '<button class="btn-primary" id="btnUnlockAdmins" style="flex:1;min-height:32px;font-size:12.5px">'+ic('shield',13)+'Снять со всех Администраторов</button>'+
-        '<button class="btn-danger" id="btnUnlockAllModal" style="flex:1;min-height:32px;font-size:12.5px">'+ic('unlock',13)+'Снять вообще со всех ('+locks.length+')</button>'+
+        '<button class="btn-primary" id="btnUnlockAdmins" style="flex:1;min-height:32px;font-size:13.5px">'+ic('shield',13)+'Снять со всех Администраторов</button>'+
+        '<button class="btn-danger" id="btnUnlockAllModal" style="flex:1;min-height:32px;font-size:13.5px">'+ic('unlock',13)+'Снять вообще со всех ('+locks.length+')</button>'+
       '</div>';
 
       h += '<div class="tblwrap" style="max-height:320px;margin-bottom:0"><table class="co-tbl">'+
@@ -9148,7 +9148,7 @@ function openLocksModal(){
           '<td><span class="badge '+roleBadge+'">'+esc(l.role)+'</span></td>'+
           '<td class="num">'+(l.comps||0)+'</td>'+
           '<td class="num">'+(l.survs||0)+'</td>'+
-          '<td><button class="btn-line" style="min-height:26px;padding:0 8px;font-size:11.5px;white-space:nowrap" data-unlock-owner="'+esc(l.owner)+'">'+ic('unlock',11)+'Снять блок</button></td>'+
+          '<td><button class="btn-line" style="min-height:26px;padding:0 8px;font-size:12.5px;white-space:nowrap" data-unlock-owner="'+esc(l.owner)+'">'+ic('unlock',11)+'Снять блок</button></td>'+
         '</tr>';
       });
 
@@ -9456,7 +9456,7 @@ function openDash(){
       '<div class="page-head-main">'+
         '<div class="page-head-k">Период заполнения</div>'+
         '<div class="page-head-v">'+esc(p.name || 'без названия')+
-          ' <b style="font-size:13px;font-weight:700;color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b></div>'+
+          ' <b style="font-size:14px;font-weight:700;color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b></div>'+
         '<div class="page-head-s">'+
           (p.from ? 'с '+esc(p.from)+' ' : '') + (p.to ? 'по '+esc(p.to) : '') +
           (p.by ? (p.from||p.to ? ' · ' : '')+'изменил: '+esc(p.by)+
@@ -9505,9 +9505,9 @@ function openDash(){
       '</div>'+
       '<div id="dashSumSearchBox" class="search-wrap search-wrap--r" style="flex:1;min-width:200px;margin:0;'+(S.dashSumTab==='dirs'?'display:none;':'')+'">'+
         icBare('search', 14)+
-        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…" style="min-height:30px;padding:4px 32px 4px 10px;font-size:12.5px">'+
+        '<input id="dashSumSearch" placeholder="Поиск по подразделению, ответственному, HR BP…" style="min-height:30px;padding:4px 32px 4px 10px;font-size:13.5px">'+
       '</div>'+
-      '<div id="dashSumCount" style="font-size:12px;color:var(--muted);'+(S.dashSumTab==='dirs'?'display:none;':'')+'"></div>'+
+      '<div id="dashSumCount" style="font-size:13px;color:var(--muted);'+(S.dashSumTab==='dirs'?'display:none;':'')+'"></div>'+
     '</div>';
 
     h += '<div id="dashSumTabBody"></div>';
@@ -9598,7 +9598,7 @@ function openDash(){
           '<td class="num"><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
           '<td class="num">'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
           '<td class="num"><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
-          '<td class="num" style="font-size:12px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
+          '<td class="num" style="font-size:13px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
       }).join('') : '<tr><td colspan="6"><div class="empty">Ничего не найдено</div></td></tr>';
       t += '</tbody></table></div>';
       if($('dashSumTblBox')) $('dashSumTblBox').innerHTML = t;
@@ -9688,7 +9688,7 @@ function renderSourceBadge(sourceKey, isLicensed, customTitle){
     else label = sourceKey;
   }
 
-  var licBadge = isLicensed ? '<span class="top-period-pill is-closed" style="margin-left:6px;font-size:11px;padding:1px 6px">Лицензия</span>' : '';
+  var licBadge = isLicensed ? '<span class="top-period-pill is-closed" style="margin-left:6px;font-size:12px;padding:1px 6px">Лицензия</span>' : '';
   return '<span class="top-period-pill" style="margin-right:0"><span class="top-period-dot"></span> <b>' + esc(label) + '</b></span>' + licBadge;
 }
 
@@ -9792,7 +9792,7 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
 
   return '<div style="margin:14px 0 4px;padding:12px 14px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">' +
-      '<span style="font-size:11px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
+      '<span style="font-size:12px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
       statusBadge +
     '</div>' +
     '<div style="position:relative;height:38px;margin:22px 24px 18px">' +
@@ -9803,7 +9803,7 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
       : '') +
       (p50 ?
         '<div style="position:absolute;left:' + p50Pct + '%;top:5px;width:2px;height:26px;background:var(--accent);transform:translateX(-50%);z-index:2;border-radius:1px">' +
-          '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:600;color:var(--color-midnight-ink);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--color-ash);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
+          '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--color-midnight-ink);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--color-ash);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
         '</div>'
       : '') +
       (ourMid ?
@@ -9812,11 +9812,11 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
           '</div>'
         : '') +
         '<div style="position:absolute;left:' + ourMidPct + '%;top:18px;width:14px;height:14px;background:var(--ok);border:2px solid #fff;box-shadow:var(--shadow-sm);border-radius:50%;transform:translateX(-50%);z-index:4">' +
-          '<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:600;color:var(--ok);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--ok-border);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
+          '<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--ok);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--ok-border);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
         '</div>'
       : '') +
     '</div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-fog);margin-top:16px;border-top:1px dashed var(--color-ash);padding-top:6px;font-feature-settings:\'tnum\' 1">' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-fog);margin-top:16px;border-top:1px dashed var(--color-ash);padding-top:6px;font-feature-settings:\'tnum\' 1">' +
       '<span>От: ' + Math.round(minVal / 0.85).toLocaleString('ru-RU') + '</span>' +
       (p25 ? '<span>P25: <b>' + p25.toLocaleString('ru-RU') + '</b></span>' : '') +
       (p75 ? '<span>P75: <b>' + p75.toLocaleString('ru-RU') + '</b></span>' : '') +
@@ -9860,13 +9860,13 @@ function renderBmCompare(){
     });
 
     if(!filtered.length){
-      return '<div style="padding:20px;text-align:center;font-size:12.5px;color:var(--color-fog)">Должностей не найдено</div>';
+      return '<div style="padding:20px;text-align:center;font-size:13.5px;color:var(--color-fog)">Должностей не найдено</div>';
     }
 
     return filtered.map(function(p){
       var isSel = (selId && (p.id == selId || String(p.id) === String(selId))) || (!selId && p.name === BM_STATE.selectedPosName);
       var activeClass = isSel ? ' on' : '';
-      return '<button class="rail-item' + activeClass + '" data-posid="' + (p.id || '') + '" data-posname="' + esc(p.name) + '" style="text-align:left;padding:7px 10px;font-size:13px">' +
+      return '<button class="rail-item' + activeClass + '" data-posid="' + (p.id || '') + '" data-posname="' + esc(p.name) + '" style="text-align:left;padding:7px 10px;font-size:14px">' +
         '<span>' + esc(p.name) + '</span>' +
       '</button>';
     }).join('');
@@ -9875,17 +9875,17 @@ function renderBmCompare(){
   c.innerHTML = '<div style="display:grid;grid-template-columns:minmax(260px, 300px) 1fr;gap:16px;align-items:start">' +
     '<div class="card" style="padding:14px;display:flex;flex-direction:column;max-height:calc(100vh - 170px)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-        '<span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Должности</span>' +
-        '<span style="font-size:11px;color:var(--color-fog)">' + positions.length + ' поз.</span>' +
+        '<span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Должности</span>' +
+        '<span style="font-size:12px;color:var(--color-fog)">' + positions.length + ' поз.</span>' +
       '</div>' +
       '<div style="position:relative;margin-bottom:8px">' +
-        '<input type="text" id="bmPosSearch" placeholder="Поиск должности…" style="font-size:12.5px;padding:6px 10px 6px 30px;width:100%;height:32px">' +
+        '<input type="text" id="bmPosSearch" placeholder="Поиск должности…" style="font-size:13.5px;padding:6px 10px 6px 30px;width:100%;height:32px">' +
         '<span style="position:absolute;left:8px;top:7px;color:var(--color-fog);pointer-events:none">' + icBare('search', 14) + '</span>' +
       '</div>' +
       '<div id="bmPosList" class="co-list-scroll" style="flex:1;min-height:260px;max-height:calc(100vh - 350px);overflow-y:auto;display:flex;flex-direction:column;gap:1px">' +
         buildItemsHtml() +
       '</div>' +
-      '<div id="bmPosMeta" style="margin-top:10px;font-size:12px;color:var(--color-charcoal);line-height:1.45;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 10px;border-radius:var(--radius-buttons);font-feature-settings:\'tnum\' 1">Загрузка данных…</div>' +
+      '<div id="bmPosMeta" style="margin-top:10px;font-size:13px;color:var(--color-charcoal);line-height:1.45;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 10px;border-radius:var(--radius-buttons);font-feature-settings:\'tnum\' 1">Загрузка данных…</div>' +
     '</div>' +
     '<div id="bmCompareDetail" style="min-width:0">Загрузка сравнения…</div>' +
   '</div>';
@@ -9942,7 +9942,7 @@ function loadBmCompareDetail(){
       var isPositive = comp.compositeGapPercent >= 0;
       var sign = isPositive ? '+' : '';
       var pillClass = isPositive ? 'top-period-pill' : 'top-period-pill is-closed';
-      compBadge = '<span class="' + pillClass + '" style="font-size:13px;padding:5px 12px;font-weight:600;font-feature-settings:\'tnum\' 1">' +
+      compBadge = '<span class="' + pillClass + '" style="font-size:14px;padding:5px 12px;font-weight:600;font-feature-settings:\'tnum\' 1">' +
         '<span class="top-period-dot"></span> ' + sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
     }
 
@@ -9959,12 +9959,12 @@ function loadBmCompareDetail(){
           renderSourceBadge('internal') +
           '<div>' +
             '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(intr.sourceTitle) + '</b>' +
-            '<span style="font-size:12px;color:var(--color-fog);margin-left:6px">Внутренние анкеты (' + (intr.observationsCount || 0) + ' набл.)</span>' +
+            '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">Внутренние анкеты (' + (intr.observationsCount || 0) + ' набл.)</span>' +
           '</div>' +
         '</div>' +
-        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:11.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:12px">нет данных</span>') +
+        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:12px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
+      '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
         '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
         '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
         '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
@@ -9981,7 +9981,7 @@ function loadBmCompareDetail(){
       if(ext.gapPercent != null){
         var isPos = ext.gapPercent >= 0;
         var col = isPos ? 'var(--ok)' : 'var(--no)';
-        gapHtml = '<span style="font-size:12.5px;font-weight:600;color:' + col + ';font-feature-settings:\'tnum\' 1">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
+        gapHtml = '<span style="font-size:13.5px;font-weight:600;color:' + col + ';font-feature-settings:\'tnum\' 1">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
       }
 
       var extRangeBar = ext.hasData ? renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid) : '';
@@ -9992,16 +9992,16 @@ function loadBmCompareDetail(){
             renderSourceBadge(ext.sourceKey, ext.isLicensed, ext.sourceTitle) +
             '<div>' +
               '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(ext.sourceTitle) + '</b>' +
-              '<span style="font-size:12px;color:var(--color-fog);margin-left:6px">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span>' +
+              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span>' +
             '</div>' +
           '</div>' +
           '<div style="text-align:right">' +
-            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:11.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:12px">нет данных</span>') +
+            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
             (gapHtml ? '<br>' + gapHtml : '') +
           '</div>' +
         '</div>' +
         (ext.hasData ?
-          '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:12px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
+          '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
             '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
             '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
             '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
@@ -10010,9 +10010,9 @@ function loadBmCompareDetail(){
           '</div>' +
           extRangeBar
         :
-          '<div style="padding:12px;text-align:center;font-size:12.5px;color:var(--color-fog);background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
+          '<div style="padding:12px;text-align:center;font-size:13.5px;color:var(--color-fog);background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
             'Нет сопоставленных данных для этой должности. ' +
-            '<button class="btn-ghost" style="padding:2px 8px;font-size:12.5px;color:var(--accent);font-weight:600" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
+            '<button class="btn-ghost" style="padding:2px 8px;font-size:13.5px;color:var(--accent);font-weight:600" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
           '</div>'
         ) +
       '</div>';
@@ -10029,7 +10029,7 @@ function loadBmCompareDetail(){
               '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' + ICONS.chart + '</svg>' +
             '</div>' +
             '<div>' +
-              '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
+              '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
               '<div style="font-size:22px;font-weight:700;color:var(--color-midnight-ink);letter-spacing:-0.02em;margin-top:1px;font-feature-settings:\'tnum\' 1">' +
                 (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
               '</div>' +
@@ -10056,10 +10056,10 @@ function renderBmMapping(){
   c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div style="display:flex;align-items:center;gap:8px">' +
       '<label class="lbl" style="margin:0">Источник данных:</label>' +
-      '<select id="bmMapSrcSelect" style="height:32px;padding:0 8px;font-size:12.5px;width:auto">' + srcOpts + '</select>' +
+      '<select id="bmMapSrcSelect" style="height:32px;padding:0 8px;font-size:13.5px;width:auto">' + srcOpts + '</select>' +
     '</div>' +
     '<div style="display:flex;gap:8px">' +
-      '<button class="btn-primary" id="btnBmSuggest" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' +
+      '<button class="btn-primary" id="btnBmSuggest" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' +
         ic('bolt', 14) + 'Автоподбор похожих должностей' +
       '</button>' +
     '</div>' +
@@ -10095,18 +10095,18 @@ function loadBmMappingsList(){
       var confLabel = m.confidence === 'exact' ? '<span class="top-period-pill"><span class="top-period-dot"></span> Точное</span>' : (m.confidence === 'close' ? '<span class="top-period-pill" style="color:var(--warn);border-color:var(--warn-border)"><span class="top-period-dot" style="background:var(--warn)"></span> Близкое</span>' : '<span class="top-period-pill is-closed"><span class="top-period-dot"></span> Примерное</span>');
       return '<tr>' +
         '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash);font-weight:550">' + esc(m.dict_position_name) + '</td>' +
-        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:11px;color:var(--color-fog)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
+        '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash)">' + esc(m.source_label) + (m.source_code ? ' <span style="font-size:12px;color:var(--color-fog)">(' + esc(m.source_code) + ')</span>' : '') + '</td>' +
         '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash)">' + confLabel + '</td>' +
         '<td style="padding:8px 12px;border-bottom:1px solid var(--color-ash);text-align:right">' +
-          '<button class="btn-ghost" style="color:var(--no);padding:2px 6px;font-size:12px" onclick="deleteBmMapping(' + m.id + ')">' + ic('trash', 12) + 'Удалить</button>' +
+          '<button class="btn-ghost" style="color:var(--no);padding:2px 6px;font-size:13px" onclick="deleteBmMapping(' + m.id + ')">' + ic('trash', 12) + 'Удалить</button>' +
         '</td>' +
       '</tr>';
     }).join('');
 
     tbl.innerHTML = '<div class="card" style="padding:0;overflow:hidden">' +
-      '<table style="width:100%;border-collapse:collapse;text-align:left;font-size:13px">' +
+      '<table style="width:100%;border-collapse:collapse;text-align:left;font-size:14px">' +
         '<thead>' +
-          '<tr style="background:var(--color-paper-mist);border-bottom:1px solid var(--color-ash);font-size:11.5px;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">' +
+          '<tr style="background:var(--color-paper-mist);border-bottom:1px solid var(--color-ash);font-size:12.5px;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">' +
             '<th style="padding:8px 12px">Должность Фаровон</th>' +
             '<th style="padding:8px 12px">Должность источника</th>' +
             '<th style="padding:8px 12px">Точность</th>' +
@@ -10195,10 +10195,10 @@ function renderBmDatasets(){
   if(!c) return;
 
   c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
-    '<div><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
+    '<div><span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
     '<div style="display:flex;gap:8px">' +
-      '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
-      '<button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:12.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button>' +
+      '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
+      '<button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button>' +
     '</div>' +
   '</div>' +
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
@@ -10223,13 +10223,13 @@ function renderBmDatasets(){
         '<div style="display:flex;align-items:center;gap:12px">' +
           renderSourceBadge(d.source_key, d.is_licensed) +
           '<div>' +
-            '<b style="font-size:14.5px;color:var(--color-midnight-ink)">' + esc(d.title) + '</b><br>' +
-            '<span style="font-size:12px;color:var(--color-fog)">Источник: ' + esc(d.source_title) + ' · Отчёт: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+            '<b style="font-size:15.5px;color:var(--color-midnight-ink)">' + esc(d.title) + '</b><br>' +
+            '<span style="font-size:13px;color:var(--color-fog)">Источник: ' + esc(d.source_title) + ' · Отчёт: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<span class="top-period-pill"><span class="top-period-dot"></span> Активен</span>' +
-          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--no);font-size:12px;padding:4px 8px">' + ic('trash', 12) + 'Удалить</button>' +
+          '<button class="btn-ghost" data-bmdeletedataset="' + d.id + '" style="color:var(--no);font-size:13px;padding:4px 8px">' + ic('trash', 12) + 'Удалить</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -10293,7 +10293,7 @@ function openBmAddSourceModal(){
       '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;margin:6px 0">' +
         '<input type="checkbox" id="bmsLic" style="width:auto;height:auto;cursor:pointer">' +
-        '<label for="bmsLic" style="margin:0;cursor:pointer;font-size:13px">Лицензионный платный обзор (требует бейдж лицензии)</label>' +
+        '<label for="bmsLic" style="margin:0;cursor:pointer;font-size:14px">Лицензионный платный обзор (требует бейдж лицензии)</label>' +
       '</div>' +
       '<div>' +
         '<label class="lbl">Примечание / Методология</label>' +

@@ -87,7 +87,7 @@
   --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
   --dur-fast: 0.16s;
   --dur-mid: 0.3s;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 /* ─── Тема: три состояния ───────────────────────────────────────────────
@@ -372,7 +372,7 @@ h3,
 }
 
 .top .sub {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-fog);
   font-weight: 400;
   margin-left: 8px;
@@ -391,7 +391,7 @@ h3,
   border: 1px solid var(--color-ash);
   padding: 3px 10px;
   border-radius: var(--radius-tags);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-charcoal);
   margin-right: 8px;
@@ -418,7 +418,7 @@ h3,
 
 @media (max-width: 640px) {
   .top-period-pill {
-    font-size: 11px;
+    font-size: 12px;
     padding: 3px 7px;
     margin-right: 4px;
   }
@@ -611,7 +611,7 @@ body.has-bar .wrap {
 
   .rail-brand-name {
     font-weight: 600;
-    font-size: 13.5px;
+    font-size: 14.5px;
     color: var(--color-midnight-ink);
     letter-spacing: -0.01em;
     line-height: 1.2;
@@ -621,7 +621,7 @@ body.has-bar .wrap {
   }
 
   .rail-brand-sub {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-fog);
     font-weight: 400;
     white-space: nowrap;
@@ -634,7 +634,7 @@ body.has-bar .wrap {
   }
 
   .rail-sec-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -654,7 +654,7 @@ body.has-bar .wrap {
     border: none;
     background: transparent;
     color: var(--color-charcoal);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 450;
     cursor: pointer;
     text-align: left;
@@ -721,7 +721,7 @@ body.has-bar .wrap {
     border: 1px solid var(--color-ash);
     color: var(--color-charcoal);
     font-weight: 600;
-    font-size: 11px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -735,7 +735,7 @@ body.has-bar .wrap {
 
   .rail-who b {
     display: block;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 550;
     line-height: 1.2;
     color: var(--color-charcoal);
@@ -746,7 +746,7 @@ body.has-bar .wrap {
 
   .rail-who span {
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-fog);
     white-space: nowrap;
     overflow: hidden;
@@ -787,7 +787,7 @@ body.has-bar .wrap {
 /* ─── Кнопки ─── */
 button {
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
@@ -824,7 +824,7 @@ button:disabled {
   border: 1px solid var(--accent);
   color: #ffffff;
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 13.5px;
   min-height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-sm);
@@ -850,7 +850,7 @@ button:disabled {
   color: var(--accent);
   min-height: 32px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius-sm);
   display: inline-flex;
@@ -873,7 +873,7 @@ button:disabled {
   border: 1px solid rgba(37, 99, 235, 0.22);
   color: var(--accent);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 13.5px;
   min-height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
@@ -897,7 +897,7 @@ button:disabled {
   border: 1px solid var(--no-border);
   background: var(--no-soft);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 13.5px;
   min-height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
@@ -922,7 +922,7 @@ button:disabled {
   gap: 6px;
   min-height: 32px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   border: 1px solid var(--line);
   background: var(--card);
@@ -952,7 +952,7 @@ input,
 select,
 textarea {
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 15.5px;
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--line);
@@ -995,7 +995,7 @@ textarea {
 
 label.lbl {
   display: block;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   margin: 14px 0 6px;
   font-weight: 600;
@@ -1024,7 +1024,7 @@ label.lbl {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--card);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .pick span {
@@ -1045,7 +1045,7 @@ label.lbl {
   font-style: normal;
   color: var(--muted);
   flex: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .pick.need {
@@ -1107,7 +1107,7 @@ label.lbl {
   border-bottom: 1px solid var(--line);
   border-radius: 0;
   min-height: 46px;
-  font-size: 14px;
+  font-size: 15px;
   padding: 10px 14px;
   background: transparent;
   box-shadow: none;
@@ -1126,7 +1126,7 @@ label.lbl {
 
 .pk-empty {
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 14.5px;
   padding: 24px 10px;
   text-align: center;
 }
@@ -1170,7 +1170,7 @@ label.lbl {
 
 .login .logo span {
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 14.5px;
   margin-top: 4px;
   display: block;
 }
@@ -1211,7 +1211,7 @@ label.lbl {
 }
 
 .login-brand p {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.55;
   margin: 0;
@@ -1257,7 +1257,7 @@ label.lbl {
   }
 
   .login-brand p {
-    font-size: 15px;
+    font-size: 16px;
     color: rgba(255, 255, 255, 0.82);
     line-height: 1.6;
     max-width: 40ch;
@@ -1370,7 +1370,7 @@ label.lbl {
 }
 
 .unit .u-dir {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 3px;
   overflow: hidden;
@@ -1381,7 +1381,7 @@ label.lbl {
 /* Статус-пилюля — читаемость списка «на глаз» без вникания в полосы. */
 .u-status {
   flex: none;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   padding: 3px 10px;
@@ -1402,7 +1402,7 @@ label.lbl {
 }
 
 .unit .u-ask {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--warn);
   margin-top: 6px;
   font-weight: 600;
@@ -1445,7 +1445,7 @@ label.lbl {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text);
 }
@@ -1500,7 +1500,7 @@ label.lbl {
 }
 
 .tab-step-lbl {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1509,7 +1509,7 @@ label.lbl {
 }
 
 .tab-ask-tag {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--warn);
   background: var(--warn-soft);
@@ -1528,18 +1528,18 @@ label.lbl {
 
 .tab-title {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 14.5px;
   white-space: nowrap;
 }
 
 .tab-count {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
 }
 
 .step-hint {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin: 0 2px 14px;
   line-height: 1.45;
@@ -1598,7 +1598,7 @@ label.lbl {
 }
 
 .ob-text {
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--muted);
   line-height: 1.45;
   max-width: 300px;
@@ -1635,7 +1635,7 @@ label.lbl {
 }
 
 .onboard h2 {
-  font-size: 15.5px;
+  font-size: 16.5px;
   margin: 0 0 8px;
   font-weight: 700;
   color: var(--accent);
@@ -1646,7 +1646,7 @@ label.lbl {
   padding-left: 0;
   list-style: none;
   counter-reset: onb;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -1668,7 +1668,7 @@ label.lbl {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1689,7 +1689,7 @@ label.lbl {
   flex: 1;
   min-width: 120px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   min-height: 36px;
 }
 
@@ -1734,27 +1734,27 @@ label.lbl {
 
 .row-name {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.3;
   color: var(--text);
   word-break: break-word;
 }
 
 .row-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 3px;
 }
 
 .row-note-preview {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 5px;
   font-style: italic;
 }
 
 .row-ask {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--warn);
   font-weight: 700;
   margin-top: 4px;
@@ -1774,7 +1774,7 @@ label.lbl {
   flex: 1;
   min-height: 32px;
   padding: 0 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid var(--line);
   background: var(--card-2);
@@ -1819,7 +1819,7 @@ label.lbl {
 .chips button {
   min-height: 32px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   border-radius: var(--radius-full);
   box-shadow: none;
@@ -1839,7 +1839,7 @@ label.lbl {
   background: transparent;
   color: var(--accent);
   min-height: 36px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   border-radius: 0;
   box-shadow: none;
@@ -1909,13 +1909,13 @@ label.lbl {
 
 .pos-name {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.3;
   word-break: break-word;
 }
 
 .pos-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -1927,7 +1927,7 @@ label.lbl {
   border-radius: var(--radius-full);
   background: var(--card-2);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -1943,7 +1943,7 @@ label.lbl {
 .pos-chev {
   flex: none;
   color: var(--subtle);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .pos-items {
@@ -1955,7 +1955,7 @@ label.lbl {
   border-top: 1px solid var(--line);
   border-radius: 0;
   color: var(--accent);
-  font-size: 13.5px;
+  font-size: 14.5px;
   min-height: 40px;
   box-shadow: none;
 }
@@ -1972,25 +1972,25 @@ label.lbl {
 
 .sv .sv-pos {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.3;
 }
 
 .sv .sv-co {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   margin-top: 2px;
 }
 
 .sv .sv-pay {
   margin-top: 6px;
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--accent);
 }
 
 .sv .sv-line {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   margin-top: 3px;
 }
@@ -2007,7 +2007,7 @@ label.lbl {
   color: var(--accent);
   border-radius: var(--radius-full);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -2020,12 +2020,12 @@ label.lbl {
 .sv .sv-act button {
   flex: 1;
   min-height: 34px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
 .sv .sv-by {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--subtle);
   margin-top: 8px;
 }
@@ -2033,7 +2033,7 @@ label.lbl {
 .sv .sv-locked {
   display: inline-block;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--warn);
 }
 
@@ -2044,7 +2044,7 @@ label.lbl {
   gap: 4px;
   padding: 3px 8px;
   border-radius: var(--radius-full);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -2128,7 +2128,7 @@ label.lbl {
 .bx-head {
   background: var(--card-2);
   border-bottom: 1px solid var(--line);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2168,7 +2168,7 @@ label.lbl {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
@@ -2185,7 +2185,7 @@ label.lbl {
   height: 34px;
   min-height: 34px;
   padding: 0 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 
 .batch-list--grid .batch-toggle-more.bx-more {
@@ -2195,7 +2195,7 @@ label.lbl {
   padding: 0 10px;
   justify-content: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--card);
@@ -2282,7 +2282,7 @@ label.lbl {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -2290,14 +2290,14 @@ label.lbl {
 }
 
 .b-co-meta {
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--muted);
   white-space: nowrap;
   flex: 0 1 auto;
 }
 
 .b-co-lock {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--warn);
   display: inline-flex;
   align-items: center;
@@ -2307,7 +2307,7 @@ label.lbl {
 }
 
 .b-co-note {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   font-style: italic;
   display: inline-flex;
@@ -2321,7 +2321,7 @@ label.lbl {
   display: inline-flex !important;
   align-items: center !important;
   gap: 4px !important;
-  font-size: 12.5px !important;
+  font-size: 13.5px !important;
   font-weight: 500 !important;
   color: var(--muted) !important;
   padding: 3px 10px !important;
@@ -2358,7 +2358,7 @@ label.lbl {
 .b-co-actions .seg button {
   min-height: 28px;
   height: 28px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   padding: 0 10px;
   white-space: nowrap;
@@ -2403,7 +2403,7 @@ label.lbl {
 
 .batch-co-title {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -2411,7 +2411,7 @@ label.lbl {
 }
 
 .batch-st-tag {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 4px;
@@ -2462,7 +2462,7 @@ label.lbl {
   background: transparent;
   color: var(--accent);
   padding: 6px 4px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -2576,7 +2576,7 @@ label.lbl {
 }
 
 .bar .prog b {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 700;
   display: block;
   color: var(--text);
@@ -2584,7 +2584,7 @@ label.lbl {
 
 .bar .prog i {
   font-style: normal;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
@@ -2606,7 +2606,7 @@ label.lbl {
   border: 1px solid var(--no-border);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 12px;
   font-weight: 500;
 }
@@ -2617,7 +2617,7 @@ label.lbl {
   border: 1px solid var(--warn-border);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 12px;
   font-weight: 500;
 }
@@ -2628,13 +2628,13 @@ label.lbl {
   border: 1px solid var(--accent-border);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 12px;
   font-weight: 500;
 }
 
 .sec-title {
-  font-size: 11.5px;
+  font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
@@ -2644,7 +2644,7 @@ label.lbl {
 
 .empty {
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 14.5px;
   text-align: center;
   padding: 28px 10px;
   border: 1px dashed var(--line-strong);
@@ -2658,7 +2658,7 @@ label.lbl {
   justify-content: center;
   padding: 80px 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .sp i {
@@ -2802,7 +2802,7 @@ label.lbl {
 
 .menu-pop-hd b {
   flex: 1;
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -2838,7 +2838,7 @@ label.lbl {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 800;
-  font-size: 15px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2846,12 +2846,12 @@ label.lbl {
 }
 
 .profile-fio {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .profile-sub {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -2878,7 +2878,7 @@ label.lbl {
   background: transparent;
   color: var(--muted);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 12px;
   white-space: nowrap;
   box-shadow: none;
@@ -2916,7 +2916,7 @@ label.lbl {
     gap: 3px;
     min-height: 46px;
     padding: 4px 2px;
-    font-size: 10.5px;
+    font-size: 11.5px;
     line-height: 1;
   }
 
@@ -2957,7 +2957,7 @@ label.lbl {
 }
 
 .kpi-t {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -2976,7 +2976,7 @@ label.lbl {
 }
 
 .kpi-s {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
@@ -3001,13 +3001,13 @@ label.lbl {
 
 .fork-pos {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 15.5px;
   flex: 1;
   word-break: break-word;
 }
 
 .fork-cnt {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
   background: var(--card-2);
   padding: 2px 8px;
@@ -3019,7 +3019,7 @@ label.lbl {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 6px;
   flex-wrap: wrap;
@@ -3191,7 +3191,7 @@ label.lbl {
   border-radius: 9px;
   padding: 6px 10px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
 }
 
@@ -3247,13 +3247,13 @@ label.lbl {
 }
 
 .sal-hist-hd b {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
 
 .sal-hist-hd span {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
@@ -3426,7 +3426,7 @@ label.lbl {
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--subtle);
 }
 
@@ -3440,7 +3440,7 @@ label.lbl {
 
 .sal-hist-stats i {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3449,7 +3449,7 @@ label.lbl {
 }
 
 .sal-hist-stats b {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -3480,7 +3480,7 @@ label.lbl {
   align-items: center;
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -3526,7 +3526,7 @@ label.lbl {
   align-items: center;
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -3565,7 +3565,7 @@ label.lbl {
 .nav-btn {
   flex: 1;
   min-height: 38px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 600;
   border: none;
   background: transparent;
@@ -3609,7 +3609,7 @@ label.lbl {
   border-radius: 0;
   background: transparent;
   color: var(--color-fog);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   box-shadow: none;
   cursor: pointer;
@@ -3647,7 +3647,7 @@ label.lbl {
 .co-tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14.5px;
   text-align: left;
 }
 
@@ -3663,7 +3663,7 @@ label.lbl {
   background: var(--card-2);
   color: var(--muted);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 8px 12px;
@@ -3691,7 +3691,7 @@ label.lbl {
 .dept-pick-btn {
   width: 100%;
   min-height: 32px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   padding: 0 10px;
   background: var(--card);
   color: var(--text);
@@ -3748,7 +3748,7 @@ label.lbl {
   background: transparent;
   width: 100%;
   min-height: 32px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   outline: none;
 }
@@ -3772,7 +3772,7 @@ label.lbl {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: background 0.12s ease;
 }
@@ -3794,7 +3794,7 @@ label.lbl {
 
 .ipp-empty {
   padding: 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   text-align: center;
 }
@@ -3856,17 +3856,17 @@ label.lbl {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .rcard-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.4;
 }
 
 .rcard-sub {
-  font-size: 12.5px;
+  font-size: 13.5px;
   margin-top: 2px;
 }
 
@@ -3892,7 +3892,7 @@ label.lbl {
 .u-t-login {
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12.5px;
+  font-size: 13.5px;
   white-space: nowrap;
   max-width: 180px;
   overflow: hidden;
@@ -3913,7 +3913,7 @@ label.lbl {
   width: auto;
   min-height: 30px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -3986,7 +3986,7 @@ label.lbl {
 }
 
 .dlg-x {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--muted);
   margin-bottom: 18px;
@@ -4010,7 +4010,7 @@ label.lbl {
   background: var(--card);
   color: var(--text);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -4072,7 +4072,7 @@ label.lbl {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 5px 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   box-shadow: var(--shadow-xs);
   flex-wrap: wrap;
 }
@@ -4092,20 +4092,20 @@ label.lbl {
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   box-shadow: var(--shadow-xs);
 }
 
 .kpi-pill .kp-lbl {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 .kpi-pill .kp-sub {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 
 /* ─── Строка кнопок дашборда (сброс фильтров / экспорт) ─── */
@@ -4127,7 +4127,7 @@ label.lbl {
   padding-left: 0;
   list-style: none;
   counter-reset: howto;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--muted);
 }
@@ -4149,7 +4149,7 @@ label.lbl {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -4164,7 +4164,7 @@ label.lbl {
   display: block;
   color: var(--text);
   font-weight: 650;
-  font-size: 14.5px;
+  font-size: 15.5px;
   margin-bottom: 3px;
 }
 
@@ -4174,7 +4174,7 @@ label.lbl {
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin-top: 8px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.55;
   color: var(--text);
 }
@@ -4198,7 +4198,7 @@ label.lbl {
 
 .next-step>p,
 .next-step>div:not([class]) {
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -4223,7 +4223,7 @@ label.lbl {
   background: none;
   color: var(--text);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   padding: 11px 14px;
   cursor: pointer;
 }
@@ -4291,14 +4291,14 @@ label.lbl {
   align-items: baseline;
   gap: 8px;
   margin: 0 2px 4px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
 }
 
 .tbl-count b {
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -4333,13 +4333,13 @@ label.lbl {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   margin-bottom: 5px;
 }
 
 .u-bar-t b {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
@@ -4390,7 +4390,7 @@ label.lbl {
 }
 
 .sub-tabs--inner .sub-tab {
-  font-size: 13px;
+  font-size: 14px;
   padding: 7px 14px;
 }
 
@@ -4408,7 +4408,7 @@ label.lbl {
 }
 
 .pager-info {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 
@@ -4425,7 +4425,7 @@ label.lbl {
   border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
@@ -4453,7 +4453,7 @@ label.lbl {
   border-radius: var(--radius-full);
   background: var(--card-2);
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -4521,7 +4521,7 @@ label.lbl {
 }
 
 .sub-tabs--inner .sub-tab {
-  font-size: 12.5px;
+  font-size: 13.5px;
   padding: 3px 10px;
   min-height: 28px;
   color: var(--muted);
@@ -4547,7 +4547,7 @@ label.lbl {
   min-height: 30px;
   padding: 3px 10px;
   border-radius: var(--radius-sm);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   border: 1px solid transparent;
   background: transparent;
@@ -4582,7 +4582,7 @@ label.lbl {
 }
 
 .page-head-k {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -4590,7 +4590,7 @@ label.lbl {
 }
 
 .page-head-v {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   margin-top: 1px;
   display: flex;
@@ -4600,7 +4600,7 @@ label.lbl {
 }
 
 .page-head-s {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
   margin-top: 1px;
 }
@@ -4626,7 +4626,7 @@ label.lbl {
 }
 
 .phs span {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
@@ -4692,7 +4692,7 @@ label.lbl {
   min-height: 34px;
   padding: 0 10px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
   background: var(--card);
@@ -4759,7 +4759,7 @@ label.lbl {
   width: 100%;
   text-align: left;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
   background: none;
@@ -4841,7 +4841,7 @@ label.lbl {
   margin-left: auto;
   min-height: 38px;
   padding: 0 16px;
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 /* Таблица занимает остаток экрана до низа страницы */
@@ -4900,7 +4900,7 @@ label.lbl {
   align-items: center;
   gap: 8px;
   padding: 8px 2px 4px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 
@@ -4913,7 +4913,7 @@ label.lbl {
   width: auto;
   min-height: 30px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--accent);
 }
 
@@ -4928,7 +4928,7 @@ label.lbl {
   background: transparent;
   border-bottom: 1px solid var(--line);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
   cursor: pointer;
 }
@@ -4988,7 +4988,7 @@ label.lbl {
 /* ─── ID в справочнике ─── */
 .dict-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -5023,7 +5023,7 @@ label.lbl {
   display: flex;
   justify-content: flex-start;
   min-height: 40px;
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
 
@@ -5038,7 +5038,7 @@ label.lbl {
 }
 
 .pf span {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
@@ -5050,7 +5050,7 @@ label.lbl {
 
 .profile-ver {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--subtle);
   padding: 12px 0 2px;
 }
@@ -5073,7 +5073,7 @@ label.lbl {
 }
 
 .st-k {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -5088,7 +5088,7 @@ label.lbl {
 }
 
 .st-s {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.35;
 }
@@ -5128,7 +5128,7 @@ label.lbl {
    становится.
    ═══════════════════════════════════════════════════════════ */
 html.compact {
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 .compact .wrap {
@@ -5154,7 +5154,7 @@ html.compact {
 }
 
 .compact .top h1 {
-  font-size: 14.5px;
+  font-size: 15.5px;
 }
 
 .compact .top .sub {
@@ -5178,7 +5178,7 @@ html.compact {
 .compact .sub-tab {
   flex: none;
   padding: 6px 11px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   min-height: 32px;
 }
 
@@ -5199,7 +5199,7 @@ html.compact {
 }
 
 .compact .kpi-t {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .compact .kpi-v {
@@ -5207,7 +5207,7 @@ html.compact {
 }
 
 .compact .kpi-s {
-  font-size: 10.5px;
+  font-size: 11.5px;
 }
 
 .compact .card {
@@ -5215,7 +5215,7 @@ html.compact {
 }
 
 .compact .sec-title {
-  font-size: 12px;
+  font-size: 13px;
   margin: 14px 0 8px;
 }
 
@@ -5225,7 +5225,7 @@ html.compact {
 }
 
 .compact .u-name {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .compact .u-bars {
@@ -5240,7 +5240,7 @@ html.compact {
 .compact input,
 .compact select,
 .compact textarea {
-  font-size: 14px;
+  font-size: 15px;
   padding: 8px 10px;
 }
 
@@ -5250,7 +5250,7 @@ html.compact {
 .compact .btn-line,
 .compact .btn-primary {
   min-height: 38px;
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 .compact .toolbar {
@@ -5291,7 +5291,7 @@ html.compact {
 .admin-page-kicker {
   margin-bottom: 2px;
   color: var(--color-fog);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -5308,7 +5308,7 @@ html.compact {
 .admin-page-header p {
   margin-top: 2px;
   color: var(--color-steel);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.4;
 }
 
@@ -5367,7 +5367,7 @@ html.compact {
   border-radius: var(--radius-inputs);
   background: transparent;
   color: var(--color-charcoal);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   justify-content: flex-start;
   box-shadow: none;
@@ -5401,11 +5401,11 @@ html.compact {
 /* ─── Toast Notifications ─── */
 .toast-msg {
   flex: 1;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .toast-action {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
@@ -5440,7 +5440,7 @@ html.compact {
 
 .u-fio {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-charcoal);
   min-width: 0;
   overflow: hidden;
@@ -5449,7 +5449,7 @@ html.compact {
 }
 
 .u-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-fog);
   margin-bottom: 8px;
 }
@@ -5497,7 +5497,7 @@ html.compact {
   border: 1px solid var(--color-ash);
   padding: 3px 10px;
   border-radius: var(--radius-tags);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-charcoal);
   margin-right: 8px;
@@ -5543,7 +5543,7 @@ html.compact {
   border-radius: 0;
   background: transparent;
   color: var(--color-fog);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   box-shadow: none;
   cursor: pointer;
@@ -5647,7 +5647,7 @@ html.compact {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--color-ash);
   border-left: 4px solid var(--accent);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.35;
   animation: toastSlideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   transition: opacity 0.14s ease, transform 0.14s ease;
@@ -5719,7 +5719,7 @@ html.compact {
   border: 1px solid var(--color-ash);
   border-radius: var(--radius-buttons);
   padding: 8px 10px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   color: var(--accent);
@@ -5868,7 +5868,7 @@ html.compact {
 }
 
 .org-top-pill-title {
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
   display: flex;
@@ -5890,7 +5890,7 @@ html.compact {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   width: 190px;
 }
@@ -5934,7 +5934,7 @@ html.compact {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
@@ -5952,7 +5952,7 @@ html.compact {
   border: none;
   cursor: pointer;
   padding: 2px 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   border-radius: 6px;
@@ -5967,7 +5967,7 @@ html.compact {
 }
 
 .org-zoom-pct {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
   min-width: 42px;
@@ -6059,7 +6059,7 @@ html.compact {
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -6105,7 +6105,7 @@ html.compact {
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -6192,7 +6192,7 @@ html.compact {
   border-radius: 50%;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -6201,7 +6201,7 @@ html.compact {
 }
 
 .org-root-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -6217,7 +6217,7 @@ html.compact {
 }
 
 .org-root-sub {
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
   margin-top: 2px;
   white-space: nowrap;
@@ -6463,7 +6463,7 @@ html.compact {
 }
 
 .org-card-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -6490,7 +6490,7 @@ html.compact {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -6502,7 +6502,7 @@ html.compact {
 }
 
 .org-card-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text);
   white-space: nowrap;
@@ -6511,7 +6511,7 @@ html.compact {
 }
 
 .org-card-role {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -6521,12 +6521,12 @@ html.compact {
   justify-content: space-between;
   border-top: 1px solid var(--line);
   padding-top: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
 .org-card-footer-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -6536,7 +6536,7 @@ html.compact {
   border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
   border-radius: 6px;
   padding: 2px 7px;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -6568,7 +6568,7 @@ html.compact {
   color: var(--org-accent);
   border-radius: 12px;
   padding: 2px 8px;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -6624,7 +6624,7 @@ html.compact {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.3;
 }
@@ -6633,7 +6633,7 @@ html.compact {
   display: block;
   color: var(--text);
   margin: 2px 0 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -6652,7 +6652,7 @@ html.compact {
 }
 
 .org-section-lbl {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
   display: flex;
@@ -6716,7 +6716,7 @@ html.compact {
   color: var(--org-accent);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   margin-left: 6px;
 }
@@ -6749,32 +6749,32 @@ html.compact {
   background: var(--card); cursor: pointer; transition: border-color .12s, background .12s; }
 .r2-item:hover { border-color: var(--line-strong); }
 .r2-item.on { border-color: var(--accent); background: var(--accent-soft); }
-.r2-name { font-weight: 700; font-size: 13px; color: var(--text); }
-.r2-sub { font-size: 11px; color: var(--muted); }
+.r2-name { font-weight: 700; font-size: 14px; color: var(--text); }
+.r2-sub { font-size: 12px; color: var(--muted); }
 
 .r2-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .r2-title { font-weight: 800; font-size: 16px; }
-.r2-title-in { font-weight: 800; font-size: 15px; padding: 6px 10px; width: auto; min-width: 220px;
+.r2-title-in { font-weight: 800; font-size: 16px; padding: 6px 10px; width: auto; min-width: 220px;
   border: 1px solid var(--line); border-radius: var(--radius-inputs); background: var(--bg); color: var(--text); }
-.r2-key { font-size: 11px; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--subtle);
+.r2-key { font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--subtle);
   background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 
-.r2-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.45;
+.r2-note { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45;
   background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: var(--radius-sm);
   padding: 10px 12px; margin-bottom: 14px; color: var(--text); }
 .r2-note svg { flex-shrink: 0; color: var(--warn); margin-top: 1px; }
 .r2-note--plain { background: var(--card-2); border-color: var(--line); }
 .r2-note--plain svg { color: var(--subtle); }
 
-.r2-allon { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+.r2-allon { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
   color: var(--ok); background: var(--ok-soft); border: 1px solid var(--ok-border);
   border-radius: var(--radius-sm); padding: 12px 14px; }
 
 .r2-caps { display: flex; flex-direction: column; gap: 16px; }
 .r2-group { display: block; }
-.r2-group-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+.r2-group-t { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   color: var(--muted); margin-bottom: 6px; }
-.r2-cap { display: flex; align-items: center; gap: 10px; padding: 7px 4px; font-size: 12.5px;
+.r2-cap { display: flex; align-items: center; gap: 10px; padding: 7px 4px; font-size: 13.5px;
   border-bottom: 1px solid var(--line); cursor: pointer; }
 .r2-cap:last-child { border-bottom: none; }
 .r2-cap input { flex-shrink: 0; }
@@ -6812,7 +6812,7 @@ html.compact {
   background-clip: text;
   color: transparent;
 }
-.home-role { font-size: 13.5px; color: var(--muted); margin-top: 3px; }
+.home-role { font-size: 14.5px; color: var(--muted); margin-top: 3px; }
 
 .home-stats {
   display: grid;
@@ -6842,12 +6842,12 @@ html.compact {
 }
 .home-stat .home-period-name {
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-.home-stat-l { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.home-stat-h { font-size: 12px; color: var(--subtle); margin-top: 3px; }
+.home-stat-l { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.home-stat-h { font-size: 13px; color: var(--subtle); margin-top: 3px; }
 .home-stat-h.ok { color: var(--ok); }
 .home-stat-h.mut { color: var(--subtle); }
 
@@ -6895,8 +6895,8 @@ html.compact {
   color: var(--accent);
 }
 .home-card:hover .home-card-ic { background: var(--accent); color: #fff; }
-.home-card-t { font-size: 15px; font-weight: 650; color: var(--text); letter-spacing: -0.01em; }
-.home-card-d { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.home-card-t { font-size: 16px; font-weight: 650; color: var(--text); letter-spacing: -0.01em; }
+.home-card-d { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
 
 @media (max-width: 760px) {
   .home-stats { grid-template-columns: repeat(2, 1fr); }
@@ -6982,7 +6982,7 @@ html.compact {
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   min-width: 0;
 }
@@ -7049,7 +7049,7 @@ html.compact {
   flex-wrap: wrap;
   gap: 8px;
   margin: 18px 0 12px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -7080,7 +7080,7 @@ html.compact {
 /* Поиск подразделения — крупнее и заметнее. */
 .search-wrap input {
   min-height: 42px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .search-wrap > svg {
   width: 17px;
@@ -7092,11 +7092,11 @@ html.compact {
     padding: 14px 14px;
   }
   .unit .u-name {
-    font-size: 15.5px;
+    font-size: 16.5px;
     white-space: normal;
   }
   .units-summary {
-    font-size: 13px;
+    font-size: 14px;
   }
   .units-summary .us-h {
     font-size: 18px;
@@ -7110,11 +7110,11 @@ html.compact {
   gap: 20px;
 }
 .unit-step-tabs .sub-tab {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .unit-step-tabs .sub-tab .badge {
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 8px;
 }
 
@@ -7135,7 +7135,7 @@ html.compact {
 }
 .fill-card-hd span {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -7146,11 +7146,11 @@ html.compact {
   border-radius: var(--r-md);
 }
 #tabBody .batch-card .batch-co-title {
-  font-size: 15.5px;
+  font-size: 16.5px;
   font-weight: 650;
 }
 #tabBody .b-co-meta {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Три кнопки статуса — главное действие экрана: крупнее и «кнопочнее» */
@@ -7161,20 +7161,20 @@ html.compact {
 #tabBody .b-co-actions .seg button {
   min-height: 36px;
   height: 36px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 12px;
   border-radius: var(--r-xs);
 }
 #tabBody .btn-more-chip {
   min-height: 30px !important;
   height: 30px !important;
-  font-size: 12.5px !important;
+  font-size: 13.5px !important;
 }
 
 /* Метка + поле комментария по подразделению */
 .fill-note-lbl {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -7185,7 +7185,7 @@ html.compact {
   min-height: 52px;
   height: 52px;
   padding: 9px 12px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   resize: vertical;
   margin-bottom: 0;
 }
@@ -7214,7 +7214,7 @@ html.compact {
 }
 .fill-sec-hd span {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 2px;
 }
@@ -7244,7 +7244,7 @@ html.compact {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -7268,21 +7268,21 @@ html.compact {
   padding: 14px 16px;
 }
 .pos-name {
-  font-size: 15.5px;
+  font-size: 16.5px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .pos-sub {
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 3px;
 }
 .pos-badge {
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 10px;
 }
 .pos-edit {
   min-height: 34px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 4px 14px;
   flex: none;
   white-space: nowrap;
@@ -7318,7 +7318,7 @@ html.compact {
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 6px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     padding: 8px 10px;
     border-radius: var(--r-xs);
     border-bottom: none;
@@ -7349,10 +7349,10 @@ html.compact {
   border-radius: var(--r-md);
 }
 .kpi-t {
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 .kpi-s {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   margin-top: 3px;
   color: var(--muted);
@@ -7392,13 +7392,13 @@ html.compact {
 .dash-filter-reset {
   padding: 0 10px;
   min-height: 34px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   white-space: nowrap;
 }
 .dash-filter-export {
   min-height: 34px;
   padding: 0 14px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   white-space: nowrap;
   width: auto;
   margin-left: auto;
@@ -7414,12 +7414,12 @@ html.compact {
   border-bottom: 1px solid var(--line);
 }
 .card-hd b {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .card-hd-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
   flex: none;
@@ -7448,13 +7448,13 @@ html.compact {
   margin: 4px 0 8px;
 }
 .dash-sec-head > b {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .dash-sec-n {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--muted);
   margin-left: 4px;
@@ -7465,14 +7465,14 @@ html.compact {
 }
 .dash-sec-search input {
   min-height: 36px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .dash-legend {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin: 2px 2px 10px;
 }
@@ -7482,7 +7482,7 @@ html.compact {
 
 /* Таблицы дашборда — читабельнее (#15) */
 .co-tbl {
-  font-size: 14px;
+  font-size: 15px;
 }
 .co-tbl th {
   padding: 10px 14px;
@@ -7492,7 +7492,7 @@ html.compact {
 }
 .co-tbl td.num {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
 }
 .tblwrap {
   border-radius: var(--r-md);
@@ -7500,7 +7500,7 @@ html.compact {
 
 /* Ярлык секции — минимальный бамп читаемости, остаётся компактным */
 .sec-title {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ── Фаза 2: дашборд — под-вкладки «Прогресс» и «Льготы» ── */
@@ -7514,7 +7514,7 @@ html.compact {
 }
 .dash-mass-reminder {
   width: auto;
-  font-size: 12.5px;
+  font-size: 13.5px;
   min-height: 34px;
   padding: 0 14px;
   white-space: nowrap;
@@ -7534,13 +7534,13 @@ html.compact {
 }
 .bonuses-card-t {
   font-weight: 650;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   margin-bottom: 10px;
 }
 .bonuses-card-nums {
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .bonuses-card-nums .is-ok { color: var(--ok); }
 .bonuses-card-nums .is-no { color: var(--no); }
@@ -7572,7 +7572,7 @@ html.compact {
   margin-bottom: 16px;
 }
 .period-card-kicker {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   font-weight: 700;
   text-transform: uppercase;
@@ -7585,7 +7585,7 @@ html.compact {
   letter-spacing: -0.01em;
 }
 .period-card-meta {
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--muted);
   margin-top: 6px;
   line-height: 1.5;
@@ -7629,7 +7629,7 @@ html.compact {
 }
 .tool-card-t {
   font-weight: 650;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   display: flex;
   align-items: center;
@@ -7639,7 +7639,7 @@ html.compact {
   color: var(--accent);
 }
 .tool-card-d {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   line-height: 1.45;
   margin-top: 5px;
@@ -7651,7 +7651,7 @@ html.compact {
 }
 .tool-card-acts button {
   min-height: 34px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   padding: 0 14px;
   white-space: nowrap;
 }
@@ -7673,13 +7673,13 @@ html.compact {
 .empty--lg b {
   display: block;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
   margin-bottom: 4px;
 }
 .empty--lg > span:not(.empty-ic) {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* ── Фаза 2: админка — селект в тулбаре + журнал действий ── */
@@ -7700,12 +7700,12 @@ html.compact {
 }
 .log-time {
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .log-detail {
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 
@@ -7717,14 +7717,14 @@ html.compact {
 .roles2-bar-btn {
   min-height: 34px;
   padding: 0 16px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   flex-shrink: 0;
   width: auto;
 }
 .roles2-del {
   min-height: 30px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: 13px;
   width: auto;
   margin-left: auto;
 }
@@ -7805,7 +7805,7 @@ html.compact {
 .top-cmdk-hint kbd,
 .cmdk-esc {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1;
   color: var(--subtle);
   border: 1px solid var(--line);
@@ -7859,7 +7859,7 @@ html.compact {
   background: transparent;
   box-shadow: none;
   padding: 4px 0;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text);
 }
 .cmdk-input:focus {
@@ -7871,7 +7871,7 @@ html.compact {
   padding: 6px;
 }
 .cmdk-group {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -7890,7 +7890,7 @@ html.compact {
   box-shadow: none;
   border-radius: var(--r-xs);
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 .cmdk-item.on { background: var(--accent-soft); }
@@ -7911,14 +7911,14 @@ html.compact {
 }
 .cmdk-item-sub {
   color: var(--subtle);
-  font-size: 12.5px;
+  font-size: 13.5px;
   margin-left: 6px;
 }
 .cmdk-empty {
   padding: 24px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -7946,7 +7946,7 @@ html.compact {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--accent);
   flex: none;
@@ -7956,7 +7956,7 @@ html.compact {
   width: 92px;
   flex: none;
   min-height: 36px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 10px;
 }
 .bx-apply-bar .ba-cur,
@@ -7964,13 +7964,13 @@ html.compact {
   width: auto;
   flex: none;
   min-height: 36px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 0 8px;
 }
 .bx-apply-bar [data-act="apply-bar"] {
   flex: none;
   min-height: 36px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   padding: 0 14px;
   white-space: nowrap;
   margin-left: auto;
@@ -7985,7 +7985,7 @@ html.compact {
   width: auto;
   min-height: 30px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--muted);
   background: var(--card-2);
@@ -8028,7 +8028,7 @@ html.compact {
 .bmi-text {
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 .bmi-preview-slot { margin-top: 12px; }
 .bmi-acts {
@@ -8042,7 +8042,7 @@ html.compact {
   background: var(--card-2);
   padding: 10px 14px;
   border-radius: var(--r-xs);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.5;
 }
 .bmi-result-err { color: var(--no); font-weight: 600; }
@@ -8061,9 +8061,9 @@ html.compact {
   gap: 12px;
   padding: 12px 4px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: 14px;
 }
-.bmap-src { font-size: 11px; color: var(--muted); }
+.bmap-src { font-size: 12px; color: var(--muted); }
 .bmap-target {
   display: inline-flex;
   align-items: center;
@@ -8077,7 +8077,7 @@ html.compact {
   flex: none;
 }
 .bmap-sim {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ok);
   font-variant-numeric: tabular-nums;
@@ -8085,7 +8085,7 @@ html.compact {
 .bmap-link-btn {
   min-height: 30px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   width: auto;
 }
 .bmap-done {
@@ -8093,12 +8093,12 @@ html.compact {
   align-items: center;
   gap: 4px;
   color: var(--ok);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
 .bmk-goto {
   width: 100%;
   justify-content: center;
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
