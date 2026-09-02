@@ -5252,7 +5252,7 @@ function renderAdminPanel(){
   var curTab = tabs.filter(function(t){ return t.id === S.adminTab; })[0];
   setTop(curTab ? curTab.label : 'Панель Администратора', userLabel(), false, curTab ? curTab.icon : 'admin');
 
-  $('body').innerHTML = '<div id="adminContent" style="flex:1;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden"><div class="sp"><i></i> Загрузка…</div></div>';
+  $('body').innerHTML = '<div id="adminContent" class="admin-content"><div class="sp"><i></i> Загрузка…</div></div>';
 
   if(S.adminTab === 'users') loadAdminUsers();
   else if(S.adminTab === 'archive') loadAdminArchive();
@@ -7996,18 +7996,17 @@ function renderAdminPeriod(){
   var p = S.data.period || {};
   var closed = p.state === 'закрыт';
 
-  var h = '<div class="card" style="margin-bottom:16px">'+
-    '<div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Текущий период сбора</div>'+
-    '<div style="font-weight:700;font-size:18px">'+esc(p.name || 'Обзор рынка')+'</div>'+
-    '<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+
-      'Статус: <b style="color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b>'+
+  var h = '<div class="card period-card">'+
+    '<div class="period-card-kicker">Текущий период сбора</div>'+
+    '<div class="period-card-name">'+esc(p.name || 'Обзор рынка')+'</div>'+
+    '<div class="period-card-meta">'+
+      'Статус: <b class="'+(closed?'is-no':'is-ok')+'">'+esc(p.state || 'открыт')+'</b>'+
       (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
       (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(fmtDateTime(p.at))+')':'') : '') +
     '</div>'+
-    '<div style="height:16px"></div>'+
     (closed
-      ? '<button id="btnAdminPeriodOpen" class="btn-line" style="color:var(--ok);border-color:var(--ok);font-weight:700">Открыть новый период</button>'
-      : '<button id="btnAdminPeriodClose" class="btn-line btn-danger">Закрыть период сбора</button>')+
+      ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
+      : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')+
   '</div>';
 
   $('adminContent').innerHTML = h;
