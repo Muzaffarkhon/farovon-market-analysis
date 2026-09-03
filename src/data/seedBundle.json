@@ -14,7 +14,7 @@
     {
       "id": "1",
       "login": "mirzomansurov.a",
-      "password_hash": "87e71e03c2f57c234b31bc67ad2a2ae81b78c48d420d4f836aeb3aab2f93b8a4",
+      "password_hash": "$2a$12$ZxJ34Edun9BIZZJVGJ5EJu4fGsY828fOh7OTS196s49aI.eaGcOv6",
       "fio": "Мирзомансуров Абдурахмон",
       "role": "dir_head",
       "phone": null,
@@ -154,7 +154,7 @@
     {
       "id": "12",
       "login": "ahmedboev.mm",
-      "password_hash": "3383a446dc806436704f46398c7b5e4f09455d4bf33fb3d4c1037ec8df526f08",
+      "password_hash": "$2a$12$wsrGtK088Vr0PKH/rMrHP.qULMSCqlJ34ZlJJleuIEQVdFW14u.zO",
       "fio": "Ахмедбоев Мубинчон Мукимчонович",
       "role": "dir_head",
       "phone": null,
@@ -168,7 +168,7 @@
     {
       "id": "13",
       "login": "samandarov.iv",
-      "password_hash": "305a0dadd7064cb2ff0de5d0220b24f6247fd0534ec31ccd810a60b92ca936bf",
+      "password_hash": "$2a$12$M7OlhssGaV3qOYt.4muY1.eEKP5E0IzfHA2X2wIrBrbe95nAPmHFy",
       "fio": "Самандаров Исмоилхоча Вохидхочаевич",
       "role": "dir_head",
       "phone": null,
@@ -224,7 +224,7 @@
     {
       "id": "17",
       "login": "aripov.mm",
-      "password_hash": "abe1b712d9ab6027ae89e974e25704b3b09bfb62e25f36ef4b911435b180bddd",
+      "password_hash": "$2a$12$QyXhjWa3ciEAtRsHtnQkpe5lQ0wu.tIe9dL8GaESMVHDhFv58bUK.",
       "fio": "Арипов Махсуд Махмудович",
       "role": "dir_head",
       "phone": null,
@@ -392,7 +392,7 @@
     {
       "id": "29",
       "login": "shukurova.ma",
-      "password_hash": "23bb7b91ee4f355515e369ca9f82f3c130c4324f163b27f217d5f08f9274c32e",
+      "password_hash": "$2a$12$W2v6iqS2PE.AkntrBM3c2uSQ2IpWeaqoUJez7xG6bKtGIZkzfqFjC",
       "fio": "Шукурова Мадинахон Анваровна",
       "role": "hrbp",
       "phone": null,

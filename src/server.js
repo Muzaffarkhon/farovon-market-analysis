@@ -33,16 +33,36 @@ const app = express();
 // бесполезны, а rate-limit считал бы всех клиентов за одного.
 app.set('trust proxy', 1);
 
-// Проверка подключения к базе данных и запуск идемпотентных миграций
+// Статус последнего прогона миграций — виден в /health, чтобы «поднялся, но
+// схема не мигрировала» не оставалось незамеченным (миграция намеренно не
+// блокирует старт — транзиентный сбой Turso не должен ронять весь сервис).
+let migrationStatus = 'pending';
+
+// Проверка подключения к базе данных и запуск идемпотентных миграций.
+// Миграцию пробуем несколько раз с нарастающей паузой — на холодном старте
+// Render соединение с Turso иногда не встаёт с первого раза.
 (async () => {
   try {
     const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
     console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
-    await migrate();
-    console.log('✅ Идемпотентные миграции схемы базы данных успешно применены');
   } catch (err) {
-    console.warn('⚠️ Ошибка подключения/миграции базы данных:', err.message);
+    console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
+
+  const delays = [0, 2000, 4000];
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    if (delays[attempt]) await new Promise(r => setTimeout(r, delays[attempt]));
+    try {
+      await migrate();
+      migrationStatus = 'ok';
+      console.log('✅ Идемпотентные миграции схемы базы данных успешно применены');
+      break;
+    } catch (err) {
+      migrationStatus = 'error';
+      console.warn(`⚠️ Миграция схемы (попытка ${attempt + 1}/${delays.length}) не удалась:`, err.message);
+    }
+  }
+
   await ensureWebhook();
 })();
 
@@ -152,6 +172,7 @@ app.get('/health', async (req, res) => {
   res.json({
     ok: db === 'ok',
     db,
+    schema: migrationStatus,
     version: APP_VERSION,
     timestamp: new Date().toISOString(),
     env: config.nodeEnv,
