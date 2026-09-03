@@ -996,6 +996,10 @@ function renderUnits(){
     totalAll += x.total; doneAll += x.done; askAll += (x.ask||0); svAll += (x.surveys||0);
   });
 
+  // Смежные группы сворачиваются в одну карточку: данные общие, заполняется
+  // раз на все площадки (см. openUnit → mergeGroupSurveys, серверный разнос).
+  var display = collapseUnitGroups(u);
+
   var h = periodBanner();
 
   if(!obSeen()){
@@ -1016,14 +1020,14 @@ function renderUnits(){
   }
 
   h += '<div class="units-summary">'+
-    '<span class="us-h">'+u.length+'</span> '+declOfNum(u.length, ['подразделение','подразделения','подразделений'])+
+    '<span class="us-h">'+display.length+'</span> '+declOfNum(display.length, ['подразделение','подразделения','подразделений'])+
     '<span class="us-dot"></span>'+
     '<b>'+doneAll+'</b> из '+totalAll+' '+declOfNum(totalAll, ['компании проверено','компаний проверено','компаний проверено'])+
     (askAll ? '<span class="us-dot"></span><span class="us-ask">'+askAll+' на уточнении</span>' : '')+
     '<span class="us-dot"></span>'+
     '<b>'+svAll+'</b> '+declOfNum(svAll, ['запись по рынку','записи по рынку','записей по рынку'])+
     '</div>';
-  h += '<div id="unitsContainer" class="fx-stagger">' + renderUnitCards(u) + '</div>';
+  h += '<div id="unitsContainer" class="fx-stagger">' + renderUnitCards(display) + '</div>';
   $('body').innerHTML = h;
 
   if($('obMore')) $('obMore').onclick = openHelp;
@@ -1032,8 +1036,12 @@ function renderUnits(){
   if($('unitFilter')){
     $('unitFilter').oninput = function(){
       var q = this.value.trim().toLowerCase();
-      var filtered = u.filter(function(x){
-        return !q || x.unit.toLowerCase().indexOf(q) >= 0 || x.dir.toLowerCase().indexOf(q) >= 0;
+      var filtered = display.filter(function(x){
+        if(!q) return true;
+        if((x.dir||'').toLowerCase().indexOf(q) >= 0) return true;
+        if(x.__group) return x.key.toLowerCase().indexOf(q) >= 0 ||
+          x.members.some(function(m){ return m.unit.toLowerCase().indexOf(q) >= 0; });
+        return x.unit.toLowerCase().indexOf(q) >= 0;
       });
       $('unitsContainer').innerHTML = renderUnitCards(filtered);
     };
@@ -1045,9 +1053,98 @@ function renderUnits(){
   };
 }
 
+/**
+ * Сворачивает площадки одной смежной группы (u.group) в одну запись
+ * {__group:true, key, dir, members:[...], unit:<представитель>, ...агрегаты}.
+ * Позиция группы в списке — на месте её первой площадки. Одиночные
+ * подразделения проходят как есть.
+ */
+function collapseUnitGroups(units){
+  var out = [], seen = {};
+  (units || []).forEach(function(x){
+    var g = String(x.group || '').trim();
+    if(!g){ out.push(x); return; }
+    if(seen[g]){
+      var grp = seen[g];
+      grp.members.push(x);
+      grp.total = Math.max(grp.total, x.total || 0);
+      grp.done = Math.max(grp.done, x.done || 0);
+      grp.ask = Math.max(grp.ask, x.ask || 0);
+      grp.surveys = Math.max(grp.surveys, x.surveys || 0);
+      return;
+    }
+    var rec = {
+      __group: true,
+      key: g,
+      dir: x.dir || '',
+      unit: x.unit,               // представитель — по нему openUnit → currentUnitGroup
+      members: [x],
+      total: x.total || 0,
+      done: x.done || 0,
+      ask: x.ask || 0,
+      surveys: x.surveys || 0,
+      note: ''
+    };
+    seen[g] = rec;
+    out.push(rec);
+  });
+  return out;
+}
+
+/** Короткое имя площадки внутри группы: убираем общий префикс-ключ. */
+function shortMemberName(unitName, key){
+  var n = String(unitName || '').replace(/^\s*\d+[\s.\-–]*/, '').trim();
+  var k = String(key || '').trim();
+  if(k && n.toLowerCase().indexOf(k.toLowerCase()) === 0){
+    var rest = n.slice(k.length).replace(/^[\s·,–-]+/, '').trim();
+    if(rest) return rest;
+  }
+  return n;
+}
+
 function renderUnitCards(list){
   if(!list.length) return '<div class="empty">Подразделения не найдены</div>';
   return list.map(function(x){
+    if(x.__group) return renderGroupCard(x);
+    return renderPlainUnitCard(x);
+  }).join('');
+}
+
+function renderGroupCard(x){
+  var sv = x.surveys || 0;
+  var pu = (S.data.positionsByGroup && S.data.positionsByGroup[x.key])
+    || (S.data.positionsByUnit && S.data.positionsByUnit[x.unit]) || [];
+  var totalSlots = x.total * (pu.length || 0);
+  var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
+  var pct = x.total ? Math.round(x.done / x.total * 100) : 0;
+  var askPct = x.total ? Math.round((x.ask || 0) / x.total * 100) : 0;
+  var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
+  var st = (x.done === 0 && sv === 0) ? { k:'none', t:'Не начато' }
+         : (step1done && sv > 0)      ? { k:'ok',   t:'Готово' }
+         :                             { k:'part', t:'В работе' };
+  var names = x.members.map(function(m){ return shortMemberName(m.unit, x.key); });
+
+  return '<div class="unit unit--group" data-u="'+esc(x.unit)+'">'+
+    '<div class="u-body">'+
+      '<div class="u-top">'+
+        '<div class="u-name" title="'+esc(x.key)+'">'+esc(x.key)+'</div>'+
+        '<span class="u-status is-'+st.k+'">'+st.t+'</span>'+
+      '</div>'+
+      '<div class="u-dir">'+esc(x.dir)+'</div>'+
+      '<div class="u-grp-tag">'+ic('link', 12)+'Смежная группа · '+x.members.length+' '+
+        declOfNum(x.members.length, ['площадка','площадки','площадок'])+
+        ': '+esc(names.join(', '))+'</div>'+
+      '<div class="u-bars">'+
+        bar2('Участники рынка', x.done, x.total, pct, askPct) +
+        bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
+      '</div>'+
+      '<div class="u-grp-hint">'+ic('info', 12)+'Заполняется один раз — данные сохранятся во все площадки группы.</div>'+
+    '</div>'+
+    '<div class="u-chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none">'+ICONS.chevron+'</svg></div>'+
+  '</div>';
+}
+
+function renderPlainUnitCard(x){
     // Кольцо показывало один процент — проверку компаний (шаг 1), и на карточке
     // стояло «100%», хотя главного, данных по рынку (шаг 2), внесено не было.
     // Полос теперь две, по одной на шаг, и подписаны они цифрами, а не только
@@ -1080,7 +1177,6 @@ function renderUnitCards(list){
       '</div>'+
       '<div class="u-chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none">'+ICONS.chevron+'</svg></div>'+
     '</div>';
-  }).join('');
 }
 
 /**

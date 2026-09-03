@@ -1476,6 +1476,28 @@ label.lbl {
   align-items: center;
   gap: 5px;
 }
+
+/* Карточка смежной группы в «Мои подразделения» */
+.unit--group { border-left: 3px solid var(--accent); }
+.unit .u-grp-tag {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.unit .u-grp-tag svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
+.unit .u-grp-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.unit .u-grp-hint svg { width: 13px; height: 13px; flex: none; margin-top: 1px; }
 .unit .u-ask svg {
   width: 15px;
   height: 15px;
