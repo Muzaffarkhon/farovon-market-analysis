@@ -1617,6 +1617,26 @@ function benList(v){
   return String(v == null ? '' : v).split(/[;,]/).map(function(s){ return s.trim(); }).filter(Boolean);
 }
 
+/**
+ * Переменная часть к массиву [{type,size,per}]. Сервер отдаёт готовый
+ * s.bonuses; у старых записей его нет — синтезируем один вид из плоских
+ * s.bonType/bonSize/bonPer.
+ */
+function bonList2(s){
+  var arr = s && s.bonuses;
+  if(!Array.isArray(arr)) arr = [];
+  arr = arr.filter(function(b){ return b && typeof b === 'object'; }).map(function(b){
+    return { type: String(b.type || '').trim(), size: String(b.size == null ? '' : b.size).trim(), per: String(b.per || '').trim() };
+  }).filter(function(b){ return b.type || b.size || b.per; });
+  if(!arr.length){
+    var t = String((s && s.bonType) || '').trim();
+    var sz = String((s && s.bonSize) || '').trim();
+    var p = String((s && s.bonPer) || '').trim();
+    if(t || sz || p) arr = [{ type: t, size: sz, per: p }];
+  }
+  return arr;
+}
+
 function survGroups(){
   var group = currentUnitGroup();
   var штатка = group && S.data.positionsByGroup && S.data.positionsByGroup[group]
@@ -1911,6 +1931,9 @@ function openBatchSurveySheet(posName){
       grade: exist ? (exist.grade || '') : '',
       schedule: exist ? (exist.schedule || '') : '',
       bonHas: exist ? (exist.bonHas || '') : '',
+      // Переменная часть — массив видов [{type,size,per}]. Сервер шлёт exist.bonuses;
+      // у старых записей он пуст — синтезируем из плоских bon* полей.
+      bonuses: exist ? bonList2(exist) : [],
       bonSize: exist ? (exist.bonSize || '') : '',
       bonType: exist ? (exist.bonType || '') : '',
       bonPer: exist ? (exist.bonPer || '') : '',
@@ -1940,7 +1963,10 @@ function openBatchSurveySheet(posName){
     // 5. Наличие бонусов
     if(item.bonHas && String(item.bonHas).trim()) points++;
     // 6. Размер/параметры бонуса (или если бонусов нет)
-    if(item.bonHas === 'нет' || (item.bonHas === 'да' && item.bonSize && String(item.bonSize).trim())) points++;
+    var bonAnyData = Array.isArray(item.bonuses) && item.bonuses.some(function(b){
+      return b && (String(b.size == null ? '' : b.size).trim() || b.type);
+    });
+    if(item.bonHas === 'нет' || (item.bonHas === 'да' && bonAnyData)) points++;
     // 7. Льготы и соцпакет
     if(item.benefits && item.benefits.length > 0) points++;
     // 8. Прочие выплаты
@@ -1993,6 +2019,35 @@ function openBatchSurveySheet(posName){
     card.classList.toggle('is-part', comp.status === 'part' || isForkInverted);
   }
 
+  // Один вид переменной части: размер + вид + периодичность. Строк может быть
+  // несколько (item.bonuses). Пустой массив = одна строка-заготовка.
+  // Объявлено на уровне openBatchSurveySheet — зовётся и из morePanelHtml,
+  // и из обработчика кликов (добавить/убрать вид).
+  function bonRowsHtml(item){
+    var rows = (Array.isArray(item.bonuses) && item.bonuses.length) ? item.bonuses : [{ type:'', size:'', per:'' }];
+    var multi = rows.length > 1;
+    return rows.map(function(b, bi){
+      return '<div class="b-bon-row" data-bi="'+bi+'">'+
+        (multi
+          ? '<div class="b-bon-row-hd"><span>Вид '+(bi+1)+'</span>'+
+            '<button type="button" class="b-bon-rm" data-act="bon-rm" data-bi="'+bi+'">'+ic('x',11)+' убрать</button></div>'
+          : '')+
+        '<label class="lbl">Размер</label>'+
+        '<input class="b-bon-size" data-bi="'+bi+'" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(b.size || '')+'">'+
+        '<label class="lbl" style="margin-top:8px">Вид переменной части</label>'+
+        '<div class="chips" data-chips="bonType" data-bi="'+bi+'">'+bonusTypes.map(function(v){
+          return '<button type="button" data-act="bonRowType" data-bi="'+bi+'" data-v="'+esc(v)+'"'+(b.type===v?' class="on"':'')+'>'+esc(v)+'</button>';
+        }).join('')+'</div>'+
+        '<div class="sub-step">'+
+          '<label class="lbl" style="margin:0 0 6px">Периодичность получения</label>'+
+          '<div class="chips" data-chips="bonPer" data-bi="'+bi+'">'+bonusPeriods.map(function(v){
+            return '<button type="button" data-act="bonRowPer" data-bi="'+bi+'" data-v="'+esc(v)+'"'+(b.per===v?' class="on"':'')+'>'+esc(v)+'</button>';
+          }).join('')+'</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
   function renderSheetContent(){
     // turn-7b: на десктопе весь ввод по должности — плоская редактируемая
     // таблица (оклад правится прямо в ячейке), детальные поля (должность у них,
@@ -2016,14 +2071,8 @@ function openBatchSurveySheet(posName){
         '<label class="lbl">Бонусы и премии</label>'+
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
         '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
-          '<label class="lbl">Размер бонуса</label>'+
-          '<input class="b-bon-size" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(item.bonSize)+'">'+
-          '<label class="lbl" style="margin-top:8px">Вид переменной части</label>'+
-          chips('bonType', bonusTypes, item.bonType, false)+
-          '<div class="sub-step">'+
-            '<label class="lbl" style="margin:0 0 6px">Периодичность получения</label>'+
-            chips('bonPer', bonusPeriods, item.bonPer, false)+
-          '</div>'+
+          '<div class="b-bon-list">'+bonRowsHtml(item)+'</div>'+
+          '<button type="button" class="btn-line b-bon-add" data-act="bon-add">'+ic('plus',12)+' Добавить вид</button>'+
         '</div>'+
 
         '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
@@ -2159,7 +2208,16 @@ function openBatchSurveySheet(posName){
       entries.forEach(function(item){
         var pFromStr = String(item.payFrom == null ? '' : item.payFrom).trim();
         var pToStr = String(item.payTo == null ? '' : item.payTo).trim();
-        var bonSizeStr = String(item.bonSize == null ? '' : item.bonSize).trim();
+        // Переменная часть: чистим строки массива, пустые отбрасываем.
+        var bonusesClean = (item.bonHas === 'да' && Array.isArray(item.bonuses))
+          ? item.bonuses.map(function(b){
+              return {
+                type: String((b && b.type) || '').trim(),
+                size: String((b && b.size) == null ? '' : (b && b.size)).trim(),
+                per: String((b && b.per) || '').trim()
+              };
+            }).filter(function(b){ return b.type || b.size || b.per; })
+          : [];
         var noteStr = String(item.note == null ? '' : item.note).trim();
         var extraStr = String(item.extra == null ? '' : item.extra).trim();
         var posTheirStr = String(item.posTheir == null ? '' : item.posTheir).trim();
@@ -2167,7 +2225,7 @@ function openBatchSurveySheet(posName){
         var scheduleStr = String(item.schedule == null ? '' : item.schedule).trim();
         var benArr = Array.isArray(item.benefits) ? item.benefits : [];
 
-        var isFilled = !!(pFromStr || pToStr || bonSizeStr || benArr.length || noteStr || extraStr || posTheirStr || gradeStr || (item.bonHas && item.bonHas === 'да'));
+        var isFilled = !!(pFromStr || pToStr || bonusesClean.length || benArr.length || noteStr || extraStr || posTheirStr || gradeStr || (item.bonHas && item.bonHas === 'да'));
 
         var existIndex = S.surveys.findIndex(function(s){
           return norm(s.posOur) === norm(posName) && norm(s.company) === norm(item.co);
@@ -2189,9 +2247,11 @@ function openBatchSurveySheet(posName){
             cur: item.cur || 'сомони',
             payPer: item.payPer || 'в месяц',
             bonHas: item.bonHas || '',
-            bonSize: item.bonHas === 'да' ? bonSizeStr : '',
-            bonType: item.bonHas === 'да' ? String(item.bonType || '') : '',
-            bonPer: item.bonHas === 'да' ? String(item.bonPer || '') : '',
+            bonuses: bonusesClean,
+            // bon* держат первый вид — их читают локальный ре-рендер и старые места
+            bonSize: bonusesClean[0] ? bonusesClean[0].size : '',
+            bonType: bonusesClean[0] ? bonusesClean[0].type : '',
+            bonPer: bonusesClean[0] ? bonusesClean[0].per : '',
             benefits: benArr,
             extra: extraStr,
             source: item.source || '',
@@ -2371,6 +2431,44 @@ function openBatchSurveySheet(posName){
     var idx = +card.dataset.idx;
     var item = entries[idx];
 
+    // Переменная часть: добавить / убрать вид
+    if(e.target.closest('[data-act="bon-add"]')){
+      if(!Array.isArray(item.bonuses)) item.bonuses = [];
+      // пустой массив на экране = одна строка-заготовка; делаем её реальной
+      if(!item.bonuses.length) item.bonuses.push({ type:'', size:'', per:'' });
+      item.bonuses.push({ type:'', size:'', per:'' });
+      var listEl = card.querySelector('.b-bon-list');
+      if(listEl) listEl.innerHTML = bonRowsHtml(item);
+      updateCardCompleteness(card, item);
+      return;
+    }
+    var bonRm = e.target.closest('[data-act="bon-rm"]');
+    if(bonRm){
+      var rmI = +bonRm.dataset.bi;
+      if(Array.isArray(item.bonuses)) item.bonuses.splice(rmI, 1);
+      var listEl2 = card.querySelector('.b-bon-list');
+      if(listEl2) listEl2.innerHTML = bonRowsHtml(item);
+      updateCardCompleteness(card, item);
+      return;
+    }
+    // Чипы вида/периодичности внутри строки переменной части
+    var bonChip = e.target.closest('.chips[data-bi] button');
+    if(bonChip){
+      var bcI = +bonChip.dataset.bi;
+      var bcField = bonChip.dataset.act === 'bonRowPer' ? 'per' : 'type';
+      if(!Array.isArray(item.bonuses) || !item.bonuses.length) item.bonuses = [{ type:'', size:'', per:'' }];
+      var brow = item.bonuses[bcI];
+      if(brow){
+        var bcV = bonChip.dataset.v;
+        brow[bcField] = (brow[bcField] === bcV) ? '' : bcV;
+        bonChip.parentNode.querySelectorAll('button').forEach(function(b){
+          b.classList.toggle('on', b.dataset.v === brow[bcField]);
+        });
+      }
+      updateCardCompleteness(card, item);
+      return;
+    }
+
     // Пикер должности у конкурента
     var pickTheir = e.target.closest('.b-pick-their');
     if(pickTheir){
@@ -2424,7 +2522,11 @@ function openBatchSurveySheet(posName){
     if(e.target.classList.contains('b-pay-from')) item.payFrom = e.target.value.replace(/[^0-9\s,.]/g, '');
     if(e.target.classList.contains('b-pay-to')) item.payTo = e.target.value.replace(/[^0-9\s,.]/g, '');
     if(e.target.classList.contains('b-grade')) item.grade = e.target.value;
-    if(e.target.classList.contains('b-bon-size')) item.bonSize = e.target.value;
+    if(e.target.classList.contains('b-bon-size')){
+      var szI = +e.target.dataset.bi || 0;
+      if(!Array.isArray(item.bonuses) || !item.bonuses.length) item.bonuses = [{ type:'', size:'', per:'' }];
+      if(item.bonuses[szI]) item.bonuses[szI].size = e.target.value;
+    }
     if(e.target.classList.contains('b-extra')) item.extra = e.target.value;
     if(e.target.classList.contains('b-note')) item.note = e.target.value;
     updateCardCompleteness(card, item);
@@ -3795,8 +3897,13 @@ function openSurveyRecModal(r){
   var pay = (r.payFrom && r.payTo && r.payFrom !== r.payTo)
     ? Number(r.payFrom).toLocaleString('ru-RU') + ' – ' + Number(r.payTo).toLocaleString('ru-RU')
     : (r.payFrom ? Number(r.payFrom).toLocaleString('ru-RU') : (r.payTo ? Number(r.payTo).toLocaleString('ru-RU') : '—'));
-  var bonus = (r.bonHas === 'да' || r.bonSize)
-    ? (esc(r.bonSize || '—') + (r.bonType ? ' · ' + esc(r.bonType) : '') + (r.bonPer ? ' · ' + esc(r.bonPer) : ''))
+  var bonRows = (Array.isArray(r.bonuses) && r.bonuses.length)
+    ? r.bonuses
+    : ((r.bonHas === 'да' || r.bonSize) ? [{ type: r.bonType, size: r.bonSize, per: r.bonPer }] : []);
+  var bonus = bonRows.length
+    ? bonRows.map(function(b){
+        return esc(b.size || '—') + (b.type ? ' · ' + esc(b.type) : '') + (b.per ? ' · ' + esc(b.per) : '');
+      }).join('<br>')
     : '<span style="color:var(--muted)">не указан</span>';
   var chips = (r.benefits || []).length
     ? '<div style="display:flex;flex-wrap:wrap;gap:5px">' + r.benefits.map(function(b){

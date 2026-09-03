@@ -66,6 +66,60 @@ function benefitsToList(v) {
 
 exports.benefitsToList = benefitsToList;
 
+/**
+ * Переменная часть: на фронте — массив item.bonuses = [{type,size,per}]
+ * (несколько видов премии сразу). В базе — JSON-строка в surveys.bonuses,
+ * плюс колонки bon_has/bon_size/bon_type/bon_per держат ПЕРВЫЙ элемент для
+ * обратной совместимости с аналитикой/импортом/дашбордами.
+ *
+ * normalizeBonuses — вход (что угодно) → чистый массив [{type,size,per}].
+ * bonusesLegacy — массив → {bonHas,bonSize,bonType,bonPer} для bon_* колонок.
+ * bonusesFromRow — строка БД → массив (JSON или синтез из bon_* у старых строк).
+ */
+function normalizeBonuses(v) {
+  let arr = v;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch (_) { arr = []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter(b => b && typeof b === 'object')
+    .map(b => ({
+      type: String(b.type || '').trim(),
+      size: String(b.size == null ? '' : b.size).trim(),
+      per: String(b.per || '').trim()
+    }))
+    .filter(b => b.type || b.size || b.per);
+}
+
+function bonusesLegacy(list, bonHasRaw) {
+  const first = list[0] || null;
+  // bon_has: 'да' если есть хоть один вид; иначе — что пришло с фронта
+  // ('нет' / 'не знаю'), по умолчанию 'не знаю'.
+  const bonHas = list.length ? 'да' : String(bonHasRaw || 'не знаю').trim();
+  return {
+    bonHas,
+    bonSize: first ? first.size : '',
+    bonType: first ? first.type : '',
+    bonPer: first ? first.per : ''
+  };
+}
+
+function bonusesFromRow(row) {
+  const parsed = normalizeBonuses(row && row.bonuses);
+  if (parsed.length) return parsed;
+  // старая запись без JSON — синтезируем один элемент из bon_* при наличии
+  const t = String((row && row.bon_type) || '').trim();
+  const s = String((row && row.bon_size) || '').trim();
+  const p = String((row && row.bon_per) || '').trim();
+  if (t || s || p) return [{ type: t, size: s, per: p }];
+  return [];
+}
+
+exports.normalizeBonuses = normalizeBonuses;
+exports.bonusesLegacy = bonusesLegacy;
+exports.bonusesFromRow = bonusesFromRow;
+
 exports.saveSurveyData = async (req, res) => {
   const { unit, rows, added, note, submit } = req.body;
   if (!unit || !String(unit).trim()) {
@@ -231,6 +285,14 @@ exports.saveSurveyDetails = async (req, res) => {
     let payPer = String(s.payPer || 'в месяц').trim().toLowerCase();
     if (!ALLOWED_PAY_PERIODS.includes(payPer)) payPer = 'в месяц';
 
+    // Переменная часть: фронт шлёт s.bonuses = [{type,size,per}]. Старый клиент
+    // (или импорт) шлёт плоские bonHas/bonSize/bonType/bonPer — синтезируем один.
+    let bonList = normalizeBonuses(s.bonuses);
+    if (!bonList.length && (s.bonType || s.bonSize || s.bonPer)) {
+      bonList = normalizeBonuses([{ type: s.bonType, size: s.bonSize, per: s.bonPer }]);
+    }
+    const bonLeg = bonusesLegacy(bonList, s.bonHas);
+
     validatedItems.push({
       id: s.id,
       company: compName,
@@ -241,10 +303,11 @@ exports.saveSurveyDetails = async (req, res) => {
       pTo,
       cur,
       payPer,
-      bonHas: String(s.bonHas || 'не знаю').trim(),
-      bonSize: String(s.bonSize || '').trim(),
-      bonType: String(s.bonType || '').trim(),
-      bonPer: String(s.bonPer || '').trim(),
+      bonuses: JSON.stringify(bonList),
+      bonHas: bonLeg.bonHas,
+      bonSize: bonLeg.bonSize,
+      bonType: bonLeg.bonType,
+      bonPer: bonLeg.bonPer,
       benefits: benefitsToText(s.benefits),
       schedule: String(s.schedule || '').trim(),
       extra: String(s.extra || '').trim(),
@@ -304,22 +367,22 @@ exports.saveSurveyDetails = async (req, res) => {
               gStmts.push({
                 sql: `UPDATE surveys
                       SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
-                          bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
+                          bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
                       WHERE sid = ? AND unit = ?`,
                 args: [
                   s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
-                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
                   sid, gu
                 ]
               });
             } else {
               const newSid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '_' + norm(gu).slice(0, 4);
               gStmts.push({
-                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
                 args: [
                   newSid, gu, s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
-                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
+                  s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
                   req.user.fio || req.user.login, nowIso, period.name
                 ]
               });
@@ -408,12 +471,12 @@ exports.saveSurveyDetails = async (req, res) => {
         stmts.push({
           sql: `UPDATE surveys
                 SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
-                    bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
+                    bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
                 WHERE sid = ? AND unit = ?`,
           args: [
             s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
-            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
             sid, unit
           ]
@@ -423,12 +486,12 @@ exports.saveSurveyDetails = async (req, res) => {
         sid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
         newIds.push(sid);
         stmts.push({
-          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
           args: [
             sid, unit, s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
-            s.bonHas, s.bonSize, s.bonType, s.bonPer,
+            s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
             req.user.fio || req.user.login, now, period.name
           ]

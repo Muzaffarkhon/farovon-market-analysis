@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   bon_size TEXT,
   bon_type TEXT,
   bon_per TEXT,
+  bonuses TEXT DEFAULT '',           -- JSON [{type,size,per}]; bon_* держат первый элемент
   benefits TEXT DEFAULT '',
   schedule TEXT DEFAULT '',
   extra TEXT,

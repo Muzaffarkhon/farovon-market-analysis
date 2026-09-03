@@ -2590,7 +2590,7 @@ label.lbl {
   border: 1px solid var(--line);
 }
 
-/* «Периодичность получения» — отдельный шаг внутри блока бонуса: своя белая
+/* «Периодичность получения» — отдельный шаг внутри строки вида: своя белая
    плашка во всю ширину, отделена сверху линией, слева акцентная полоса. */
 .sub-step {
   margin: 12px -10px -10px;
@@ -2599,6 +2599,49 @@ label.lbl {
   background: var(--card);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Переменная часть: несколько видов премии сразу — каждая своей плашкой. */
+.b-bon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.b-bon-row {
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.b-bon-row .sub-step {
+  margin: 12px -10px -10px;
+}
+.b-bon-row-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.b-bon-rm {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  box-shadow: none;
+}
+.b-bon-rm:hover { color: var(--danger, #c0392b); border-color: currentColor; }
+.b-bon-add {
+  margin-top: 10px;
+  width: 100%;
 }
 
 /* ─── Нижняя Панель Действий ─── */
