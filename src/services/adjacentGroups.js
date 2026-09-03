@@ -125,8 +125,11 @@ function suggestAdjacentGroups(divisions) {
   Object.keys(buckets).forEach(bk => {
     const arr = buckets[bk];
     if (arr.length < 2) return;
-    const points = arr.map(x => norm(x.point));
-    if (new Set(points).size < 2) return; // нет различия по точке — не смежная группа
+    // Нужно ≥2 РАЗНЫХ непустых различителя. Пара «X» + «X 3» (одна площадка и
+    // её пронумерованный под-узел) даёт лишь один непустой различитель — это
+    // не смежная группа, а родитель/потомок.
+    const points = new Set(arr.map(x => norm(x.point)).filter(Boolean));
+    if (points.size < 2) return;
 
     const withReg = arr.map(x => ({
       unit: x.d.unit,
@@ -135,7 +138,7 @@ function suggestAdjacentGroups(divisions) {
     }));
 
     out.push({
-      key: arr[0].role,
+      key: arr[0].role.replace(/\s+/g, ' ').trim(),
       dir: arr[0].d.dir || '',
       units: withReg.sort((a, b) => a.unit.localeCompare(b.unit, 'ru'))
     });
