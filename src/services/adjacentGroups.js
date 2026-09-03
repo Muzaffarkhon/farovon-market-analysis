@@ -86,14 +86,35 @@ function splitRoleAndPoint(unitName) {
 }
 
 /**
- * @param {Array<{unit:string, dir?:string, group_key?:string, region?:string}>} divisions
+ * Родительское/сводное подразделение — в предложения не берём:
+ *  - ведущий код оканчивается на «00» («0100 Филиал ТД Душанбе» — узел филиала,
+ *    под ним лежат 0101, 0102…);
+ *  - явно исключено из обзоров (is_survey_target = 0);
+ *  - на него ссылаются как на parent_unit другие подразделения.
+ */
+function isParentLike(d, parentUnitSet) {
+  if (/^\s*\d+00(?=[\s.\-–]|$)/.test(String(d.unit || ''))) return true;
+  if (d.is_survey_target != null && Number(d.is_survey_target) === 0) return true;
+  if (parentUnitSet && parentUnitSet.has(String(d.unit || '').trim())) return true;
+  return false;
+}
+
+/**
+ * @param {Array<{unit:string, dir?:string, group_key?:string, region?:string, is_survey_target?:number, parent_unit?:string}>} divisions
  * @returns {Array<{key:string, dir:string, units:Array<{unit:string, region:string}>}>}
  */
 function suggestAdjacentGroups(divisions) {
+  const parentUnitSet = new Set(
+    (divisions || [])
+      .map(d => String((d && d.parent_unit) || '').trim())
+      .filter(Boolean)
+  );
+
   const buckets = {};
   (divisions || []).forEach(d => {
     if (!d || !d.unit) return;
     if (String(d.group_key || '').trim()) return; // ручной ключ — не предлагаем
+    if (isParentLike(d, parentUnitSet)) return;   // родительские/сводные узлы
     const { role, point } = splitRoleAndPoint(d.unit);
     if (!role || role.split(/\s+/).length < 2) return; // корень роли из <2 слов — пропускаем
     const key = norm(d.dir || '') + ' :: ' + norm(role);
