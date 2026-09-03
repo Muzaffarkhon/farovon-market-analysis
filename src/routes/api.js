@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { authMiddleware, requireRoles, requireCapability } = require('../middleware/auth');
 const { apiLimiter, authLimiter, webhookLimiter } = require('../middleware/rateLimit');
+const refCache = require('../services/refCache');
 const authController = require('../controllers/authController');
 const surveyController = require('../controllers/surveyController');
 const dashboardController = require('../controllers/dashboardController');
@@ -24,6 +25,21 @@ router.post('/telegram/webhook', webhookLimiter, telegramController.webhook);
 
 // ─── Защищенные роуты (требуют JWT) ───
 router.use(authMiddleware);
+
+// Сброс кэша справочников (src/services/refCache.js) после любой успешной
+// правки через админку или добавления значения в справочник из анкеты.
+// Один хук вместо invalidate() в каждом контроллере. Обычные сохранения
+// анкет сюда не попадают — справочные наборы они не меняют.
+router.use((req, res, next) => {
+  const mutatesRefData = req.method !== 'GET' &&
+    (req.path.startsWith('/admin/') || req.path === '/survey/dictionary/add');
+  if (mutatesRefData) {
+    res.on('finish', () => {
+      if (res.statusCode < 400) refCache.invalidate();
+    });
+  }
+  next();
+});
 
 // Профиль и сессия
 router.get('/auth/resume', authController.resume);

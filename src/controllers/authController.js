@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
+const { cached } = require('../services/refCache');
 const { benefitsToList, bonusesFromRow } = require('./surveyController');
 
 // Приведение строки surveys к форме для фронта. Вынесено, чтобы одинаково
@@ -147,7 +148,11 @@ async function getUserPayload(user) {
     }
   };
 
-  // 1. Параллельный запуск всех базовых справочников и агрегатов в 1 сетевом раунде
+  // 1. Параллельный запуск всех базовых справочников и агрегатов в 1 сетевом раунде.
+  //    Справочные (не пользовательские) наборы идут через refCache — короткий TTL
+  //    + сброс при правках через админку, чтобы не бить в Turso на каждый
+  //    вход/resume. compRows/survRows не кэшируем: это данные пользователя,
+  //    меняются постоянно и должны отражаться сразу.
   const [
     allUnits,
     compRows,
@@ -161,7 +166,7 @@ async function getUserPayload(user) {
     period,
     roleCaps
   ] = await Promise.all([
-    (async () => {
+    cached('divisions', async () => {
       try {
         return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note FROM divisions ORDER BY num ASC, unit ASC");
       } catch (e) {
@@ -171,25 +176,27 @@ async function getUserPayload(user) {
           return (await queryAll('SELECT unit, dir FROM divisions ORDER BY num ASC, unit ASC')).map(d => ({ ...d, group_key: '', survey_note: '' }));
         }
       }
-    })(),
+    }),
     queryAll('SELECT unit, actual FROM competitors'),
     queryAll("SELECT unit FROM surveys WHERE state != 'удалена'"),
-    withDirs(
+    cached('dictCompanies', () => withDirs(
       "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
-    ),
-    withDirs(
+    )),
+    cached('dictPositions', () => withDirs(
       "SELECT name, COALESCE(dirs, '') AS dirs FROM dictionary_positions ORDER BY name ASC",
       'SELECT name FROM dictionary_positions ORDER BY name ASC'
-    ),
-    queryAll(`SELECT DISTINCT TRIM(segment) AS v FROM dictionary_companies WHERE TRIM(COALESCE(segment,'')) <> ''
-              UNION SELECT DISTINCT TRIM(segment) FROM competitors WHERE TRIM(COALESCE(segment,'')) <> '' ORDER BY v`),
-    queryAll(`SELECT DISTINCT TRIM(region) AS v FROM dictionary_companies WHERE TRIM(COALESCE(region,'')) <> ''
-              UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> '' ORDER BY v`),
-    safeNames('dictionary_segments'),
-    safeNames('dictionary_regions'),
-    getPeriodInfo(),
-    (user.role === 'admin') ? Promise.resolve([]) : queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]).catch(() => [])
+    )),
+    cached('segments', () => queryAll(`SELECT DISTINCT TRIM(segment) AS v FROM dictionary_companies WHERE TRIM(COALESCE(segment,'')) <> ''
+              UNION SELECT DISTINCT TRIM(segment) FROM competitors WHERE TRIM(COALESCE(segment,'')) <> '' ORDER BY v`)),
+    cached('regions', () => queryAll(`SELECT DISTINCT TRIM(region) AS v FROM dictionary_companies WHERE TRIM(COALESCE(region,'')) <> ''
+              UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> '' ORDER BY v`)),
+    cached('customSegments', () => safeNames('dictionary_segments')),
+    cached('customRegions', () => safeNames('dictionary_regions')),
+    cached('period', () => getPeriodInfo(), 30 * 1000),
+    (user.role === 'admin')
+      ? Promise.resolve([])
+      : cached('roleCaps:' + user.role, () => queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]).catch(() => []))
   ]);
 
   // Подсчёт прогресса по доступным подразделениям (в памяти)
@@ -263,8 +270,11 @@ async function getUserPayload(user) {
   const staffingPromise = (async () => {
     if (!myUnits.length) return;
     try {
+      // >200 подразделений (admin / cb) — читается вся таблица штатки на каждый
+      // вход/resume; она меняется только «Загрузкой штатного расписания», поэтому
+      // полный вариант кэшируем. Узкий срез по своим unit'ам — как было.
       const rows = myUnits.length > 200
-        ? await queryAll('SELECT unit, position FROM unit_positions ORDER BY position ASC')
+        ? await cached('staffingAll', () => queryAll('SELECT unit, position FROM unit_positions ORDER BY position ASC'))
         : await queryAll(`SELECT unit, position FROM unit_positions WHERE unit IN (${myUnits.map(() => '?').join(',')}) ORDER BY position ASC`, myUnits);
       const allowed = new Set(myUnits);
       rows.forEach(r => {
