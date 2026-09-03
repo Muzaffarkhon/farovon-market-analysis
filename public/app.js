@@ -567,15 +567,30 @@ function tourSteps(){
 
 var _tourActive = false;
 
+// Факт прохождения тура: с 2026-09 хранится на учётке (S.data.user.onboarded,
+// приходит с /auth/login и /auth/resume). LS_OB остаётся локальным кэшем —
+// гасит подсказку сразу, не дожидаясь следующего resume, и работает офлайн /
+// в Telegram, где сессия своя.
+function obSeen(){
+  return !!(S.data && S.data.user && S.data.user.onboarded) || store.get(LS_OB) === '1';
+}
+// Отметить пройденным: локальный кэш + текущее состояние + серверная отметка
+// (идемпотентная, ошибку глотаем — не критично, повторится при след. вызове).
+function obMark(){
+  store.set(LS_OB, '1');
+  if(S.data && S.data.user) S.data.user.onboarded = true;
+  try { call('apiMarkOnboarded', S.token).catch(function(){}); } catch(e){}
+}
+
 function showOnboarding(){
-  if(store.get(LS_OB) === '1') return;
+  if(obSeen()) return;
   startTour();
 }
 
 function startTour(){
   if(_tourActive) return;
   var steps = tourSteps().slice();
-  if(!steps.length){ store.set(LS_OB, '1'); return; }
+  if(!steps.length){ obMark(); return; }
 
   // Тур заполнителя начинается со списка подразделений. Если человек сейчас
   // в другом разделе (запустил «Пройти обучение» из меню) и нет несохранённых
@@ -602,7 +617,7 @@ function startTour(){
 
   function done(){
     _tourActive = false;
-    store.set(LS_OB, '1');
+    obMark();
     mask.remove(); tip.remove();
     document.removeEventListener('keydown', onKey, true);
     window.removeEventListener('resize', place);
@@ -983,7 +998,7 @@ function renderUnits(){
 
   var h = periodBanner();
 
-  if(store.get(LS_OB) !== '1'){
+  if(!obSeen()){
     h += '<div class="onboard"><h2>Добро пожаловать в обзор рынка вознаграждений</h2><ol>'+
       '<li>Выберите <b>своё подразделение</b> в списке ниже.</li>'+
       '<li><b>Шаг 1. Участники рынка</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
@@ -1012,7 +1027,7 @@ function renderUnits(){
   $('body').innerHTML = h;
 
   if($('obMore')) $('obMore').onclick = openHelp;
-  if($('obHide')) $('obHide').onclick = function(){ store.set(LS_OB, '1'); renderUnits(); };
+  if($('obHide')) $('obHide').onclick = function(){ obMark(); renderUnits(); };
 
   if($('unitFilter')){
     $('unitFilter').oninput = function(){
@@ -1854,6 +1869,25 @@ function openBatchSurveySheet(posName){
   var trustList = ref.trust || ['высокая', 'средняя', 'низкая'];
   var benefitsList = S.data.benefits || ['ДМС', 'Питание', 'Связь', 'ГСМ', 'Транспорт'];
 
+  // Доводка автозаполнения:
+  // — валюта/период новой строки берутся не жёстко «сомони / в месяц», а из
+  //   последнего заполнения в этой сессии (S.fillPrefs) или из последней
+  //   сохранённой записи; человек в одном подразделении обычно вводит всё в
+  //   одной валюте.
+  S.fillPrefs = S.fillPrefs || {};
+  var lastSv = S.surveys.slice().reverse().find(function(s){ return s && (s.cur || s.payPer); });
+  var defCur = S.fillPrefs.cur || (lastSv && lastSv.cur) || 'сомони';
+  var defPer = S.fillPrefs.payPer || (lastSv && lastSv.payPer) || 'в месяц';
+  // — эталонный оклад Фаровона по должности как ориентир (S.data.positionPay).
+  var farPay = (S.data.positionPay || {})[posName] || null;
+  // — «Стандартный набор» льгот: чаще всего встречающиеся позиции соцпакета,
+  //   отмечаются одной кнопкой. Берём только те, что реально есть в справочнике.
+  var STD_BENEFITS = [
+    'Медицинское страхование (ДМС)', 'Оплата питания / Обеды',
+    'Корпоративная мобильная связь', 'Обучение и тренинги за счет компании',
+    'Корпоративный транспорт / развозка'
+  ].filter(function(b){ return benefitsList.indexOf(b) >= 0; });
+
   // Формируем состояние записей по каждой компании
   var entries = actualCos.map(function(co){
     var exist = S.surveys.find(function(s){
@@ -1865,8 +1899,8 @@ function openBatchSurveySheet(posName){
       exist: !!exist,
       payFrom: exist && exist.payFrom ? String(exist.payFrom) : '',
       payTo: exist && exist.payTo ? String(exist.payTo) : '',
-      cur: exist ? (exist.cur || 'сомони') : 'сомони',
-      payPer: exist ? (exist.payPer || 'в месяц') : 'в месяц',
+      cur: exist ? (exist.cur || defCur) : defCur,
+      payPer: exist ? (exist.payPer || defPer) : defPer,
       posTheir: exist ? (exist.posTheir || '') : '',
       grade: exist ? (exist.grade || '') : '',
       schedule: exist ? (exist.schedule || '') : '',
@@ -1987,6 +2021,9 @@ function openBatchSurveySheet(posName){
         '</div>'+
 
         '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
+        (STD_BENEFITS.length
+          ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Стандартный набор</button>'
+          : '')+
         chips('benefits', benefitsList, item.benefits, true)+
 
         '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
@@ -2072,10 +2109,21 @@ function openBatchSurveySheet(posName){
         '<span class="bx-apply-t">'+ic('bolt',14)+'Заполнить сразу для всех</span>'+
         '<input class="ba-from" inputmode="decimal" placeholder="оклад от">'+
         '<input class="ba-to" inputmode="decimal" placeholder="оклад до">'+
-        '<select class="ba-cur">'+curOpts('сомони')+'</select>'+
-        '<select class="ba-per">'+perOpts('в месяц')+'</select>'+
+        '<select class="ba-cur">'+curOpts(defCur)+'</select>'+
+        '<select class="ba-per">'+perOpts(defPer)+'</select>'+
         '<button type="button" class="btn-line" data-act="apply-bar">Применить к пустым</button>'+
       '</div>'+
+
+      // Ориентир: эталонный оклад Фаровона по этой должности. Подставляется в
+      // строки без оклада — как отправная точка, дальше правится вручную.
+      (farPay ? '<div class="bx-anchor">'+
+        ic('target',14)+
+        '<span>Оклад Фаровона по должности: <b>'+
+          (farPay.from ? Number(farPay.from).toLocaleString('ru-RU') : '—')+
+          (farPay.to && farPay.to !== farPay.from ? ' – '+Number(farPay.to).toLocaleString('ru-RU') : '')+
+        '</b> сомони</span>'+
+        '<button type="button" class="btn-line" data-act="apply-anchor">Подставить в пустые</button>'+
+      '</div>' : '')+
 
       '<div class="batch-list'+(wide ? ' batch-list--grid' : '')+'">'+
         (wide ? '<div class="bx-head">'+
@@ -2256,6 +2304,7 @@ function openBatchSurveySheet(posName){
       var bc = el.querySelector('.ba-cur').value;
       var bp = el.querySelector('.ba-per').value;
       if(!bf && !bt){ toast('Укажите оклад в панели сверху'); return; }
+      S.fillPrefs.cur = bc; S.fillPrefs.payPer = bp;
       var n = 0;
       entries.forEach(function(it, i){
         if(!String(it.payFrom).trim() && !String(it.payTo).trim()){
@@ -2264,6 +2313,38 @@ function openBatchSurveySheet(posName){
         }
       });
       toast(n ? ('Оклад проставлен в ' + n + ' ' + declOfNum(n, ['строку','строки','строк'])) : 'Пустых строк нет', n ? 'ok' : '');
+      return;
+    }
+
+    // Автозаполнение: подставить эталонный оклад Фаровона в строки без оклада
+    if(e.target.closest('[data-act="apply-anchor"]') && farPay){
+      var af = farPay.from ? String(farPay.from) : '';
+      var at = farPay.to ? String(farPay.to) : '';
+      var an = 0;
+      entries.forEach(function(it, i){
+        if(!String(it.payFrom).trim() && !String(it.payTo).trim()){
+          setRowPay(i, af || null, at || null, null, null);
+          an++;
+        }
+      });
+      toast(an ? ('Ориентир проставлен в ' + an + ' ' + declOfNum(an, ['строку','строки','строк'])) : 'Пустых строк нет', an ? 'ok' : '');
+      return;
+    }
+
+    // «Стандартный набор» льгот — отметить частые позиции соцпакета одной кнопкой
+    var stdBtn = e.target.closest('[data-act="std-benefits"]');
+    if(stdBtn){
+      var stdCard = stdBtn.closest('.batch-card');
+      var stdItem = entries[+stdCard.dataset.idx];
+      STD_BENEFITS.forEach(function(b){
+        if(stdItem.benefits.indexOf(b) < 0) stdItem.benefits.push(b);
+      });
+      var box = stdCard.querySelector('.chips[data-chips="benefits"]');
+      if(box) box.querySelectorAll('button').forEach(function(bn){
+        bn.classList.toggle('on', stdItem.benefits.indexOf(bn.dataset.v) >= 0);
+      });
+      updateCardCompleteness(stdCard, stdItem);
+      toast('Стандартный набор льгот отмечен', 'ok');
       return;
     }
 
@@ -2362,8 +2443,8 @@ function openBatchSurveySheet(posName){
     var idx = +card.dataset.idx;
     var item = entries[idx];
 
-    if(e.target.classList.contains('b-cur')) item.cur = e.target.value;
-    if(e.target.classList.contains('b-pay-per')) item.payPer = e.target.value;
+    if(e.target.classList.contains('b-cur')){ item.cur = e.target.value; S.fillPrefs.cur = item.cur; }
+    if(e.target.classList.contains('b-pay-per')){ item.payPer = e.target.value; S.fillPrefs.payPer = item.payPer; }
     updateCardCompleteness(card, item);
   });
 
@@ -2457,7 +2538,15 @@ function updateProgress(){
 // ДОБАВЛЕНИЕ КОМПАНИИ-КОНКУРЕНТА
 // ═══════════════════════════════════════════════════════════
 function openAddSheet(){
-  var picked = { type:'', prio:'', seg:'', region:'' };
+  // Запоминаем прошлый выбор на время сессии: компании-конкуренты обычно
+  // добавляют пачкой с одинаковыми типом/приоритетом/сегментом/регионом.
+  // Любое поле остаётся редактируемым.
+  S.lastAdd = S.lastAdd || {};
+  var picked = {
+    type: S.lastAdd.type || '', prio: S.lastAdd.prio || '',
+    seg: S.lastAdd.seg || '', region: S.lastAdd.region || ''
+  };
+  var pickedBase = JSON.stringify(picked);
 
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -2468,10 +2557,10 @@ function openAddSheet(){
     '<label class="lbl">Название компании</label>'+
     '<input id="addName" placeholder="Начните вводить…" autocomplete="off">'+
     '<div id="addSug"></div>'+
-    '<label class="lbl">Тип компании</label>'+ chips('type', S.data.ref.types, '', false) +
-    '<label class="lbl">Приоритет</label>'+ chips('prio', S.data.ref.priorities, '', false) +
-    '<label class="lbl">Сегмент</label>'+ pickField('addSeg', '', 'Выберите сегмент', false) +
-    '<label class="lbl">Регион</label>'+ pickField('addReg', '', 'Выберите регион', false) +
+    '<label class="lbl">Тип компании</label>'+ chips('type', S.data.ref.types, picked.type, false) +
+    '<label class="lbl">Приоритет</label>'+ chips('prio', S.data.ref.priorities, picked.prio, false) +
+    '<label class="lbl">Сегмент</label>'+ pickField('addSeg', picked.seg, 'Выберите сегмент', false) +
+    '<label class="lbl">Регион</label>'+ pickField('addReg', picked.region, 'Выберите регион', false) +
     '<label class="lbl">Комментарий</label><textarea id="addNote"></textarea>'+
     '<div style="height:14px"></div>'+
     '<button id="addGo" class="btn-primary">Добавить в список</button></div>';
@@ -2496,8 +2585,8 @@ function openAddSheet(){
   bindRef('addReg', 'region', 'Регион присутствия', 'regions', function(){ return S.data.regions || []; });
 
   var isDirty = function(){
-    return !!(el.querySelector('#addName').value.trim() || picked.type || picked.prio ||
-      picked.seg || picked.region || el.querySelector('#addNote').value.trim());
+    return !!(el.querySelector('#addName').value.trim() || el.querySelector('#addNote').value.trim() ||
+      JSON.stringify(picked) !== pickedBase);
   };
 
   el.addEventListener('click', function(e){
@@ -2560,6 +2649,7 @@ function openAddSheet(){
       note: el.querySelector('#addNote').value.trim(),
       status:'', src:'', actual:'актуально'
     });
+    S.lastAdd = { type:picked.type, prio:picked.prio, seg:picked.seg, region:picked.region };
     el.remove();
     markDirty();
     renderUnit();

@@ -8104,6 +8104,50 @@ html.compact {
   border-color: var(--accent-border);
 }
 
+/* Доводка автозаполнения: строка-ориентир «оклад Фаровона по должности» */
+.bx-anchor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin: -4px 0 12px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  color: var(--muted);
+}
+.bx-anchor > svg { flex: none; color: var(--org-accent); }
+.bx-anchor > span { flex: 1 1 auto; }
+.bx-anchor b { color: var(--text); font-variant-numeric: tabular-nums; }
+.bx-anchor [data-act="apply-anchor"] {
+  flex: none;
+  min-height: 32px;
+  font-size: 13px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+/* Доводка автозаполнения: «Стандартный набор» льгот одной кнопкой */
+.bx-std-benefits {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 8px;
+  width: auto;
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-pill);
+  box-shadow: none;
+}
+.bx-std-benefits:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
 @media (max-width: 620px) {
   .bx-apply-bar {
     gap: 6px;
@@ -8119,6 +8163,10 @@ html.compact {
   .bx-apply-bar [data-act="apply-bar"] {
     width: 100%;
     margin-left: 0;
+  }
+  .bx-anchor [data-act="apply-anchor"] {
+    width: 100%;
+    margin-top: 4px;
   }
 }
 
