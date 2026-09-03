@@ -985,6 +985,25 @@ function chips(act, list, value, multi, req){
 }
 
 /**
+ * Мультивыбор льгот, разложенный по разделам: [{category, items:[...]}].
+ * Каждый чип несёт data-act="benefits" — тот же обработчик и та же логика
+ * снятия/добавления, что у обычного chips(); контейнер помечен
+ * data-chips="benefits", чтобы кнопка «Стандартный набор» находила чипы.
+ * Сохраняемое значение — плоский список выбранных строк.
+ */
+function benefitChips(groups, value){
+  var sel = value || [];
+  return '<div class="chips bx-benefits" data-chips="benefits" data-multi="1">' +
+    groups.map(function(g){
+      return (g.category ? '<div class="bx-ben-cat">'+esc(g.category)+'</div>' : '') +
+        (g.items || []).map(function(v){
+          var on = sel.indexOf(v) >= 0;
+          return '<button type="button" data-act="benefits" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+esc(v)+'</button>';
+        }).join('');
+    }).join('') + '</div>';
+}
+
+/**
  * Экран выбора значения из справочника: поиск + строгий список.
  * Свободного ввода нет — иначе одна и та же должность попадает в таблицу
  * в пяти написаниях. Если нужного значения нет, его добавляют кнопкой внизу,

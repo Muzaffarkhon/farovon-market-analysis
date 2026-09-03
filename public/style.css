@@ -8164,6 +8164,18 @@ html.compact {
   border-color: var(--accent-border);
 }
 
+/* Льготы формы Шага 2 — чипы, разложенные по разделам */
+.bx-benefits .bx-ben-cat {
+  flex: 1 0 100%;
+  margin: 10px 0 -2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.bx-benefits .bx-ben-cat:first-child { margin-top: 0; }
+
 /* Доводка автозаполнения: «Стандартный набор» льгот одной кнопкой */
 .bx-std-benefits {
   display: inline-flex;

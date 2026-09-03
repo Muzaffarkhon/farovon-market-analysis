@@ -1867,7 +1867,14 @@ function openBatchSurveySheet(posName){
   var scheduleList = ref.schedules || ['5/2 · 40 часов', '5/2 · 45 часов', '6/1 · 48 часов', '6/1 · 50 часов', '6/1 · 54 часа', 'Сменный 2/2', 'Вахтовый', 'Свободный / гибкий'];
   var sources = ref.sources || ['собеседования', 'бывшие сотрудники', 'сайты вакансий', 'знакомые'];
   var trustList = ref.trust || ['высокая', 'средняя', 'низкая'];
-  var benefitsList = S.data.benefits || ['ДМС', 'Питание', 'Связь', 'ГСМ', 'Транспорт'];
+  // Льготы приходят с сервера сгруппированными по разделам:
+  // [{category, items:[...]}]. benefitGroups — для рендера чипов с заголовками,
+  // benefitsList — плоский список всех значений (нужен STD_BENEFITS и проверкам).
+  // Терпим и старый плоский формат на случай устаревшего кэша payload.
+  var benefitGroups = Array.isArray(S.data.benefits) && S.data.benefits.length && S.data.benefits[0] && S.data.benefits[0].items
+    ? S.data.benefits
+    : [{ category: '', items: (S.data.benefits || ['ДМС', 'Питание', 'Связь', 'ГСМ', 'Транспорт']) }];
+  var benefitsList = benefitGroups.reduce(function(acc, g){ return acc.concat(g.items || []); }, []);
 
   // Доводка автозаполнения:
   // — валюта/период новой строки берутся не жёстко «сомони / в месяц», а из
@@ -2022,7 +2029,7 @@ function openBatchSurveySheet(posName){
         (STD_BENEFITS.length
           ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Стандартный набор</button>'
           : '')+
-        chips('benefits', benefitsList, item.benefits, true)+
+        benefitChips(benefitGroups, item.benefits)+
 
         '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
         '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
@@ -2308,15 +2315,26 @@ function openBatchSurveySheet(posName){
     if(stdBtn){
       var stdCard = stdBtn.closest('.batch-card');
       var stdItem = entries[+stdCard.dataset.idx];
-      STD_BENEFITS.forEach(function(b){
-        if(stdItem.benefits.indexOf(b) < 0) stdItem.benefits.push(b);
+      // Toggle: если весь набор уже отмечен — снимаем его (защита от случайного
+      // клика), иначе добавляем недостающие позиции.
+      var allOn = STD_BENEFITS.length > 0 && STD_BENEFITS.every(function(b){
+        return stdItem.benefits.indexOf(b) >= 0;
       });
+      if(allOn){
+        stdItem.benefits = stdItem.benefits.filter(function(b){
+          return STD_BENEFITS.indexOf(b) < 0;
+        });
+      } else {
+        STD_BENEFITS.forEach(function(b){
+          if(stdItem.benefits.indexOf(b) < 0) stdItem.benefits.push(b);
+        });
+      }
       var box = stdCard.querySelector('.chips[data-chips="benefits"]');
       if(box) box.querySelectorAll('button').forEach(function(bn){
         bn.classList.toggle('on', stdItem.benefits.indexOf(bn.dataset.v) >= 0);
       });
       updateCardCompleteness(stdCard, stdItem);
-      toast('Стандартный набор льгот отмечен', 'ok');
+      toast(allOn ? 'Стандартный набор льгот снят' : 'Стандартный набор льгот отмечен', allOn ? '' : 'ok');
       return;
     }
 
