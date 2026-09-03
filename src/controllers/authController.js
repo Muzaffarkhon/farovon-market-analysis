@@ -165,7 +165,7 @@ async function getUserPayload(user) {
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
     ),
     withDirs(
-      "SELECT name, COALESCE(dirs, '') AS dirs FROM dictionary_positions ORDER BY name ASC",
+      "SELECT name, COALESCE(dirs, '') AS dirs, COALESCE(pay_from, 0) AS pay_from, COALESCE(pay_to, 0) AS pay_to FROM dictionary_positions ORDER BY name ASC",
       'SELECT name FROM dictionary_positions ORDER BY name ASC'
     ),
     queryAll(`SELECT DISTINCT TRIM(segment) AS v FROM dictionary_companies WHERE TRIM(COALESCE(segment,'')) <> ''
@@ -220,6 +220,16 @@ async function getUserPayload(user) {
   }
 
   const dictPositions = dictPositionsRows.map(x => x.name);
+
+  // Эталонный оклад Фаровона по должности (dictionary_positions.pay_from/pay_to,
+  // holding-wide, заполняет админ). Фронт показывает его как ориентир в форме
+  // шага 2 и предлагает подставить в пустые строки. Пусто = админ ещё не завёл.
+  const positionPay = {};
+  dictPositionsRows.forEach(p => {
+    const f = Number(p.pay_from) || 0;
+    const t = Number(p.pay_to) || 0;
+    if (f > 0 || t > 0) positionPay[p.name] = { from: f, to: t };
+  });
   const userDirs = [...new Set(visibleUnits.map(u => (u.dir || '').trim()).filter(Boolean))];
   const inDirs = (raw) => {
     const own = String(raw || '').split(';').map(s => s.trim()).filter(Boolean);
@@ -335,6 +345,9 @@ async function getUserPayload(user) {
       role: user.role,
       phone: user.phone || '',
       hasTelegram: !!user.telegram_chat_id,
+      // Прошёл обучающий тур (серверная отметка вместо localStorage) — фронт
+      // не показывает ни подсказку-карточку, ни авто-старт тура, если true.
+      onboarded: !!user.onboarded_at,
       // Сырой список назначенных подразделений (не обогащённый прогрессом) —
       // нужен фронту dir_head, чтобы понять, каким направлением он управляет,
       // и построить экран «Назначить ответственных» по его отделам.
@@ -375,6 +388,7 @@ async function getUserPayload(user) {
     // общий: пустой экран без выбора мы уже проходили.
     positions: positionsByDir.length ? positionsByDir : dictPositions,
     positionsAll: dictPositions,
+    positionPay,
     // Штатка по подразделениям: фронт уже читает S.data.positionsByUnit[unit]
     // при построении чек-листа шага 2 — до загрузки штатного расписания объект
     // всегда был пуст, отсюда «Для этого подразделения штатка не заведена».
@@ -547,6 +561,23 @@ exports.resume = async (req, res) => {
   } catch (err) {
     console.error('Resume error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка обновления сессии' });
+  }
+};
+
+// Пользователь прошёл (или закрыл) обучающий тур. Идемпотентно: пишем время
+// только если отметки ещё не было, повторные вызовы ничего не меняют. Снять
+// отметку через API нельзя — тур повторно запускается вручную («Помощь» →
+// «Пройти обучение»), навязывать его снова не нужно.
+exports.markOnboarded = async (req, res) => {
+  try {
+    await run(
+      'UPDATE users SET onboarded_at = ? WHERE id = ? AND onboarded_at IS NULL',
+      [new Date().toISOString(), req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('markOnboarded error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось сохранить отметку об обучении' });
   }
 };
 

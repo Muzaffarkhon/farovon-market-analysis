@@ -33,7 +33,7 @@ async function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
     const user = await queryOne(
-      "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id, must_change_password FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
+      "SELECT id, login, fio, role, phone, units, active, last_login_at, telegram_chat_id, must_change_password, onboarded_at FROM users WHERE LOWER(login) = LOWER(?) AND archived_at IS NULL",
       [decoded.login]
     );
 

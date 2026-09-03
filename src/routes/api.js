@@ -29,6 +29,7 @@ router.use(authMiddleware);
 router.get('/auth/resume', authController.resume);
 router.post('/auth/change-password', authController.changePassword);
 router.post('/auth/set-units', authController.setUnits);
+router.post('/auth/onboarded', authController.markOnboarded);
 router.post('/telegram/link', telegramController.link);
 router.post('/telegram/unlink', telegramController.unlink);
 
