@@ -1119,6 +1119,12 @@ function enhanceTableFilters(root){
     thead.appendChild(fr);
 
     var apply = function(){
+      var tblwrap = table.closest('.tblwrap') || table.parentElement;
+      var savedWrapLeft = tblwrap ? tblwrap.scrollLeft : 0;
+      var savedWrapTop = tblwrap ? tblwrap.scrollTop : 0;
+      var bodyScroll = document.getElementById('body');
+      var savedBodyTop = bodyScroll ? bodyScroll.scrollTop : (window.scrollY || 0);
+
       var qs = [].map.call(fr.querySelectorAll('.tf-in'), function(inp){
         return { col: +inp.dataset.col, q: inp.value, num: inp.dataset.num === '1' };
       });
@@ -1146,9 +1152,32 @@ function enhanceTableFilters(root){
         }
         ph.hidden = false;
       } else if(ph){ ph.hidden = true; }
+
+      // Восстанавливаем позицию прокрутки, исключая скачки интерфейса при вводе
+      if(tblwrap){
+        tblwrap.scrollLeft = savedWrapLeft;
+        tblwrap.scrollTop = savedWrapTop;
+      }
+      if(bodyScroll){
+        bodyScroll.scrollTop = savedBodyTop;
+      }
     };
 
     fr.addEventListener('input', apply);
+    fr.addEventListener('focusin', function(e){
+      var inp = e.target;
+      if(inp && inp.classList.contains('tf-in')){
+        var tblwrap = table.closest('.tblwrap');
+        if(tblwrap){
+          var curLeft = tblwrap.scrollLeft;
+          var curTop = tblwrap.scrollTop;
+          requestAnimationFrame(function(){
+            if(tblwrap.scrollLeft !== curLeft) tblwrap.scrollLeft = curLeft;
+            if(tblwrap.scrollTop !== curTop) tblwrap.scrollTop = curTop;
+          });
+        }
+      }
+    });
     if(saved.some(function(v){ return v && v.trim(); })) apply();
   });
 }

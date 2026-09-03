@@ -247,10 +247,49 @@ function navGo(item){
 // + служебные действия), строится из navModel() тем же navRenderBtn.
 function openNavMenu(){
   var m = navModel();
-  var groups = [ m.primary.concat(m.adminEntry ? [m.adminEntry] : []), m.utility ];
-  var body = groups.map(function(g, gi){
-    return (gi ? '<div class="menu-sep"></div>' : '') +
-      g.map(function(it){ return navRenderBtn(it, 'menu-item'); }).join('');
+
+  // Группировка разделов по категориям для мобильных экранов
+  var mainItems = [];
+  var analyticsItems = [];
+  m.primary.forEach(function(it){
+    if(it.key === 'dashboard' || it.key === 'benchmarks'){
+      analyticsItems.push(it);
+    } else {
+      mainItems.push(it);
+    }
+  });
+
+  var adminItems = m.admin || [];
+  var utilityItems = m.utility || [];
+
+  var categories = [
+    { id:'main', label:'Основные разделы', icon:'units', items:mainItems },
+    { id:'analytics', label:'Аналитика', icon:'chart', items:analyticsItems },
+    { id:'admin', label:'Администрирование', icon:'admin', items:adminItems },
+    { id:'utility', label:'Служебные действия', icon:'wrench', items:utilityItems }
+  ].filter(function(cat){ return cat.items && cat.items.length > 0; });
+
+  // Какая категория активна в данный момент
+  var activeCatId = 'main';
+  categories.forEach(function(cat){
+    if(cat.items.some(function(it){ return it.active && it.active(); })){
+      activeCatId = cat.id;
+    }
+  });
+
+  var body = categories.map(function(cat){
+    var isOpen = (cat.id === activeCatId);
+    var itemsHtml = cat.items.map(function(it){ return navRenderBtn(it, 'menu-item'); }).join('');
+    return '<div class="menu-cat' + (isOpen ? ' is-open' : '') + '" data-cat="' + cat.id + '">' +
+      '<button type="button" class="menu-cat-hd" aria-expanded="' + (isOpen ? 'true' : 'false') + '">' +
+        '<span class="menu-cat-title">' + ic(cat.icon, 13) + esc(cat.label) + '</span>' +
+        '<span class="menu-cat-meta">' +
+          '<span class="menu-cat-badge">' + cat.items.length + '</span>' +
+          '<svg class="menu-cat-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+        '</span>' +
+      '</button>' +
+      '<div class="menu-cat-body">' + itemsHtml + '</div>' +
+    '</div>';
   }).join('');
 
   var el = document.createElement('div');
@@ -263,6 +302,18 @@ function openNavMenu(){
 
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
+
+    var catHd = e.target.closest('.menu-cat-hd');
+    if(catHd){
+      var cat = catHd.closest('.menu-cat');
+      if(cat){
+        var willOpen = !cat.classList.contains('is-open');
+        cat.classList.toggle('is-open', willOpen);
+        catHd.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      }
+      return;
+    }
+
     if(e.target.closest('button[data-nav]')){ el.remove(); navHandleClick(e); }
   });
 }
