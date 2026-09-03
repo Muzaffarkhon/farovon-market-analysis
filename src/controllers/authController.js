@@ -78,9 +78,19 @@ function verifyPassword(pwd, user) {
   return false;
 }
 
-function makeToken(user) {
+// Абсолютный потолок жизни сессии. Скользящее окно (/auth/resume каждые ~3 ч
+// выдаёт новый 7-дневный токен) удобно, но без потолка украденный токен можно
+// продлевать бесконечно. `sess` — момент первого входа, переносится из токена
+// в токен при обновлении; старше SESSION_MAX_AGE_MS — resume отказывает,
+// нужен повторный вход по паролю.
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
+
+function makeToken(user, sessionStart) {
   return jwt.sign(
-    { id: user.id, login: user.login, role: user.role, fio: user.fio },
+    {
+      id: user.id, login: user.login, role: user.role, fio: user.fio,
+      sess: sessionStart || Date.now()
+    },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn, algorithm: 'HS256' }
   );
@@ -566,8 +576,19 @@ exports.login = async (req, res) => {
 
 exports.resume = async (req, res) => {
   try {
+    // Абсолютный потолок: сессию, начатую более SESSION_MAX_AGE_MS назад,
+    // не продлеваем — нужен повторный вход по паролю.
+    const sessStart = Number(req.tokenClaims && req.tokenClaims.sess) || 0;
+    if (sessStart && Date.now() - sessStart > SESSION_MAX_AGE_MS) {
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      return res.status(401).json({
+        ok: false, error: 'SESSION_EXPIRED',
+        message: 'Сессия истекла — войдите заново'
+      });
+    }
+
     const data = await getUserPayload(req.user);
-    const token = makeToken(req.user);
+    const token = makeToken(req.user, sessStart || Date.now());
     setSessionCookie(res, token);
     res.json({
       ok: true,
@@ -672,3 +693,7 @@ exports.setUnits = async (req, res) => {
     res.status(500).json({ ok: false, error: 'Ошибка выбора подразделения' });
   }
 };
+
+// Экспортируется для юнит-тестов (test/).
+exports.passwordPolicyError = passwordPolicyError;
+exports.verifyPassword = verifyPassword;

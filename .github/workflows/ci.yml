@@ -25,6 +25,15 @@ jobs:
       - name: npm audit (prod, high+)
         run: npm audit --omit=dev --audit-level=high
 
+      # Никаких паролей-заглушек и открытых паролей в исполняемом коде.
+      # Ловит регресс класса worker.js: universal 'admin123' и поле raw_password.
+      - name: Secret scan
+        run: |
+          if git grep -nE "password === ['\"]|['\"](admin123|cb123)['\"]|[.:]\s*raw_password" -- 'src/**/*.js' ':!src/tools/**'; then
+            echo "::error::Пароль-заглушка или открытый пароль в коде — уберите"
+            exit 1
+          fi
+
       # Синтаксис ключевых модулей — тот же ручной CI-gate, что в отчётах.
       - name: Syntax check
         run: |

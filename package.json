@@ -1,6 +1,6 @@
 {
   "name": "farovon-market-analysis",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон",
   "main": "src/server.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "node --test"
   },
   "keywords": [
     "c&b",
@@ -22,6 +22,10 @@
   "author": "Farovon C&B Team",
   "license": "UNLICENSED",
   "private": true,
+  "//overrides": "qs — закрываем 3 moderate DoS (GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g), тянущиеся через express 4 → body-parser. Убрать после перехода на express 5.",
+  "overrides": {
+    "qs": "^6.15.4"
+  },
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "bcryptjs": "^2.4.3",

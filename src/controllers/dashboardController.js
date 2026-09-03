@@ -68,7 +68,8 @@ exports.getCBDashboard = async (req, res) => {
     }
     res.json(analytics);
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error('dashboard error:', err);
+    res.status(500).json({ ok: false, error: 'Внутренняя ошибка сервера' });
   }
 };
 
@@ -139,7 +140,8 @@ exports.getHRBPDashboard = async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error('dashboard error:', err);
+    res.status(500).json({ ok: false, error: 'Внутренняя ошибка сервера' });
   }
 };
 
@@ -181,6 +183,7 @@ exports.exportCSV = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="farovon_salary_analytics_${Date.now()}.csv"`);
     res.send(csvContent);
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error('dashboard error:', err);
+    res.status(500).json({ ok: false, error: 'Внутренняя ошибка сервера' });
   }
 };
