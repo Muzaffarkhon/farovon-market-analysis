@@ -3376,7 +3376,7 @@ function openBatchSurveySheet(posName){
       if(oldTag) oldTag.remove();
       var temp = document.createElement('div');
       if(isForkInverted){
-        temp.innerHTML = '<span class="batch-st-tag part" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">' + ic('warn', 12) + 'От > До!</span>';
+        temp.innerHTML = '<span class="batch-st-tag err">' + ic('warn', 12) + 'От > До!</span>';
       } else {
         temp.innerHTML = renderSurveyStTag(comp);
       }
@@ -3624,17 +3624,17 @@ function openBatchSurveySheet(posName){
       return;
     }
     var cm = document.createElement('div');
-    cm.className = 'sheet';
+    cm.className = 'sheet sheet--dialog';
     cm.style.zIndex = '120'; // поверх шита (60) и ⌘K (80)
-    cm.innerHTML = '<div class="sheet-in um-modal" style="max-width:440px;box-shadow:var(--shadow-lg)">' +
-      '<div class="sheet-hd"><b style="color:var(--warn);display:flex;align-items:center;gap:6px">' + ic('warn', 18) + 'Несохранённые изменения</b></div>' +
-      '<p style="font-size:14px;color:var(--muted);margin:12px 0 16px;line-height:1.45">' +
+    cm.innerHTML = '<div class="sheet-in dlg">' +
+      '<b class="dlg-t dlg-t--warn">' + ic('warn', 18) + 'Несохранённые изменения</b>' +
+      '<p class="dlg-x">' +
         'Вы изменили данные по должности <b>«' + esc(posName) + '»</b>. Сохранить их перед выходом?' +
       '</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px">' +
-        '<button class="btn-primary" id="cmSave" style="width:100%">' + ic('check', 14) + 'Сохранить и выйти</button>' +
-        '<button class="btn-line btn-danger" id="cmDiscard" style="width:100%">' + ic('trash', 14) + 'Закрыть без сохранения</button>' +
-        '<button class="btn-ghost" id="cmStay" style="width:100%">' + ic('close', 14) + 'Остаться в карточке</button>' +
+      '<div class="dlg-a dlg-a--stack">' +
+        '<button class="btn-primary" id="cmSave">' + ic('check', 14) + 'Сохранить и выйти</button>' +
+        '<button class="btn-danger" id="cmDiscard">' + ic('trash', 14) + 'Закрыть без сохранения</button>' +
+        '<button id="cmStay">' + ic('close', 14) + 'Остаться в карточке</button>' +
       '</div>' +
     '</div>';
     document.body.appendChild(cm);
@@ -6579,10 +6579,10 @@ function renderAdminDivisions(){
         : '<span class="org-card-footer-label">' + unitCountText + '</span>';
 
       var rightBtnHtml = subordinateUnits.length
-        ? '<span class="org-expand-tag" style="' + (isDirExpanded && !isFullBranchExpanded ? 'background:var(--accent);color:#fff' : (isFullBranchExpanded ? 'background:var(--accent-soft);color:var(--accent)' : '')) + '" title="' + (isDirExpanded ? 'Свернуть направление' : 'Раскрыть на 1 уровень (по одной ветке)') + '">' +
+        ? '<span class="org-expand-tag' + (isDirExpanded && !isFullBranchExpanded ? ' is-open' : (isFullBranchExpanded ? ' is-branch' : '')) + '" title="' + (isDirExpanded ? 'Свернуть направление' : 'Раскрыть на 1 уровень (по одной ветке)') + '">' +
             '1 уровень ' + (isDirExpanded ? '⌃' : '⌄') +
           '</span>'
-        : '<span class="org-expand-tag" style="' + (isDirExpanded ? 'background:var(--accent);color:#fff' : '') + '">Состав</span>';
+        : '<span class="org-expand-tag' + (isDirExpanded ? ' is-open' : '') + '">Состав</span>';
 
       h += '<div class="org-dir-col-item">'+
         '<div class=\'org-card-box' + (isDirActive ? ' is-active-card is-expanded-dir' : '') + '\' draggable="true" data-org-type="dir" data-dir="'+esc(dir)+'" data-u="'+esc(dir)+'" data-drop-dir="'+esc(dir)+'" title="Двойной клик — аппарат и назначение ответственных">'+
@@ -6623,7 +6623,7 @@ function renderAdminDivisions(){
           '<div class=\'org-card-box' + (isUnitActive ? ' is-active-card is-expanded-unit' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(d.unit)+'" data-dir="'+esc(d.dir || '')+'" title="Зажмите для переноса, двойной клик — ответственные">'+
             '<div class="org-card-title">'+esc(d.unit)+'</div>'+
             '<div class="org-card-profile">'+
-              '<div class="org-avatar-circle" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">'+getInitials(headOrResp || d.unit)+'</div>'+
+              '<div class="org-avatar-circle org-avatar-circle--unit">'+getInitials(headOrResp || d.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
                 '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(d.head ? 'Руководитель' : (d.resp ? 'Ответственный' : (d.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
@@ -6631,7 +6631,7 @@ function renderAdminDivisions(){
             '</div>'+
             '<div class="org-card-footer">'+
               '<span>' + (subunitsCount ? subunitsCount + ' подотд.' : (unitStaffList.length ? unitStaffList.length + ' сотр.' : 'Назначить')) + '</span>'+
-              '<span class="org-expand-tag" style="'+(isUnitExpanded?'background:var(--accent);color:#fff':'background:rgba(2,132,199,0.06);color:var(--accent)')+'">' + (isUnitExpanded ? (subunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) + '</span>'+
+              '<span class="org-expand-tag'+(isUnitExpanded?' is-open':'')+'">' + (isUnitExpanded ? (subunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) + '</span>'+
             '</div>'+
           '</div>'+
         '</div>';
@@ -6658,12 +6658,12 @@ function renderAdminDivisions(){
 
         h += '<div class="org-grandchild-col">'+
           '<div class=\'org-card-box' + (isSubActive ? ' is-active-card' : '') + (isSubExpanded ? ' is-expanded-unit' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(su.unit)+'" data-dir="'+esc(su.dir || '')+'" title="Зажмите для переноса, двойной клик — ответственные">'+
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px">'+
+            '<div class="org-card-subhd">'+
               '<div class="org-card-title">'+esc(su.unit)+'</div>'+
-              '<span style="font-size:9.5px;font-weight:700;color:#7c3aed;background:rgba(124,58,237,0.1);padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0">Подотдел</span>'+
+              '<span class="org-lvl-badge org-lvl-badge--sub">Подотдел</span>'+
             '</div>'+
             '<div class="org-card-profile">'+
-              '<div class="org-avatar-circle" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">'+getInitials(suHead || su.unit)+'</div>'+
+              '<div class="org-avatar-circle org-avatar-circle--sub">'+getInitials(suHead || su.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
                 '<div class="org-card-name">'+(suHead ? esc(suHead) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(su.head ? 'Руководитель' : (su.resp ? 'Ответственный' : (su.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
@@ -6671,7 +6671,7 @@ function renderAdminDivisions(){
             '</div>'+
             '<div class="org-card-footer">'+
               '<span>' + (subSubunitsCount ? subSubunitsCount + ' подотд.' : (subStaffList.length ? subStaffList.length + ' сотр.' : 'Назначить')) + '</span>'+
-              '<span class="org-expand-tag" style="'+(isSubExpanded?'background:#7c3aed;color:#fff':'background:rgba(124,58,237,0.08);color:#7c3aed')+'">' +
+              '<span class="org-expand-tag org-expand-tag--sub'+(isSubExpanded?' is-open':'')+'">' +
                 (isSubExpanded ? (subSubunitsCount ? 'Подотделы ⌃' : 'Состав ⌃') : (subSubunitsCount ? 'Подотделы ⌄' : 'Состав ⌄')) +
               '</span>'+
             '</div>'+
@@ -6695,12 +6695,12 @@ function renderAdminDivisions(){
 
         h += '<div class="org-grandchild-col">'+
           '<div class=\'org-card-box' + (isL5Active ? ' is-active-card' : '') + '\' draggable="true" data-org-type="unit" data-u="'+esc(l5.unit)+'" data-dir="'+esc(l5.dir || '')+'" title="Зажмите для переноса, двойной клик — ответственные">'+
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px">'+
+            '<div class="org-card-subhd">'+
               '<div class="org-card-title">'+esc(l5.unit)+'</div>'+
-              '<span style="font-size:9.5px;font-weight:700;color:#059669;background:rgba(5,150,105,0.1);padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0">Подотдел L5</span>'+
+              '<span class="org-lvl-badge org-lvl-badge--l5">Подотдел L5</span>'+
             '</div>'+
             '<div class="org-card-profile">'+
-              '<div class="org-avatar-circle" style="background:linear-gradient(135deg,#059669,#34d399)">'+getInitials(l5Head || l5.unit)+'</div>'+
+              '<div class="org-avatar-circle org-avatar-circle--l5">'+getInitials(l5Head || l5.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
                 '<div class="org-card-name">'+(l5Head ? esc(l5Head) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(l5.head ? 'Руководитель' : (l5.resp ? 'Ответственный' : (l5.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
@@ -6708,7 +6708,7 @@ function renderAdminDivisions(){
             '</div>'+
             '<div class="org-card-footer">'+
               '<span>' + (l5StaffList.length ? l5StaffList.length + ' сотр.' : 'Назначить') + '</span>'+
-              '<span class="org-expand-tag" style="background:rgba(5,150,105,0.08);color:#059669">Состав</span>'+
+              '<span class="org-expand-tag org-expand-tag--l5">Состав</span>'+
             '</div>'+
           '</div>'+
         '</div>';
@@ -7521,21 +7521,21 @@ function openStaffModal(unitName){
     '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Ответственные лица</div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:12px">'+getInitials(d.head || 'Р')+'</div>'+
+        '<div class="org-avatar-circle org-avatar-circle--head org-avatar-circle--sm">'+getInitials(d.head || 'Р')+'</div>'+
         '<div style="flex:1">'+
           '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
           '<div style="font-size:12px;color:var(--muted)">Руководитель отдела</div>'+
         '</div>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:12px">'+getInitials(d.resp || 'О')+'</div>'+
+        '<div class="org-avatar-circle org-avatar-circle--resp org-avatar-circle--sm">'+getInitials(d.resp || 'О')+'</div>'+
         '<div style="flex:1">'+
           '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.resp ? esc(d.resp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
           '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка</div>'+
         '</div>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:12px">'+getInitials(d.hrbp || 'H')+'</div>'+
+        '<div class="org-avatar-circle org-avatar-circle--hrbp org-avatar-circle--sm">'+getInitials(d.hrbp || 'H')+'</div>'+
         '<div style="flex:1">'+
           '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
           '<div style="font-size:12px;color:var(--muted)">HR BP направления</div>'+
@@ -7547,7 +7547,7 @@ function openStaffModal(unitName){
       '<div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:14px">'+
         uStaff.map(function(u){
           return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px">'+
-            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:11px">'+getInitials(u.fio)+'</div>'+
+            '<div class="org-avatar-circle org-avatar-circle--member org-avatar-circle--xs">'+getInitials(u.fio)+'</div>'+
             '<div style="flex:1;overflow:hidden">'+
               '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
               '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+
@@ -7611,7 +7611,7 @@ function openDirStaffModal(dirName){
     '<div style="margin:12px 0 6px 0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Руководство направления</div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#0284c7;width:32px;height:32px;font-size:12px">'+getInitials(dirHead || 'Р')+'</div>'+
+        '<div class="org-avatar-circle org-avatar-circle--head org-avatar-circle--sm">'+getInitials(dirHead || 'Р')+'</div>'+
         '<div style="flex:1">'+
           '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(dirHead ? esc(dirHead) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
           '<div style="font-size:12px;color:var(--muted)">Руководитель направления</div>'+
@@ -7619,14 +7619,14 @@ function openDirStaffModal(dirName){
       '</div>'+
       (dirResp ?
         '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-          '<div class="org-avatar-circle" style="background:#0ea5e9;width:32px;height:32px;font-size:12px">'+getInitials(dirResp)+'</div>'+
+          '<div class="org-avatar-circle org-avatar-circle--resp org-avatar-circle--sm">'+getInitials(dirResp)+'</div>'+
           '<div style="flex:1">'+
             '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+esc(dirResp)+'</div>'+
             '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка аппарата</div>'+
           '</div>'+
         '</div>' : '')+
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle" style="background:#38bdf8;width:32px;height:32px;font-size:12px">'+getInitials(dirHrbp || 'H')+'</div>'+
+        '<div class="org-avatar-circle org-avatar-circle--hrbp org-avatar-circle--sm">'+getInitials(dirHrbp || 'H')+'</div>'+
         '<div style="flex:1">'+
           '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(dirHrbp ? esc(dirHrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
           '<div style="font-size:12px;color:var(--muted)">HR BP направления</div>'+
@@ -7638,7 +7638,7 @@ function openDirStaffModal(dirName){
       '<div style="max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:14px">'+
         dirStaff.map(function(u){
           return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:6px">'+
-            '<div class="org-avatar-circle" style="background:#64748b;width:26px;height:26px;font-size:11px">'+getInitials(u.fio)+'</div>'+
+            '<div class="org-avatar-circle org-avatar-circle--member org-avatar-circle--xs">'+getInitials(u.fio)+'</div>'+
             '<div style="flex:1;overflow:hidden">'+
               '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.fio)+'</div>'+
               '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(u.role || 'Сотрудник')+'</div>'+

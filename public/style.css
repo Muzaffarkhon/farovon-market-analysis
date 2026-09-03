@@ -38,6 +38,8 @@
   --accent-soft: #eff6ff;
   --accent-border: #bfdbfe;
   --org-accent: #0284c7; /* акцент взаимодействий оргструктуры (аватары, drag, фокус узла) */
+  --org-l3: #7c3aed; --org-l3-2: #a78bfa; --org-l3-soft: color-mix(in srgb, #7c3aed 10%, transparent);
+  --org-l5: #059669; --org-l5-2: #34d399; --org-l5-soft: color-mix(in srgb, #059669 10%, transparent);
 
   --ok: #16a34a;
   --ok-hover: #15803d;
@@ -128,6 +130,8 @@
     --accent-soft: rgba(59, 130, 246, 0.15);
     --accent-border: rgba(59, 130, 246, 0.35);
     --org-accent: #38bdf8;
+  --org-l3: #a78bfa; --org-l3-2: #c4b5fd; --org-l3-soft: color-mix(in srgb, #a78bfa 18%, transparent);
+  --org-l5: #34d399; --org-l5-2: #6ee7b7; --org-l5-soft: color-mix(in srgb, #34d399 18%, transparent);
 
     --ok: #10b981;
     --ok-hover: #34d399;
@@ -181,6 +185,8 @@ body.dark,
   --accent-soft: rgba(59, 130, 246, 0.15);
   --accent-border: rgba(59, 130, 246, 0.35);
   --org-accent: #38bdf8;
+  --org-l3: #a78bfa; --org-l3-2: #c4b5fd; --org-l3-soft: color-mix(in srgb, #a78bfa 18%, transparent);
+  --org-l5: #34d399; --org-l5-2: #6ee7b7; --org-l5-soft: color-mix(in srgb, #34d399 18%, transparent);
 
   --ok: #10b981;
   --ok-hover: #34d399;
@@ -235,6 +241,8 @@ body.dark,
   --accent-soft: #eff6ff;
   --accent-border: #bfdbfe;
   --org-accent: #0284c7;
+  --org-l3: #7c3aed; --org-l3-2: #a78bfa; --org-l3-soft: color-mix(in srgb, #7c3aed 10%, transparent);
+  --org-l5: #059669; --org-l5-2: #34d399; --org-l5-soft: color-mix(in srgb, #059669 10%, transparent);
 
   --ok: #16a34a;
   --ok-hover: #15803d;
@@ -2438,6 +2446,13 @@ label.lbl {
   border: 1px solid var(--line);
 }
 
+/* #21 — «От > До!»: жёсткая ошибка ввода, раньше красный задавался инлайном */
+.batch-st-tag.err {
+  background: var(--no-soft);
+  color: var(--no);
+  border: 1px solid color-mix(in srgb, var(--no) 40%, transparent);
+}
+
 .batch-card.is-part {
   border-left: 4px solid var(--warn);
   background: var(--card);
@@ -4075,6 +4090,20 @@ label.lbl {
 
 .dlg-a button.btn-danger:hover {
   background: var(--no-hover);
+}
+
+/* #21 — диалог «Несохранённые изменения»: раньше вся вёрстка была инлайном */
+.dlg-t--warn {
+  color: var(--warn);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dlg-a--stack {
+  flex-direction: column;
+}
+.dlg-a--stack button {
+  width: 100%;
 }
 
 /* ─── Полосы прогресса (в таблицах дашборда: HR BP, дирекции, льготы) ───
@@ -6527,6 +6556,36 @@ html.compact {
   flex-shrink: 0;
 }
 
+/* #21 — уровневые акценты орг-дерева: были инлайновыми style="" в app.js */
+.org-avatar-circle--unit { background: linear-gradient(135deg, var(--org-accent), #38bdf8); }
+.org-avatar-circle--sub  { background: linear-gradient(135deg, var(--org-l3), var(--org-l3-2)); }
+.org-avatar-circle--l5   { background: linear-gradient(135deg, var(--org-l5), var(--org-l5-2)); }
+.org-avatar-circle--head { background: var(--org-accent); }
+.org-avatar-circle--resp { background: #0ea5e9; }
+.org-avatar-circle--hrbp { background: #38bdf8; }
+.org-avatar-circle--member { background: var(--color-silver); }
+.org-avatar-circle--sm { width: 32px; height: 32px; font-size: 12px; }
+.org-avatar-circle--xs { width: 26px; height: 26px; font-size: 11px; }
+
+.org-card-subhd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.org-lvl-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.org-lvl-badge--sub { color: var(--org-l3); background: var(--org-l3-soft); }
+.org-lvl-badge--l5  { color: var(--org-l5); background: var(--org-l5-soft); }
+
 .org-card-profile-info {
   display: flex;
   flex-direction: column;
@@ -6612,6 +6671,13 @@ html.compact {
 .org-expand-tag:hover {
   background: color-mix(in srgb, var(--org-accent) 22%, transparent);
 }
+
+/* #21 — состояния тега «раскрыть», раньше задавались инлайном */
+.org-expand-tag.is-open { background: var(--accent); color: #fff; }
+.org-expand-tag.is-branch { background: var(--accent-soft); color: var(--accent); }
+.org-expand-tag--sub { background: var(--org-l3-soft); color: var(--org-l3); }
+.org-expand-tag--sub.is-open { background: var(--org-l3); color: #fff; }
+.org-expand-tag--l5 { background: var(--org-l5-soft); color: var(--org-l5); }
 
 /* Правая выдвижная панель (Right Drawer) */
 .org-right-drawer {
