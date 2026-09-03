@@ -4,29 +4,36 @@
  * Автоопределение смежных групп подразделений.
  *
  * Смежная группа — площадки с одинаковой структурой должностей, отличающиеся
- * только регионом (см. divisions.group_key). Раньше группу заводил админ
- * вручную; здесь мы её ПРЕДЛАГАЕМ по названию подразделения, а админ
- * подтверждает одной кнопкой (записывается тот же group_key).
+ * только «точкой»: регионом/городом ИЛИ производственной площадкой
+ * (завод Г1/Б2/Т1, Анхор, ТМК, Фаровон…). Раньше группу заводил админ
+ * вручную по каждому подразделению; здесь мы её ПРЕДЛАГАЕМ, а админ
+ * подтверждает одной кнопкой (записывается общий group_key).
  *
- * Эвристика намеренно консервативная — предлагаем группу только когда:
- *  - у подразделения не задан ручной group_key (ручной всегда главнее);
- *  - совпадает направление (dir) и «имя роли» (название без кода и без
- *    хвостового региона);
- *  - в группе ≥2 площадок И они реально в разных регионах.
- * Одиночки не предлагаются. saveSurveyDetails и так игнорирует группы <2.
+ * Как ищем (в пределах одного направления, dir):
+ *  - у названия отбрасываем ведущий код («0101 ») и хвостовой «различитель» —
+ *    заглавное слово/аббревиатуру/номер (Душанбе, Анхор, Г1, КЗ-1, «3»);
+ *    строчные смысловые слова («масла», «сырья», «продукции») НЕ режем —
+ *    это часть роли, а не точка;
+ *  - оставшийся «корень роли» — ключ группировки;
+ *  - предлагаем только если в корне ≥2 площадок И ≥2 разных различителя
+ *    (пустой различитель — головное подразделение — тоже считается).
+ *  - подразделения с ручным group_key не трогаем.
+ * Одиночки не предлагаются. saveSurveyDetails всё равно игнорирует группы <2.
  */
 
-// Города / регионы Таджикистана, которые встречаются хвостом в названиях
-// подразделений. Список для ОТСЕЧЕНИЯ хвоста и определения региона.
+// Города/регионы Таджикистана — только для того, чтобы при объединении
+// проставить осмысленный divisions.region. На саму группировку список
+// больше не влияет (см. splitRoleAndPoint).
 const REGION_TOKENS = [
   'Душанбе', 'Худжанд', 'Бохтар', 'Куляб', 'Кулоб', 'Хорог', 'Истаравшан',
   'Турсунзаде', 'Турсунзода', 'Вахдат', 'Канибадам', 'Исфара', 'Пенджикент',
-  'Панджакент', 'Рашт', 'Дангара', 'Гиссар', 'Хисор', 'Яван', 'Спитамен',
+  'Панджакент', 'Рашт', 'Рашта', 'Дангара', 'Гиссар', 'Хисор', 'Яван', 'Спитамен',
   'Гафуров', 'Б.Гафуров', 'Согд', 'Хатлон', 'РРП', 'ГБАО', 'Курган-Тюбе',
   'Кургантюбе', 'Нурек', 'Норак', 'Леваканд', 'Джиликуль', 'Восе', 'Фархор',
   'Шаартуз', 'Кабадиён', 'Носири-Хусрав', 'Джаббор-Расулов', 'Аштский',
-  'Раштский', 'Пяндж', 'Балхи', 'Кушониён', 'Абдурахмони-Джоми'
+  'Раштский', 'Пяндж', 'Балхи', 'Кушониён', 'Абдурахмони-Джоми', 'Навобод'
 ];
+const REGION_SET = new Set(REGION_TOKENS.map(t => t.toLowerCase().replace(/ё/g, 'е')));
 
 function norm(s) {
   return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
@@ -41,7 +48,7 @@ function regionRe(token) {
   return new RegExp('(^|[\\s,–-])' + token.replace(/[.\-]/g, '\\$&') + '\\s*$', 'i');
 }
 
-/** Регион подразделения по хвосту названия ('' если не распознан). */
+/** Регион подразделения по хвосту названия ('' если это не известный город). */
 function detectRegion(unitName) {
   const n = stripCode(unitName);
   for (const t of REGION_TOKENS) {
@@ -50,12 +57,32 @@ function detectRegion(unitName) {
   return '';
 }
 
-/** «Имя роли» — название без кода и без хвостового региона, нормализованное. */
-function roleName(unitName) {
-  let n = stripCode(unitName);
-  const reg = detectRegion(unitName);
-  if (reg) n = n.replace(regionRe(reg), '').trim();
-  return norm(n);
+/**
+ * Токен-хвост похож на «точку» (город / площадку / номер), а не на смысловое
+ * слово роли: начинается с заглавной (кириллица/латиница), или это аббревиатура
+ * из заглавных с цифрами/дефисом, или голое число. Строчные слова — не точка.
+ */
+function isPointToken(tok) {
+  if (!tok) return false;
+  if (/^\d+$/.test(tok)) return true;                       // «1», «3»
+  if (/^[A-ZА-Я][A-ZА-Я0-9.\-]*$/.test(tok)) return true;   // «Г1», «КЗ-1», «ТМК», «T2», «ЖБИ»
+  if (/^[A-ZА-Я][a-zа-я]+\d*$/.test(tok)) return true;      // «Анхор», «Душанбе», «Фаровон», «Навобод»
+  return false;
+}
+
+/**
+ * Делит название (без кода) на «корень роли» и «точку».
+ * Отрезаем от конца подряд идущие point-токены, но оставляем в корне ≥2 слова.
+ * Пример: «Хозяйственная служба Анхор 3» → { role:'Хозяйственная служба', point:'Анхор 3' }
+ *         «Отдел оптовых продаж масла»   → { role:'Отдел оптовых продаж масла', point:'' }
+ */
+function splitRoleAndPoint(unitName) {
+  const words = stripCode(unitName).split(/\s+/).filter(Boolean);
+  const point = [];
+  while (words.length >= 3 && isPointToken(words[words.length - 1])) {
+    point.unshift(words.pop());
+  }
+  return { role: words.join(' '), point: point.join(' ') };
 }
 
 /**
@@ -67,37 +94,43 @@ function suggestAdjacentGroups(divisions) {
   (divisions || []).forEach(d => {
     if (!d || !d.unit) return;
     if (String(d.group_key || '').trim()) return; // ручной ключ — не предлагаем
-    const rn = roleName(d.unit);
-    if (!rn) return;
-    const key = norm(d.dir || '') + ' :: ' + rn;
-    (buckets[key] = buckets[key] || []).push(d);
+    const { role, point } = splitRoleAndPoint(d.unit);
+    if (!role || role.split(/\s+/).length < 2) return; // корень роли из <2 слов — пропускаем
+    const key = norm(d.dir || '') + ' :: ' + norm(role);
+    (buckets[key] = buckets[key] || []).push({ d, role, point });
   });
 
   const out = [];
   Object.keys(buckets).forEach(bk => {
     const arr = buckets[bk];
     if (arr.length < 2) return;
-    const withReg = arr.map(d => ({
-      unit: d.unit,
-      region: detectRegion(d.unit) || String(d.region || '').trim()
-    }));
-    const distinct = new Set(withReg.map(x => x.region).filter(Boolean));
-    if (distinct.size < 2) return; // нет различия по региону — не смежная группа
+    const points = arr.map(x => norm(x.point));
+    if (new Set(points).size < 2) return; // нет различия по точке — не смежная группа
 
-    // Человекочитаемый ключ — имя роли из первого подразделения (без кода/региона).
-    const first = arr[0];
-    let label = stripCode(first.unit);
-    const reg0 = detectRegion(first.unit);
-    if (reg0) label = label.replace(regionRe(reg0), '').trim();
+    const withReg = arr.map(x => ({
+      unit: x.d.unit,
+      region: detectRegion(x.d.unit) || String(x.d.region || '').trim()
+        || (REGION_SET.has(norm(x.point)) ? x.point : '')
+    }));
 
     out.push({
-      key: label,
-      dir: first.dir || '',
+      key: arr[0].role,
+      dir: arr[0].d.dir || '',
       units: withReg.sort((a, b) => a.unit.localeCompare(b.unit, 'ru'))
     });
+  });
+
+  // Ключ группы пишется в divisions.group_key и по нему matchится всё
+  // сохранение (surveyController). Значит он должен быть УНИКАЛЕН: если одно
+  // и то же имя роли встречается в разных направлениях («Производственный
+  // цех» в комбикормах и в муке) — уточняем направлением.
+  const keyCount = {};
+  out.forEach(g => { keyCount[g.key] = (keyCount[g.key] || 0) + 1; });
+  out.forEach(g => {
+    if (keyCount[g.key] > 1 && g.dir) g.key = g.key + ' · ' + g.dir;
   });
 
   return out.sort((a, b) => a.key.localeCompare(b.key, 'ru'));
 }
 
-module.exports = { suggestAdjacentGroups, detectRegion, roleName };
+module.exports = { suggestAdjacentGroups, detectRegion, splitRoleAndPoint };

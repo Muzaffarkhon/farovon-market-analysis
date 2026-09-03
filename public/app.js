@@ -6620,7 +6620,7 @@ function openDivisionModal(unit, opts){
       '</datalist>')+
     (restricted ? '' :
       '<label class="lbl">Смежная группа <span style="font-weight:400;color:var(--muted)">'+
-        '(площадки с одинаковой структурой должностей — разные только регионом)</span></label>'+
+        '(площадки с одинаковой структурой должностей — разные регионом или производственной площадкой)</span></label>'+
       (groupSug ?
         '<div class="dm-grpsug" id="dmGrpSug">'+
           ic('link', 14)+
