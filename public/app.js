@@ -4828,6 +4828,7 @@ function loadAdminDivisions(){
       return;
     }
     S.adminDivs = r.divisions || [];
+    S.adminGroupSuggestions = r.groupSuggestions || [];
     renderAdminDivisions();
     ensureAdminUsers();
   }).catch(function(err){
@@ -6578,6 +6579,15 @@ function openDivisionModal(unit, opts){
   var d = (S.adminDivs || []).find(function(x){ return x.unit === unit; });
   if(!d) return;
 
+  // Автоопределённая смежная группа для этого подразделения (сервер прислал
+  // предложения в groupSuggestions). Показываем подсказку с кнопкой «Объединить»
+  // только если ручной group_key ещё не задан.
+  var groupSug = (!restricted && !String(d.group_key || '').trim())
+    ? (S.adminGroupSuggestions || []).find(function(s){
+        return (s.units || []).some(function(u){ return u.unit === d.unit; });
+      })
+    : null;
+
   var lockedField = function(v){
     return '<div class="pick" style="opacity:.6;pointer-events:none">'+
       '<span'+(v?'':' class="ph"')+'>'+esc(v || '—')+'</span></div>';
@@ -6611,6 +6621,18 @@ function openDivisionModal(unit, opts){
     (restricted ? '' :
       '<label class="lbl">Смежная группа <span style="font-weight:400;color:var(--muted)">'+
         '(площадки с одинаковой структурой должностей — разные только регионом)</span></label>'+
+      (groupSug ?
+        '<div class="dm-grpsug" id="dmGrpSug">'+
+          ic('link', 14)+
+          '<div class="dm-grpsug-body">'+
+            '<div>Похоже на смежную группу <b>«'+esc(groupSug.key)+'»</b>. Площадки ('+groupSug.units.length+'):</div>'+
+            '<div class="dm-grpsug-units">'+groupSug.units.map(function(u){
+              return '<span'+(u.unit === d.unit ? ' class="is-cur"' : '')+'>'+esc(u.unit)+(u.region ? ' · '+esc(u.region) : '')+'</span>';
+            }).join('')+'</div>'+
+          '</div>'+
+          '<button type="button" class="btn-line" id="dmGrpSugApply">Объединить</button>'+
+        '</div>'
+      : '')+
       '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
         'placeholder="например: служба_охраны — оставьте пустым, если площадка одна">'+
       '<datalist id="dmGroupList">'+
@@ -6631,6 +6653,39 @@ function openDivisionModal(unit, opts){
   '</div>';
 
   document.body.appendChild(el);
+
+  // Кнопка «Объединить» в подсказке автоопределённой смежной группы: проставляет
+  // общий group_key всем площадкам разом (сервер добьёт пустой region).
+  if(groupSug){
+    var sugBtn = el.querySelector('#dmGrpSugApply');
+    if(sugBtn) sugBtn.onclick = function(){
+      sugBtn.disabled = true; sugBtn.textContent = 'Объединяем…';
+      call('apiAdminApplyAdjacentGroup', S.token, { key: groupSug.key, units: groupSug.units }).then(function(res){
+        if(res && res.ok){
+          var unitNames = {};
+          groupSug.units.forEach(function(u){ unitNames[u.unit] = u.region || ''; });
+          (S.adminDivs || []).forEach(function(x){
+            if(unitNames.hasOwnProperty(x.unit) && !String(x.group_key || '').trim()){
+              x.group_key = res.key;
+              if(!String(x.region || '').trim() && unitNames[x.unit]) x.region = unitNames[x.unit];
+            }
+          });
+          S.adminGroupSuggestions = (S.adminGroupSuggestions || []).filter(function(s){ return s.key !== groupSug.key || s.dir !== groupSug.dir; });
+          d.group_key = res.key;
+          var gi = el.querySelector('#dmGroup'); if(gi) gi.value = res.key;
+          var gr = el.querySelector('#dmRegion'); if(gr && !gr.value.trim() && unitNames[d.unit]) gr.value = unitNames[d.unit];
+          var sugBox = el.querySelector('#dmGrpSug'); if(sugBox) sugBox.remove();
+          toast('Объединено в смежную группу «' + res.key + '» (' + res.applied + ' площадок)', 'ok');
+        } else {
+          sugBtn.disabled = false; sugBtn.textContent = 'Объединить';
+          toast((res && res.error) || 'Не удалось объединить', 'no');
+        }
+      }).catch(function(){
+        sugBtn.disabled = false; sugBtn.textContent = 'Объединить';
+        toast('Нет связи с сервером', 'no');
+      });
+    };
+  }
 
   // Три поля из четырёх — это ФИО живых людей и название направления, то есть
   // значения, которые уже есть в системе. Свободный ввод здесь означал, что

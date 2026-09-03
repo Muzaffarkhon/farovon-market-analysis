@@ -64,6 +64,7 @@ router.get('/admin/divisions', requireCapability('divisions:view'), adminControl
 router.post('/admin/divisions', requireCapability('divisions:edit'), adminController.saveDivision);
 router.post('/admin/divisions/move', requireCapability('divisions:edit'), adminController.moveDivisionCascade);
 router.post('/admin/divisions/batch-assign', requireCapability('divisions:edit'), adminController.batchAssignCascade);
+router.post('/admin/divisions/adjacent-group', requireCapability('divisions:edit'), adminController.applyAdjacentGroup);
 
 router.get('/admin/dictionary/:kind', requireCapability('dictionary:view'), dictionaryController.list);
 router.get('/admin/dictionary/:kind/usage', requireCapability('dictionary:edit'), dictionaryController.usage);

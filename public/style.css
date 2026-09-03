@@ -8166,6 +8166,42 @@ html.compact {
 }
 .bx-std-benefits:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 
+/* Подсказка автоопределённой смежной группы в карточке подразделения */
+.dm-grpsug {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.dm-grpsug > svg { flex: none; color: var(--accent); margin-top: 1px; }
+.dm-grpsug-body { flex: 1 1 auto; min-width: 0; }
+.dm-grpsug-units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 5px;
+}
+.dm-grpsug-units span {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  padding: 1px 6px;
+}
+.dm-grpsug-units span.is-cur {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  font-weight: 600;
+}
+.dm-grpsug [id="dmGrpSugApply"] { flex: none; white-space: nowrap; min-height: 32px; }
+
 /* ── Фаза 5+: экраны импорта бенчмаркинга (были на инлайн-стилях, 🔍-эмодзи и var(--red/green)) ── */
 .bmi-modal { max-width: 750px; }
 .bmi-grid {

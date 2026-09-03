@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
+const { suggestAdjacentGroups, detectRegion } = require('../services/adjacentGroups');
 const { sendMassReminder } = require('../services/telegramService');
 const { CAPABILITIES, ROLES, STRUCTURAL_NOTES, RESERVED_ROLE_KEYS } = require('../config/capabilities');
 const { hasCapability } = require('../middleware/auth');
@@ -411,20 +412,83 @@ exports.getDivisions = async (req, res) => {
     // dir_head видит и правит отделы своего направления или закреплённые подразделения.
     if (req.user.role === 'dir_head') {
       const myDirs = req.user.units || [];
-      if (!myDirs.length) return res.json({ ok: true, divisions: [] });
+      if (!myDirs.length) return res.json({ ok: true, divisions: [], groupSuggestions: [] });
       const placeholders = myDirs.map(() => '?').join(',');
       const divisions = await queryAll(
         `SELECT * FROM divisions WHERE dir IN (${placeholders}) OR unit IN (${placeholders}) ORDER BY num ASC, unit ASC`,
         [...myDirs, ...myDirs]
       );
-      return res.json({ ok: true, divisions });
+      return res.json({ ok: true, divisions, groupSuggestions: suggestAdjacentGroups(divisions) });
     }
 
     const divisions = await queryAll('SELECT * FROM divisions ORDER BY num ASC, unit ASC');
-    res.json({ ok: true, divisions });
+    res.json({ ok: true, divisions, groupSuggestions: suggestAdjacentGroups(divisions) });
   } catch (err) {
     console.error('getDivisions error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки подразделений' });
+  }
+};
+
+/**
+ * Подтверждение предложенной смежной группы: одной кнопкой проставляем
+ * общий group_key всем площадкам и добиваем пустой region распознанным.
+ * Ручной group_key на площадке не перезаписываем.
+ */
+exports.applyAdjacentGroup = async (req, res) => {
+  try {
+    const { key, units } = req.body || {};
+    const cleanKey = String(key || '').trim();
+    if (!cleanKey) return res.status(400).json({ ok: false, error: 'Не указан ключ смежной группы' });
+    if (!Array.isArray(units) || units.length < 2) {
+      return res.status(400).json({ ok: false, error: 'В смежной группе нужно минимум 2 площадки' });
+    }
+    if (units.length > 50) return res.status(400).json({ ok: false, error: 'Слишком большая группа' });
+
+    const names = units
+      .map(u => String((u && (u.unit || u.name)) || u || '').trim())
+      .filter(Boolean);
+    if (names.length < 2) return res.status(400).json({ ok: false, error: 'В смежной группе нужно минимум 2 площадки' });
+
+    const ph = names.map(() => '?').join(',');
+    const existing = await queryAll(
+      `SELECT unit, COALESCE(group_key,'') AS group_key, COALESCE(region,'') AS region FROM divisions WHERE unit IN (${ph})`,
+      names
+    );
+    const byUnit = {};
+    existing.forEach(r => { byUnit[r.unit] = r; });
+
+    const stmts = [];
+    let applied = 0;
+    names.forEach(u => {
+      const row = byUnit[u];
+      if (!row) return;
+      if (String(row.group_key || '').trim()) return; // ручной ключ не трогаем
+      const region = String(row.region || '').trim() || detectRegion(u);
+      stmts.push({
+        sql: `UPDATE divisions
+                 SET group_key = ?,
+                     region = CASE WHEN TRIM(COALESCE(region,'')) = '' THEN ? ELSE region END,
+                     updated_at = CURRENT_TIMESTAMP
+               WHERE unit = ?`,
+        args: [cleanKey, region, u]
+      });
+      applied++;
+    });
+
+    if (applied < 2) {
+      return res.status(409).json({ ok: false, error: 'У этих площадок уже задана смежная группа вручную' });
+    }
+
+    stmts.push({
+      sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      args: [req.user.login, 'смежная группа: объединение площадок', `«${cleanKey}»: ${applied} площадок (${names.join('; ')})`]
+    });
+
+    await batch(stmts);
+    res.json({ ok: true, key: cleanKey, applied });
+  } catch (err) {
+    console.error('applyAdjacentGroup error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка объединения в смежную группу' });
   }
 };
 
