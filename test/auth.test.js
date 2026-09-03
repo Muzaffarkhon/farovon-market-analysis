@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
 
+const crypto = require('node:crypto');
 const { passwordPolicyError, verifyPassword } = require('../src/controllers/authController');
 
 test('passwordPolicyError: слишком короткий', () => {
@@ -32,4 +33,11 @@ test('verifyPassword: bcrypt-хэш', () => {
 test('verifyPassword: нет пользователя / нет хэша', () => {
   assert.equal(verifyPassword('x', null), false);
   assert.equal(verifyPassword('x', {}), false);
+});
+
+test('verifyPassword: легаси несолёный SHA-256 всё ещё принимается (Finding 41)', () => {
+  // Эта ветка ДОЛЖНА работать, пока прод-хэши не мигрируют на bcrypt при входе.
+  const sha = crypto.createHash('sha256').update('legacyPass1').digest('hex');
+  assert.equal(verifyPassword('legacyPass1', { password_hash: sha }), true);
+  assert.equal(verifyPassword('wrong', { password_hash: sha }), false);
 });

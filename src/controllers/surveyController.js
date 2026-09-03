@@ -1,4 +1,12 @@
+const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
+
+// Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
+// одинаков, а Math.random().slice(2,7) — всего ~60 млн вариантов, при десятках
+// строк в одном батче коллизия реальна и роняет весь batch (all-or-nothing).
+function newRowId(prefix) {
+  return prefix + '_' + Date.now().toString(36) + '_' + crypto.randomUUID().slice(0, 12);
+}
 
 const ALLOWED_CURRENCIES = ['сомони', 'usd', 'rub', 'eur', 'доллар', 'рубль', 'евро', 'tjs'];
 const ALLOWED_PAY_PERIODS = ['в месяц', 'в час', 'в час (чтс)', 'в смену', 'в год', 'в день'];
@@ -143,7 +151,7 @@ exports.saveSurveyData = async (req, res) => {
     if (editIds.length) {
       const placeholders = editIds.map(() => '?').join(',');
       const existing = await queryAll(
-        `SELECT cid, company, updated_by FROM competitors WHERE unit = ? AND cid IN (${placeholders})`,
+        `SELECT cid, company, updated_by, src FROM competitors WHERE unit = ? AND cid IN (${placeholders})`,
         [unit, ...editIds]);
       existing.forEach(x => { ownerByCid[x.cid] = x; });
     }
@@ -152,7 +160,9 @@ exports.saveSurveyData = async (req, res) => {
     (rows || []).forEach(r => {
       if (!r || !r.id) return;
       const existing = ownerByCid[r.id];
-      if (existing && isOwnedByOther(existing.updated_by, req.user)) {
+      // 3-й аргумент (источник строки) — как в saveSurveyDetails: импортные
+      // строки не «принадлежат» импортёру и правятся любым ответственным.
+      if (existing && isOwnedByOther(existing.updated_by, req.user, existing.src)) {
         blocked.push({ id: r.id, company: existing.company, owner: existing.updated_by });
         return;
       }
@@ -172,7 +182,7 @@ exports.saveSurveyData = async (req, res) => {
       if (seenCompanies.has(normKey)) return;
       seenCompanies.add(normKey);
 
-      const cid = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+      const cid = newRowId('c');
       newIds.push(cid);
       stmts.push({
         sql: `INSERT INTO competitors (cid, num, dir, unit, resp, hrbp, company, type, segment, region, prio, status, src, note, actual, updated_by, updated_at)
@@ -384,7 +394,7 @@ exports.saveSurveyDetails = async (req, res) => {
                 ]
               });
             } else {
-              const newSid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '_' + norm(gu).slice(0, 4);
+              const newSid = newRowId('s');
               gStmts.push({
                 sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
@@ -498,7 +508,7 @@ exports.saveSurveyDetails = async (req, res) => {
         });
         newIds.push(sid);
       } else {
-        sid = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        sid = newRowId('s');
         newIds.push(sid);
         stmts.push({
           sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)

@@ -18,7 +18,7 @@ exports.createSource = async (req, res) => {
     res.json({ ok: true, source });
   } catch (err) {
     console.error('createSource error:', err);
-    res.status(400).json({ ok: false, error: err.message });
+    res.status(400).json({ ok: false, error: 'Не удалось создать источник данных' });
   }
 };
 

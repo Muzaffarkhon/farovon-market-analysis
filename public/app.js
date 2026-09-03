@@ -269,13 +269,12 @@ function openNavMenu(){
     { id:'utility', label:'Служебные действия', icon:'wrench', items:utilityItems }
   ].filter(function(cat){ return cat.items && cat.items.length > 0; });
 
-  // Какая категория активна в данный момент
-  var activeCatId = 'main';
-  categories.forEach(function(cat){
-    if(cat.items.some(function(it){ return it.active && it.active(); })){
-      activeCatId = cat.id;
-    }
+  // Какая категория активна — первая совпавшая (не последняя: раньше при
+  // совпадении в двух категориях раскрывалась не та).
+  var activeCat = categories.find(function(cat){
+    return cat.items.some(function(it){ return it.active && it.active(); });
   });
+  var activeCatId = activeCat ? activeCat.id : (categories[0] && categories[0].id) || 'main';
 
   var body = categories.map(function(cat){
     var isOpen = (cat.id === activeCatId);
@@ -3271,42 +3270,28 @@ function varPayKinds(c){
   return [];
 }
 
-/** Ячейка «Переменная часть»: короткая пометка + подсказка со списком видов
- *  (детали при наведении — CSS-поповер плюс нативный title как запас). */
+/** Список видов премии одной строкой на вид — для нативной подсказки (title). */
+function varPayTip(kinds){
+  return kinds.map(function(k){
+    return (k.type || 'премия') + (k.size ? ' — ' + k.size : '') + (k.per ? ' · ' + k.per : '');
+  }).join('\n');
+}
+
+/** Ячейка «Переменная часть»: короткая пометка, полный список видов — в нативной
+ *  подсказке (title). CSS-поповер убран: он срезался прокручиваемой обёрткой
+ *  таблицы и мешал горизонтальному скроллу на узких экранах. */
 function varPayCell(c){
   var vp = c && c.varPay ? c.varPay : {};
   var kinds = varPayKinds(c);
   var lbl = vp.label || (kinds.length ? kinds.length + ' ' + declOfNum(kinds.length, ['вид','вида','видов']) : '');
-  if(!lbl){
-    return '<span style="color:var(--muted)">—</span>';
-  }
-  if(!kinds.length){
-    return '<span style="color:var(--muted)">'+esc(lbl)+'</span>';
-  }
-  var kindLine = function(k){
-    return (k.type || 'премия') + (k.size ? ' — ' + k.size : '') + (k.per ? ' · ' + k.per : '');
-  };
-  var pop = '<span class="vp-pop"><span class="vp-pop-h">Виды переменной части</span>'+
-    kinds.map(function(k){
-      return '<span class="vp-pop-r"><span>'+esc(k.type || 'премия')+'</span>'+
-        '<span>'+esc([k.size, k.per].filter(Boolean).join(' · ') || '—')+'</span></span>';
-    }).join('')+'</span>';
-  return '<span class="vp" title="'+esc(kinds.map(kindLine).join('\n'))+'">'+
-    '<span class="vp-lbl">'+esc(lbl)+'</span>'+pop+'</span>';
-}
-
-/** Реестр данных: премия одной пометкой + список видов в нативной подсказке
- *  (таблица реестра прокручивается и с липкой шапкой — CSS-поповер там не нужен). */
-function regVarPayCell(r){
-  var vp = r && r.varPay ? r.varPay : {};
-  var kinds = varPayKinds(r);
-  var lbl = vp.label || (kinds.length ? kinds.length + ' ' + declOfNum(kinds.length, ['вид','вида','видов']) : '');
   if(!lbl) return '<span style="color:var(--muted)">—</span>';
   if(!kinds.length) return '<span style="color:var(--muted)">'+esc(lbl)+'</span>';
-  var tip = kinds.map(function(k){
-    return (k.type || 'премия') + (k.size ? ' — ' + k.size : '') + (k.per ? ' · ' + k.per : '');
-  }).join('\n');
-  return '<span title="'+esc(tip)+'" style="border-bottom:1px dotted var(--line);cursor:default">'+esc(lbl)+'</span>';
+  return '<span class="vp" title="'+esc(varPayTip(kinds))+'">'+esc(lbl)+'</span>';
+}
+
+/** Реестр данных: то же самое (общая реализация). */
+function regVarPayCell(r){
+  return varPayCell(r);
 }
 
 /** Ячейка «Совокупно, мес.»: средний оклад + премия, приведённая к месяцу
@@ -3343,7 +3328,7 @@ function salCoRows(pos){
 }
 
 function salCoTable(pos){
-  return '<div class="tblwrap vp-wrap"><table class="co-tbl">'+
+  return '<div class="tblwrap"><table class="co-tbl">'+
     '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Переменная часть</th><th>Совокупно, мес.</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
     '<tbody>'+salCoRows(pos)+'</tbody></table></div>';
 }
@@ -3353,11 +3338,15 @@ function posVarSummary(p){
   var n = (p.companies || []).length;
   var bits = [];
   if(n && p.bonCompanies != null){
-    bits.push('премии: <b>'+p.bonCompanies+' из '+n+'</b> '+declOfNum(n, ['компании','компаний','компаний'])+
+    bits.push('премии: <b>'+p.bonCompanies+' из '+n+'</b> '+declOfNum(n, ['компания','компании','компаний'])+
       (p.bonTopPer ? ', чаще ' + esc(p.bonTopPer) : ''));
   }
   if(p.totalMedian > 0){
-    bits.push('совокупно, медиана ≈ <b>'+p.totalMedian.toLocaleString('ru-RU')+' c</b>');
+    // Медиана считается по всем компаниям с окладом (премия 0, если не
+    // распознана) — тем же методом, что и бенчмарк. Показываем охват премией.
+    var quant = (p.bonQuantified != null) ? p.bonQuantified : (p.bonCompanies || 0);
+    bits.push('совокупно, медиана ≈ <b>'+p.totalMedian.toLocaleString('ru-RU')+' c</b>'+
+      (quant < n ? ' <span style="color:var(--muted)">(премия с суммой у '+quant+' из '+n+')</span>' : ''));
   }
   return bits.length ? '<div class="pos-var-sum">'+bits.join(' · ')+'</div>' : '';
 }
@@ -4379,7 +4368,7 @@ function renderBenefitsTab(benefits, bonuses, topComps){
       var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
       var unkPct = bTotal ? Math.round((bonuses.unknown / bTotal) * 100) : 0;
 
-      var bout = '<div class="card bonuses-card">'+
+      var bout = '<div class="card bonuses-card" style="flex:none">'+
         '<div class="bonuses-card-t">Наличие премий и бонусов в компаниях рынка</div>'+
         '<div class="fork-nums bonuses-card-nums">'+
           '<span class="is-ok">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
@@ -9162,13 +9151,20 @@ function loadBmCompareDetail(){
     var totStats = intr.totalStats || {};
     var totSample = intr.totalSampleCount || 0;
     var totBon = intr.totalBonusCount || 0;
-    if(totStats.p50){
-      var totUplift = (intrStats.p50 && totStats.p50)
+    var totCov = totSample ? totBon / totSample : 0;
+    // Карточку показываем, только если есть хотя бы одна распознанная премия —
+    // иначе «Совокупный доход» = «Внутренний сбор», дублирование.
+    if(totStats.p50 && totBon > 0){
+      var totP10 = totStats.p10 || totStats.min || 0;
+      var totP90 = totStats.p90 || totStats.max || 0;
+      // «+N%» к окладу — только когда премия посчитана у большинства (≥50%);
+      // ниже порога один-два бонуса рядом с медианой дают ложный «прирост».
+      var totUplift = (totCov >= 0.5 && intrStats.p50 && totStats.p50 > intrStats.p50)
         ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
       sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
           '<div style="display:flex;align-items:center;gap:10px">' +
-            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--ok-soft, var(--accent-soft));color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
+            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
             '<div>' +
               '<b style="font-size:15px;color:var(--color-midnight-ink)">Совокупный доход</b>' +
               '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">оклад + переменная часть / мес.</span>' +
@@ -9177,11 +9173,11 @@ function loadBmCompareDetail(){
           '<b style="font-size:16px;color:var(--ok);font-feature-settings:\'tnum\' 1">' + totStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totStats.min ? totStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totP10 ? totP10.toLocaleString('ru-RU') : '—') + '</b></div>' +
           '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (totStats.p25 ? totStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
           '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--ok);white-space:nowrap">' + totStats.p50.toLocaleString('ru-RU') + '</b></div>' +
           '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (totStats.p75 ? totStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totStats.max ? totStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totP90 ? totP90.toLocaleString('ru-RU') : '—') + '</b></div>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--color-fog);margin-top:8px;line-height:1.5">' +
           'По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +

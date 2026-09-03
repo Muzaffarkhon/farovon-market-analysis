@@ -587,7 +587,10 @@ exports.login = async (req, res) => {
 exports.resume = async (req, res) => {
   try {
     // Абсолютный потолок: сессию, начатую более SESSION_MAX_AGE_MS назад,
-    // не продлеваем — нужен повторный вход по паролю.
+    // не продлеваем — нужен повторный вход по паролю. Токены, выпущенные до
+    // ввода клейма `sess` (старая версия), потолка не имеют и получают свежий
+    // `sess` при первом resume — де-факто отсчёт для них стартует с этого
+    // момента (одноразовая миграция, не лазейка: JWT всё равно живёт ≤7 дней).
     const sessStart = Number(req.tokenClaims && req.tokenClaims.sess) || 0;
     if (sessStart && Date.now() - sessStart > SESSION_MAX_AGE_MS) {
       res.clearCookie(SESSION_COOKIE, { path: '/' });

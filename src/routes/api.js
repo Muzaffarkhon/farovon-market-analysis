@@ -26,18 +26,29 @@ router.post('/telegram/webhook', webhookLimiter, telegramController.webhook);
 // ─── Защищенные роуты (требуют JWT) ───
 router.use(authMiddleware);
 
-// Сброс кэша справочников (src/services/refCache.js) после любой успешной
-// правки через админку или добавления значения в справочник из анкеты.
-// Один хук вместо invalidate() в каждом контроллере. Обычные сохранения
-// анкет сюда не попадают — справочные наборы они не меняют.
+// Сброс кэша справочников (src/services/refCache.js) после успешной правки,
+// затрагивающей справочные наборы. Один хук вместо invalidate() в каждом
+// контроллере.
+//  - /admin/*                — оргструктура, справочники, права ролей, период;
+//  - /survey/dictionary/add  — добавление значения в справочник из анкеты;
+//  - /survey/save            — пишет divisions.survey_note и вставляет
+//                              competitors с segment/region (они попадают в
+//                              кэшируемые segments/regions).
+// /survey/save-details не трогает кэшируемые таблицы (только surveys) — не в списке.
 router.use((req, res, next) => {
-  const mutatesRefData = req.method !== 'GET' &&
-    (req.path.startsWith('/admin/') || req.path === '/survey/dictionary/add');
-  if (mutatesRefData) {
-    res.on('finish', () => {
-      if (res.statusCode < 400) refCache.invalidate();
-    });
-  }
+  if (!refCache.touchesRefData(req.method, req.path)) return next();
+
+  // Успех = статус < 400 И тело не {ok:false}: часть контроллеров сигналит
+  // ошибку / needsConfirm статусом 200 — на них кэш сбрасывать не нужно.
+  let bodyOk = true;
+  const sendJson = res.json.bind(res);
+  res.json = (body) => {
+    if (body && body.ok === false) bodyOk = false;
+    return sendJson(body);
+  };
+  res.on('finish', () => {
+    if (res.statusCode < 400 && bodyOk) refCache.invalidate();
+  });
   next();
 });
 
