@@ -8135,78 +8135,6 @@ html.compact {
   .cmdk-box { animation: fx-sheet-pop 0.18s var(--ease-out); }
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   ФАЗА 5 — автозаполнение пакетной формы окладов
-   ════════════════════════════════════════════════════════════════════ */
-
-/* Панель «Заполнить сразу для всех» над списком компаний */
-.bx-apply-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  border-radius: var(--r-md);
-}
-.bx-apply-t {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--accent);
-  flex: none;
-}
-.bx-apply-bar .ba-from,
-.bx-apply-bar .ba-to {
-  width: 92px;
-  flex: none;
-  min-height: 36px;
-  font-size: 14px;
-  padding: 0 10px;
-}
-.bx-apply-bar .ba-cur,
-.bx-apply-bar .ba-per {
-  width: auto;
-  flex: none;
-  min-height: 36px;
-  font-size: 14px;
-  padding: 0 8px;
-}
-.bx-apply-bar [data-act="apply-bar"] {
-  flex: none;
-  min-height: 36px;
-  font-size: 13.5px;
-  padding: 0 14px;
-  white-space: nowrap;
-  margin-left: auto;
-}
-
-/* Кнопка «Как здесь — во все строки» в карточке компании (мобильный режим) */
-.bx-copy-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin: 10px 0 2px;
-  width: auto;
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--card-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
-  box-shadow: none;
-}
-.bx-copy-row:hover {
-  color: var(--accent);
-  border-color: var(--accent-border);
-}
-
 /* Льготы формы Шага 2 — чипы, разложенные по разделам */
 .bx-benefits .bx-ben-cat {
   flex: 1 0 100%;
@@ -8237,24 +8165,6 @@ html.compact {
   box-shadow: none;
 }
 .bx-std-benefits:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
-
-@media (max-width: 620px) {
-  .bx-apply-bar {
-    gap: 6px;
-  }
-  .bx-apply-bar .ba-from,
-  .bx-apply-bar .ba-to {
-    width: calc(50% - 3px);
-  }
-  .bx-apply-bar .ba-cur,
-  .bx-apply-bar .ba-per {
-    width: calc(50% - 3px);
-  }
-  .bx-apply-bar [data-act="apply-bar"] {
-    width: 100%;
-    margin-left: 0;
-  }
-}
 
 /* ── Фаза 5+: экраны импорта бенчмаркинга (были на инлайн-стилях, 🔍-эмодзи и var(--red/green)) ── */
 .bmi-modal { max-width: 750px; }

@@ -2139,8 +2139,6 @@ function openBatchSurveySheet(posName){
           '</div>'+
         '</div>'+
 
-        '<button type="button" class="bx-copy-row" data-act="copy-to-all" title="Скопировать этот оклад, валюту и период во все строки">'+ic('refresh',12)+'Как здесь — во все строки</button>'+
-
         '<button type="button" class="batch-toggle-more" data-act="toggle-more">'+
           '<span>' + ic('wrench', 13) + 'Параметры (должность у них, бонусы, льготы, источник)</span>'+
           '<span class="b-arr">' + ic('chevron', 12) + '</span>'+
@@ -2157,18 +2155,6 @@ function openBatchSurveySheet(posName){
           '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
         '</div>'+
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
-      '</div>'+
-
-      // Автозаполнение: ввести оклад один раз и разложить по всем пустым строкам
-      // ЭТОГО листа (одна должность × компании подразделения). Разнос на все
-      // площадки смежной группы делает уже сохранение — см. groupKey ниже.
-      '<div class="bx-apply-bar">'+
-        '<span class="bx-apply-t">'+ic('bolt',14)+'Один оклад — во все пустые строки листа</span>'+
-        '<input class="ba-from" inputmode="decimal" placeholder="оклад от">'+
-        '<input class="ba-to" inputmode="decimal" placeholder="оклад до">'+
-        '<select class="ba-cur">'+curOpts(defCur)+'</select>'+
-        '<select class="ba-per">'+perOpts(defPer)+'</select>'+
-        '<button type="button" class="btn-line" data-act="apply-bar">Применить к пустым</button>'+
       '</div>'+
 
       '<div class="batch-list'+(wide ? ' batch-list--grid' : '')+'">'+
@@ -2329,47 +2315,10 @@ function openBatchSurveySheet(posName){
     };
   }
 
-  // Записать оклад/валюту/период в строку — и в состояние, и в поля ввода.
-  function setRowPay(idx, from, to, cur, per){
-    var item = entries[idx];
-    if(!item) return;
-    if(from != null) item.payFrom = String(from);
-    if(to != null) item.payTo = String(to);
-    if(cur != null) item.cur = cur;
-    if(per != null) item.payPer = per;
-    var card = el.querySelector('.batch-card[data-idx="'+idx+'"]');
-    if(card){
-      var i1 = card.querySelector('.b-pay-from'); if(i1 && from != null) i1.value = String(from);
-      var i2 = card.querySelector('.b-pay-to');   if(i2 && to != null) i2.value = String(to);
-      var s1 = card.querySelector('.b-cur');       if(s1 && cur != null) s1.value = cur;
-      var s2 = card.querySelector('.b-pay-per');   if(s2 && per != null) s2.value = per;
-      updateCardCompleteness(card, item);
-    }
-  }
-
   // Обработчик событий внутри пакетной формы
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.dataset.x){
       requestCloseSheet();
-      return;
-    }
-
-    // Автозаполнение: «Применить к пустым» из верхней панели
-    if(e.target.closest('[data-act="apply-bar"]')){
-      var bf = el.querySelector('.ba-from').value.trim();
-      var bt = el.querySelector('.ba-to').value.trim();
-      var bc = el.querySelector('.ba-cur').value;
-      var bp = el.querySelector('.ba-per').value;
-      if(!bf && !bt){ toast('Укажите оклад в панели сверху'); return; }
-      S.fillPrefs.cur = bc; S.fillPrefs.payPer = bp;
-      var n = 0;
-      entries.forEach(function(it, i){
-        if(!String(it.payFrom).trim() && !String(it.payTo).trim()){
-          setRowPay(i, bf || it.payFrom, bt || it.payTo, bc, bp);
-          n++;
-        }
-      });
-      toast(n ? ('Оклад проставлен в ' + n + ' ' + declOfNum(n, ['строку','строки','строк'])) : 'Пустых строк нет', n ? 'ok' : '');
       return;
     }
 
@@ -2398,22 +2347,6 @@ function openBatchSurveySheet(posName){
       });
       updateCardCompleteness(stdCard, stdItem);
       toast(allOn ? 'Стандартный набор льгот снят' : 'Стандартный набор льгот отмечен', allOn ? '' : 'ok');
-      return;
-    }
-
-    // Автозаполнение: «Как здесь — во все строки»
-    var copyBtn = e.target.closest('[data-act="copy-to-all"]');
-    if(copyBtn){
-      var srcCard = copyBtn.closest('.batch-card');
-      var srcIdx = +srcCard.dataset.idx;
-      var src = entries[srcIdx];
-      var m = 0;
-      entries.forEach(function(it, i){
-        if(i === srcIdx) return;
-        setRowPay(i, src.payFrom, src.payTo, src.cur, src.payPer);
-        m++;
-      });
-      toast('Оклад из «' + src.co + '» разложен в ' + m + ' ' + declOfNum(m, ['строку','строки','строк']), 'ok');
       return;
     }
 
