@@ -653,6 +653,7 @@ var API_ROUTES = {
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminBatchAssignDivision: function(args){ return fetchJson('/api/admin/divisions/batch-assign', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminApplyAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },
   apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGetRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'GET', token:args[0] }); },
   apiAdminSaveRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'POST', token:args[0], body:args[1] }); },

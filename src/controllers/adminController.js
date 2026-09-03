@@ -430,13 +430,14 @@ exports.getDivisions = async (req, res) => {
 };
 
 /**
- * Подтверждение предложенной смежной группы: одной кнопкой проставляем
- * общий group_key всем площадкам и добиваем пустой region распознанным.
- * Ручной group_key на площадке не перезаписываем.
+ * Проставить общий group_key набору площадок (подтверждение предложенной
+ * группы ИЛИ ручная сборка). Пустой region добиваем распознанным.
+ * По умолчанию площадку с уже заданным group_key не трогаем; force=true
+ * (ручная сборка) перезаписывает.
  */
 exports.applyAdjacentGroup = async (req, res) => {
   try {
-    const { key, units } = req.body || {};
+    const { key, units, force } = req.body || {};
     const cleanKey = String(key || '').trim();
     if (!cleanKey) return res.status(400).json({ ok: false, error: 'Не указан ключ смежной группы' });
     if (!Array.isArray(units) || units.length < 2) {
@@ -462,7 +463,7 @@ exports.applyAdjacentGroup = async (req, res) => {
     names.forEach(u => {
       const row = byUnit[u];
       if (!row) return;
-      if (String(row.group_key || '').trim()) return; // ручной ключ не трогаем
+      if (!force && String(row.group_key || '').trim() && row.group_key !== cleanKey) return; // чужой ручной ключ не трогаем
       const region = String(row.region || '').trim() || detectRegion(u);
       stmts.push({
         sql: `UPDATE divisions
@@ -489,6 +490,27 @@ exports.applyAdjacentGroup = async (req, res) => {
   } catch (err) {
     console.error('applyAdjacentGroup error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка объединения в смежную группу' });
+  }
+};
+
+/**
+ * Разъединить смежную группу: снять group_key со всех её площадок
+ * (по ключу group_key). region оставляем как есть.
+ */
+exports.clearAdjacentGroup = async (req, res) => {
+  try {
+    const cleanKey = String((req.body && req.body.key) || '').trim();
+    if (!cleanKey) return res.status(400).json({ ok: false, error: 'Не указан ключ смежной группы' });
+    const affected = await queryAll('SELECT unit FROM divisions WHERE group_key = ?', [cleanKey]);
+    if (!affected.length) return res.json({ ok: true, key: cleanKey, cleared: 0 });
+    await batch([
+      { sql: "UPDATE divisions SET group_key = '', updated_at = CURRENT_TIMESTAMP WHERE group_key = ?", args: [cleanKey] },
+      { sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', args: [req.user.login, 'смежная группа: разъединение', `«${cleanKey}»: ${affected.length} площадок`] }
+    ]);
+    res.json({ ok: true, key: cleanKey, cleared: affected.length });
+  } catch (err) {
+    console.error('clearAdjacentGroup error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка разъединения смежной группы' });
   }
 };
 

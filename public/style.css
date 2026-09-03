@@ -8168,9 +8168,6 @@ html.compact {
 
 /* Подсказка автоопределённой смежной группы в карточке подразделения */
 .dm-grpsug {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   margin: 4px 0 8px;
   padding: 10px 12px;
   background: var(--accent-soft);
@@ -8179,28 +8176,75 @@ html.compact {
   font-size: 13px;
   line-height: 1.45;
 }
-.dm-grpsug > svg { flex: none; color: var(--accent); margin-top: 1px; }
-.dm-grpsug-body { flex: 1 1 auto; min-width: 0; }
+.dm-grpsug-body { min-width: 0; }
+.dm-grpsug-t { color: var(--muted); }
+.dm-grpsug-t > svg { color: var(--accent); }
 .dm-grpsug-units {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  margin-top: 5px;
+  flex-direction: column;
+  gap: 3px;
+  margin: 7px 0 9px;
 }
-.dm-grpsug-units span {
+.dm-grpsug-u {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.dm-grpsug-u input { margin: 0; flex: none; }
+.dm-grpsug-u.is-cur { color: var(--accent); font-weight: 600; }
+.dm-grpsug [id="dmGrpSugApply"] { min-height: 32px; }
+
+/* Диалог «Смежные группы площадок» */
+.ag-list { display: flex; flex-direction: column; gap: 8px; }
+.ag-grp {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  background: var(--card-2);
+}
+.ag-grp-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ag-grp-h span { color: var(--muted); font-size: 12px; }
+.ag-grp-h .ag-clear { margin-left: auto; min-height: 28px; font-size: 12px; padding: 0 10px; }
+.ag-grp-u { display: flex; flex-wrap: wrap; gap: 3px 5px; margin-top: 6px; }
+.ag-grp-u span {
+  font-size: 11.5px;
   color: var(--muted);
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-xs);
-  padding: 1px 6px;
+  padding: 1px 5px;
 }
-.dm-grpsug-units span.is-cur {
-  color: var(--accent);
-  border-color: var(--accent-border);
-  font-weight: 600;
+.ag-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+.ag-pick {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  margin-top: 8px;
+  padding: 4px;
 }
-.dm-grpsug [id="dmGrpSugApply"] { flex: none; white-space: nowrap; min-height: 32px; }
+.ag-pick-u {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+}
+.ag-pick-u:hover { background: var(--card-2); }
+.ag-pick-u input { margin: 0; flex: none; }
+.ag-pick-u span { flex: 1 1 auto; min-width: 0; }
+.ag-pick-u em { font-style: normal; font-size: 11px; color: var(--muted); flex: none; }
+.ag-pick-u em.ag-in { color: var(--accent); }
 
 /* ── Фаза 5+: экраны импорта бенчмаркинга (были на инлайн-стилях, 🔍-эмодзи и var(--red/green)) ── */
 .bmi-modal { max-width: 750px; }

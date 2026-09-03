@@ -5054,6 +5054,10 @@ function renderAdminDivisions(){
           '<button class="seg-btn on" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
           '<button class="seg-btn" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
         '</div>'+
+        '<button class="btn-line" id="btnAdjGroups" style="margin-left:8px;gap:5px" title="Смежные группы площадок">'+
+          ic('link', 13) + ' Смежные группы' +
+          ((function(){ var n = new Set((S.adminDivs||[]).map(function(x){ return String(x.group_key||'').trim(); }).filter(Boolean)).size; return n ? ' ('+n+')' : ''; })())+
+        '</button>'+
         // Кнопка «Отменить» — показывается только когда стек не пустой
         ((S.myUndoStack && S.myUndoStack.length) ?
           '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="margin-left:8px;gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
@@ -5606,6 +5610,8 @@ function renderAdminDivisions(){
   if(btnTable) btnTable.onclick = function(){ S.adminDivsView = 'table'; saveNavState(); renderAdminDivisions(); };
   var btnUndo = $('btnOrgUndo');
   if(btnUndo) btnUndo.onclick = popUndo;
+  var btnAdjG = $('btnAdjGroups');
+  if(btnAdjG) btnAdjG.onclick = openAdjacentGroupsModal;
 
   // Конструктор: смена направления через выпадающий список
   var selChangeDir = $('selChangeDir');
@@ -6566,6 +6572,92 @@ function promptAssignStaffToUnit(fio, targetUnit){
 }
 
 /**
+ * Управление смежными группами: список существующих (с «Разъединить») +
+ * ручная сборка новой группы из произвольных подразделений.
+ * Автоподсказки по конкретному подразделению живут в его карточке
+ * (openDivisionModal, блок #dmGrpSug).
+ */
+function openAdjacentGroupsModal(){
+  var divs = (S.adminDivs || []).slice();
+  var groups = {};
+  divs.forEach(function(x){
+    var k = String(x.group_key || '').trim();
+    if(k) (groups[k] = groups[k] || []).push(x);
+  });
+  var groupKeys = Object.keys(groups).sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in" style="max-width:640px">'+
+    '<div class="sheet-hd"><b>Смежные группы площадок</b><button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<p class="step-hint" style="margin:4px 0 14px">Площадки одной группы заполняют рынок один раз — данные сохраняются сразу во все площадки группы (различаются регионом или производственной площадкой).</p>'+
+
+    '<div class="lbl" style="margin-bottom:6px">Существующие группы ('+groupKeys.length+')</div>'+
+    (groupKeys.length
+      ? '<div class="ag-list">'+groupKeys.map(function(k){
+          return '<div class="ag-grp">'+
+            '<div class="ag-grp-h"><b>«'+esc(k)+'»</b><span>'+groups[k].length+' площадок</span>'+
+              '<button type="button" class="btn-line ag-clear" data-key="'+esc(k)+'">Разъединить</button></div>'+
+            '<div class="ag-grp-u">'+groups[k].map(function(x){ return '<span>'+esc(x.unit)+(x.region ? ' · '+esc(x.region) : '')+'</span>'; }).join('')+'</div>'+
+          '</div>';
+        }).join('')+'</div>'
+      : '<div class="ag-empty">Пока ни одной группы</div>')+
+
+    '<div class="lbl" style="margin:18px 0 6px">Собрать группу вручную</div>'+
+    '<input id="agName" placeholder="Название группы (напр. «Склад ГП»)" style="width:100%">'+
+    '<input id="agSearch" placeholder="Поиск подразделения…" style="width:100%;margin-top:8px">'+
+    '<div class="ag-pick" id="agPick"></div>'+
+    '<div style="height:10px"></div>'+
+    '<button id="agCreate" class="btn-primary">Создать группу</button>'+
+    '<div style="height:8px"></div>'+
+  '</div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', function(e){ if(e.target === el || e.target.dataset.x) el.remove(); });
+
+  var renderPick = function(){
+    var q = ($('agSearch').value || '').toLowerCase().trim();
+    var rows = divs.filter(function(x){
+      if(!x.unit) return false;
+      if(!q) return true;
+      return x.unit.toLowerCase().indexOf(q) >= 0 || String(x.dir || '').toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 200);
+    $('agPick').innerHTML = rows.map(function(x){
+      var g = String(x.group_key || '').trim();
+      return '<label class="ag-pick-u">'+
+        '<input type="checkbox" value="'+esc(x.unit)+'">'+
+        '<span>'+esc(x.unit)+'</span>'+
+        (g ? '<em class="ag-in">в «'+esc(g)+'»</em>' : (x.dir ? '<em class="dim">'+esc(x.dir)+'</em>' : ''))+
+      '</label>';
+    }).join('') || '<div class="ag-empty">Ничего не найдено</div>';
+  };
+  $('agSearch').oninput = renderPick;
+  renderPick();
+
+  [].slice.call(el.querySelectorAll('.ag-clear')).forEach(function(b){
+    b.onclick = function(){
+      var k = b.getAttribute('data-key');
+      b.disabled = true; b.textContent = 'Разъединяем…';
+      call('apiAdminClearAdjacentGroup', S.token, k).then(function(res){
+        if(res && res.ok){ toast('Группа «'+k+'» разъединена ('+res.cleared+')', 'ok'); el.remove(); loadAdminDivisions(); }
+        else { b.disabled = false; b.textContent = 'Разъединить'; toast((res && res.error) || 'Не удалось', 'no'); }
+      }).catch(function(){ b.disabled = false; b.textContent = 'Разъединить'; toast('Нет связи с сервером', 'no'); });
+    };
+  });
+
+  $('agCreate').onclick = function(){
+    var name = ($('agName').value || '').trim();
+    var picked = [].slice.call($('agPick').querySelectorAll('input:checked')).map(function(c){ return { unit: c.value }; });
+    if(!name){ toast('Укажите название группы', 'no'); return; }
+    if(picked.length < 2){ toast('Отметьте минимум 2 подразделения', 'no'); return; }
+    var btn = this; btn.disabled = true; btn.textContent = 'Создаём…';
+    call('apiAdminApplyAdjacentGroup', S.token, { key: name, units: picked, force: true }).then(function(res){
+      if(res && res.ok){ toast('Группа «'+res.key+'» создана ('+res.applied+' площадок)', 'ok'); el.remove(); loadAdminDivisions(); }
+      else { btn.disabled = false; btn.textContent = 'Создать группу'; toast((res && res.error) || 'Не удалось', 'no'); }
+    }).catch(function(){ btn.disabled = false; btn.textContent = 'Создать группу'; toast('Нет связи с сервером', 'no'); });
+  };
+}
+
+/**
  * opts.restricted — режим dir_head: направление и HR BP только на просмотр,
  * меняются лишь руководитель отдела и ответственный за обзор (см. saveDivision
  * на сервере — та же граница проверяется и там, это не только фронт).
@@ -6623,14 +6715,17 @@ function openDivisionModal(unit, opts){
         '(площадки с одинаковой структурой должностей — разные регионом или производственной площадкой)</span></label>'+
       (groupSug ?
         '<div class="dm-grpsug" id="dmGrpSug">'+
-          ic('link', 14)+
           '<div class="dm-grpsug-body">'+
-            '<div>Похоже на смежную группу <b>«'+esc(groupSug.key)+'»</b>. Площадки ('+groupSug.units.length+'):</div>'+
+            '<div class="dm-grpsug-t">'+ic('link', 14)+'Похоже на смежную группу <b>«'+esc(groupSug.key)+'»</b>. Отметьте площадки:</div>'+
             '<div class="dm-grpsug-units">'+groupSug.units.map(function(u){
-              return '<span'+(u.unit === d.unit ? ' class="is-cur"' : '')+'>'+esc(u.unit)+(u.region ? ' · '+esc(u.region) : '')+'</span>';
+              var cur = u.unit === d.unit;
+              return '<label class="dm-grpsug-u'+(cur ? ' is-cur' : '')+'">'+
+                '<input type="checkbox" value="'+esc(u.unit)+'" data-region="'+esc(u.region || '')+'" checked'+(cur ? ' disabled' : '')+'>'+
+                '<span>'+esc(u.unit)+(u.region ? ' · '+esc(u.region) : '')+'</span>'+
+              '</label>';
             }).join('')+'</div>'+
+            '<button type="button" class="btn-line" id="dmGrpSugApply">Объединить отмеченные</button>'+
           '</div>'+
-          '<button type="button" class="btn-line" id="dmGrpSugApply">Объединить</button>'+
         '</div>'
       : '')+
       '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
@@ -6654,16 +6749,21 @@ function openDivisionModal(unit, opts){
 
   document.body.appendChild(el);
 
-  // Кнопка «Объединить» в подсказке автоопределённой смежной группы: проставляет
-  // общий group_key всем площадкам разом (сервер добьёт пустой region).
+  // Кнопка «Объединить отмеченные» в подсказке автоопределённой смежной группы:
+  // берём только отмеченные чекбоксы (текущее подразделение всегда включено),
+  // проставляем им общий group_key разом (сервер добьёт пустой region).
   if(groupSug){
     var sugBtn = el.querySelector('#dmGrpSugApply');
     if(sugBtn) sugBtn.onclick = function(){
+      var chosen = [].slice.call(el.querySelectorAll('#dmGrpSug input[type="checkbox"]'))
+        .filter(function(c){ return c.checked; })
+        .map(function(c){ return { unit: c.value, region: c.getAttribute('data-region') || '' }; });
+      if(chosen.length < 2){ toast('Отметьте минимум 2 площадки', 'no'); return; }
       sugBtn.disabled = true; sugBtn.textContent = 'Объединяем…';
-      call('apiAdminApplyAdjacentGroup', S.token, { key: groupSug.key, units: groupSug.units }).then(function(res){
+      call('apiAdminApplyAdjacentGroup', S.token, { key: groupSug.key, units: chosen }).then(function(res){
         if(res && res.ok){
           var unitNames = {};
-          groupSug.units.forEach(function(u){ unitNames[u.unit] = u.region || ''; });
+          chosen.forEach(function(u){ unitNames[u.unit] = u.region || ''; });
           (S.adminDivs || []).forEach(function(x){
             if(unitNames.hasOwnProperty(x.unit) && !String(x.group_key || '').trim()){
               x.group_key = res.key;
@@ -6677,11 +6777,11 @@ function openDivisionModal(unit, opts){
           var sugBox = el.querySelector('#dmGrpSug'); if(sugBox) sugBox.remove();
           toast('Объединено в смежную группу «' + res.key + '» (' + res.applied + ' площадок)', 'ok');
         } else {
-          sugBtn.disabled = false; sugBtn.textContent = 'Объединить';
+          sugBtn.disabled = false; sugBtn.textContent = 'Объединить отмеченные';
           toast((res && res.error) || 'Не удалось объединить', 'no');
         }
       }).catch(function(){
-        sugBtn.disabled = false; sugBtn.textContent = 'Объединить';
+        sugBtn.disabled = false; sugBtn.textContent = 'Объединить отмеченные';
         toast('Нет связи с сервером', 'no');
       });
     };
