@@ -57,6 +57,52 @@ var IN_TG = document.documentElement.classList.contains('tg');
   window.addEventListener('resize', apply);
 })();
 
+// ─── Экранная клавиатура не должна перекрывать поля ────────────────────
+// 1) --vvh = высота видимой области (visualViewport) в px. CSS кладёт по ней
+//    max-height у sheet-ов, чтобы открытый лист не уходил под клавиатуру.
+// 2) При фокусе на поле внутри листа/контента подкручиваем его в центр —
+//    после того как клавиатура выехала (даём ~280 мс на анимацию).
+// viewport-meta interactive-widget=resizes-content (index.html) заставляет
+// саму раскладку сжиматься — этого хватает фиксированной нижней панели
+// «Сохранить»; здесь добираем случаи, когда поле всё же осталось внизу.
+(function(){
+  var vv = window.visualViewport;
+  var root = document.documentElement;
+  var raf = 0;
+  function syncVVH(){
+    raf = 0;
+    var h = vv ? vv.height : window.innerHeight;
+    root.style.setProperty('--vvh', h + 'px');
+  }
+  function schedule(){ if(!raf) raf = requestAnimationFrame(syncVVH); }
+  syncVVH();
+  if(vv){
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+  } else {
+    window.addEventListener('resize', schedule);
+  }
+
+  var FIELD = 'input, textarea, select, [contenteditable="true"]';
+  document.addEventListener('focusin', function(e){
+    var f = e.target;
+    if(!f || !f.matches || !f.matches(FIELD)) return;
+    if(f.type === 'checkbox' || f.type === 'radio' || f.type === 'hidden') return;
+    if(!f.closest('.sheet-in, #body, .wrap')) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Ждём, пока клавиатура выедет и visualViewport ужмётся; действуем только
+    // если она реально отъела заметную высоту (иначе каждый тап по полю
+    // дёргал бы экран). Порог — 140 px разницы между окном и видимой областью.
+    setTimeout(function(){
+      var hidden = window.innerHeight - (vv ? vv.height : window.innerHeight);
+      if(hidden < 140) return;
+      var r = f.getBoundingClientRect();
+      if(r.bottom <= (vv ? vv.height : window.innerHeight) - 12 && r.top >= 8) return; // и так видно
+      try { f.scrollIntoView({ block:'center', behavior: reduce ? 'auto' : 'smooth' }); } catch(err){}
+    }, 300);
+  });
+})();
+
 // ═══════════════════════════════════════════════════════════
 // СОСТОЯНИЕ
 // ═══════════════════════════════════════════════════════════

@@ -89,6 +89,21 @@
   --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
   --dur-fast: 0.16s;
   --dur-mid: 0.3s;
+
+  /* Сетка: 12 колонок, гаттер 16, контейнер 1180 / строка текста 70ch.
+     Пороги — те же числа, что раньше были разбросаны по медиазапросам. */
+  --grid-cols: 12;
+  --grid-gutter: 16px;
+  --grid-max: 1180px;
+  --measure: 70ch;
+  --bp-sm: 560px;   /* телефон → одна колонка */
+  --bp-md: 960px;   /* планшет */
+  --bp-lg: 1024px;  /* десктоп: сплит-экраны, боковые панели */
+
+  /* Высота видимой области за вычетом экранной клавиатуры. Обновляется из JS
+     по visualViewport (см. app-core.js). Фолбэк — обычная высота окна. */
+  --vvh: 100vh;
+
   font-size: 15px;
 }
 
@@ -1010,13 +1025,54 @@ label.lbl {
   letter-spacing: -0.01em;
 }
 
+/* ─── Сетка 12 колонок ──────────────────────────────────────────────────
+   .grid12 — контейнер (12 равных дорожек, гаттер = --grid-gutter).
+   .gc-1…12 — ширина потомка в колонках; .gc-md-* (<960) и .gc-sm-* (<560)
+   переопределяют на порогах. Ниже --bp-sm всё, что не помечено .gc-sm-keep,
+   схлопывается в одну колонку — мобильный ввод идёт стопкой. */
+.grid12 {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  gap: var(--grid-gutter);
+  align-items: start;
+}
+.grid12--tight { gap: 10px; }
+.gc-1 { grid-column: span 1; }
+.gc-2 { grid-column: span 2; }
+.gc-3 { grid-column: span 3; }
+.gc-4 { grid-column: span 4; }
+.gc-5 { grid-column: span 5; }
+.gc-6 { grid-column: span 6; }
+.gc-7 { grid-column: span 7; }
+.gc-8 { grid-column: span 8; }
+.gc-9 { grid-column: span 9; }
+.gc-10 { grid-column: span 10; }
+.gc-11 { grid-column: span 11; }
+.gc-12 { grid-column: span 12; }
+@media (max-width: 960px) {
+  .gc-md-4 { grid-column: span 4; }
+  .gc-md-6 { grid-column: span 6; }
+  .gc-md-8 { grid-column: span 8; }
+  .gc-md-12 { grid-column: span 12; }
+}
+@media (max-width: 560px) {
+  .grid12 { gap: 12px; }
+  .grid12 > *:not(.gc-sm-keep) { grid-column: 1 / -1; }
+  .gc-sm-6 { grid-column: span 6; }
+}
+
+/* Центрирующий контейнер: ширина по --grid-max, читаемый текст по --measure. */
+.container { width: 100%; max-width: var(--grid-max); margin-inline: auto; }
+.container--prose { max-width: var(--measure); }
+
+/* .two — закреплённая пара 6+6 на сетке (оклад от/до, валюта/период). */
 .two {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .two>div {
-  flex: 1;
   min-width: 0;
 }
 
@@ -1232,17 +1288,20 @@ label.lbl {
 }
 
 @media (min-width: 960px) {
+  /* Сплит-экран на 12-колоночной логике: 7 колонок под брендовую панель,
+     5 — под форму. Ниже 960px медиазапрос не действует и блок укладывается
+     в стопку (панель сверху, форма снизу) — «split 50/50 → 100». */
   #scrLogin.login {
     max-width: none;
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    display: flex;
+    display: grid;
+    grid-template-columns: 7fr 5fr;
     align-items: stretch;
   }
 
   .login-brand {
-    flex: 1;
     justify-content: center;
     align-items: flex-start;
     text-align: left;
@@ -1272,8 +1331,7 @@ label.lbl {
   }
 
   .login-form-col {
-    width: 480px;
-    flex: none;
+    width: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2706,7 +2764,9 @@ label.lbl {
 .sheet-in {
   background: var(--card);
   width: 100%;
-  max-height: 90vh;
+  /* --vvh (из app-core.js) = высота за вычетом экранной клавиатуры; при
+     закрытой клавиатуре равна 100vh, поэтому обычно ограничение даёт 90vh. */
+  max-height: min(90vh, calc(var(--vvh) - 24px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: 20px 20px 0 0;
@@ -2744,8 +2804,8 @@ label.lbl {
 
   .um-modal .field-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 var(--grid-gutter);
   }
 }
 
@@ -8174,9 +8234,12 @@ html.compact {
 .bmi-modal { max-width: 750px; }
 .bmi-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--grid-gutter);
   margin-top: 12px;
+}
+@media (max-width: 560px) {
+  .bmi-grid { grid-template-columns: 1fr; }
 }
 .bmi-lbl { margin-top: 12px; }
 .bmi-text {
