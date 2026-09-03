@@ -6728,12 +6728,12 @@ function openDivisionModal(unit, opts){
           '</div>'+
         '</div>'
       : '')+
-      '<input id="dmGroup" list="dmGroupList" value="'+esc(d.group_key || '')+'" '+
-        'placeholder="например: служба_охраны — оставьте пустым, если площадка одна">'+
-      '<datalist id="dmGroupList">'+
-        uniqSortedList((S.adminDivs || []).map(function(x){ return x.group_key; }).filter(Boolean))
-          .map(function(g){ return '<option value="'+esc(g)+'">'; }).join('')+
-      '</datalist>')+
+      // Без datalist: раньше сюда падал список ВСЕХ ключей групп холдинга, и на
+      // карточке транспортного отдела браузер автодополнял «Хозяйственная
+      // служба» — выглядело как ошибочная подсказка. Реальные предложения
+      // приходят выше (#dmGrpSug), диалог «Смежные группы» — для ручной сборки.
+      '<input id="dmGroup" value="'+esc(d.group_key || '')+'" '+
+        'placeholder="например: служба_охраны — оставьте пустым, если площадка одна">')+
     (restricted ? '' :
       '<label class="lbl">Роль в структуре холдинга</label>'+
       '<select id="dmOrgRole" style="width:100%">'+
