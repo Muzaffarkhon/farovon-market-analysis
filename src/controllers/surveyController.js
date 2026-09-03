@@ -324,10 +324,16 @@ exports.saveSurveyDetails = async (req, res) => {
     }
 
     // ── Смежная группа: «заполнил раз → на все площадки» ────────────────────
-    // Если пришёл groupKey — валидированные записи применяются ко ВСЕМ
-    // подразделениям группы, а remove приходит парами {posOur, company}.
-    // Строки внутри группы считаем общими (isOwnedByOther не применяем).
-    const cleanGroupKey = groupKey ? String(groupKey).trim() : '';
+    // Если у подразделения задана смежная группа — валидированные записи
+    // применяются ко ВСЕМ её площадкам. groupKey с фронта — подсказка; если
+    // он не пришёл (устаревшая вкладка, ещё не подхватила новую группу) —
+    // берём group_key из divisions по самому unit. Так разнос работает сразу
+    // после объединения, без перезагрузки у заполняющего.
+    let cleanGroupKey = groupKey ? String(groupKey).trim() : '';
+    if (!cleanGroupKey) {
+      const ownGrp = await queryOne('SELECT group_key FROM divisions WHERE unit = ?', [String(unit).trim()]);
+      if (ownGrp && String(ownGrp.group_key || '').trim()) cleanGroupKey = String(ownGrp.group_key).trim();
+    }
     if (cleanGroupKey) {
       const groupUnits = (await queryAll(
         'SELECT unit FROM divisions WHERE group_key = ?', [cleanGroupKey]
@@ -350,11 +356,13 @@ exports.saveSurveyDetails = async (req, res) => {
           `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна'`,
           groupUnits
         );
-        // индекс: unit -> "posKey|coKey" -> sid
+        // индекс: unit -> "posKey|coKey" -> sid; и обратный sid -> "posKey|coKey"
         const idx = {};
+        const sidToKey = {};
         existingRows.forEach(r => {
           const k = norm(r.pos_our) + '|' + norm(r.company);
           (idx[r.unit] = idx[r.unit] || {})[k] = r.sid;
+          sidToKey[r.sid] = k;
         });
 
         const gStmts = [];
@@ -391,11 +399,18 @@ exports.saveSurveyDetails = async (req, res) => {
           });
         });
 
-        // remove: пары {posOur, company} → удаляем во всех площадках группы
+        // remove: пары {posOur, company} → удаляем во всех площадках группы.
+        // Устаревшая вкладка могла прислать sid-строки — переводим их в пары
+        // по обратному индексу.
         let removedPairs = 0;
         (Array.isArray(remove) ? remove : []).forEach(rm => {
-          if (!rm || typeof rm !== 'object') return;
-          const k = norm(rm.posOur || rm.pos_our) + '|' + norm(rm.company);
+          let k = null;
+          if (rm && typeof rm === 'object') {
+            k = norm(rm.posOur || rm.pos_our) + '|' + norm(rm.company);
+          } else if (typeof rm === 'string' || typeof rm === 'number') {
+            k = sidToKey[String(rm)] || null;
+          }
+          if (!k) return;
           groupUnits.forEach(gu => {
             const sid = (idx[gu] || {})[k];
             if (sid) {
