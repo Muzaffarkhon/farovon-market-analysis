@@ -3850,6 +3850,45 @@ label.lbl {
   vertical-align: middle;
 }
 
+/* Поколоночный фильтр: строка полей под шапкой каждой таблицы .co-tbl */
+.co-tbl thead tr.tbl-filt td {
+  padding: 4px 6px;
+  background: var(--card-2);
+  border-bottom: 1px solid var(--line);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.co-tbl--pin thead tr.tbl-filt td {
+  position: sticky;
+  top: 33px;
+  z-index: 9;
+}
+.co-tbl tr.tbl-filt:hover td { background: var(--card-2); }
+.co-tbl tr.tbl-filt .tf-in {
+  width: 100%;
+  min-width: 60px;
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  box-shadow: none;
+}
+.co-tbl tr.tbl-filt .tf-in:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.co-tbl tr.tbl-filt-empty td {
+  padding: 14px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.co-tbl tr.tbl-filt-empty:hover td { background: transparent; }
+
 .co-tbl tr:last-child td {
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);

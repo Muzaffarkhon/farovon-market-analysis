@@ -1032,6 +1032,127 @@ function fitTables(){
   // Высота таблиц теперь на 100% управляется аппаратным CSS Flexbox (.tblwrap--page { flex: 1 1 auto; min-height: 0; })
 }
 
+// ─── Поколоночный фильтр таблиц ─────────────────────────────────────────────
+// Под шапкой каждой таблицы .co-tbl добавляется строка с полем на столбец.
+// Текст — подстрока; числовые столбцы (.num) понимают >N <N >=N <=N =N и N-M.
+// Значения переживают пересортировку/перерисовку: ключ — состав заголовков.
+var _tblFiltState = {};
+
+function _tfNorm(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+function _tfMatch(cellText, q, isNum){
+  q = String(q || '').trim();
+  if(!q) return true;
+  if(isNum){
+    var n = parseFloat(String(cellText).replace(/[^\d.,\-]/g, '').replace(/\s| /g, '').replace(',', '.'));
+    var m = q.match(/^(>=|<=|>|<|=)\s*(-?[\d.]+)$/);
+    if(m){
+      if(isNaN(n)) return false;
+      var v = parseFloat(m[2]);
+      return m[1] === '>' ? n > v : m[1] === '<' ? n < v :
+             m[1] === '>=' ? n >= v : m[1] === '<=' ? n <= v : n === v;
+    }
+    m = q.match(/^(-?[\d.]+)\s*[-–—]\s*(-?[\d.]+)$/);
+    if(m){
+      if(isNaN(n)) return false;
+      var a = parseFloat(m[1]), b = parseFloat(m[2]);
+      return n >= Math.min(a, b) && n <= Math.max(a, b);
+    }
+  }
+  return _tfNorm(cellText).indexOf(_tfNorm(q)) >= 0;
+}
+
+function _tfSig(headRow){
+  return [].map.call(headRow.cells, function(th){
+    return _tfNorm(th.textContent).replace(/[▲▼△▽↑↓]/g, '').trim();
+  }).join('¦');
+}
+
+function enhanceTableFilters(root){
+  var tables = (root || document).querySelectorAll('table.co-tbl:not(.no-filt)');
+  [].forEach.call(tables, function(table){
+    if(table.dataset.tfDone) return;
+    var thead = table.tHead, tbody = table.tBodies[0];
+    if(!thead || !tbody || !thead.rows.length) return;
+    var hrow = thead.rows[thead.rows.length - 1];
+    if(hrow.cells.length < 2) { table.dataset.tfDone = '1'; return; }
+
+    var isRealRow = function(r){ return !(r.cells.length === 1 && (r.cells[0].colSpan || 1) > 1); };
+    var dataRows = [].filter.call(tbody.rows, isRealRow);
+    if(dataRows.length < 2){ return; } // ещё догрузится / пусто — вернёмся позже
+
+    table.dataset.tfDone = '1';
+    var cols = hrow.cells.length;
+    var sig = _tfSig(hrow);
+    var saved = _tblFiltState[sig] || [];
+
+    var fr = document.createElement('tr');
+    fr.className = 'tbl-filt';
+    for(var i = 0; i < cols; i++){
+      var th = hrow.cells[i];
+      var label = _tfNorm(th.textContent);
+      // числовой столбец: помечен .num ИЛИ все непустые ячейки — числа
+      var colTexts = dataRows.map(function(r){ return (r.cells[i] ? r.cells[i].textContent : '').trim(); });
+      var nonEmpty = colTexts.filter(Boolean);
+      var isNum = th.classList.contains('num') || (nonEmpty.length > 0 && nonEmpty.every(function(t){
+        return /^[−-]?\d+([\s .,]\d+)*\s*%?$/.test(t) || /^[−-]?\d*[.,]?\d+\s*(c|сом\.?|₽|\$|%)?$/i.test(t);
+      }));
+      var noText = dataRows.every(function(r){
+        var c = r.cells[i];
+        return c && !c.textContent.trim() && c.querySelector('button,a,svg,input,label');
+      });
+      var skip = !label || /^(действ|инфо|коридор рынка|коридор)/i.test(label) || noText;
+      var td = document.createElement('td');
+      if(!skip){
+        var inp = document.createElement('input');
+        inp.className = 'tf-in';
+        inp.type = 'text';
+        inp.dataset.col = i;
+        if(isNum) inp.dataset.num = '1';
+        inp.placeholder = isNum ? '> 0   10-50' : 'фильтр';
+        inp.setAttribute('aria-label', 'Фильтр: ' + th.textContent.trim());
+        if(saved[i]) inp.value = saved[i];
+        td.appendChild(inp);
+      }
+      fr.appendChild(td);
+    }
+    thead.appendChild(fr);
+
+    var apply = function(){
+      var qs = [].map.call(fr.querySelectorAll('.tf-in'), function(inp){
+        return { col: +inp.dataset.col, q: inp.value, num: inp.dataset.num === '1' };
+      });
+      var st = _tblFiltState[sig] = [];
+      qs.forEach(function(x){ st[x.col] = x.q; });
+      var rows = [].filter.call(tbody.rows, isRealRow);
+      var visible = 0;
+      rows.forEach(function(r){
+        var ok = qs.every(function(x){
+          if(!x.q.trim()) return true;
+          var cell = r.cells[x.col];
+          return cell ? _tfMatch(cell.textContent, x.q, x.num) : true;
+        });
+        r.hidden = !ok;
+        if(ok) visible++;
+      });
+      var ph = tbody.querySelector('tr.tbl-filt-empty');
+      if(!visible && rows.length){
+        if(!ph){
+          ph = document.createElement('tr');
+          ph.className = 'tbl-filt-empty';
+          var c = document.createElement('td');
+          c.colSpan = cols; c.textContent = 'Нет строк по фильтру';
+          ph.appendChild(c); tbody.appendChild(ph);
+        }
+        ph.hidden = false;
+      } else if(ph){ ph.hidden = true; }
+    };
+
+    fr.addEventListener('input', apply);
+    if(saved.some(function(v){ return v && v.trim(); })) apply();
+  });
+}
+
 var fitPending = false;
 function scheduleFit(){
   if(fitPending) return;
@@ -1040,11 +1161,16 @@ function scheduleFit(){
 }
 
 if(window.MutationObserver){
-  new MutationObserver(scheduleFit).observe(document.documentElement, {
-    childList: true, subtree: true
-  });
+  new MutationObserver(function(){
+    scheduleFit();
+    // Прямо в колбэке (а не в debounced-rAF): rAF гонка теряла таблицы,
+    // подгруженные async. enhanceTableFilters дёшев для уже размеченных.
+    try { enhanceTableFilters(document); } catch(e){}
+  }).observe(document.documentElement, { childList: true, subtree: true });
 }
 window.addEventListener('resize', scheduleFit);
+if(document.readyState !== 'loading') { try { enhanceTableFilters(document); } catch(e){} }
+else document.addEventListener('DOMContentLoaded', function(){ try { enhanceTableFilters(document); } catch(e){} });
 
 /** Уникальный отсортированный список из «грязного» набора строк. */
 function uniqSortedList(arr){
