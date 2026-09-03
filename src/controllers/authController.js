@@ -82,6 +82,23 @@ function makeToken(user) {
   );
 }
 
+// #22 — сессия дублируется в httpOnly-куку. В обычном браузере (одно
+// происхождение) её хватает; фронт тогда не кладёт токен в localStorage.
+const SESSION_COOKIE = 'farovon_session';
+function setSessionCookie(res, token) {
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: config.nodeEnv === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/'
+  });
+}
+exports.logout = async (req, res) => {
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.json({ ok: true });
+};
+
 async function getPeriodInfo() {
   const p = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
   return p ? {
@@ -503,6 +520,7 @@ exports.login = async (req, res) => {
     ]);
 
     const token = makeToken(user);
+    setSessionCookie(res, token);
     const data = await getUserPayload(user);
 
     res.json({
@@ -519,9 +537,11 @@ exports.login = async (req, res) => {
 exports.resume = async (req, res) => {
   try {
     const data = await getUserPayload(req.user);
+    const token = makeToken(req.user);
+    setSessionCookie(res, token);
     res.json({
       ok: true,
-      token: makeToken(req.user),
+      token,
       data
     });
   } catch (err) {

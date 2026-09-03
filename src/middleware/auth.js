@@ -6,13 +6,23 @@ async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['x-token'];
   let token = null;
 
-  // Токен принимаем только из заголовка. Раньше был ещё и ?token= в query —
-  // такие токены оседают в логах доступа, Referer и истории браузера.
+  // Токен принимаем из заголовка. Раньше был ещё и ?token= в query — такие
+  // токены оседают в логах доступа, Referer и истории браузера.
   if (authHeader) {
     if (authHeader.startsWith('Bearer ')) {
       token = authHeader.slice(7).trim();
     } else {
       token = authHeader.trim();
+    }
+  }
+
+  // #22 — фолбэк на httpOnly-куку сессии (не читается из JS, не уязвима к XSS).
+  // Заголовок остаётся для Telegram Mini App: там страница крутится во фрейме
+  // web.telegram.org, а межсайтовые куки браузеры всё чаще блокируют.
+  if (!token && req.headers.cookie) {
+    const m = /(?:^|;\s*)farovon_session=([^;]+)/.exec(req.headers.cookie);
+    if (m) {
+      try { token = decodeURIComponent(m[1]); } catch (e) { token = m[1]; }
     }
   }
 

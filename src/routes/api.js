@@ -16,6 +16,8 @@ router.use(apiLimiter);
 
 // ─── Публичные роуты авторизации ───
 router.post('/auth/login', authLimiter, authController.login);
+// Выход — просто гасит httpOnly-куку сессии, JWT для этого не нужен.
+router.post('/auth/logout', authController.logout);
 
 // Сюда Telegram шлёт входящие сообщения — без JWT, проверяется секретным заголовком
 router.post('/telegram/webhook', webhookLimiter, telegramController.webhook);

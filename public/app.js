@@ -29,6 +29,12 @@
   document.documentElement.classList.add('tg');
 })();
 
+// #22 — реальный Telegram Mini App (страница во фрейме web.telegram.org).
+// Там сессионная кука ненадёжна, поэтому токен там храним в localStorage и
+// шлём заголовком. В обычном браузере (одно происхождение) сессию держит
+// httpOnly-кука, и в localStorage токен не кладём.
+var IN_TG = document.documentElement.classList.contains('tg');
+
 /**
  * Компактный режим: узкий экран или окно Telegram. Класс на <html>, чтобы
  * одни и те же правила не пришлось дублировать в медиазапросе и в селекторе
@@ -351,7 +357,8 @@ function cycleTheme(){
 function persistToken(r){
   if(r && r.ok && r.token && typeof S !== 'undefined'){
     S.token = r.token;
-    store.set(LS_TOKEN, r.token);
+    // В браузере сессию держит httpOnly-кука — в localStorage не дублируем.
+    if(IN_TG) store.set(LS_TOKEN, r.token);
   }
 }
 
@@ -559,6 +566,7 @@ function fmtDate_(d){
 /** Клиент для работы с REST API сервера */
 var API_ROUTES = {
   apiLogin: function(args){ return fetchJson('/api/auth/login', { method:'POST', body:{ login:args[0], password:args[1] } }); },
+  apiLogout: function(){ return fetchJson('/api/auth/logout', { method:'POST' }); },
   apiResume: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiRefresh: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
@@ -663,7 +671,9 @@ function fetchJson(url, opts){
   if(opts.token) headers['Authorization'] = 'Bearer ' + opts.token;
   var conf = {
     method: opts.method || 'GET',
-    headers: headers
+    headers: headers,
+    // Одно происхождение: браузер сам приложит httpOnly-куку сессии (#22).
+    credentials: 'same-origin'
   };
   if(opts.body && (conf.method === 'POST' || conf.method === 'PUT')) {
     conf.body = JSON.stringify(opts.body);
@@ -1425,7 +1435,9 @@ function renderRail(){ renderNav(); }
 
 (function start(){
   var t = store.get(LS_TOKEN);
-  if(!t){
+  // В Telegram без сохранённого токена сессии нет (куку фрейм не отдаёт).
+  // В браузере пробуем /auth/resume и без токена — его довезёт httpOnly-кука.
+  if(!t && IN_TG){
     show('login');
     try{ $('inLogin').focus(); }catch(e){}
     return;
@@ -1433,7 +1445,7 @@ function renderRail(){ renderNav(); }
   show('load');
   call('apiResume', t).then(function(r){
     if(r && r.ok){ persistToken(r); onLoaded(r.data); }
-    else { store.del(LS_TOKEN); show('login'); }
+    else { store.del(LS_TOKEN); show('login'); try{ $('inLogin').focus(); }catch(e){} }
   }).catch(function(){ store.del(LS_TOKEN); show('login'); });
 })();
 
@@ -1462,7 +1474,7 @@ function doLogin(){
     $('btnLogin').disabled = false; $('btnLogin').textContent = 'Войти';
     if(!r || !r.ok){ loginErr((r&&r.error)||'Ошибка входа'); return; }
     S.token = r.token;
-    store.set(LS_TOKEN, r.token);
+    if(IN_TG) store.set(LS_TOKEN, r.token); // в браузере сессию держит кука
     $('inPass').value = '';
     onLoaded(r.data);
   }).catch(function(){
@@ -1473,7 +1485,13 @@ function doLogin(){
 function loginErr(m){ var e=$('loginErr'); e.textContent=m; e.classList.remove('hidden'); }
 
 function doLogout(){
-  var go = function(){ store.del(LS_TOKEN); location.reload(); };
+  var go = function(){
+    // Гасим httpOnly-куку на сервере, затем локальные следы.
+    call('apiLogout').catch(function(){}).then(function(){
+      store.del(LS_TOKEN);
+      location.reload();
+    });
+  };
   if(!S.dirty){ go(); return; }
   askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
 }
