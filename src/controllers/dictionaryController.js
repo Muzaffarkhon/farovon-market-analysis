@@ -26,9 +26,12 @@ const KINDS = {
       { sql: 'SELECT COUNT(*) AS n FROM competitors WHERE company = ?', label: ['строка участников рынка', 'строки участников рынка', 'строк участников рынка'] },
       { sql: "SELECT COUNT(*) AS n FROM surveys WHERE company = ? AND state != 'удалена'", label: ['анкета по должностям', 'анкеты по должностям', 'анкет по должностям'] }
     ],
+    // Анкеты (собранные рыночные данные) — мягкое удаление: помечаем 'удалена',
+    // строки остаются в базе и восстановимы. Раньше был DELETE — правка
+    // справочника необратимо стирала месяцы собранных данных.
     purge: [
       'DELETE FROM competitors WHERE company = ?',
-      'DELETE FROM surveys WHERE company = ?'
+      "UPDATE surveys SET state = 'удалена' WHERE company = ? AND state != 'удалена'"
     ]
   },
   positions: {
@@ -37,7 +40,7 @@ const KINDS = {
     uses: [
       { sql: "SELECT COUNT(*) AS n FROM surveys WHERE (pos_our = ? OR pos_their = ?) AND state != 'удалена'", label: ['анкета по должностям', 'анкеты по должностям', 'анкет по должностям'], twice: true }
     ],
-    purge: ['DELETE FROM surveys WHERE pos_our = ? OR pos_their = ?']
+    purge: ["UPDATE surveys SET state = 'удалена' WHERE (pos_our = ? OR pos_their = ?) AND state != 'удалена'"]
   },
   segments: {
     table: 'dictionary_segments',

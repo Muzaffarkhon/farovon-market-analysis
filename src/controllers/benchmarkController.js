@@ -7,7 +7,7 @@ exports.getSources = async (req, res) => {
     res.json({ ok: true, sources });
   } catch (err) {
     console.error('getSources error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка получения источников данных: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка получения источников данных' });
   }
 };
 
@@ -29,7 +29,7 @@ exports.getDatasets = async (req, res) => {
     res.json({ ok: true, datasets });
   } catch (err) {
     console.error('getDatasets error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка получения датасетов: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка получения датасетов' });
   }
 };
 
@@ -40,7 +40,7 @@ exports.getSourcePositions = async (req, res) => {
     res.json({ ok: true, positions });
   } catch (err) {
     console.error('getSourcePositions error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка получения должностей источника: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка получения должностей источника' });
   }
 };
 
@@ -51,7 +51,7 @@ exports.getMappings = async (req, res) => {
     res.json({ ok: true, mappings });
   } catch (err) {
     console.error('getMappings error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка получения сопоставлений: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка получения сопоставлений' });
   }
 };
 
@@ -62,7 +62,7 @@ exports.suggestMappings = async (req, res) => {
     res.json({ ok: true, suggestions });
   } catch (err) {
     console.error('suggestMappings error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка подбора сопоставлений: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка подбора сопоставлений' });
   }
 };
 
@@ -79,7 +79,7 @@ exports.saveMapping = async (req, res) => {
     res.json({ ok: true, message: 'Сопоставление сохранено' });
   } catch (err) {
     console.error('saveMapping error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка сохранения сопоставления: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка сохранения сопоставления' });
   }
 };
 
@@ -90,7 +90,7 @@ exports.deleteMapping = async (req, res) => {
     res.json({ ok: true, message: 'Сопоставление удалено' });
   } catch (err) {
     console.error('deleteMapping error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка удаления сопоставления: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка удаления сопоставления' });
   }
 };
 
@@ -103,7 +103,7 @@ exports.dryRunImport = async (req, res) => {
     res.json({ ok: true, report });
   } catch (err) {
     console.error('dryRunImport error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка предпросмотра импорта: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка предпросмотра импорта' });
   }
 };
 
@@ -116,7 +116,7 @@ exports.commitImport = async (req, res) => {
     res.json({ ok: true, result, message: 'Датасет успешно импортирован' });
   } catch (err) {
     console.error('commitImport error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка сохранения датасета: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка сохранения датасета' });
   }
 };
 
@@ -131,7 +131,7 @@ exports.compare = async (req, res) => {
     res.json({ ok: true, result });
   } catch (err) {
     console.error('compare error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка формирования сравнения: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка формирования сравнения' });
   }
 };
 
@@ -142,7 +142,7 @@ exports.deleteDataset = async (req, res) => {
     res.json({ ok: true, message: 'Датасет успешно удален' });
   } catch (err) {
     console.error('deleteDataset error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка удаления датасета: ' + err.message });
+    res.status(400).json({ ok: false, error: 'Ошибка удаления датасета' });
   }
 };
 
@@ -154,7 +154,7 @@ exports.exportMatrix = async (req, res) => {
     res.send(csv);
   } catch (err) {
     console.error('exportMatrix error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка экспорта матрицы: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка экспорта матрицы' });
   }
 };
 
@@ -164,6 +164,6 @@ exports.getSummaryWidgets = async (req, res) => {
     res.json({ ok: true, widgets });
   } catch (err) {
     console.error('getSummaryWidgets error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка загрузки виджетов: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки виджетов' });
   }
 };

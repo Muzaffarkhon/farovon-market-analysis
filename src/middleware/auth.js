@@ -49,6 +49,9 @@ async function authMiddleware(req, res, next) {
       ...user,
       units: user.units ? user.units.split(';').map(s => s.trim()).filter(Boolean) : []
     };
+    // Клеймы токена (sess — начало сессии) нужны /auth/resume для проверки
+    // абсолютного потолка жизни сессии.
+    req.tokenClaims = decoded;
 
     // Вошёл по временному паролю — до его смены пускаем только на смену пароля
     // и обновление сессии. Остальные эндпоинты закрыты.

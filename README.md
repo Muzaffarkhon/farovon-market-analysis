@@ -1,7 +1,7 @@
 # 📊 Farovon Market Analysis & C&B Salary Benchmarking
 
 > **Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон**  
-> Автономный full-stack сервис на **Node.js / Express / SQLite** с встроенным **Telegram Mini App WebApp SPA**, аналитическим дашбордом зарплатных вилок и панелью администратора.
+> Full-stack сервис на **Node.js / Express** с БД **Turso (libSQL)**, встроенным **Telegram Mini App SPA**, мультиисточниковым бенчмаркингом вознаграждений, аналитическим дашбордом зарплатных вилок и панелью администратора.
 
 ---
 
@@ -41,18 +41,17 @@
 farovon-market-analysis/
 ├── src/
 │   ├── config/             # Конфигурация (.env, порты, JWT, Telegram Bot Token)
-│   ├── controllers/        # Контроллеры (Auth, Survey, Dashboard, Admin)
-│   ├── db/                 # Слой базы данных SQLite (schema.sql, seed.js, database.js)
-│   ├── middleware/         # JWT авторизация, проверка ролей (admin, cb, hrbp...), логирование
-│   ├── routes/             # REST API роуты (/api/auth, /api/survey, /api/dashboard, /api/admin)
-│   ├── services/           # Сервисы расчёта перцентилей и рассылки в Telegram
+│   ├── controllers/        # Контроллеры (Auth, Survey, Dashboard, Admin, Benchmark)
+│   ├── db/                 # Слой БД: database.js (@libsql/client → Turso), migrate.js, seed.js
+│   ├── middleware/         # JWT авторизация, конструктор ролей/прав, обработчик ошибок
+│   ├── routes/             # REST API роуты (/api/auth, /api/survey, /api/dashboard, /api/admin, /api/benchmarks)
+│   ├── services/           # Аналитика, бенчмаркинг, смежные группы, рассылка в Telegram
+│   ├── tools/              # Офлайн-скрипты (сид-бандл, аудит фронта) — сервером не читаются
 │   └── server.js           # Точка входа Express сервера
-├── public/                 # SPA Фронтенд (HTML5, Vanilla CSS, REST API Client)
-│   └── index.html
-├── data/                   # Исходные справочники и сиды (CSV / TSV / XLSX)
-├── gas-legacy/             # Архив исходных скриптов Google Apps Script
-├── Dockerfile              # Контейнеризация для production
-├── docker-compose.yml
+├── public/                 # SPA Фронтенд (index.html, app.js, app-core.js, style.css)
+├── test/                   # Юнит-тесты (node:test) — `npm test`
+├── data/                   # Исходные справочники (CSV / XLSX) для генерации сид-бандла
+├── docs/                   # Документация; docs/archive/ — исторические отчёты
 ├── .env.example
 ├── .gitignore
 ├── package.json
@@ -75,39 +74,31 @@ npm install
 ```
 
 ### 3. Настройка переменных окружения
-Создайте файл `.env` на основе `.env.example`:
+Создайте файл `.env` на основе `.env.example`. Обязательные секреты (без них
+сервер не стартует): `JWT_SECRET`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
 ```env
 PORT=3000
 NODE_ENV=development
-JWT_SECRET=your_super_secret_jwt_key
-DATABASE_PATH=./data/market.db
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+JWT_SECRET=<openssl rand -base64 48>
+TURSO_DATABASE_URL=libsql://<...>.turso.io
+TURSO_AUTH_TOKEN=<...>
+TELEGRAM_BOT_TOKEN=            # опционально — без него бот просто не включается
 WEBAPP_URL=http://localhost:3000
 ```
 
-### 4. Сидирование базы данных (при первом запуске)
+### 4. Сидирование базы (только для новой БД)
 ```bash
 npm run seed
 ```
-*База данных SQLite автоматически наполнится 326 подразделениями, связями, пользователями и справочниками из CSV.*
+*Наполняет Turso подразделениями, пользователями и справочниками из `src/data/seedBundle.json`.*
 
 ### 5. Запуск сервера
 ```bash
-# Режим разработки с автоперезагрузкой:
-npm run dev
-
-# Продакшн режим:
-npm start
+npm run dev     # разработка, автоперезагрузка
+npm start       # продакшн
+npm test        # юнит-тесты
 ```
-Сервер будет доступен по адресу: `http://localhost:3000`
-
----
-
-## 🐳 Запуск через Docker
-
-```bash
-docker-compose up -d --build
-```
+Сервер: `http://localhost:3000`. Продакшн — Render (автодеплой из `main`).
 
 ---
 

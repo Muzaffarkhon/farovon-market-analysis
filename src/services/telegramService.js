@@ -1,6 +1,13 @@
 const config = require('../config');
 const { queryAll } = require('../db/database');
 
+// Все сообщения бота уходят с parse_mode: 'HTML'. ФИО и названия подразделений
+// вводит администратор — символы < > & в них ломают разметку. Экранируем.
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 let bot = null;
 let botUsername = null;
 
@@ -134,10 +141,10 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
     const userUncompleted = uncompletedUnits.filter(d => uUnits.includes(d.unit) || d.resp === u.fio || d.head === u.fio);
 
     if (userUncompleted.length > 0) {
-      const msg = `👋 Здравствуйте, <b>${u.fio}</b>!\n\n` +
+      const msg = `👋 Здравствуйте, <b>${escHtml(u.fio)}</b>!\n\n` +
         `Напоминаем о необходимости завершить заполнение формы <b>«Обзор рынка труда и заработных плат»</b>.\n\n` +
         `Осталось заполнить подразделений: <b>${userUncompleted.length}</b>:\n` +
-        userUncompleted.slice(0, 5).map(x => `• ${x.unit}`).join('\n') +
+        userUncompleted.slice(0, 5).map(x => `• ${escHtml(x.unit)}`).join('\n') +
         (userUncompleted.length > 5 ? `\n• ... и ещё ${userUncompleted.length - 5}` : '') +
         `\n\n🔗 Пожалуйста, перейдите в форму и сохраните актуальные данные.`;
 

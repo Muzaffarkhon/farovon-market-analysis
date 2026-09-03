@@ -11,6 +11,7 @@ BigInt.prototype.toJSON = function() {
 };
 
 const config = require('./config');
+const { version: APP_VERSION } = require('../package.json');
 const { queryOne } = require('./db/database');
 const { migrate } = require('./db/migrate');
 const apiRoutes = require('./routes/api');
@@ -148,11 +149,11 @@ app.get('/health', async (req, res) => {
     db = 'error';
     console.error('❌ Health check: база недоступна:', err.message);
   }
-  res.json({ 
-    ok: db === 'ok', 
-    db, 
-    version: '2.2.0', 
-    timestamp: new Date().toISOString(), 
+  res.json({
+    ok: db === 'ok',
+    db,
+    version: APP_VERSION,
+    timestamp: new Date().toISOString(),
     env: config.nodeEnv,
     lastUptimeRobotPing
   });

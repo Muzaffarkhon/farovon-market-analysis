@@ -82,7 +82,7 @@ exports.getUsers = async (req, res) => {
     });
   } catch (err) {
     console.error('getUsers error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка загрузки пользователей: ' + err.message });
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки пользователей' });
   }
 };
 
@@ -664,7 +664,7 @@ exports.saveDivision = async (req, res) => {
     res.json({ ok: true, message: 'Подразделение обновлено' });
   } catch (err) {
     console.error('saveDivision error:', err && err.message ? err.message : err);
-    res.status(500).json({ ok: false, error: (err && err.message) || 'Ошибка сохранения подразделения' });
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения подразделения' });
   }
 };
 
@@ -1625,6 +1625,6 @@ exports.importSurvey = async (req, res) => {
     });
   } catch (err) {
     console.error('importSurvey error:', err);
-    return res.status(500).json({ ok: false, error: 'Ошибка импорта: ' + err.message });
+    return res.status(500).json({ ok: false, error: 'Ошибка импорта. Подробности в логах сервера.' });
   }
 };
