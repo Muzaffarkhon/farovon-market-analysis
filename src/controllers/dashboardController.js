@@ -158,7 +158,7 @@ exports.exportCSV = async (req, res) => {
     const analytics = await getExtendedAnalytics(req.query || {}, { unitFilter: dashboardUnitFilter(req.user) });
     const positions = analytics.positions || [];
 
-    const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
+    const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)', 'Компаний с премией', 'Типичная периодичность премии', 'Совокупно, медиана (TJS)'];
     const rows = positions.map(p => [
       csvCell(p.pos),
       p.count,
@@ -169,7 +169,10 @@ exports.exportCSV = async (req, res) => {
       p.p75,
       p.max,
       p.avg,
-      p.forkSpreadPct + '%'
+      p.forkSpreadPct + '%',
+      p.bonCompanies != null ? p.bonCompanies : '',
+      csvCell(p.bonTopPer || ''),
+      p.totalMedian || ''
     ].join(';'));
 
     const csvContent = '\uFEFF' + headers.join(';') + '\n' + rows.join('\n');
