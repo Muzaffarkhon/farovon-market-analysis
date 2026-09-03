@@ -1778,7 +1778,8 @@ function renderTabSurvey(){
 
     if(currentUnitGroup()){
       h += '<p class="step-hint">'+ic('units', 13)+' Смежная группа «'+esc(currentUnitGroup())+'»: '+
-           'заполняете один раз — данные сохранятся сразу во все площадки группы.</p>';
+           'заполняете один раз — при сохранении данные разложатся во все площадки группы '+
+           '(они различаются только регионом).</p>';
     }
 
     h += '<div class="pos-grid fx-stagger">' + G.groups.map(function(g, gi){
@@ -2109,9 +2110,11 @@ function openBatchSurveySheet(posName){
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
 
-      // Автозаполнение: ввести оклад один раз и разложить по всем пустым строкам.
+      // Автозаполнение: ввести оклад один раз и разложить по всем пустым строкам
+      // ЭТОГО листа (одна должность × компании подразделения). Разнос на все
+      // площадки смежной группы делает уже сохранение — см. groupKey ниже.
       '<div class="bx-apply-bar">'+
-        '<span class="bx-apply-t">'+ic('bolt',14)+'Заполнить сразу для всех</span>'+
+        '<span class="bx-apply-t">'+ic('bolt',14)+'Один оклад — во все пустые строки листа</span>'+
         '<input class="ba-from" inputmode="decimal" placeholder="оклад от">'+
         '<input class="ba-to" inputmode="decimal" placeholder="оклад до">'+
         '<select class="ba-cur">'+curOpts(defCur)+'</select>'+
