@@ -32,6 +32,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <!-- Без ручного ?v=… : сервер отдаёт style.css/js с Cache-Control: no-cache,
        no-store (см. src/server.js) — браузер и так берёт свежую версию. -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Обзор рынка">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/style.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -130,6 +137,7 @@
 <!-- Порядок обязателен: app-core.js (рантайм) → app.js (экраны). -->
 <script src="/app-core.js"></script>
 <script src="/app.js"></script>
+<script src="/pwa.js" defer></script>
 
 </body>
 </html>
