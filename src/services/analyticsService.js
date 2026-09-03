@@ -141,11 +141,16 @@ function summarizeVarPay(list, bonHas, avgMonthly) {
     has = true;
     if (kinds.length === 1) {
       const k = kinds[0];
-      const sz = k.parsed.kind === 'pct' ? fmtNum(k.parsed.value) + '%'
-        : k.parsed.kind === 'abs' ? fmtNum(k.parsed.value) + ' c'
-        : k.parsed.kind === 'salary' ? fmtNum(k.parsed.value) + ' ' + declRu(Math.round(k.parsed.value), ['оклад', 'оклада', 'окладов'])
-        : (k.size || '—');
-      label = (k.type || 'премия') + ' · ' + sz;
+      let sz = null;
+      if (k.parsed.kind === 'pct') sz = fmtNum(k.parsed.value) + '%';
+      else if (k.parsed.kind === 'abs') sz = fmtNum(k.parsed.value) + ' c';
+      else if (k.parsed.kind === 'salary') sz = fmtNum(k.parsed.value) + ' ' + declRu(Math.round(k.parsed.value), ['оклад', 'оклада', 'окладов']);
+      else if (k.size && !/^0[%\s]*$/.test(k.size)) sz = k.size;
+      // размер не задан — показываем хотя бы периодичность, без «· —»
+      const parts = [k.type || 'премия'];
+      if (sz) parts.push(sz);
+      else if (k.per) parts.push(k.per);
+      label = parts.join(' · ');
     } else {
       const word = kinds.length + ' ' + declRu(kinds.length, ['вид', 'вида', 'видов']);
       const allPct = kinds.every(k => k.parsed.kind === 'pct');

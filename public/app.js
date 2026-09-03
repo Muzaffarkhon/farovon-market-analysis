@@ -4351,8 +4351,8 @@ function renderBenefitsTab(benefits, bonuses, topComps){
 
       var miniTbl = function(title, rowsArr, w1){
         if(!rowsArr.length) return '';
-        return '<div class="dash-sec-head" style="margin-top:16px"><b>'+title+'</b></div>'+
-          '<div class="tblwrap tblwrap--page rtbl"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+        return '<div class="dash-sec-head" style="margin-top:16px;flex:none"><b>'+title+'</b></div>'+
+          '<div class="tblwrap rtbl" style="flex:none"><table class="co-tbl co-tbl--pin"><thead><tr>'+
             '<th>'+w1+'</th><th class="num">Упоминаний</th>'+
           '</tr></thead><tbody>'+
           rowsArr.map(function(r){
@@ -9104,6 +9104,41 @@ function loadBmCompareDetail(){
       '</div>' +
       intrRangeBar +
     '</div>';
+
+    // Совокупный доход (оклад + переменная часть, приведённая к месяцу).
+    // Считается по всем записям с окладом: где премию посчитать нельзя —
+    // берётся только оклад (запись не выпадает).
+    var totStats = intr.totalStats || {};
+    var totSample = intr.totalSampleCount || 0;
+    var totBon = intr.totalBonusCount || 0;
+    if(totStats.p50){
+      var totUplift = (intrStats.p50 && totStats.p50)
+        ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
+      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--ok-soft, var(--accent-soft));color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
+            '<div>' +
+              '<b style="font-size:15px;color:var(--color-midnight-ink)">Совокупный доход</b>' +
+              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">оклад + переменная часть / мес.</span>' +
+            '</div>' +
+          '</div>' +
+          '<b style="font-size:16px;color:var(--ok);font-feature-settings:\'tnum\' 1">' + totStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
+          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totStats.min ? totStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (totStats.p25 ? totStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--ok);white-space:nowrap">' + totStats.p50.toLocaleString('ru-RU') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (totStats.p75 ? totStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totStats.max ? totStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--color-fog);margin-top:8px;line-height:1.5">' +
+          'По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
+          'Премия с суммой учтена у <b>' + totBon + '</b> из ' + totSample + '; у остальных — только оклад' +
+          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') +
+        '</div>' +
+      '</div>';
+    }
 
     // Внешние источники
     (r.external || []).forEach(function(ext){
