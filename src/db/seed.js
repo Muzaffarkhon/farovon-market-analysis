@@ -1,138 +1,124 @@
 const fs = require('fs');
 const path = require('path');
-const { getDb } = require('./database');
+const { run, batch } = require('./database');
 
-function runSeed() {
-  console.log('🚀 Начинаем сидирование базы данных из seedBundle.json...');
-  const db = getDb();
+// Сидирование из src/data/seedBundle.json. Переписано под @libsql/client
+// (async execute / batch) — старый вариант звал better-sqlite3 API
+// (db.prepare/.transaction), которого у libsql-клиента нет, и `npm run seed`
+// падал с «db.prepare is not a function».
+
+async function runSeed() {
+  console.log('🚀 Сидирование базы данных из seedBundle.json…');
   const bundlePath = path.join(__dirname, '../data/seedBundle.json');
 
   if (!fs.existsSync(bundlePath)) {
-    console.error('❌ seedBundle.json не найден');
+    console.error('❌ seedBundle.json не найден:', bundlePath);
     return;
   }
 
   const bundle = JSON.parse(fs.readFileSync(bundlePath, 'utf8'));
 
+  // libsql-батч ограничен по числу операторов — режем на порции.
+  const CHUNK = 200;
+  async function insertMany(label, rows, sql, toArgs) {
+    if (!rows || !rows.length) return;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK);
+      await batch(slice.map((r) => ({ sql, args: toArgs(r) })));
+    }
+    console.log(`✅ ${label}: ${rows.length}`);
+  }
+
   // 1. Период
   if (bundle.period) {
     const p = bundle.period;
-    db.prepare(`
-      INSERT OR REPLACE INTO periods (id, name, state, from_date, to_date, updated_by)
-      VALUES (1, ?, ?, ?, ?, ?)
-    `).run(p.name || 'Обзор рынка 2026', p.state || 'открыт', p.from_date || '2026-08-01', p.to_date || '2026-08-31', p.updated_by || 'Система');
+    await run(
+      `INSERT OR REPLACE INTO periods (id, name, state, from_date, to_date, updated_by)
+       VALUES (1, ?, ?, ?, ?, ?)`,
+      [
+        p.name || 'Обзор рынка 2026',
+        p.state || 'открыт',
+        p.from_date || '2026-08-01',
+        p.to_date || '2026-08-31',
+        p.updated_by || 'Система'
+      ]
+    );
     console.log('✅ Период инициализирован');
   }
 
   // 2. Пользователи
-  if (bundle.users && bundle.users.length) {
-    const insertUser = db.prepare(`
-      INSERT OR REPLACE INTO users (id, login, password_hash, fio, role, phone, units, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertManyUsers = db.transaction((users) => {
-      for (const u of users) {
-        insertUser.run(
-          u.id || null,
-          u.login,
-          u.password_hash,
-          u.fio || u.login,
-          u.role || 'guest',
-          u.phone || null,
-          u.units || '',
-          u.active !== undefined ? u.active : 1
-        );
-      }
-    });
-    insertManyUsers(bundle.users);
-    console.log(`✅ Пользователи (${bundle.users.length}) сидированы`);
-  }
+  await insertMany(
+    'Пользователи',
+    bundle.users,
+    `INSERT OR REPLACE INTO users (id, login, password_hash, fio, role, phone, units, active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    (u) => [
+      u.id || null,
+      u.login,
+      u.password_hash,
+      u.fio || u.login,
+      u.role || 'guest',
+      u.phone || null,
+      u.units || '',
+      u.active !== undefined ? u.active : 1
+    ]
+  );
 
   // 3. Подразделения
-  if (bundle.divisions && bundle.divisions.length) {
-    const insertDiv = db.prepare(`
-      INSERT OR REPLACE INTO divisions (id, num, unit, dir, hrbp, resp)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const insertManyDivs = db.transaction((divs) => {
-      for (const d of divs) {
-        insertDiv.run(
-          d.id || null,
-          d.num || 0,
-          d.unit,
-          d.dir || '',
-          d.hrbp || '',
-          d.resp || ''
-        );
-      }
-    });
-    insertManyDivs(bundle.divisions);
-    console.log(`✅ Подразделения (${bundle.divisions.length}) сидированы`);
-  }
+  await insertMany(
+    'Подразделения',
+    bundle.divisions,
+    `INSERT OR REPLACE INTO divisions (id, num, unit, dir, hrbp, resp)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    (d) => [d.id || null, d.num || 0, d.unit, d.dir || '', d.hrbp || '', d.resp || '']
+  );
 
   // 4. Конкуренты
-  if (bundle.competitors && bundle.competitors.length) {
-    const insertComp = db.prepare(`
-      INSERT OR REPLACE INTO competitors (id, cid, unit, company, type, segment, region, prio, actual, note, status, updated_by, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertManyComps = db.transaction((comps) => {
-      for (const c of comps) {
-        insertComp.run(
-          c.id || null,
-          c.cid || `comp_${Math.random().toString(36).slice(2, 8)}`,
-          c.unit,
-          c.company,
-          c.type || '',
-          c.segment || '',
-          c.region || '',
-          c.prio || '',
-          c.actual || 'уточнить',
-          c.note || '',
-          c.status || '',
-          c.updated_by || '',
-          c.updated_at || new Date().toISOString()
-        );
-      }
-    });
-    insertManyComps(bundle.competitors);
-    console.log(`✅ Конкуренты (${bundle.competitors.length}) сидированы`);
-  }
+  await insertMany(
+    'Конкуренты',
+    bundle.competitors,
+    `INSERT OR REPLACE INTO competitors
+       (id, cid, unit, company, type, segment, region, prio, actual, note, status, updated_by, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    (c) => [
+      c.id || null,
+      c.cid || `comp_${Math.random().toString(36).slice(2, 8)}`,
+      c.unit,
+      c.company,
+      c.type || '',
+      c.segment || '',
+      c.region || '',
+      c.prio || '',
+      c.actual || 'уточнить',
+      c.note || '',
+      c.status || '',
+      c.updated_by || '',
+      c.updated_at || new Date().toISOString()
+    ]
+  );
 
   // 5. Справочники
-  if (bundle.dictionary_companies && bundle.dictionary_companies.length) {
-    const insertDictComp = db.prepare(`
-      INSERT OR IGNORE INTO dictionary_companies (name, segment, region)
-      VALUES (?, ?, ?)
-    `);
-    const insertManyDict = db.transaction((comps) => {
-      for (const c of comps) {
-        insertDictComp.run(c.name, c.segment || '', c.region || '');
-      }
-    });
-    insertManyDict(bundle.dictionary_companies);
-  }
+  await insertMany(
+    'Справочник компаний',
+    bundle.dictionary_companies,
+    `INSERT OR IGNORE INTO dictionary_companies (name, segment, region) VALUES (?, ?, ?)`,
+    (c) => [c.name, c.segment || '', c.region || '']
+  );
+  await insertMany(
+    'Справочник должностей',
+    bundle.dictionary_positions,
+    `INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)`,
+    (p) => [p.name]
+  );
 
-  if (bundle.dictionary_positions && bundle.dictionary_positions.length) {
-    const insertDictPos = db.prepare(`
-      INSERT OR IGNORE INTO dictionary_positions (name)
-      VALUES (?)
-    `);
-    const insertManyPositions = db.transaction((positions) => {
-      for (const p of positions) {
-        insertDictPos.run(p.name);
-      }
-    });
-    insertManyPositions(bundle.dictionary_positions);
-  }
-
-  console.log('🎉 Сидирование успешно завершено!');
+  console.log('🎉 Сидирование завершено');
 }
 
 if (require.main === module) {
-  runSeed();
+  runSeed().then(
+    () => process.exit(0),
+    (err) => { console.error('❌', err); process.exit(1); }
+  );
 }
 
-module.exports = {
-  runSeed
-};
+module.exports = { runSeed };
