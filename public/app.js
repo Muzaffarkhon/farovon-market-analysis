@@ -672,8 +672,12 @@ function fetchJson(url, opts){
   var conf = {
     method: opts.method || 'GET',
     headers: headers,
-    // Одно происхождение: браузер сам приложит httpOnly-куку сессии (#22).
-    credentials: 'same-origin'
+    // #22 — 'include': в браузере (одно происхождение) приложит httpOnly-куку
+    // сессии; в Telegram Mini App (фрейм web.telegram.org, другое
+    // происхождение) попытается приложить её же — сервер отвечает
+    // Access-Control-Allow-Credentials. Если браузер режет стороннюю куку —
+    // работает запасной путь: opts.token в заголовке Authorization.
+    credentials: 'include'
   };
   if(opts.body && (conf.method === 'POST' || conf.method === 'PUT')) {
     conf.body = JSON.stringify(opts.body);

@@ -60,7 +60,12 @@ app.use(cors({
     if (!origin || corsOrigins.includes(origin)) return cb(null, true);
     return cb(null, false);
   },
-  credentials: false
+  // #22 — с credentials cors отражает конкретный Origin из белого списка
+  // (не `*`) и добавляет Access-Control-Allow-Credentials: true. Тогда
+  // Telegram Mini App с `credentials: 'include'` может донести httpOnly-куку
+  // сессии, если браузер разрешает сторонние куки; если нет — остаётся
+  // запасной путь через заголовок Authorization + localStorage-токен.
+  credentials: true
 }));
 // CSP вместо полностью выключенного. script-src/style-src оставляют
 // 'unsafe-inline' — во фронте много инлайнового JS/CSS, хешировать его без
