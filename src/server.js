@@ -169,8 +169,11 @@ app.get('/health', async (req, res) => {
     db = 'error';
     console.error('❌ Health check: база недоступна:', err.message);
   }
+  // ok=false и при недоступной базе, и при провалившейся миграции: с частичной
+  // схемой hasCapability отдаёт «нет прав» всем не-admin — мониторинг должен
+  // это видеть, а не только зелёный db-пинг.
   res.json({
-    ok: db === 'ok',
+    ok: db === 'ok' && migrationStatus !== 'error',
     db,
     schema: migrationStatus,
     version: APP_VERSION,

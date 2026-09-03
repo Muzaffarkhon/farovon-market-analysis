@@ -1,6 +1,6 @@
 const { queryAll, queryOne, run, batch } = require('../db/database');
 const { hasCapability } = require('../middleware/auth');
-const { summarizeVarPay } = require('./analyticsService');
+const { summarizeVarPay, parseBonusesCol } = require('./analyticsService');
 
 /**
  * Расчет перцентилей по массиву чисел (P10, P25, P50/медиана, P75, P90, min, max, avg).
@@ -265,12 +265,9 @@ class BenchmarkService {
       const mid = (pF > 0 && pT > 0) ? (pF + pT) / 2 : (pF || pT || 0);
       if (mid <= 0) return;
       internalValues.push(mid);
-      let bonusArr;
-      try { bonusArr = JSON.parse(r.bonuses || '[]'); } catch (_) { bonusArr = []; }
-      if (!Array.isArray(bonusArr) || !bonusArr.length) {
-        bonusArr = (r.bon_type || r.bon_size || r.bon_per)
-          ? [{ type: r.bon_type, size: r.bon_size, per: r.bon_per }] : [];
-      }
+      // Один канонический разбор премий (тот же, что на дашборде) — иначе
+      // «Совокупный доход» здесь и «Совокупно» в вилках расходятся.
+      const bonusArr = parseBonusesCol(r.bonuses, r.bon_type, r.bon_size, r.bon_per);
       const vp = summarizeVarPay(bonusArr, r.bon_has, mid);
       if (vp.monthly != null) bonusQuantifiedCount++;
       internalTotalValues.push(mid + (vp.monthly || 0));

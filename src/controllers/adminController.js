@@ -445,9 +445,11 @@ exports.applyAdjacentGroup = async (req, res) => {
     }
     if (units.length > 50) return res.status(400).json({ ok: false, error: 'Слишком большая группа' });
 
-    const names = units
-      .map(u => String((u && (u.unit || u.name)) || u || '').trim())
-      .filter(Boolean);
+    const names = [...new Set(
+      units
+        .map(u => String((u && (u.unit || u.name)) || u || '').trim())
+        .filter(Boolean)
+    )];
     if (names.length < 2) return res.status(400).json({ ok: false, error: 'В смежной группе нужно минимум 2 площадки' });
 
     const ph = names.map(() => '?').join(',');

@@ -34,9 +34,13 @@ function declRu(n, forms) {
 }
 
 function fmtNum(n) {
-  const r = Math.round(Number(n) * 10) / 10;
-  const s = Number.isInteger(r) ? String(r) : r.toFixed(1);
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const num = Number(n);
+  if (!isFinite(num)) return '0';
+  // toLocaleString('ru-RU') — тот же неразрывный пробел-разделитель тысяч, что
+  // и у остальных чисел в приложении (не ASCII-пробел).
+  return Math.round(num * 10) / 10 === Math.round(num)
+    ? Math.round(num).toLocaleString('ru-RU')
+    : num.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
 }
 
 /** surveys.bonuses (строка/массив) → чистый массив [{type,size,per}].
@@ -63,12 +67,18 @@ function parseBonusesCol(raw, bonType, bonSize, bonPer) {
 }
 
 /** Размер премии — свободный текст. «20» → 20% от оклада, «3000» → сумма в c,
- *  «1 оклад» → кратно окладу, прочее → не распознано. Порог 100: на рынке нет
- *  премий «в сомони» меньше сотни, а «в процентах» больше сотни. */
+ *  «1 оклад» → кратно окладу, прочее → не распознано.
+ *  Пробел/запятая/точка — разделители тысяч («50 000», «50.000», «50,000»):
+ *  сначала выкидываем их, потом разбираем число (иначе «50 000» читалось как 50).
+ *  Порог 100 без явной единицы: на рынке нет премий «в сомони» меньше сотни. */
 function parseBonusSize(raw) {
-  const t = String(raw == null ? '' : raw).trim().toLowerCase().replace(/,/g, '.');
+  const t = String(raw == null ? '' : raw)
+    .trim().toLowerCase()
+    .replace(/[\s   ]/g, '') // разделители тысяч и nbsp
+    .replace(/[.,](?=\d{3}(\D|$))/g, '')    // «50.000» / «50,000» → «50000»
+    .replace(/,/g, '.');                    // остаток запятой — десятичный разделитель
   if (!t) return { kind: 'unknown', value: 0 };
-  if (/оклад|зарплат/.test(t)) {
+  if (/оклад|зарплат|з\/п|зп/.test(t)) {
     const m = t.match(/[\d.]+/);
     return { kind: 'salary', value: m ? Math.max(0.1, parseFloat(m[0])) : 1 };
   }
@@ -76,31 +86,36 @@ function parseBonusSize(raw) {
   if (!m) return { kind: 'unknown', value: 0 };
   const v = parseFloat(m[0]);
   if (!isFinite(v) || v <= 0) return { kind: 'unknown', value: 0 };
-  if (t.includes('%') || v <= 100) return { kind: 'pct', value: v };
-  return { kind: 'abs', value: v };
+  if (/%|проц/.test(t)) return { kind: 'pct', value: v };
+  if (/c$|с$|сом|tjs|руб|\$|usd/.test(t) || v > 100) return { kind: 'abs', value: v };
+  return { kind: 'pct', value: v }; // число ≤100 без единицы — процент
 }
 
-/** Периодичность → доля месяца (годовой бонус ÷12 и т.д.). */
+/** Периодичность → доля месяца (годовой бонус ÷12 и т.д.). Принимает как
+ *  нормализованные значения (normPeriod), так и сырые/английские. */
 function perToMonthlyFactor(per) {
   const p = String(per || '').toLowerCase();
-  if (/квартал/.test(p)) return 1 / 3;
-  if (/полугод/.test(p)) return 1 / 6;
-  if (/год/.test(p)) return 1 / 12;
-  if (/недел/.test(p)) return 4.33;
-  return 1; // в месяц / ежемесячно / не указано
+  if (/квартал|quarter/.test(p)) return 1 / 3;
+  if (/полугод|полгода|semi.?annual|half.?year/.test(p)) return 1 / 6;
+  if (/год|ежегод|annual|year/.test(p)) return 1 / 12;
+  if (/разов|единовремен|однократ|one.?time/.test(p)) return 1 / 12; // разовый — амортизируем на год
+  if (/недел|week/.test(p)) return 4.33;
+  if (/дн|day/.test(p)) return 21;
+  return 1; // в месяц / ежемесячно / monthly / не указано
 }
 
 /** Единый словарь периодичности: старые анкеты писали «Месячный / Годовой /
- *  Квартальный», новая форма — «в месяц / в квартал / в год». Сводим к форме
- *  анкеты. Незнакомое значение оставляем как есть. */
+ *  Квартальный», новая форма — «в месяц / в квартал / в полугодие / в год /
+ *  разово». Сводим к значениям формы. Незнакомое оставляем как есть. */
 function normPeriod(per) {
   const p = String(per || '').trim().toLowerCase();
   if (!p) return '';
   if (/квартал/.test(p)) return 'в квартал';
-  if (/полугод/.test(p)) return 'в полгода';
-  if (/год/.test(p)) return 'в год';
+  if (/полугод|полгода/.test(p)) return 'в полугодие';
+  if (/разов|единовремен|однократ/.test(p)) return 'разово';
+  if (/год|ежегод|annual/.test(p)) return 'в год';
   if (/недел/.test(p)) return 'в неделю';
-  if (/меся[цч]/.test(p)) return 'в месяц';
+  if (/меся[цч]|monthly|ежемес/.test(p)) return 'в месяц';
   return String(per).trim();
 }
 
@@ -131,13 +146,14 @@ function summarizeVarPay(list, bonHas, avgMonthly) {
     if (m != null && isFinite(m)) { monthly += m; monthlyKnown = true; }
   });
 
-  const hh = String(bonHas || '').toLowerCase();
+  const hh = String(bonHas || '').trim().toLowerCase();
   let label = '';
   let has = false;
   if (!kinds.length) {
     if (hh === 'да') { label = 'не указано'; has = true; }
     else if (hh === 'нет') { label = 'без премии'; has = false; }
   } else {
+    // Явное «нет» при заполненных видах — противоречие в данных; доверяем видам.
     has = true;
     if (kinds.length === 1) {
       const k = kinds[0];
@@ -145,25 +161,35 @@ function summarizeVarPay(list, bonHas, avgMonthly) {
       if (k.parsed.kind === 'pct') sz = fmtNum(k.parsed.value) + '%';
       else if (k.parsed.kind === 'abs') sz = fmtNum(k.parsed.value) + ' c';
       else if (k.parsed.kind === 'salary') sz = fmtNum(k.parsed.value) + ' ' + declRu(Math.round(k.parsed.value), ['оклад', 'оклада', 'окладов']);
-      else if (k.size && !/^0[%\s]*$/.test(k.size)) sz = k.size;
-      // размер не задан — показываем хотя бы периодичность, без «· —»
+      else if (k.size && !/^[-0]/.test(k.size)) sz = k.size;
+      // размер не задан/не распознан — показываем хотя бы периодичность, без «· —»
       const parts = [k.type || 'премия'];
       if (sz) parts.push(sz);
       else if (k.per) parts.push(k.per);
       label = parts.join(' · ');
     } else {
       const word = kinds.length + ' ' + declRu(kinds.length, ['вид', 'вида', 'видов']);
-      const allPct = kinds.every(k => k.parsed.kind === 'pct');
-      const allAbs = kinds.every(k => k.parsed.kind === 'abs');
+      // Свёрнутую сумму «≈ N%» / «≈ N c» показываем ТОЛЬКО когда у всех видов
+      // одна периодичность — иначе «15% в месяц + 10% в год» дало бы «≈ 25%».
+      const samePer = kinds.every(k => k.per === kinds[0].per);
+      const allPct = samePer && kinds.every(k => k.parsed.kind === 'pct');
+      const allAbs = samePer && kinds.every(k => k.parsed.kind === 'abs');
       if (allPct) label = word + ' · ≈ ' + fmtNum(kinds.reduce((a, k) => a + k.parsed.value, 0)) + '%';
       else if (allAbs) label = word + ' · ≈ ' + fmtNum(kinds.reduce((a, k) => a + k.parsed.value, 0)) + ' c';
       else label = word;
     }
   }
 
+  // Доминирующая периодичность. При равенстве счётчиков — стабильный порядок
+  // (не зависит от порядка строк в выборке).
+  const PER_RANK = { 'в месяц': 0, 'в квартал': 1, 'в полугодие': 2, 'в год': 3, 'разово': 4, 'в неделю': 5 };
   const perCnt = {};
   kinds.forEach(k => { if (k.per) perCnt[k.per] = (perCnt[k.per] || 0) + 1; });
-  const topPer = Object.keys(perCnt).sort((a, b) => perCnt[b] - perCnt[a])[0] || '';
+  const topPer = Object.keys(perCnt).sort((a, b) =>
+    (perCnt[b] - perCnt[a]) ||
+    ((PER_RANK[a] == null ? 99 : PER_RANK[a]) - (PER_RANK[b] == null ? 99 : PER_RANK[b])) ||
+    a.localeCompare(b, 'ru')
+  )[0] || '';
 
   return {
     has,
@@ -172,13 +198,6 @@ function summarizeVarPay(list, bonHas, avgMonthly) {
     monthly: monthlyKnown ? Math.round(monthly) : null,
     topPer
   };
-}
-
-function medianOf(arr) {
-  const s = arr.filter(v => v > 0).sort((a, b) => a - b);
-  if (!s.length) return 0;
-  const i = (s.length - 1) / 2;
-  return Math.round((s[Math.floor(i)] + s[Math.ceil(i)]) / 2);
 }
 
 function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
@@ -399,9 +418,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       note
     });
 
-    // Бонусы: наличие считаем по записи, а виды/периодичность — по КАЖДОМУ
-    // виду переменной части (в записи их теперь может быть несколько).
-    if (bonHas === 'да') {
+    // Бонусы: наличие считаем ТАК ЖЕ, как rowVarPay.has (и как bonCompanies по
+    // должности) — иначе строка «премии: X из N» и карточка «Наличие премий»
+    // дают разные цифры на одних данных. Виды/периодичность — по КАЖДОМУ виду.
+    if (rowVarPay.has) {
       bonusStats.hasBonus++;
       const kindsForStats = bonusArr.length ? bonusArr : [{ type: bonType, per: bonPer }];
       kindsForStats.forEach(k => {
@@ -479,11 +499,17 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
     // Переменная часть по должности: у скольких компаний есть премия, какая
     // периодичность типична, медиана совокупного дохода (оклад + премия/мес.).
+    // Методология та же, что у benchmarkService.compare: в выборку входит
+    // КАЖДАЯ компания с окладом; где премию посчитать нельзя — берётся только
+    // оклад. Так число сравнимо с бенчмарком и не бывает «медианой одной
+    // компании». totalMedian показывается фронтом только при ≥3 компаниях.
     const bonCompanies = item.companies.filter(c => c.varPay && c.varPay.has).length;
+    const bonQuantified = item.companies.filter(c => c.varPay && c.varPay.monthly != null).length;
     const totalSamples = item.companies.map(c => {
       const base = c.avg || 0;
-      const bm = c.varPay ? c.varPay.monthly : null;
-      return (base > 0 && bm != null) ? base + bm : null;
+      if (!(base > 0)) return null;
+      const bm = (c.varPay && c.varPay.monthly != null) ? c.varPay.monthly : 0;
+      return base + bm;
     }).filter(v => v != null);
     const perTally = {};
     item.companies.forEach(c => {
@@ -497,8 +523,12 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       count: item.count,
       withSalaryCount: item.salarySamples.length,
       bonCompanies,
+      bonQuantified,
+      totalSampleCount: totalSamples.length,
       bonTopPer,
-      totalMedian: medianOf(totalSamples),
+      totalMedian: totalSamples.length >= 3
+        ? calculateSalaryForkStats([], [], totalSamples).median
+        : 0,
       min: stats.min,
       p25: stats.p25,
       median: stats.median,
@@ -602,20 +632,11 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       positionsCount: positionsList.length,
       companiesInSurvey: Object.keys(compRank).length,
       unmappedRecords: (posMap['(не сопоставлено)'] && posMap['(не сопоставлено)'].count) || 0,
-      salaryMedian: (() => {
-        if (!allSalarySamples.length) return 0;
-        const s = [...allSalarySamples].sort((a, b) => a - b);
-        return Math.round(s[Math.floor(s.length / 2)]);
-      })(),
-      salaryP25: (() => {
-        if (!allSalarySamples.length) return 0;
-        const s = [...allSalarySamples].sort((a, b) => a - b);
-        return Math.round(s[Math.floor(s.length * 0.25)]);
-      })(),
-      salaryP75: (() => {
-        if (!allSalarySamples.length) return 0;
-        const s = [...allSalarySamples].sort((a, b) => a - b);
-        return Math.round(s[Math.floor(s.length * 0.75)]);
+      // Медиана/перцентили рынка — тем же методом (интерполяция), что и вилки
+      // по должностям, чтобы «Обзор» и таблица вилок не расходились на 1 слот.
+      ...(() => {
+        const st = calculateSalaryForkStats([], [], allSalarySamples);
+        return { salaryMedian: st.median, salaryP25: st.p25, salaryP75: st.p75 };
       })()
     },
     hrbpProgress,
@@ -645,5 +666,8 @@ module.exports = {
   getExtendedAnalytics,
   // экспортируются для юнит-проверок свёртки переменной части
   parseBonusesCol,
+  parseBonusSize,
+  perToMonthlyFactor,
+  normPeriod,
   summarizeVarPay
 };
