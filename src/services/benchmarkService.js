@@ -1,5 +1,6 @@
 const { queryAll, queryOne, run, batch } = require('../db/database');
 const { hasCapability } = require('../middleware/auth');
+const { summarizeVarPay } = require('./analyticsService');
 
 /**
  * Расчет перцентилей по массиву чисел (P10, P25, P50/медиана, P75, P90, min, max, avg).
@@ -246,20 +247,37 @@ class BenchmarkService {
 
     // 1. Проекция внутреннего сбора (таблица surveys)
     const survRows = await queryAll(`
-      SELECT pay_from, pay_to, cur, company
+      SELECT pay_from, pay_to, cur, company,
+             bon_has, bon_size, bon_type, bon_per, bonuses
       FROM surveys
       WHERE state != 'удалена' AND LOWER(TRIM(pos_our)) = LOWER(TRIM(?))
     `, [ourPosName]);
 
     const internalValues = [];
+    // Совокупный доход = оклад + переменная часть, приведённая к месяцу. В
+    // выборку попадает КАЖДАЯ запись с окладом: если премию посчитать нельзя
+    // (нет данных / размер словами) — берётся только оклад, запись не теряется.
+    const internalTotalValues = [];
+    let bonusQuantifiedCount = 0;
     survRows.forEach(r => {
       const pF = Number(r.pay_from || 0);
       const pT = Number(r.pay_to || 0);
       const mid = (pF > 0 && pT > 0) ? (pF + pT) / 2 : (pF || pT || 0);
-      if (mid > 0) internalValues.push(mid);
+      if (mid <= 0) return;
+      internalValues.push(mid);
+      let bonusArr;
+      try { bonusArr = JSON.parse(r.bonuses || '[]'); } catch (_) { bonusArr = []; }
+      if (!Array.isArray(bonusArr) || !bonusArr.length) {
+        bonusArr = (r.bon_type || r.bon_size || r.bon_per)
+          ? [{ type: r.bon_type, size: r.bon_size, per: r.bon_per }] : [];
+      }
+      const vp = summarizeVarPay(bonusArr, r.bon_has, mid);
+      if (vp.monthly != null) bonusQuantifiedCount++;
+      internalTotalValues.push(mid + (vp.monthly || 0));
     });
 
     const internalStats = calculatePercentiles(internalValues);
+    const internalTotalStats = calculatePercentiles(internalTotalValues);
 
     // 2. Внешние источники через position_map
     const mappedSources = await queryAll(`
@@ -393,6 +411,10 @@ class BenchmarkService {
         sourceKind: 'internal',
         observationsCount: survRows.length,
         stats: internalStats,
+        // Совокупный доход (оклад + переменная часть/мес.) — вторая карточка.
+        totalStats: internalTotalStats,
+        totalBonusCount: bonusQuantifiedCount,
+        totalSampleCount: internalTotalValues.length,
         gapPercent: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(((ourMid - internalStats.p50) / internalStats.p50) * 100) : null,
         gapAmount: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid - internalStats.p50) : null
       },
@@ -444,6 +466,7 @@ class BenchmarkService {
         const comp = await this.compare({ positionId: pos.id, user });
         const p = comp.position;
         const intr = comp.internal.stats;
+        const intrTot = comp.internal.totalStats || {};
         const extMap = {};
         comp.external.forEach(e => { extMap[e.sourceKey] = e; });
         const b1 = extMap['b1'] ? extMap['b1'].stats : {};
@@ -457,6 +480,7 @@ class BenchmarkService {
           ourTo: p.ourPayTo || '',
           ourMid: p.ourMid || '',
           internalP50: intr.p50 || '',
+          internalTotalP50: intrTot.p50 || '',
           b1P50: b1.p50 || '',
           antalP50: antal.p50 || '',
           jobP50: job.p50 || '',
@@ -473,6 +497,7 @@ class BenchmarkService {
       'Оклад Фаровон (До)',
       'Медиана Фаровон',
       'Внутренний сбор (P50)',
+      'Совокупный доход (P50)',
       'B1 Ernst & Young (P50)',
       'Antal International (P50)',
       'Job Farovon (P50)',
@@ -497,6 +522,7 @@ class BenchmarkService {
         r.ourTo,
         r.ourMid,
         r.internalP50,
+        r.internalTotalP50,
         r.b1P50,
         r.antalP50,
         r.jobP50,

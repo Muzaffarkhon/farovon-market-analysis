@@ -3208,7 +3208,68 @@ function renderDashboard(){
   $('btnDashExport').onclick = exportDashboardCSV;
 }
 
-/** Строки таблицы «компания / вилка / премии / льготы / примечание» по должности. */
+/** Переменная часть по компании → массив [{type,size,per}] для подсказки. */
+function varPayKinds(c){
+  var vp = c && c.varPay;
+  if(vp && Array.isArray(vp.kinds)) return vp.kinds;
+  var arr = c && c.bonuses;
+  if(Array.isArray(arr) && arr.length) return arr;
+  if(c && (c.bonHas === 'да' || c.bonSize || c.bonType)){
+    return [{ type: c.bonType || '', size: c.bonSize || '', per: c.bonPer || '' }];
+  }
+  return [];
+}
+
+/** Ячейка «Переменная часть»: короткая пометка + подсказка со списком видов
+ *  (детали при наведении — CSS-поповер плюс нативный title как запас). */
+function varPayCell(c){
+  var vp = c && c.varPay ? c.varPay : {};
+  var kinds = varPayKinds(c);
+  var lbl = vp.label || (kinds.length ? kinds.length + ' ' + declOfNum(kinds.length, ['вид','вида','видов']) : '');
+  if(!lbl){
+    return '<span style="color:var(--muted)">—</span>';
+  }
+  if(!kinds.length){
+    return '<span style="color:var(--muted)">'+esc(lbl)+'</span>';
+  }
+  var kindLine = function(k){
+    return (k.type || 'премия') + (k.size ? ' — ' + k.size : '') + (k.per ? ' · ' + k.per : '');
+  };
+  var pop = '<span class="vp-pop"><span class="vp-pop-h">Виды переменной части</span>'+
+    kinds.map(function(k){
+      return '<span class="vp-pop-r"><span>'+esc(k.type || 'премия')+'</span>'+
+        '<span>'+esc([k.size, k.per].filter(Boolean).join(' · ') || '—')+'</span></span>';
+    }).join('')+'</span>';
+  return '<span class="vp" title="'+esc(kinds.map(kindLine).join('\n'))+'">'+
+    '<span class="vp-lbl">'+esc(lbl)+'</span>'+pop+'</span>';
+}
+
+/** Реестр данных: премия одной пометкой + список видов в нативной подсказке
+ *  (таблица реестра прокручивается и с липкой шапкой — CSS-поповер там не нужен). */
+function regVarPayCell(r){
+  var vp = r && r.varPay ? r.varPay : {};
+  var kinds = varPayKinds(r);
+  var lbl = vp.label || (kinds.length ? kinds.length + ' ' + declOfNum(kinds.length, ['вид','вида','видов']) : '');
+  if(!lbl) return '<span style="color:var(--muted)">—</span>';
+  if(!kinds.length) return '<span style="color:var(--muted)">'+esc(lbl)+'</span>';
+  var tip = kinds.map(function(k){
+    return (k.type || 'премия') + (k.size ? ' — ' + k.size : '') + (k.per ? ' · ' + k.per : '');
+  }).join('\n');
+  return '<span title="'+esc(tip)+'" style="border-bottom:1px dotted var(--line);cursor:default">'+esc(lbl)+'</span>';
+}
+
+/** Ячейка «Совокупно, мес.»: средний оклад + премия, приведённая к месяцу
+ *  (только когда размер премии распознан — иначе прочерк). */
+function totalPayCell(c){
+  var base = c && c.avg || 0;
+  var bm = c && c.varPay ? c.varPay.monthly : null;
+  if(!(base > 0) || bm == null){
+    return '<span style="color:var(--muted)">—</span>';
+  }
+  return '<span style="color:var(--accent);font-weight:600">≈ '+Math.round(base + bm).toLocaleString('ru-RU')+'</span>';
+}
+
+/** Строки таблицы «компания / оклад / переменная часть / совокупно / льготы / прим.» */
 function salCoRows(pos){
   return (pos.companies || []).map(function(c){
     var payStr = (c.pFrom || c.pTo)
@@ -3218,12 +3279,12 @@ function salCoRows(pos){
       var h = c.hourFrom === c.hourTo ? c.hourFrom : (c.hourFrom + '–' + c.hourTo);
       payStr += ' <small style="color:var(--muted)">(ЧТС ' + esc(String(h)) + ' × 168 ч)</small>';
     }
-    var bonStr = c.bonHas === 'да' ? (esc(c.bonType || 'Бонус') + (c.bonSize ? ': ' + esc(c.bonSize) : '')) : (c.bonHas === 'нет' ? 'Без бонуса' : '—');
     var bList = (c.benefits || []).map(function(b){ return '<span class="pill p-ok" style="font-size:11.5px;margin-right:3px">'+esc(b)+'</span>'; }).join('');
     return '<tr>'+
       '<td><b>'+esc(c.company)+'</b><br><small style="color:var(--muted)">'+esc(c.unit)+'</small></td>'+
       '<td>'+payStr+'</td>'+
-      '<td>'+bonStr+'</td>'+
+      '<td>'+varPayCell(c)+'</td>'+
+      '<td>'+totalPayCell(c)+'</td>'+
       '<td>'+(bList || '<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td><small style="color:var(--muted)">'+esc(c.note || '—')+'</small></td>'+
     '</tr>';
@@ -3231,9 +3292,23 @@ function salCoRows(pos){
 }
 
 function salCoTable(pos){
-  return '<div class="tblwrap"><table class="co-tbl">'+
-    '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Премии</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
+  return '<div class="tblwrap vp-wrap"><table class="co-tbl">'+
+    '<thead><tr><th>Компания / Отдел</th><th>Вилка оклада</th><th>Переменная часть</th><th>Совокупно, мес.</th><th>Льготы</th><th>Примечание</th></tr></thead>'+
     '<tbody>'+salCoRows(pos)+'</tbody></table></div>';
+}
+
+/** Строка-сводка над таблицей компаний: премии по должности одним взглядом. */
+function posVarSummary(p){
+  var n = (p.companies || []).length;
+  var bits = [];
+  if(n && p.bonCompanies != null){
+    bits.push('премии: <b>'+p.bonCompanies+' из '+n+'</b> '+declOfNum(n, ['компании','компаний','компаний'])+
+      (p.bonTopPer ? ', чаще ' + esc(p.bonTopPer) : ''));
+  }
+  if(p.totalMedian > 0){
+    bits.push('совокупно, медиана ≈ <b>'+p.totalMedian.toLocaleString('ru-RU')+' c</b>');
+  }
+  return bits.length ? '<div class="pos-var-sum">'+bits.join(' · ')+'</div>' : '';
 }
 
 function salForkNums(pos){
@@ -3648,6 +3723,7 @@ function renderSalariesTab(positions){
         (p.ourFrom ? p.ourFrom.toLocaleString('ru-RU') : '—')+' – '+(p.ourTo ? p.ourTo.toLocaleString('ru-RU') : '—')+' c</b>'+
         (p.gapPct != null ? ' · гэп к медиане рынка: <b style="color:'+(p.gapPct < 0 ? 'var(--no)' : 'var(--ok)')+'">'+(p.gapPct < 0 ? '−' : '+')+Math.abs(p.gapPct)+'%</b>' : '')+
       '</div>' : '')+
+      posVarSummary(p)+
       salCoTable(p)+
     '</td></tr>';
   });
@@ -3797,7 +3873,7 @@ function renderRegistryTab(rows){
       '<th>Дата</th><th>Направление</th><th>Компания</th><th>Регион</th>'+
       '<th>Наша должность</th><th>Должность у них</th>'+
       '<th class="num">Оклад от</th><th class="num">Оклад до</th>'+
-      '<th>Вал. / период</th><th class="num">Бонус</th><th>Льготы</th><th></th>'+
+      '<th>Вал. / период</th><th>Переменная часть</th><th>Льготы</th><th></th>'+
     '</tr></thead><tbody>';
 
   if(!pageRows.length){
@@ -3825,7 +3901,7 @@ function renderRegistryTab(rows){
       '<td class="num">'+payFromCell+'</td>'+
       '<td class="num">'+(r.payTo ? Number(r.payTo).toLocaleString('ru-RU') : '—')+'</td>'+
       '<td><span style="white-space:nowrap">'+esc(per)+'</span></td>'+
-      '<td class="num">'+(r.bonSize ? esc(r.bonSize) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+      '<td>'+regVarPayCell(r)+'</td>'+
       '<td>'+(benN ? '<span class="pill p-ok" style="font-size:11.5px">'+benN+'</span>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td><span class="btn-link" style="font-size:12.5px;white-space:nowrap;color:var(--accent);cursor:pointer">открыть ›</span></td>'+
     '</tr>';
@@ -3859,6 +3935,7 @@ function renderRegistryTab(rows){
       '<div class="rcard-meta" style="margin-top:2px">'+
         esc(regDirShort(r.dir))+' · '+esc(r.region || '—')+' · '+regDate(r.date)+
         (benN ? ' · льгот: '+benN : '')+
+        ((r.varPay && r.varPay.label) ? ' · ' + esc(r.varPay.label) : '')+
       '</div>'+
     '</div>';
   });
@@ -4251,7 +4328,7 @@ function renderBenefitsTab(benefits, bonuses, topComps){
       var noPct = bTotal ? Math.round((bonuses.noBonus / bTotal) * 100) : 0;
       var unkPct = bTotal ? Math.round((bonuses.unknown / bTotal) * 100) : 0;
 
-      return '<div class="card bonuses-card">'+
+      var bout = '<div class="card bonuses-card">'+
         '<div class="bonuses-card-t">Наличие премий и бонусов в компаниях рынка</div>'+
         '<div class="fork-nums bonuses-card-nums">'+
           '<span class="is-ok">Премии предусмотрены: <b>'+(bonuses.hasBonus||0)+' ('+hasPct+'%)</b></span>'+
@@ -4262,6 +4339,34 @@ function renderBenefitsTab(benefits, bonuses, topComps){
           '<div class="prog-bar-fill" style="width:'+hasPct+'%"></div>'+
         '</div>'+
       '</div>';
+
+      // Разбивка по видам и по периодичности — учитывается КАЖДЫЙ вид премии
+      // в записи (в компании их может быть несколько).
+      var kindRows = Object.keys(bonuses.types || {})
+        .map(function(k){ return { k: k, n: bonuses.types[k] }; })
+        .sort(function(a, b){ return b.n - a.n; });
+      var perRows = Object.keys(bonuses.periods || {})
+        .map(function(k){ return { k: k, n: bonuses.periods[k] }; })
+        .sort(function(a, b){ return b.n - a.n; });
+
+      var miniTbl = function(title, rowsArr, w1){
+        if(!rowsArr.length) return '';
+        return '<div class="dash-sec-head" style="margin-top:16px;flex:none"><b>'+title+'</b></div>'+
+          '<div class="tblwrap rtbl" style="flex:none"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+            '<th>'+w1+'</th><th class="num">Упоминаний</th>'+
+          '</tr></thead><tbody>'+
+          rowsArr.map(function(r){
+            return '<tr><td><b>'+esc(r.k)+'</b></td><td class="num">'+r.n+'</td></tr>';
+          }).join('')+
+          '</tbody></table></div>';
+      };
+
+      bout += miniTbl('Виды переменной части', kindRows, 'Вид');
+      bout += miniTbl('Периодичность выплат', perRows, 'Периодичность');
+      if(!kindRows.length && !perRows.length){
+        bout += '<div class="rcard-meta" style="margin-top:12px">Виды и периодичность премий пока не заполнены в анкетах.</div>';
+      }
+      return bout;
     } else if(tab === 'comps'){
       if(!topComps.length) return '<div class="empty">Нет данных о компаниях</div>';
       var out = tblCount(topComps.length, null, ['компания', 'компании', 'компаний']);
@@ -4310,7 +4415,7 @@ function exportDashboardCSV(){
     toast('Нет данных для экспорта');
     return;
   }
-  var headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)'];
+  var headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)', 'Компаний с премией', 'Типичная периодичность премии', 'Совокупно, медиана (TJS)'];
   // Гасим CSV-инъекцию: ячейку, начинающуюся с = + - @ или упр. символа,
   // Excel/Sheets исполняют как формулу — префиксуем апострофом.
   var csvCell = function(v){
@@ -4329,7 +4434,10 @@ function exportDashboardCSV(){
       p.p75,
       p.max,
       p.avg,
-      p.forkSpreadPct + '%'
+      p.forkSpreadPct + '%',
+      p.bonCompanies != null ? p.bonCompanies : '',
+      csvCell(p.bonTopPer || ''),
+      p.totalMedian || ''
     ].join(';');
   });
 
@@ -8996,6 +9104,41 @@ function loadBmCompareDetail(){
       '</div>' +
       intrRangeBar +
     '</div>';
+
+    // Совокупный доход (оклад + переменная часть, приведённая к месяцу).
+    // Считается по всем записям с окладом: где премию посчитать нельзя —
+    // берётся только оклад (запись не выпадает).
+    var totStats = intr.totalStats || {};
+    var totSample = intr.totalSampleCount || 0;
+    var totBon = intr.totalBonusCount || 0;
+    if(totStats.p50){
+      var totUplift = (intrStats.p50 && totStats.p50)
+        ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
+      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--ok-soft, var(--accent-soft));color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
+            '<div>' +
+              '<b style="font-size:15px;color:var(--color-midnight-ink)">Совокупный доход</b>' +
+              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">оклад + переменная часть / мес.</span>' +
+            '</div>' +
+          '</div>' +
+          '<b style="font-size:16px;color:var(--ok);font-feature-settings:\'tnum\' 1">' + totStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
+          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totStats.min ? totStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (totStats.p25 ? totStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--ok);white-space:nowrap">' + totStats.p50.toLocaleString('ru-RU') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (totStats.p75 ? totStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
+          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totStats.max ? totStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--color-fog);margin-top:8px;line-height:1.5">' +
+          'По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
+          'Премия с суммой учтена у <b>' + totBon + '</b> из ' + totSample + '; у остальных — только оклад' +
+          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') +
+        '</div>' +
+      '</div>';
+    }
 
     // Внешние источники
     (r.external || []).forEach(function(ext){
