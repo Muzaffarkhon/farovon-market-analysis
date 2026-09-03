@@ -8164,31 +8164,6 @@ html.compact {
   border-color: var(--accent-border);
 }
 
-/* Доводка автозаполнения: строка-ориентир «оклад Фаровона по должности» */
-.bx-anchor {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  margin: -4px 0 12px;
-  background: var(--card-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  font-size: 13px;
-  color: var(--muted);
-}
-.bx-anchor > svg { flex: none; color: var(--org-accent); }
-.bx-anchor > span { flex: 1 1 auto; }
-.bx-anchor b { color: var(--text); font-variant-numeric: tabular-nums; }
-.bx-anchor [data-act="apply-anchor"] {
-  flex: none;
-  min-height: 32px;
-  font-size: 13px;
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
 /* Доводка автозаполнения: «Стандартный набор» льгот одной кнопкой */
 .bx-std-benefits {
   display: inline-flex;
@@ -8223,10 +8198,6 @@ html.compact {
   .bx-apply-bar [data-act="apply-bar"] {
     width: 100%;
     margin-left: 0;
-  }
-  .bx-anchor [data-act="apply-anchor"] {
-    width: 100%;
-    margin-top: 4px;
   }
 }
 

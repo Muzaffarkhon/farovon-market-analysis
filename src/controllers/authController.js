@@ -165,7 +165,7 @@ async function getUserPayload(user) {
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
     ),
     withDirs(
-      "SELECT name, COALESCE(dirs, '') AS dirs, COALESCE(pay_from, 0) AS pay_from, COALESCE(pay_to, 0) AS pay_to FROM dictionary_positions ORDER BY name ASC",
+      "SELECT name, COALESCE(dirs, '') AS dirs FROM dictionary_positions ORDER BY name ASC",
       'SELECT name FROM dictionary_positions ORDER BY name ASC'
     ),
     queryAll(`SELECT DISTINCT TRIM(segment) AS v FROM dictionary_companies WHERE TRIM(COALESCE(segment,'')) <> ''
@@ -221,15 +221,6 @@ async function getUserPayload(user) {
 
   const dictPositions = dictPositionsRows.map(x => x.name);
 
-  // Эталонный оклад Фаровона по должности (dictionary_positions.pay_from/pay_to,
-  // holding-wide, заполняет админ). Фронт показывает его как ориентир в форме
-  // шага 2 и предлагает подставить в пустые строки. Пусто = админ ещё не завёл.
-  const positionPay = {};
-  dictPositionsRows.forEach(p => {
-    const f = Number(p.pay_from) || 0;
-    const t = Number(p.pay_to) || 0;
-    if (f > 0 || t > 0) positionPay[p.name] = { from: f, to: t };
-  });
   const userDirs = [...new Set(visibleUnits.map(u => (u.dir || '').trim()).filter(Boolean))];
   const inDirs = (raw) => {
     const own = String(raw || '').split(';').map(s => s.trim()).filter(Boolean);
@@ -388,7 +379,6 @@ async function getUserPayload(user) {
     // общий: пустой экран без выбора мы уже проходили.
     positions: positionsByDir.length ? positionsByDir : dictPositions,
     positionsAll: dictPositions,
-    positionPay,
     // Штатка по подразделениям: фронт уже читает S.data.positionsByUnit[unit]
     // при построении чек-листа шага 2 — до загрузки штатного расписания объект
     // всегда был пуст, отсюда «Для этого подразделения штатка не заведена».

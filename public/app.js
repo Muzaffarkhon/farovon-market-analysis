@@ -1878,8 +1878,6 @@ function openBatchSurveySheet(posName){
   var lastSv = S.surveys.slice().reverse().find(function(s){ return s && (s.cur || s.payPer); });
   var defCur = S.fillPrefs.cur || (lastSv && lastSv.cur) || 'сомони';
   var defPer = S.fillPrefs.payPer || (lastSv && lastSv.payPer) || 'в месяц';
-  // — эталонный оклад Фаровона по должности как ориентир (S.data.positionPay).
-  var farPay = (S.data.positionPay || {})[posName] || null;
   // — «Стандартный набор» льгот: чаще всего встречающиеся позиции соцпакета,
   //   отмечаются одной кнопкой. Берём только те, что реально есть в справочнике.
   var STD_BENEFITS = [
@@ -2114,17 +2112,6 @@ function openBatchSurveySheet(posName){
         '<button type="button" class="btn-line" data-act="apply-bar">Применить к пустым</button>'+
       '</div>'+
 
-      // Ориентир: эталонный оклад Фаровона по этой должности. Подставляется в
-      // строки без оклада — как отправная точка, дальше правится вручную.
-      (farPay ? '<div class="bx-anchor">'+
-        ic('target',14)+
-        '<span>Оклад Фаровона по должности: <b>'+
-          (farPay.from ? Number(farPay.from).toLocaleString('ru-RU') : '—')+
-          (farPay.to && farPay.to !== farPay.from ? ' – '+Number(farPay.to).toLocaleString('ru-RU') : '')+
-        '</b> сомони</span>'+
-        '<button type="button" class="btn-line" data-act="apply-anchor">Подставить в пустые</button>'+
-      '</div>' : '')+
-
       '<div class="batch-list'+(wide ? ' batch-list--grid' : '')+'">'+
         (wide ? '<div class="bx-head">'+
           '<span>Компания</span><span>Оклад от*</span><span>Оклад до*</span>'+
@@ -2313,21 +2300,6 @@ function openBatchSurveySheet(posName){
         }
       });
       toast(n ? ('Оклад проставлен в ' + n + ' ' + declOfNum(n, ['строку','строки','строк'])) : 'Пустых строк нет', n ? 'ok' : '');
-      return;
-    }
-
-    // Автозаполнение: подставить эталонный оклад Фаровона в строки без оклада
-    if(e.target.closest('[data-act="apply-anchor"]') && farPay){
-      var af = farPay.from ? String(farPay.from) : '';
-      var at = farPay.to ? String(farPay.to) : '';
-      var an = 0;
-      entries.forEach(function(it, i){
-        if(!String(it.payFrom).trim() && !String(it.payTo).trim()){
-          setRowPay(i, af || null, at || null, null, null);
-          an++;
-        }
-      });
-      toast(an ? ('Ориентир проставлен в ' + an + ' ' + declOfNum(an, ['строку','строки','строк'])) : 'Пустых строк нет', an ? 'ok' : '');
       return;
     }
 
