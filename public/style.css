@@ -3108,6 +3108,73 @@ label.lbl {
   color: var(--accent);
 }
 
+/* Кнопка-категория на нижней полосе (есть выпадашка разделов): шеврон
+   в правом верхнем углу столбца. */
+#topNav .nav-btn[data-has-sub] { position: relative; }
+.nav-btn-caret {
+  position: absolute;
+  top: 3px;
+  right: calc(50% - 22px);
+  width: 11px;
+  height: 11px;
+  color: var(--subtle);
+}
+#topNav .nav-btn.on .nav-btn-caret { color: var(--accent); }
+
+/* Выпадашка разделов от кнопки-категории — лист снизу поверх полосы. */
+.nav-sub-scrim { background: rgba(15, 23, 42, 0.32); }
+.nav-submenu-pop {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 67;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  box-shadow: 0 -8px 28px rgba(20, 30, 40, 0.16);
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+}
+.nav-submenu-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.nav-submenu-hd .menu-x { margin-left: auto; }
+.nav-submenu-pop .menu button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nav-submenu-pop { animation: fx-sub-up 0.2s var(--ease-out); }
+  @keyframes fx-sub-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+}
+@media (min-width: 641px) {
+  /* На планшете/десктопе #topNav — не нижняя полоса; лист центрируем как поповер. */
+  .nav-submenu-pop {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 64px;
+    transform: translateX(-50%);
+    width: 320px;
+    max-width: calc(100vw - 24px);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .nav-submenu-pop { animation: fx-menu-pop 0.16s var(--ease-out); }
+  }
+}
+
 /* turn-10d — на телефоне #topNav становится нижней вкладочной навигацией:
    иконка над подписью, активный пункт только цветом (без фоновой плашки),
    таргет — весь столбец, ≥44px. Экраны ≥1024px используют боковой rail и

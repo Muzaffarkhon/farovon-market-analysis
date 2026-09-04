@@ -209,9 +209,12 @@ function navModel(){
   }) : [];
 
   // Компактная точка входа в админку для узких поверхностей (вкладки, меню «⋮»).
+  // На нижней полосе телефона кнопка «Админка» — категория: тап раскрывает
+  // выпадашку с разделами админки (submenu), а не уводит сразу на панель.
   var adminEntry = admin.length ? {
     key:'admin', label:'Панель администратора', tabLabel:'Админка', icon:'admin',
     active:function(){ return S.appView === 'admin'; }, inTabs:true,
+    submenu: admin.length >= 2 ? admin : null,
     run:function(){ switchView('admin'); }
   } : null;
 
@@ -317,6 +320,30 @@ function openNavMenu(){
   });
 }
 $('btnMenu').onclick = openNavMenu;
+
+/**
+ * Выпадашка разделов для кнопки-категории на нижней полосе телефона
+ * (сейчас — «Админка»). Лист снизу, поверх полосы; выбор раздела уводит
+ * на него через navGo (с проверкой черновика). Раньше эти разделы были
+ * доступны только из меню «⋮».
+ */
+function openNavSubmenu(item){
+  if(!item || !item.submenu || item.submenu.length < 2) return;
+  var el = document.createElement('div');
+  el.className = 'menu-scrim nav-sub-scrim';
+  el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
+    '<div class="nav-submenu-hd">'+ic(item.icon, 14)+esc(item.label)+
+      '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
+    '<div class="menu">'+
+      item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
+    '</div></div>';
+  document.body.appendChild(el);
+
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.closest('[data-x]')){ el.remove(); return; }
+    if(e.target.closest('button[data-nav]')){ el.remove(); navHandleClick(e); }
+  });
+}
 
 function renderTopNav(){ renderNav(); }
 
