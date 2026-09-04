@@ -431,57 +431,101 @@ document.addEventListener('visibilitychange', function(){
   }
 });
 
+// Снимок текущего экрана: и в localStorage (пережить перезагрузку), и в
+// history.state (кнопки браузера/телефона «назад/вперёд»).
+function navSnapshot(){
+  return {
+    appView: S.appView,
+    unit: S.unit,
+    tab: S.tab,
+    dashTab: S.dashTab,
+    dashSumTab: S.dashSumTab,
+    adminTab: S.adminTab,
+    adminDivsView: S.adminDivsView,
+    expandedDir: S.expandedDir,
+    expandedUnit: S.expandedUnit,
+    expandedSubUnit: S.expandedSubUnit || '',
+    selectedOrgNode: S.selectedOrgNode,
+    orgZoom: S.orgZoom,
+    orgDrawerCollapsed: !!S.orgDrawerCollapsed,
+    orgScroll: S.orgScroll || null,
+    railCollapsed: !!S.railCollapsed
+  };
+}
+
+// Раскладка снимка обратно в S.* (без рендера). Используют restoreNavState
+// (из localStorage) и обработчик popstate (из history.state).
+function applyNavObject(nav){
+  if(!nav || typeof nav !== 'object') return false;
+  if(nav.appView === 'dash_hrbp') nav.appView = 'progress'; // легаси-имя
+  if(nav.appView) S.appView = nav.appView;
+  S.unit = nav.unit || null;
+  if(nav.tab) S.tab = nav.tab;
+  if(nav.dashTab) S.dashTab = nav.dashTab;
+  if(nav.dashSumTab) S.dashSumTab = nav.dashSumTab;
+  if(nav.adminTab) S.adminTab = nav.adminTab;
+  if(nav.adminDivsView) S.adminDivsView = nav.adminDivsView;
+  if(nav.expandedDir !== undefined) S.expandedDir = nav.expandedDir;
+  if(nav.expandedUnit !== undefined) S.expandedUnit = nav.expandedUnit;
+  if(nav.expandedSubUnit !== undefined) S.expandedSubUnit = nav.expandedSubUnit;
+  if(nav.selectedOrgNode) S.selectedOrgNode = nav.selectedOrgNode;
+  if(nav.orgZoom) S.orgZoom = nav.orgZoom;
+  if(nav.orgDrawerCollapsed !== undefined) S.orgDrawerCollapsed = nav.orgDrawerCollapsed;
+  if(nav.orgScroll) S.orgScroll = nav.orgScroll;
+  if(nav.railCollapsed !== undefined) S.railCollapsed = nav.railCollapsed;
+  return true;
+}
+
 function saveNavState(){
-  try {
-    var nav = {
-      appView: S.appView,
-      unit: S.unit,
-      tab: S.tab,
-      dashTab: S.dashTab,
-      dashSumTab: S.dashSumTab,
-      adminTab: S.adminTab,
-      adminDivsView: S.adminDivsView,
-      expandedDir: S.expandedDir,
-      expandedUnit: S.expandedUnit,
-      expandedSubUnit: S.expandedSubUnit || '',
-      selectedOrgNode: S.selectedOrgNode,
-      orgZoom: S.orgZoom,
-      orgDrawerCollapsed: !!S.orgDrawerCollapsed,
-      orgScroll: S.orgScroll || null,
-      railCollapsed: !!S.railCollapsed
-    };
-    store.set(LS_NAV, JSON.stringify(nav));
-  } catch(e){}
+  try { store.set(LS_NAV, JSON.stringify(navSnapshot())); } catch(e){}
+  pushNavHistory(false);
 }
 
 function restoreNavState(){
   try {
     var raw = store.get(LS_NAV);
     if(!raw) return false;
-    var nav = JSON.parse(raw);
-    if(nav && typeof nav === 'object'){
-      // Совместимость: старое имя раздела «Отчёт по подразделениям».
-      if(nav.appView === 'dash_hrbp') nav.appView = 'progress';
-      if(nav.appView) S.appView = nav.appView;
-      if(nav.unit) S.unit = nav.unit;
-      if(nav.tab) S.tab = nav.tab;
-      if(nav.dashTab) S.dashTab = nav.dashTab;
-      if(nav.dashSumTab) S.dashSumTab = nav.dashSumTab;
-      if(nav.adminTab) S.adminTab = nav.adminTab;
-      if(nav.adminDivsView) S.adminDivsView = nav.adminDivsView;
-      if(nav.expandedDir) S.expandedDir = nav.expandedDir;
-      if(nav.expandedUnit) S.expandedUnit = nav.expandedUnit;
-      if(nav.expandedSubUnit !== undefined) S.expandedSubUnit = nav.expandedSubUnit;
-      if(nav.selectedOrgNode) S.selectedOrgNode = nav.selectedOrgNode;
-      if(nav.orgZoom) S.orgZoom = nav.orgZoom;
-      if(nav.orgDrawerCollapsed !== undefined) S.orgDrawerCollapsed = nav.orgDrawerCollapsed;
-      if(nav.orgScroll) S.orgScroll = nav.orgScroll;
-      if(nav.railCollapsed !== undefined) S.railCollapsed = nav.railCollapsed;
-      return true;
-    }
+    return applyNavObject(JSON.parse(raw));
   } catch(e){}
   return false;
 }
+
+// ─── Кнопки браузера/телефона «назад/вперёд» ──────────────────────────────
+// Каждая смена экрана кладёт снимок в history. «Назад/вперёд» ловит popstate,
+// проверяет несохранённый черновик (askDirty) и восстанавливает экран.
+// Черновик самого заполнения лежит в LS_DRAFT (markDirty) — правки не теряются
+// даже если человек уйдёт: при повторном открытии подразделения предложат их.
+function _navKey(s){
+  return !s ? '' : [s.appView, s.unit, s.tab, s.dashTab, s.dashSumTab, s.adminTab].join('|');
+}
+function pushNavHistory(replace){
+  if(!S.data || !window.history || !window.history.pushState) return;
+  var snap = navSnapshot();
+  if(!replace && _navKey(history.state) === _navKey(snap)) return; // тот же экран — не плодим записи
+  try {
+    var url = location.pathname + location.search;
+    if(replace) history.replaceState(snap, '', url);
+    else history.pushState(snap, '', url);
+  } catch(e){}
+}
+window.addEventListener('popstate', function(e){
+  var target = e.state;
+  if(!S.data || !target) return;
+  var apply = function(){
+    S.dirty = false;
+    applyNavObject(target);
+    if(typeof renderCurrentView === 'function') renderCurrentView();
+  };
+  if(S.dirty){
+    var stay = navSnapshot(); // history уже сдвинулся — на «нет» вернём сюда
+    askDirty('Перейти по истории браузера').then(function(yes){
+      if(yes) apply();
+      else { try { history.pushState(stay, '', location.pathname + location.search); } catch(e2){} }
+    });
+  } else {
+    apply();
+  }
+});
 
 function $(id){ return document.getElementById(id); }
 // Экранирование для вставки в HTML. Помимо & < > " гасим и одинарную кавычку

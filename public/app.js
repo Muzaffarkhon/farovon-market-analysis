@@ -842,7 +842,19 @@ function onLoaded(data){
 
   if(data.needsUnitPick) renderUnitPicker();
   else if(data.needsAssignment) renderNeedsAssignment();
-  else if(S.appView === 'home') renderHome();
+  else renderCurrentView();
+
+  // Первый снимок в history — иначе первый «назад» сразу выходит из приложения.
+  pushNavHistory(true);
+
+  // Онбординг первого входа — поверх уже отрисованного первого экрана.
+  if(!isElevated) showOnboarding();
+}
+
+// Отрисовать экран по текущему S.appView / S.unit. Единая точка: и при входе
+// (onLoaded), и при «назад/вперёд» браузера (popstate).
+function renderCurrentView(){
+  if(S.appView === 'home') renderHome();
   else if(S.appView === 'unit' && S.unit) openUnit(S.unit);
   else if(S.appView === 'dashboard') openDashboard();
   else if(S.appView === 'benchmarks') openBenchmarks();
@@ -850,9 +862,6 @@ function onLoaded(data){
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
-
-  // Онбординг первого входа — поверх уже отрисованного первого экрана.
-  if(!isElevated) showOnboarding();
 }
 
 // ═══════════════════════════════════════════════════════════
