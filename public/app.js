@@ -9070,8 +9070,8 @@ function renderBmCompare(){
     }).join('');
   };
 
-  c.innerHTML = '<div style="display:grid;grid-template-columns:minmax(260px, 300px) 1fr;gap:16px;align-items:start">' +
-    '<div class="card" style="padding:14px;display:flex;flex-direction:column;max-height:calc(100vh - 170px)">' +
+  c.innerHTML = '<div class="bm-compare-grid">' +
+    '<div class="card bm-compare-list" style="padding:14px;display:flex;flex-direction:column;max-height:calc(100vh - 170px)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
         '<span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Должности</span>' +
         '<span style="font-size:12px;color:var(--color-fog)">' + positions.length + ' поз.</span>' +
@@ -9100,6 +9100,12 @@ function renderBmCompare(){
     $('bmPosList').querySelectorAll('.rail-item').forEach(function(b){ b.classList.remove('on'); });
     btn.classList.add('on');
     loadBmCompareDetail();
+    // На узком экране список и деталь стоят друг под другом — подскроллим к
+    // сравнению, иначе после выбора кажется, что «ничего не произошло».
+    if(window.innerWidth <= 900){
+      var det = $('bmCompareDetail');
+      if(det) setTimeout(function(){ det.scrollIntoView({ behavior:'smooth', block:'start' }); }, 80);
+    }
   };
 
   loadBmCompareDetail();
