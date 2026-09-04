@@ -9147,8 +9147,10 @@ function loadBmCompareDetail(){
     var ourMid = pos.ourMid || 0;
     var comp = r.summary || {};
 
+    var shownName = esc((pos.name || posName || '').trim() || 'должность не выбрана');
     if(m){
-      m.innerHTML = '<b>Оклад Фаровон:</b> ' + (ourPayFrom ? ourPayFrom.toLocaleString('ru-RU') : '—') +
+      m.innerHTML = '<div style="font-weight:700;color:var(--color-midnight-ink);margin-bottom:3px">' + shownName + '</div>' +
+        '<b>Оклад Фаровон:</b> ' + (ourPayFrom ? ourPayFrom.toLocaleString('ru-RU') : '—') +
         ' – ' + (ourPayTo ? ourPayTo.toLocaleString('ru-RU') : '—') + ' сомони<br>' +
         '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--color-fog)">не задана</span>');
     }
@@ -9280,7 +9282,11 @@ function loadBmCompareDetail(){
     var compStats = { p50: comp.compositeMedian };
     var compositeRangeBar = renderSalaryRangeBar(compStats, ourPayFrom, ourPayTo, ourMid);
 
-    d.innerHTML = '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
+    d.innerHTML = '<div class="bm-detail-head">' +
+        '<span class="bm-detail-head-lbl">Сравнение по должности</span>' +
+        '<b>' + shownName + '</b>' +
+      '</div>' +
+      '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
           '<div style="display:flex;align-items:center;gap:12px">' +
             '<div style="width:36px;height:36px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none">' +
