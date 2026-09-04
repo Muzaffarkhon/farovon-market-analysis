@@ -225,7 +225,19 @@ function navModel(){
     { key:'out', label:'Выйти', icon:'logout', danger:true, run:function(){ doLogout(); } }
   ];
 
-  return { primary:primary, admin:admin, adminEntry:adminEntry, utility:utility };
+  // Кнопка «Ещё» на нижней полосе телефона — категория со всем, что не влезло
+  // в саму полосу: разделы вне вкладок (отчёт по подразделениям / сводка HR BP /
+  // назначение ответственных) + служебные действия (обновить / помощь /
+  // профиль / выход). Раньше это жило только в меню «⋮».
+  var moreItems = primary.filter(function(it){ return !it.inTabs; }).concat(utility);
+  var moreEntry = moreItems.length ? {
+    key:'more', label:'Ещё', tabLabel:'Ещё', icon:'more',
+    active:function(){ return false; }, inTabs:true,
+    submenu: moreItems,
+    run:function(){}
+  } : null;
+
+  return { primary:primary, admin:admin, adminEntry:adminEntry, moreEntry:moreEntry, utility:utility };
 }
 
 /** Активировать пункт навигации с проверкой несохранённого черновика. */

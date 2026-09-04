@@ -1609,7 +1609,12 @@ function navHandleClick(e){
   var b = e.target.closest('button[data-nav]');
   if(!b) return;
   var m = navModel();
-  var all = m.primary.concat(m.admin, m.adminEntry ? [m.adminEntry] : [], m.utility);
+  var all = m.primary.concat(
+    m.admin,
+    m.adminEntry ? [m.adminEntry] : [],
+    m.moreEntry ? [m.moreEntry] : [],
+    m.utility
+  );
   var it = all.filter(function(x){ return x.key === b.dataset.nav; })[0];
   if(!it) return;
   // Кнопка-категория на нижней полосе: тап → выпадашка разделов.
@@ -1652,6 +1657,7 @@ function renderNav(){
   if(topNav){
     var tabs = m.primary.filter(function(it){ return it.inTabs; });
     if(m.adminEntry) tabs.push(m.adminEntry);
+    if(m.moreEntry) tabs.push(m.moreEntry);
     if(tabs.length < 2 || S.unit !== null){
       topNav.classList.add('hidden');
       document.body.classList.remove('has-topnav');
