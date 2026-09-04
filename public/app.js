@@ -5965,7 +5965,6 @@ function renderAdminDivisions(){
     if(zoomRafId) cancelAnimationFrame(zoomRafId);
     zoomRafId = requestAnimationFrame(function(){
       treeEl.style.transform = 'scale(' + S.orgZoom + ')';
-      alignOrgBranches();
       vp.scrollLeft += shiftX;
       vp.scrollTop += shiftY;
       S.orgScroll = { left: vp.scrollLeft, top: vp.scrollTop };
