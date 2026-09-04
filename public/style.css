@@ -3108,16 +3108,19 @@ label.lbl {
   color: var(--accent);
 }
 
-/* Кнопка-категория на нижней полосе (есть выпадашка разделов): шеврон
-   в правом верхнем углу столбца. */
-#topNav .nav-btn[data-has-sub] { position: relative; }
+/* Кнопка-категория на нижней полосе (есть выпадашка разделов): маленький
+   шеврон сразу после подписи, в потоке — без абсолютного позиционирования. */
+/* Специфичность #topNav .nav-btn svg (см. ниже) навязывает 20×20 всем иконкам
+   кнопки — шеврону задаём размер тем же весом селектора. */
+#topNav .nav-btn .nav-btn-caret,
 .nav-btn-caret {
-  position: absolute;
-  top: 3px;
-  right: calc(50% - 22px);
-  width: 11px;
-  height: 11px;
+  display: inline-block;
+  width: 10px !important;
+  height: 10px !important;
+  margin: 0 0 0 3px !important;
+  vertical-align: -1px;
   color: var(--subtle);
+  flex: none;
 }
 #topNav .nav-btn.on .nav-btn-caret { color: var(--accent); }
 

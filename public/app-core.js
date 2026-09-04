@@ -1592,14 +1592,15 @@ function navRenderBtn(it, cls){
     ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'
     : ic(it.icon);
   // На нижней полосе телефона кнопка-категория (есть submenu) помечается
-  // «шевроном» и открывает выпадашку разделов вместо прямого перехода.
+  // «шевроном» сразу после подписи и открывает выпадашку разделов вместо
+  // прямого перехода.
   var hasSub = cls === 'nav-btn' && it.submenu && it.submenu.length >= 2;
   var caret = hasSub
-    ? '<svg class="nav-btn-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>'
+    ? '<svg class="nav-btn-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>'
     : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+'</span>'+caret+'</button>';
+    icon+'<span>'+lbl+caret+'</span></button>';
 }
 
 // Разрешает data-nav в элемент модели и выполняет его (служебные действия —
