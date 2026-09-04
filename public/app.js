@@ -7241,24 +7241,37 @@ function openDeptAssign(){
   });
 }
 
+// Сотрудники ТОЛЬКО этого направления (dir_head видит в S.adminDivs лишь свои
+// отделы — см. adminController.getDivisions). Раньше сюда попадал ВЕСЬ
+// справочник пользователей: deptUnits считался, но фильтр по нему не
+// применялся. Логика та же, что у deptFio в openDivisionModal.
 function getDeptEmployees(){
   var deptUnits = {};
   (S.adminDivs || []).forEach(function(x){ deptUnits[x.unit] = true; });
   var names = {};
+  // 1. У кого в профиле есть хоть один отдел этого направления.
   (S.adminUsers || []).forEach(function(u){
-    if(u.active !== false && u.fio){
-      names[u.fio] = true;
-    }
+    if(u.active === false || !u.fio) return;
+    if((u.units || []).some(function(un){ return deptUnits[un]; })) names[u.fio] = true;
   });
+  // 2. Кто уже руководитель / ответственный / HR BP отдела направления.
   (S.adminDivs || []).forEach(function(x){
-    [x.head, x.resp].forEach(function(field){
+    [x.head, x.resp, x.hrbp].forEach(function(field){
       String(field || '').split(',').forEach(function(n){
         n = n.trim();
         if(n) names[n] = true;
       });
     });
   });
-  return uniqSortedList(Object.keys(names));
+  var list = uniqSortedList(Object.keys(names));
+  // Совсем новое направление — никто не привязан: не запираем в тупик,
+  // показываем весь активный справочник.
+  if(!list.length){
+    return uniqSortedList((S.adminUsers || [])
+      .filter(function(u){ return u.active !== false && u.fio; })
+      .map(function(u){ return u.fio; }));
+  }
+  return list;
 }
 
 function drawDeptAssign(){
