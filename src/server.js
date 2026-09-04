@@ -91,8 +91,9 @@ app.use(cors({
 // CSP вместо полностью выключенного. script-src/style-src оставляют
 // 'unsafe-inline' — во фронте много инлайнового JS/CSS, хешировать его без
 // переписывания нельзя; но внешние ресурсы, framing и base-uri теперь под
-// контролем. Разрешены: сам сервер, Telegram Web SDK (telegram.org),
-// Google Fonts. Встраивать страницу в iframe может только Telegram.
+// контролем. Разрешён единственный внешний ресурс — Telegram Web SDK
+// (telegram.org). Шрифты системные (см. index.html), внешних font/style нет.
+// Встраивать страницу в iframe может только Telegram.
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
@@ -100,8 +101,8 @@ app.use(helmet({
       'default-src': ["'self'"],
       'script-src': ["'self'", "'unsafe-inline'", 'https://telegram.org'],
       'script-src-attr': ["'unsafe-inline'"], // во фронте ~20 инлайновых onclick=
-      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'font-src': ["'self'", 'data:'],
       'img-src': ["'self'", 'data:'],
       'connect-src': ["'self'"],
       'frame-ancestors': ["'self'", 'https://web.telegram.org', 'https://*.telegram.org'],
