@@ -63,6 +63,7 @@ router.post('/telegram/unlink', telegramController.unlink);
 // Опрос и данные
 router.post('/survey/save', surveyController.saveSurveyData);
 router.post('/survey/save-details', surveyController.saveSurveyDetails);
+router.post('/survey/for-period', surveyController.getSurveysForPeriod);
 router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс

@@ -650,3 +650,33 @@ exports.addDictionaryItem = async (req, res) => {
     res.status(500).json({ ok: false, error: 'Ошибка добавления в справочник' });
   }
 };
+
+/**
+ * Анкеты подразделения за КОНКРЕТНЫЙ год — используется формой заполнения,
+ * когда человек с активным грантом переключается на архивный год (см.
+ * docs/superpowers/specs/2026-09-05-archive-edit-access-design.md). Та же
+ * проверка доступа, что и на сохранении — resolveEditablePeriod.
+ */
+exports.getSurveysForPeriod = async (req, res) => {
+  const { unit, periodId } = req.body;
+  if (!unit || !String(unit).trim()) {
+    return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
+  }
+
+  try {
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+
+    const surveys = await queryAll(
+      "SELECT * FROM surveys WHERE unit = ? AND state != 'удалена' AND period_id = ?",
+      [String(unit).trim(), resolved.period.id]
+    );
+
+    res.json({ ok: true, surveys });
+  } catch (err) {
+    console.error('getSurveysForPeriod error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки анкет за период' });
+  }
+};
