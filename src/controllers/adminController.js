@@ -826,6 +826,105 @@ exports.setPeriod = async (req, res) => {
   }
 };
 
+// ─── Точечный доступ к редактированию архивного года ───
+// См. docs/superpowers/specs/2026-09-05-archive-edit-access-design.md.
+// Выдача — INSERT ... ON CONFLICT DO UPDATE: повторная выдача тому же
+// человеку на тот же год продлевает 24 часа заново, а не плодит дубликаты
+// (UNIQUE(user_login, period_id) из миграции).
+exports.grantPeriodEdit = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const periodId = Number(req.body.periodId);
+
+  if (!userLogin) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник' });
+  }
+  if (!Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан период' });
+  }
+
+  try {
+    const period = await queryOne('SELECT id, name FROM periods WHERE id = ?', [periodId]);
+    if (!period) {
+      return res.status(404).json({ ok: false, error: 'Период не найден' });
+    }
+    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    if (latest && latest.id === periodId) {
+      return res.status(400).json({ ok: false, error: 'Текущий период редактируется без гранта' });
+    }
+
+    await run(`
+      INSERT INTO period_edit_grants (user_login, period_id, granted_by, granted_at, expires_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 day'))
+      ON CONFLICT(user_login, period_id) DO UPDATE SET
+        granted_by = excluded.granted_by,
+        granted_at = CURRENT_TIMESTAMP,
+        expires_at = excluded.expires_at
+    `, [userLogin, periodId, req.user.fio || req.user.login]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'выдан доступ к архивному периоду',
+      `Сотрудник: ${userLogin}, период: ${period.name}, на 24ч`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('grantPeriodEdit error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка выдачи доступа' });
+  }
+};
+
+exports.revokePeriodEdit = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const periodId = Number(req.body.periodId);
+
+  if (!userLogin || !Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник или период' });
+  }
+
+  try {
+    await run('DELETE FROM period_edit_grants WHERE user_login = ? AND period_id = ?', [userLogin, periodId]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'отозван доступ к архивному периоду',
+      `Сотрудник: ${userLogin}, период id: ${periodId}`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('revokePeriodEdit error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка отзыва доступа' });
+  }
+};
+
+exports.listPeriodGrants = async (req, res) => {
+  try {
+    const [grants, periods] = await Promise.all([
+      queryAll(`
+        SELECT g.user_login AS "userLogin", COALESCE(u.fio, g.user_login) AS "userFio",
+               g.period_id AS "periodId", p.name AS "periodName",
+               g.granted_by AS "grantedBy", g.granted_at AS "grantedAt", g.expires_at AS "expiresAt"
+        FROM period_edit_grants g
+        JOIN periods p ON p.id = g.period_id
+        LEFT JOIN users u ON u.login = g.user_login
+        WHERE g.expires_at > CURRENT_TIMESTAMP
+        ORDER BY g.expires_at DESC
+      `),
+      queryAll(`
+        SELECT id, name FROM periods
+        WHERE id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
+        ORDER BY id DESC
+      `)
+    ]);
+
+    res.json({ ok: true, grants, periods });
+  } catch (err) {
+    console.error('listPeriodGrants error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки списка доступов' });
+  }
+};
+
 // ─── Сервис и Аудит ───
 /**
  * Загрузка штатного расписания: 1340 пар «должность × подразделение» по 285
