@@ -793,10 +793,19 @@ exports.setPeriod = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `, [cleanName, cleanState, from || null, to || null, req.user.fio || req.user.login]);
 
+    // Новый год сбора — «чистый лист» по актуальности конкурентов: старые
+    // отметки «актуально»/«не актуально» могли устареть за год, HR BP должны
+    // перепроверить каждую заново. Сами анкеты (surveys) не трогаем — они
+    // просто перестают быть «текущим периодом» за счёт period_id (см.
+    // surveyController.saveSurveyDetails и authController.getUserPayload).
+    if (cleanState === 'открыт') {
+      await run("UPDATE competitors SET actual = 'уточнить'");
+    }
+
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'период сбора',
-      `Период: ${cleanName}, Статус: ${cleanState}`
+      `Период: ${cleanName}, Статус: ${cleanState}` + (cleanState === 'открыт' ? ' (актуальность конкурентов сброшена)' : '')
     ]);
 
     const updated = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
