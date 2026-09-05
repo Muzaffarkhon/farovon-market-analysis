@@ -1508,13 +1508,13 @@ exports.importSurvey = async (req, res) => {
   }
 
   try {
-    const [divisions, users, dc, dp, existing, period] = await Promise.all([
+    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
+    const [divisions, users, dc, dp, existing] = await Promise.all([
       queryAll('SELECT unit FROM divisions'),
       queryAll('SELECT fio FROM users WHERE archived_at IS NULL'),
       queryAll('SELECT name FROM dictionary_companies'),
       queryAll('SELECT name FROM dictionary_positions'),
-      queryAll("SELECT sid, unit, company, pos_their, pay_from FROM surveys WHERE state = 'активна'"),
-      queryOne('SELECT name FROM periods ORDER BY id DESC LIMIT 1'),
+      queryAll("SELECT sid, unit, company, pos_their, pay_from FROM surveys WHERE state = 'активна' AND period_id = ?", [period.id]),
     ]);
 
     const norm = surveyImport.norm;
@@ -1584,11 +1584,11 @@ exports.importSurvey = async (req, res) => {
           sql: `UPDATE surveys SET company = ?, pos_our = ?, pos_their = ?, pay_from = ?, pay_to = ?,
                   cur = ?, pay_per = ?, bon_has = ?, bon_size = ?, bon_per = ?, benefits = ?,
                   schedule = ?, source = ?, note = ?, created_by = ?, created_at = ?, period = ?
-                WHERE sid = ?`,
+                WHERE sid = ? AND period_id = ?`,
           args: [
             p.company, p.pos_our, p.pos_their, p.pay_from, p.pay_to, p.cur, p.pay_per,
             p.bon_has, p.bon_size, p.bon_per, p.benefits, p.schedule, p.source, p.note,
-            p.created_by, p.created_at, p.period, p._dupOf,
+            p.created_by, p.created_at, p.period, p._dupOf, period.id,
           ],
         });
         updated++;
@@ -1598,12 +1598,12 @@ exports.importSurvey = async (req, res) => {
         sql: `INSERT INTO surveys
                 (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per,
                  bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note,
-                 created_by, created_at, state, period)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 created_by, created_at, state, period, period_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           p.sid, p.unit, p.company, p.pos_our, p.pos_their, p.grade, p.pay_from, p.pay_to,
           p.cur, p.pay_per, p.bon_has, p.bon_size, p.bon_type, p.bon_per, p.benefits,
-          p.schedule, p.extra, p.source, p.trust, p.note, p.created_by, p.created_at, p.state, p.period,
+          p.schedule, p.extra, p.source, p.trust, p.note, p.created_by, p.created_at, p.state, p.period, period.id,
         ],
       });
       inserted++;

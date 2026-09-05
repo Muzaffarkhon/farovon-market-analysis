@@ -424,7 +424,7 @@ exports.saveSurveyDetails = async (req, res) => {
           groupUnits.forEach(gu => {
             const sid = (idx[gu] || {})[k];
             if (sid) {
-              gStmts.push({ sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?", args: [sid, gu] });
+              gStmts.push({ sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ? AND period_id = ?", args: [sid, gu, period.id] });
               removedPairs++;
             }
           });
