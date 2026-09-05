@@ -3300,7 +3300,7 @@ function renderDashboard(){
   wireNiceSelect('dashRegion', function(v){ S.dashFilters.region = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
-    S.dashFilters = { dir:'', hrbp:'', region:'', search:'' };
+    S.dashFilters = { dir:'', hrbp:'', region:'', search:'', period:S.dashFilters.period };
     setNiceSelect('dashDir', '');
     setNiceSelect('dashHrbp', '');
     setNiceSelect('dashRegion', '');
