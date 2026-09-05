@@ -117,13 +117,14 @@ exports.logout = async (req, res) => {
 async function getPeriodInfo() {
   const p = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
   return p ? {
+    id: p.id,
     name: p.name,
     state: p.state,
     from: p.from_date || '',
     to: p.to_date || '',
     by: p.updated_by || '',
     at: p.updated_at || ''
-  } : { name: 'Обзор рынка', state: 'открыт' };
+  } : { id: null, name: 'Обзор рынка', state: 'открыт' };
 }
 
 async function getUserPayload(user) {
@@ -153,6 +154,8 @@ async function getUserPayload(user) {
   //    + сброс при правках через админку, чтобы не бить в Turso на каждый
   //    вход/resume. compRows/survRows не кэшируем: это данные пользователя,
   //    меняются постоянно и должны отражаться сразу.
+  const period = await cached('period', () => getPeriodInfo(), 30 * 1000);
+
   const [
     allUnits,
     compRows,
@@ -163,7 +166,6 @@ async function getUserPayload(user) {
     regRows,
     customSegments,
     customRegions,
-    period,
     roleCaps
   ] = await Promise.all([
     cached('divisions', async () => {
@@ -178,7 +180,7 @@ async function getUserPayload(user) {
       }
     }),
     queryAll('SELECT unit, actual FROM competitors'),
-    queryAll("SELECT unit FROM surveys WHERE state != 'удалена'"),
+    queryAll("SELECT unit FROM surveys WHERE state != 'удалена' AND period_id = ?", [period.id]),
     cached('dictCompanies', () => withDirs(
       "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
@@ -193,7 +195,6 @@ async function getUserPayload(user) {
               UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> '' ORDER BY v`)),
     cached('customSegments', () => safeNames('dictionary_segments')),
     cached('customRegions', () => safeNames('dictionary_regions')),
-    cached('period', () => getPeriodInfo(), 30 * 1000),
     (user.role === 'admin')
       ? Promise.resolve([])
       : cached('roleCaps:' + user.role, () => queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]).catch(() => []))
@@ -264,7 +265,7 @@ async function getUserPayload(user) {
     : Promise.resolve([]);
 
   const userSurveysPromise = (myUnits.length > 0)
-    ? queryAll(`SELECT * FROM surveys WHERE unit IN (${myUnits.map(() => '?').join(',')}) AND state != 'удалена'`, myUnits)
+    ? queryAll(`SELECT * FROM surveys WHERE unit IN (${myUnits.map(() => '?').join(',')}) AND state != 'удалена' AND period_id = ?`, [...myUnits, period.id])
     : Promise.resolve([]);
 
   const staffingPromise = (async () => {
@@ -299,7 +300,7 @@ async function getUserPayload(user) {
         const [posRows, compRowsGroup, survRowsGroup] = await Promise.all([
           queryAll(`SELECT unit, position FROM unit_positions WHERE unit IN (${up})`, unitsInGroup),
           queryAll(`SELECT unit, company FROM competitors WHERE unit IN (${up})`, unitsInGroup),
-          queryAll(`SELECT * FROM surveys WHERE unit IN (${up}) AND state != 'удалена'`, unitsInGroup)
+          queryAll(`SELECT * FROM surveys WHERE unit IN (${up}) AND state != 'удалена' AND period_id = ?`, [...unitsInGroup, period.id])
         ]);
 
         posRows.forEach(r => {
