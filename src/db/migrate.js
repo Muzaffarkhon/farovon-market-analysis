@@ -310,6 +310,20 @@ async function migrate() {
     }
   }
 
+  // Точечный доступ к редактированию архивного года — см. docs/superpowers/
+  // specs/2026-09-05-archive-edit-access-design.md. UNIQUE(user_login,
+  // period_id) — повторная выдача тому же человеку на тот же год обновляет
+  // срок, а не плодит дубликаты (см. adminController.grantPeriodEdit).
+  await run(`CREATE TABLE IF NOT EXISTS period_edit_grants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_login TEXT NOT NULL,
+    period_id INTEGER NOT NULL REFERENCES periods(id),
+    granted_by TEXT NOT NULL,
+    granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    UNIQUE(user_login, period_id)
+  )`);
+
   console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
 }
 
