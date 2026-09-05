@@ -1436,6 +1436,7 @@ function openUnit(unit, backTo){
   S.appView = 'unit';
   S.unit = unit;
   S.tab = 'comp';
+  S.editingPeriodId = null;
   saveNavState();
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
                       .map(function(r){ return JSON.parse(JSON.stringify(r)); });
@@ -1506,16 +1507,19 @@ function renderUnit(){
   var c = counts();
   var step1done = c.all > 0 && c.done === c.all;
 
+  var inArchiveMode = !!S.editingPeriodId;
   var h = '<div class="unit-content-wrap">'+
+    '<div id="unitPeriodBanner"></div>'+
     '<div class="unit-sticky-bar">'+
       '<div class="sub-tabs unit-step-tabs">'+
+        (inArchiveMode ? '' :
         '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'">'+
           'Шаг 1. Участники рынка'+
           ' <span class="badge '+(step1done?'b-active':'b-dim')+'" style="margin-left:4px">'+c.done+'/'+c.all+'</span>'+
           (c.ask ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">?'+c.ask+' на уточнении</span>' : '')+
-        '</button>'+
+        '</button>')+
         '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'">'+
-          'Шаг 2. Данные по рынку'+
+          (inArchiveMode ? 'Данные по рынку (архив)' : 'Шаг 2. Данные по рынку')+
           ' <span class="badge '+(S.surveys.length>0?'b-active':'b-dim')+'" style="margin-left:4px">'+svLabel()+'</span>'+
         '</button>'+
       '</div>'+
@@ -1524,6 +1528,9 @@ function renderUnit(){
     '<div id="tabBody"></div>'+
   '</div>';
   $('body').innerHTML = h;
+  renderUnitPeriodBanner();
+
+  if(inArchiveMode) S.tab = 'survey';
 
   $('body').querySelector('.unit-step-tabs').onclick = function(e){
     var b = e.target.closest('button[data-tab]');
@@ -1532,12 +1539,87 @@ function renderUnit(){
     renderUnit();
   };
 
-  if(S.tab === 'comp') renderTabComp();
+  if(S.tab === 'comp' && !inArchiveMode) renderTabComp();
   else renderTabSurvey();
 
   $('bar').classList.remove('hidden');
   document.body.classList.add('has-bar');
   updateProgress();
+}
+
+function renderUnitPeriodBanner(){
+  var el = $('unitPeriodBanner');
+  if(!el) return;
+  var grants = (S.data.myPeriodGrants || []);
+  if(!grants.length){ el.innerHTML = ''; return; }
+
+  var curName = (S.data.period && S.data.period.name) || 'текущий';
+  var options = [{ id:null, label: curName + ' (текущий)' }].concat(grants.map(function(g){
+    return { id: g.periodId, label: g.periodName + ' (архив, ' + periodGrantTimeLeft(g.expiresAt) + ')' };
+  }));
+
+  el.innerHTML = '<div class="unit-period-banner" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
+    options.map(function(o){
+      var on = (S.editingPeriodId || null) === o.id;
+      return '<button type="button" class="sub-tab'+(on?' on':'')+'" data-pid="'+esc(o.id==null?'':String(o.id))+'">'+esc(o.label)+'</button>';
+    }).join('')+
+  '</div>';
+
+  el.querySelectorAll('button[data-pid]').forEach(function(btn){
+    btn.onclick = function(){
+      var pid = btn.dataset.pid ? Number(btn.dataset.pid) : null;
+      switchUnitEditingPeriod(pid);
+    };
+  });
+}
+
+function switchUnitEditingPeriod(periodId){
+  if(periodId === (S.editingPeriodId || null)) return;
+
+  if(periodId == null){
+    S.editingPeriodId = null;
+    S.surveys = S.data.surveys.filter(function(r){ return r.unit === S.unit; })
+                              .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+    S.removed = [];
+    $('btnSave').onclick = function(){ save(false); };
+    renderUnit();
+    return;
+  }
+
+  call('apiSurveysForPeriod', S.token, S.unit, periodId).then(function(res){
+    if(!res || !res.ok){ toast((res&&res.error)||'Ошибка загрузки архивных данных', 'no'); return; }
+    S.editingPeriodId = periodId;
+    S.surveys = res.surveys || [];
+    S.removed = [];
+    $('btnSave').onclick = function(){ doSaveArchive(); };
+    renderUnit();
+  });
+}
+
+function doSaveArchive(){
+  if(S.saving) return;
+  S.saving = true;
+  $('btnSave').disabled = true;
+  $('btnSave').textContent = 'Сохраняем…';
+
+  call('apiSaveSurvey', S.token, { unit: S.unit, upsert: S.surveys, remove: S.removed, periodId: S.editingPeriodId }).then(function(res){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+
+    if(!res || !res.ok){
+      toast((res && res.error) || 'Не удалось сохранить', 'no');
+      return;
+    }
+
+    S.surveys.forEach(function(x, k){
+      if(!x.id) x.id = (res.newIds && res.newIds[k]) || x.id;
+    });
+    S.removed = [];
+    S.dirty = false;
+    toast('Архивные данные сохранены', 'ok');
+    renderTabSurvey();
+  });
 }
 
 // ─────────── Вкладка 1: конкуренты ───────────
@@ -2686,15 +2768,21 @@ function markDirty(){
   if(S.ro) return;
   var was = S.dirty;
   S.dirty = true;
-  store.set(LS_DRAFT+S.unit, JSON.stringify({
-    rows: S.rows,
-    added: S.added,
-    surveys: S.surveys,
-    removed: S.removed,
-    note: S.note,
-    tab: S.tab || 'comp',
-    savedAt: new Date().toISOString()
-  }));
+  // Локальный черновик привязан только к unit, без учёта года — в архивном
+  // режиме НЕ сохраняем его, иначе он может подмешать архивные правки в
+  // черновик текущего года при следующем обычном открытии этого же
+  // подразделения (ключ LS_DRAFT+unit один и тот же для обоих режимов).
+  if(!S.editingPeriodId){
+    store.set(LS_DRAFT+S.unit, JSON.stringify({
+      rows: S.rows,
+      added: S.added,
+      surveys: S.surveys,
+      removed: S.removed,
+      note: S.note,
+      tab: S.tab || 'comp',
+      savedAt: new Date().toISOString()
+    }));
+  }
   if(!was){
     var b = $('btnSave');
     if(b) b.classList.toggle('hidden', S.ro);
