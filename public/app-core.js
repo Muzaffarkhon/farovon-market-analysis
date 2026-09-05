@@ -673,6 +673,11 @@ var API_ROUTES = {
   apiTelegramUnlink: function(args){ return fetchJson('/api/telegram/unlink', { method:'POST', token:args[0] }); },
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
+  apiSurveysForPeriod: function(args){ return fetchJson('/api/survey/for-period', { method:'POST', token:args[0], body:{ unit:args[1], periodId:args[2] } }); },
+  apiPeriodGrantsPanel: function(args){ return fetchJson('/api/admin/period-grants', { method:'GET', token:args[0] }); },
+  apiPeriodGrantUsers: function(args){ return fetchJson('/api/admin/period-grants/users', { method:'GET', token:args[0] }); },
+  apiPeriodGrantCreate: function(args){ return fetchJson('/api/admin/period-grants', { method:'POST', token:args[0], body:{ userLogin:args[1], periodId:args[2] } }); },
+  apiPeriodGrantRevoke: function(args){ return fetchJson('/api/admin/period-grants/revoke', { method:'POST', token:args[0], body:{ userLogin:args[1], periodId:args[2] } }); },
   apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
   // Обе кнопки «+ Добавить» в пикере вызывали методы, которых в этой таблице
   // не было: call() отклонял промис ещё до сети, и пользователь видел «Нет
