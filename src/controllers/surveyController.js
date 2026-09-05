@@ -328,7 +328,7 @@ exports.saveSurveyDetails = async (req, res) => {
   }
 
   try {
-    const period = (await queryOne('SELECT state, name FROM periods ORDER BY id DESC LIMIT 1')) || { state: 'открыт', name: 'Обзор рынка' };
+    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
     if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
     }
@@ -363,8 +363,8 @@ exports.saveSurveyDetails = async (req, res) => {
         const nowIso = new Date().toISOString();
         const ph = groupUnits.map(() => '?').join(',');
         const existingRows = await queryAll(
-          `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна'`,
-          groupUnits
+          `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна' AND period_id = ?`,
+          [...groupUnits, period.id]
         );
         // индекс: unit -> "posKey|coKey" -> sid; и обратный sid -> "posKey|coKey"
         const idx = {};
@@ -386,22 +386,22 @@ exports.saveSurveyDetails = async (req, res) => {
                 sql: `UPDATE surveys
                       SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
                           bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
-                      WHERE sid = ? AND unit = ?`,
+                      WHERE sid = ? AND unit = ? AND period_id = ?`,
                 args: [
                   s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
                   s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-                  sid, gu
+                  sid, gu, period.id
                 ]
               });
             } else {
               const newSid = newRowId('s');
               gStmts.push({
-                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period, period_id)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?, ?)`,
                 args: [
                   newSid, gu, s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
                   s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-                  req.user.fio || req.user.login, nowIso, period.name
+                  req.user.fio || req.user.login, nowIso, period.name, period.id
                 ]
               });
             }
@@ -463,8 +463,8 @@ exports.saveSurveyDetails = async (req, res) => {
     if (touchedSids.length) {
       const placeholders = touchedSids.map(() => '?').join(',');
       const existing = await queryAll(
-        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
-        [unit, ...touchedSids]);
+        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders}) AND period_id = ?`,
+        [unit, ...touchedSids, period.id]);
       existing.forEach(x => { ownerBySid[x.sid] = x; });
     }
 
@@ -477,8 +477,8 @@ exports.saveSurveyDetails = async (req, res) => {
           return;
         }
         stmts.push({
-          sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?",
-          args: [sid, unit]
+          sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ? AND period_id = ?",
+          args: [sid, unit, period.id]
         });
       });
     }
@@ -497,13 +497,13 @@ exports.saveSurveyDetails = async (req, res) => {
           sql: `UPDATE surveys
                 SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
                     bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
-                WHERE sid = ? AND unit = ?`,
+                WHERE sid = ? AND unit = ? AND period_id = ?`,
           args: [
             s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-            sid, unit
+            sid, unit, period.id
           ]
         });
         newIds.push(sid);
@@ -511,14 +511,14 @@ exports.saveSurveyDetails = async (req, res) => {
         sid = newRowId('s');
         newIds.push(sid);
         stmts.push({
-          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period, period_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?, ?)`,
           args: [
             sid, unit, s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-            req.user.fio || req.user.login, now, period.name
+            req.user.fio || req.user.login, now, period.name, period.id
           ]
         });
       }
