@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
+const { resolveEditablePeriod } = require('../services/periodAccessService');
 
 // Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
 // одинаков, а Math.random().slice(2,7) — всего ~60 млн вариантов, при десятках
@@ -247,7 +248,7 @@ exports.saveSurveyData = async (req, res) => {
 };
 
 exports.saveSurveyDetails = async (req, res) => {
-  const { unit, upsert, remove, groupKey } = req.body;
+  const { unit, upsert, remove, groupKey, periodId } = req.body;
   if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
@@ -328,8 +329,21 @@ exports.saveSurveyDetails = async (req, res) => {
   }
 
   try {
-    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
-    if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+    const period = resolved.period;
+    // Проверка «период закрыт → только элевейтед-роли» имеет смысл ТОЛЬКО
+    // для текущего (последнего) периода — это временное состояние между
+    // закрытием и открытием следующего года. Для архивного периода admin
+    // уже разрешён resolveEditablePeriod безусловно, а для остальных ролей
+    // единственный путь сюда — живой грант, который сам по себе достаточное
+    // разрешение (иначе грант никогда бы не сработал ни для кого, кроме
+    // hrbp/admin/cb, что противоречит всей цели этой задачи).
+    const latestRow = await queryOne('SELECT id, state FROM periods ORDER BY id DESC LIMIT 1');
+    const isCurrentPeriod = !latestRow || period.id === latestRow.id;
+    if (isCurrentPeriod && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
     }
 
