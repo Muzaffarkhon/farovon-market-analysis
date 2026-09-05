@@ -7611,8 +7611,8 @@ function loadPeriodGrantsPanel(){
       $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
     } else {
       $('periodGrantsForm').innerHTML =
-        niceSelect({ id:'grantUserSel', width:220, items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
-        niceSelect({ id:'grantPeriodSel', width:200, items: periods.map(function(p){ return { v:String(p.id), label:p.name }; }) })+
+        niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
+        niceSelect({ id:'grantPeriodSel', width:200, value: periods[0] ? String(periods[0].id) : '', items: periods.map(function(p){ return { v:String(p.id), label:p.name }; }) })+
         '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
       wireNiceSelect('grantUserSel', function(){});
       wireNiceSelect('grantPeriodSel', function(){});
