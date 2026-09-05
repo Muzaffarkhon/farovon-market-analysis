@@ -111,7 +111,7 @@ var S = {
   appView:'units', // 'units' | 'dashboard' | 'admin'
   dashTab:'overview', // 'overview' | 'salaries' | 'registry' | 'progress' | 'benefits'
   adminTab:'users', // 'users' | 'divisions' | 'period' | 'tools'
-  dashFilters:{ dir:'', hrbp:'', region:'', search:'' },
+  dashFilters:{ dir:'', hrbp:'', region:'', search:'', period:'' },
   dashData:null, adminUsers:null, adminDivs:null,
   rows:[], added:[],                 // конкуренты
   surveys:[], removed:[],            // данные по должностям

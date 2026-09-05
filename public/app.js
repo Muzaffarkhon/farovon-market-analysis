@@ -3243,7 +3243,10 @@ function renderDashboard(){
   // Общий фильтр — направление, HR BP, регион (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
+  var periodsList = d.periodsList || [];
   h += '<div id="dashFilterBar" class="toolbar dash-filters"'+(filterHidden ? ' style="display:none"' : '')+'>'+
+    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:200,
+      items: periodsList.map(function(p){ return { v:String(p.id), label:p.name }; }) }) : '')+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
@@ -3291,6 +3294,7 @@ function renderDashboard(){
     };
   });
 
+  wireNiceSelect('dashPeriod', function(v){ S.dashFilters.period = v; fetchDashboard(true); });
   wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
   wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
   wireNiceSelect('dashRegion', function(v){ S.dashFilters.region = v; fetchDashboard(true); });
