@@ -1576,24 +1576,34 @@ function renderUnitPeriodBanner(){
 function switchUnitEditingPeriod(periodId){
   if(periodId === (S.editingPeriodId || null)) return;
 
-  if(periodId == null){
-    S.editingPeriodId = null;
-    S.surveys = S.data.surveys.filter(function(r){ return r.unit === S.unit; })
-                              .map(function(r){ return JSON.parse(JSON.stringify(r)); });
-    S.removed = [];
-    $('btnSave').onclick = function(){ save(false); };
-    renderUnit();
-    return;
+  function doSwitch(){
+    if(periodId == null){
+      S.editingPeriodId = null;
+      S.surveys = S.data.surveys.filter(function(r){ return r.unit === S.unit; })
+                                .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+      S.removed = [];
+      S.dirty = false;
+      $('btnSave').onclick = function(){ save(false); };
+      renderUnit();
+      return;
+    }
+
+    call('apiSurveysForPeriod', S.token, S.unit, periodId).then(function(res){
+      if(!res || !res.ok){ toast((res&&res.error)||'Ошибка загрузки архивных данных', 'no'); return; }
+      S.editingPeriodId = periodId;
+      S.surveys = res.surveys || [];
+      S.removed = [];
+      S.dirty = false;
+      $('btnSave').onclick = function(){ doSaveArchive(); };
+      renderUnit();
+    });
   }
 
-  call('apiSurveysForPeriod', S.token, S.unit, periodId).then(function(res){
-    if(!res || !res.ok){ toast((res&&res.error)||'Ошибка загрузки архивных данных', 'no'); return; }
-    S.editingPeriodId = periodId;
-    S.surveys = res.surveys || [];
-    S.removed = [];
-    $('btnSave').onclick = function(){ doSaveArchive(); };
-    renderUnit();
-  });
+  if(S.dirty){
+    askDirty('Переключить период').then(function(yes){ if(yes) doSwitch(); });
+  } else {
+    doSwitch();
+  }
 }
 
 function doSaveArchive(){
