@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS surveys (
   created_by TEXT,
   created_at DATETIME,
   state TEXT DEFAULT 'активна',
-  period TEXT
+  period TEXT,
+  period_id INTEGER REFERENCES periods(id)
 );
 
 CREATE TABLE IF NOT EXISTS dictionary_companies (

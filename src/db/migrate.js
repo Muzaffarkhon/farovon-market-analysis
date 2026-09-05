@@ -1,4 +1,4 @@
-const { queryAll, run } = require('./database');
+const { queryAll, queryOne, run } = require('./database');
 const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
 
 /**
@@ -293,6 +293,23 @@ async function migrate() {
       [key, title, kind, is_licensed, default_currency, notes]
     );
   }
+  // Годовой архив обзора рынка: анкета получает жёсткую привязку к периоду
+  // сбора (period_id → periods.id) вместо неиспользуемой текстовой метки
+  // period. Нужно, чтобы дашборд мог фильтровать по году, а форма заполнения
+  // — не путать анкеты этого года с прошлогодними (см. docs/superpowers/
+  // specs/2026-09-04-yearly-archive-design.md).
+  const addedPeriodId = await ensureColumn('surveys', 'period_id', 'INTEGER REFERENCES periods(id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_surveys_period ON surveys(period_id)');
+  if (addedPeriodId) {
+    // Все анкеты, заполненные до этой миграции, считаются первым годом
+    // архива — переносим их на самый первый (старейший) период сбора.
+    const firstPeriod = await queryOne('SELECT id FROM periods ORDER BY id ASC LIMIT 1');
+    if (firstPeriod) {
+      await run('UPDATE surveys SET period_id = ? WHERE period_id IS NULL', [firstPeriod.id]);
+      console.log(`🔧 Миграция: surveys.period_id проставлен для существующих анкет (период #${firstPeriod.id})`);
+    }
+  }
+
   console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
 }
 
