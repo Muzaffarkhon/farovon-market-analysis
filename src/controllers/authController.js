@@ -156,6 +156,13 @@ async function getUserPayload(user) {
   //    меняются постоянно и должны отражаться сразу.
   const period = await cached('period', () => getPeriodInfo(), 30 * 1000);
 
+  const myPeriodGrantsRaw = await queryAll(
+    `SELECT g.period_id AS "periodId", p.name AS "periodName", g.expires_at AS "expiresAt"
+     FROM period_edit_grants g JOIN periods p ON p.id = g.period_id
+     WHERE g.user_login = ? AND g.expires_at > CURRENT_TIMESTAMP`,
+    [user.login]
+  );
+
   const [
     allUnits,
     compRows,
@@ -371,6 +378,7 @@ async function getUserPayload(user) {
       capabilities
     },
     period,
+    myPeriodGrants: myPeriodGrantsRaw,
     mustChangePassword: !!user.must_change_password,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
     needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),
