@@ -7516,6 +7516,7 @@ function openBulkDeptAssignModal(myDir, employees){
 function renderAdminPeriod(){
   var p = S.data.period || {};
   var closed = p.state === 'закрыт';
+  var canEdit = hasCap('period:edit');
 
   var h = '<div class="card period-card">'+
     '<div class="period-card-kicker">Текущий период сбора</div>'+
@@ -7525,9 +7526,11 @@ function renderAdminPeriod(){
       (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
       (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(fmtDateTime(p.at))+')':'') : '') +
     '</div>'+
-    (closed
-      ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
-      : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')+
+    (canEdit
+      ? (closed
+          ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
+          : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')
+      : '')+
   '</div>';
 
   $('adminContent').innerHTML = h;
