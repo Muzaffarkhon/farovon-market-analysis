@@ -234,6 +234,17 @@ function calculateSalaryForkStats(fromSamples, toSamples, midSamples) {
   return { min, p25, median, p75, max, avg, spread };
 }
 
+/**
+ * Какой period_id показывать на дашборде. Фронт присылает filters.period —
+ * пустая строка/undefined значит «текущий год» (по умолчанию), иначе это
+ * id конкретного архивного года, выбранного в переключателе.
+ */
+function resolveDashboardPeriodId(rawFilterValue, currentPeriodId) {
+  const n = parseInt(rawFilterValue, 10);
+  if (Number.isFinite(n) && n > 0) return n;
+  return currentPeriodId || null;
+}
+
 async function getExtendedAnalytics(filters = {}, opts = {}) {
   const filterDir = (filters.dir || '').trim();
   const filterHrbp = (filters.hrbp || '').trim();
@@ -245,6 +256,12 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   // подразделениям. Предикат по строке divisions приходит из контроллера.
   const unitFilter = typeof opts.unitFilter === 'function' ? opts.unitFilter : null;
 
+  // Годовой архив: без явного filters.period дашборд показывает последний
+  // (текущий) период — periodsList уходит на фронт для выпадающего списка.
+  const periodsList = await queryAll('SELECT id, name FROM periods ORDER BY id DESC');
+  const currentPeriodId = periodsList.length ? periodsList[0].id : null;
+  const viewingPeriodId = resolveDashboardPeriodId(filters.period, currentPeriodId);
+
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
   const [divisionsRaw, competitors, surveys, posDict] = await Promise.all([
     // region добавлена миграцией; на не мигрированной базе колонки может не быть.
@@ -252,7 +269,9 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       .catch(() => queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions')
         .then(rows => rows.map(r => ({ ...r, region: '' })))),
     queryAll('SELECT unit, actual FROM competitors'),
-    queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
+    viewingPeriodId
+      ? queryAll("SELECT * FROM surveys WHERE state != 'удалена' AND period_id = ?", [viewingPeriodId])
+      : queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
     queryAll('SELECT name, COALESCE(pay_from,0) AS pay_from, COALESCE(pay_to,0) AS pay_to FROM dictionary_positions')
       .catch(() => [])
   ]);
@@ -656,7 +675,9 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       to: periodRow.to_date || '',
       by: periodRow.updated_by || '',
       at: periodRow.updated_at || ''
-    }
+    },
+    periodsList: periodsList.map(p => ({ id: p.id, name: p.name })),
+    viewingPeriodId
   };
 }
 
@@ -669,5 +690,6 @@ module.exports = {
   parseBonusSize,
   perToMonthlyFactor,
   normPeriod,
-  summarizeVarPay
+  summarizeVarPay,
+  resolveDashboardPeriodId,
 };
