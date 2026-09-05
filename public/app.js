@@ -7531,9 +7531,16 @@ function renderAdminPeriod(){
           ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
           : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')
       : '')+
-  '</div>';
+  '</div>'+
+  (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
+    '<div class="period-card-kicker">Доступ к редактированию архива</div>'+
+    '<div id="periodGrantsForm" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>'+
+    '<div id="periodGrantsList">Загрузка…</div>'+
+  '</div>' : '');
 
   $('adminContent').innerHTML = h;
+
+  if(canEdit) loadPeriodGrantsPanel();
 
   if($('btnAdminPeriodOpen')){
     $('btnAdminPeriodOpen').onclick = function(){
@@ -7578,6 +7585,78 @@ function renderAdminPeriod(){
       });
     };
   }
+}
+
+function periodGrantTimeLeft(expiresAt){
+  var ms = new Date(expiresAt).getTime() - Date.now();
+  if(ms <= 0) return 'истёк';
+  var h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return (h>0 ? h+'ч ' : '') + m+'м';
+}
+
+function loadPeriodGrantsPanel(){
+  Promise.all([
+    call('apiPeriodGrantsPanel', S.token),
+    call('apiPeriodGrantUsers', S.token)
+  ]).then(function(res){
+    var panel = res[0], usersRes = res[1];
+    if(!panel || !panel.ok){
+      $('periodGrantsList').innerHTML = '<div class="err">'+esc((panel&&panel.error)||'Ошибка загрузки')+'</div>';
+      return;
+    }
+    var periods = panel.periods || [];
+    var users = (usersRes && usersRes.ok ? usersRes.users : []).filter(function(u){ return u.active; });
+
+    if(!periods.length){
+      $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
+    } else {
+      $('periodGrantsForm').innerHTML =
+        niceSelect({ id:'grantUserSel', width:220, items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
+        niceSelect({ id:'grantPeriodSel', width:200, items: periods.map(function(p){ return { v:String(p.id), label:p.name }; }) })+
+        '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
+      wireNiceSelect('grantUserSel', function(){});
+      wireNiceSelect('grantPeriodSel', function(){});
+      $('btnGrantPeriod').onclick = function(){
+        var userLogin = $('grantUserSel').dataset.value;
+        var periodId = $('grantPeriodSel').dataset.value;
+        if(!userLogin || !periodId){ toast('Выберите сотрудника и год', 'no'); return; }
+        call('apiPeriodGrantCreate', S.token, userLogin, Number(periodId)).then(function(r){
+          if(r && r.ok){ toast('Доступ выдан на 24 часа'); loadPeriodGrantsPanel(); }
+          else toast((r&&r.error)||'Ошибка', 'no');
+        });
+      };
+    }
+
+    renderPeriodGrantsList(panel.grants || []);
+  });
+}
+
+function renderPeriodGrantsList(grants){
+  if(!grants.length){
+    $('periodGrantsList').innerHTML = '<div class="note">Сейчас нет активных выданных доступов.</div>';
+    return;
+  }
+  $('periodGrantsList').innerHTML = '<table class="co-tbl"><thead><tr>'+
+    '<th>Сотрудник</th><th>Год</th><th>Истекает</th><th></th>'+
+    '</tr></thead><tbody>'+
+    grants.map(function(g){
+      return '<tr>'+
+        '<td>'+esc(g.userFio)+'</td>'+
+        '<td>'+esc(g.periodName)+'</td>'+
+        '<td>'+periodGrantTimeLeft(g.expiresAt)+'</td>'+
+        '<td><button class="btn-ghost btn-danger" data-revoke-user="'+esc(g.userLogin)+'" data-revoke-period="'+g.periodId+'">Отозвать</button></td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table>';
+
+  $('periodGrantsList').querySelectorAll('button[data-revoke-user]').forEach(function(btn){
+    btn.onclick = function(){
+      call('apiPeriodGrantRevoke', S.token, btn.dataset.revokeUser, Number(btn.dataset.revokePeriod)).then(function(r){
+        if(r && r.ok){ toast('Доступ отозван'); loadPeriodGrantsPanel(); }
+        else toast((r&&r.error)||'Ошибка', 'no');
+      });
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
