@@ -75,11 +75,11 @@ exports.getCBDashboard = async (req, res) => {
 
 exports.getHRBPDashboard = async (req, res) => {
   try {
-    const [divisions, competitors, surveys, periodRaw] = await Promise.all([
+    const periodRaw = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
+    const [divisions, competitors, surveys] = await Promise.all([
       queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
       queryAll('SELECT unit, actual, updated_at FROM competitors'),
-      queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена'"),
-      queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')
+      queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
     ]);
 
     const compMap = {};

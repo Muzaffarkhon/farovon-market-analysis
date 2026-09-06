@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
+const { resolveEditablePeriod } = require('../services/periodAccessService');
 
 // Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
 // одинаков, а Math.random().slice(2,7) — всего ~60 млн вариантов, при десятках
@@ -128,6 +129,40 @@ exports.normalizeBonuses = normalizeBonuses;
 exports.bonusesLegacy = bonusesLegacy;
 exports.bonusesFromRow = bonusesFromRow;
 
+// Приведение строки surveys к форме для фронта. Вынесено сюда (а не в
+// authController.js, где раньше жила локальная копия), потому что от неё
+// зависят benefitsToList/bonusesFromRow — обе уже определены и экспортированы
+// именно в этом файле. Используется и здесь (getSurveysForPeriod), и в
+// authController.js (анкеты пользователя + анкеты смежной группы).
+function mapSurveyRow(s) {
+  return {
+    id: s.sid,
+    unit: s.unit,
+    company: s.company,
+    posOur: s.pos_our,
+    posTheir: s.pos_their || '',
+    grade: s.grade || '',
+    payFrom: s.pay_from || '',
+    payTo: s.pay_to || '',
+    cur: s.cur || 'сомони',
+    payPer: s.pay_per || 'в месяц',
+    bonuses: bonusesFromRow(s),
+    bonHas: s.bon_has || 'не знаю',
+    bonSize: s.bon_size || '',
+    bonType: s.bon_type || '',
+    bonPer: s.bon_per || '',
+    schedule: s.schedule || '',
+    benefits: benefitsToList(s.benefits),
+    note: s.note || '',
+    source: s.source || '',
+    trust: s.trust || '',
+    by: s.created_by || '',
+    at: s.created_at || ''
+  };
+}
+
+exports.mapSurveyRow = mapSurveyRow;
+
 exports.saveSurveyData = async (req, res) => {
   const { unit, rows, added, note, submit } = req.body;
   if (!unit || !String(unit).trim()) {
@@ -247,7 +282,7 @@ exports.saveSurveyData = async (req, res) => {
 };
 
 exports.saveSurveyDetails = async (req, res) => {
-  const { unit, upsert, remove, groupKey } = req.body;
+  const { unit, upsert, remove, groupKey, periodId } = req.body;
   if (!unit || !String(unit).trim()) {
     return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
   }
@@ -328,8 +363,21 @@ exports.saveSurveyDetails = async (req, res) => {
   }
 
   try {
-    const period = (await queryOne('SELECT state, name FROM periods ORDER BY id DESC LIMIT 1')) || { state: 'открыт', name: 'Обзор рынка' };
-    if (period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+    const period = resolved.period;
+    // Проверка «период закрыт → только элевейтед-роли» имеет смысл ТОЛЬКО
+    // для текущего (последнего) периода — это временное состояние между
+    // закрытием и открытием следующего года. Для архивного периода admin
+    // уже разрешён resolveEditablePeriod безусловно, а для остальных ролей
+    // единственный путь сюда — живой грант, который сам по себе достаточное
+    // разрешение (иначе грант никогда бы не сработал ни для кого, кроме
+    // hrbp/admin/cb, что противоречит всей цели этой задачи).
+    const latestRow = await queryOne('SELECT id, state FROM periods ORDER BY id DESC LIMIT 1');
+    const isCurrentPeriod = !latestRow || period.id === latestRow.id;
+    if (isCurrentPeriod && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
     }
 
@@ -344,7 +392,12 @@ exports.saveSurveyDetails = async (req, res) => {
       const ownGrp = await queryOne('SELECT group_key FROM divisions WHERE unit = ?', [String(unit).trim()]);
       if (ownGrp && String(ownGrp.group_key || '').trim()) cleanGroupKey = String(ownGrp.group_key).trim();
     }
-    if (cleanGroupKey) {
+    // Групповой разнос («заполнил раз → на все площадки») имеет смысл только
+    // для ТЕКУЩЕГО периода — это точечное исправление одной анкеты в архивном
+    // году не должно неожиданно задевать соседние площадки группы, у которых
+    // архивный доступ мог вообще не выдаваться. Для архивного периода всегда
+    // проваливаемся в обычный (одноподразделенческий) путь ниже.
+    if (cleanGroupKey && isCurrentPeriod) {
       const groupUnits = (await queryAll(
         'SELECT unit FROM divisions WHERE group_key = ?', [cleanGroupKey]
       )).map(r => r.unit).filter(Boolean);
@@ -363,8 +416,8 @@ exports.saveSurveyDetails = async (req, res) => {
         const nowIso = new Date().toISOString();
         const ph = groupUnits.map(() => '?').join(',');
         const existingRows = await queryAll(
-          `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна'`,
-          groupUnits
+          `SELECT sid, unit, pos_our, company FROM surveys WHERE unit IN (${ph}) AND state = 'активна' AND period_id = ?`,
+          [...groupUnits, period.id]
         );
         // индекс: unit -> "posKey|coKey" -> sid; и обратный sid -> "posKey|coKey"
         const idx = {};
@@ -386,22 +439,22 @@ exports.saveSurveyDetails = async (req, res) => {
                 sql: `UPDATE surveys
                       SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
                           bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
-                      WHERE sid = ? AND unit = ?`,
+                      WHERE sid = ? AND unit = ? AND period_id = ?`,
                 args: [
                   s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
                   s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-                  sid, gu
+                  sid, gu, period.id
                 ]
               });
             } else {
               const newSid = newRowId('s');
               gStmts.push({
-                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+                sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period, period_id)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?, ?)`,
                 args: [
                   newSid, gu, s.company, s.posOur, s.posTheir, s.grade, s.pFrom, s.pTo, s.cur, s.payPer,
                   s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses, s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-                  req.user.fio || req.user.login, nowIso, period.name
+                  req.user.fio || req.user.login, nowIso, period.name, period.id
                 ]
               });
             }
@@ -424,7 +477,7 @@ exports.saveSurveyDetails = async (req, res) => {
           groupUnits.forEach(gu => {
             const sid = (idx[gu] || {})[k];
             if (sid) {
-              gStmts.push({ sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?", args: [sid, gu] });
+              gStmts.push({ sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ? AND period_id = ?", args: [sid, gu, period.id] });
               removedPairs++;
             }
           });
@@ -463,8 +516,8 @@ exports.saveSurveyDetails = async (req, res) => {
     if (touchedSids.length) {
       const placeholders = touchedSids.map(() => '?').join(',');
       const existing = await queryAll(
-        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders})`,
-        [unit, ...touchedSids]);
+        `SELECT sid, company, created_by, source FROM surveys WHERE unit = ? AND sid IN (${placeholders}) AND period_id = ?`,
+        [unit, ...touchedSids, period.id]);
       existing.forEach(x => { ownerBySid[x.sid] = x; });
     }
 
@@ -477,8 +530,8 @@ exports.saveSurveyDetails = async (req, res) => {
           return;
         }
         stmts.push({
-          sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ?",
-          args: [sid, unit]
+          sql: "UPDATE surveys SET state = 'удалена' WHERE sid = ? AND unit = ? AND period_id = ?",
+          args: [sid, unit, period.id]
         });
       });
     }
@@ -497,13 +550,13 @@ exports.saveSurveyDetails = async (req, res) => {
           sql: `UPDATE surveys
                 SET company = ?, pos_our = ?, pos_their = ?, grade = ?, pay_from = ?, pay_to = ?, cur = ?, pay_per = ?,
                     bon_has = ?, bon_size = ?, bon_type = ?, bon_per = ?, bonuses = ?, benefits = ?, schedule = ?, extra = ?, source = ?, trust = ?, note = ?
-                WHERE sid = ? AND unit = ?`,
+                WHERE sid = ? AND unit = ? AND period_id = ?`,
           args: [
             s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-            sid, unit
+            sid, unit, period.id
           ]
         });
         newIds.push(sid);
@@ -511,14 +564,14 @@ exports.saveSurveyDetails = async (req, res) => {
         sid = newRowId('s');
         newIds.push(sid);
         stmts.push({
-          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?)`,
+          sql: `INSERT INTO surveys (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per, bon_has, bon_size, bon_type, bon_per, bonuses, benefits, schedule, extra, source, trust, note, created_by, created_at, state, period, period_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'активна', ?, ?)`,
           args: [
             sid, unit, s.company, s.posOur, s.posTheir, s.grade,
             s.pFrom, s.pTo, s.cur, s.payPer,
             s.bonHas, s.bonSize, s.bonType, s.bonPer, s.bonuses,
             s.benefits, s.schedule, s.extra, s.source, s.trust, s.note,
-            req.user.fio || req.user.login, now, period.name
+            req.user.fio || req.user.login, now, period.name, period.id
           ]
         });
       }
@@ -634,5 +687,67 @@ exports.addDictionaryItem = async (req, res) => {
   } catch (err) {
     console.error('Add dictionary error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка добавления в справочник' });
+  }
+};
+
+/**
+ * Анкеты подразделения за КОНКРЕТНЫЙ год — используется формой заполнения,
+ * когда человек с активным грантом переключается на архивный год (см.
+ * docs/superpowers/specs/2026-09-05-archive-edit-access-design.md). Та же
+ * проверка доступа, что и на сохранении — resolveEditablePeriod.
+ */
+exports.getSurveysForPeriod = async (req, res) => {
+  const { unit, periodId } = req.body;
+  const cleanUnit = String(unit || '').trim();
+  if (!cleanUnit) {
+    return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
+  }
+
+  try {
+    // resolveEditablePeriod решает, какой ГОД доступен (текущий, или архивный
+    // при живом гранте/admin), но ничего не знает про то, какое ПОДРАЗДЕЛЕНИЕ
+    // вправе видеть вызывающий — это ортогональная проверка. Маршрут этого
+    // эндпоинта (в отличие от saveSurveyDetails) не обёрнут requireCapability
+    // и принимает unit из тела запроса напрямую, поэтому без проверки здесь
+    // любой залогиненный пользователь мог бы прочитать чужое подразделение
+    // (при отсутствии periodId — это вообще без каких-либо грантов, просто
+    // текущий период). Логика повторяет authController.getUserPayload:
+    // admin/cb видят всё; остальные — только свои unit'ы (req.user.units) или
+    // unit из той же смежной группы (divisions.group_key), что и один из
+    // своих. Оставлено простым намеренно (без учёта dir_head/иерархии
+    // направлений) — этого достаточно для точечного архивного доступа.
+    const isElevated = req.user.role === 'admin' || req.user.role === 'cb';
+    if (!isElevated) {
+      const myUnits = Array.isArray(req.user.units) ? req.user.units : [];
+      let allowed = myUnits.includes(cleanUnit);
+      if (!allowed && myUnits.length) {
+        const ph = myUnits.map(() => '?').join(',');
+        const groupRow = await queryOne(
+          `SELECT 1 FROM divisions WHERE unit = ? AND group_key <> '' AND group_key IN (
+             SELECT group_key FROM divisions WHERE unit IN (${ph}) AND group_key <> ''
+           )`,
+          [cleanUnit, ...myUnits]
+        );
+        allowed = !!groupRow;
+      }
+      if (!allowed) {
+        return res.status(403).json({ ok: false, error: 'Нет доступа к этому подразделению' });
+      }
+    }
+
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+
+    const surveys = await queryAll(
+      "SELECT * FROM surveys WHERE unit = ? AND state != 'удалена' AND period_id = ?",
+      [cleanUnit, resolved.period.id]
+    );
+
+    res.json({ ok: true, surveys: surveys.map(mapSurveyRow) });
+  } catch (err) {
+    console.error('getSurveysForPeriod error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки анкет за период' });
   }
 };

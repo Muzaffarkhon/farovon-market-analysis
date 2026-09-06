@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS surveys (
   created_by TEXT,
   created_at DATETIME,
   state TEXT DEFAULT 'активна',
-  period TEXT
+  period TEXT,
+  period_id INTEGER REFERENCES periods(id)
 );
 
 CREATE TABLE IF NOT EXISTS dictionary_companies (
@@ -108,6 +109,16 @@ CREATE TABLE IF NOT EXISTS periods (
   to_date TEXT,
   updated_by TEXT,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS period_edit_grants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_login TEXT NOT NULL,
+  period_id INTEGER NOT NULL REFERENCES periods(id),
+  granted_by TEXT NOT NULL,
+  granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  UNIQUE(user_login, period_id)
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (

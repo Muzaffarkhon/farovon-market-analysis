@@ -1436,6 +1436,7 @@ function openUnit(unit, backTo){
   S.appView = 'unit';
   S.unit = unit;
   S.tab = 'comp';
+  S.editingPeriodId = null;
   saveNavState();
   S.rows = S.data.rows.filter(function(r){ return r.unit === unit; })
                       .map(function(r){ return JSON.parse(JSON.stringify(r)); });
@@ -1506,16 +1507,19 @@ function renderUnit(){
   var c = counts();
   var step1done = c.all > 0 && c.done === c.all;
 
+  var inArchiveMode = !!S.editingPeriodId;
   var h = '<div class="unit-content-wrap">'+
+    '<div id="unitPeriodBanner"></div>'+
     '<div class="unit-sticky-bar">'+
       '<div class="sub-tabs unit-step-tabs">'+
+        (inArchiveMode ? '' :
         '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'">'+
           'Шаг 1. Участники рынка'+
           ' <span class="badge '+(step1done?'b-active':'b-dim')+'" style="margin-left:4px">'+c.done+'/'+c.all+'</span>'+
           (c.ask ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">?'+c.ask+' на уточнении</span>' : '')+
-        '</button>'+
+        '</button>')+
         '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'">'+
-          'Шаг 2. Данные по рынку'+
+          (inArchiveMode ? 'Данные по рынку (архив)' : 'Шаг 2. Данные по рынку')+
           ' <span class="badge '+(S.surveys.length>0?'b-active':'b-dim')+'" style="margin-left:4px">'+svLabel()+'</span>'+
         '</button>'+
       '</div>'+
@@ -1524,6 +1528,9 @@ function renderUnit(){
     '<div id="tabBody"></div>'+
   '</div>';
   $('body').innerHTML = h;
+  renderUnitPeriodBanner();
+
+  if(inArchiveMode) S.tab = 'survey';
 
   $('body').querySelector('.unit-step-tabs').onclick = function(e){
     var b = e.target.closest('button[data-tab]');
@@ -1532,12 +1539,114 @@ function renderUnit(){
     renderUnit();
   };
 
-  if(S.tab === 'comp') renderTabComp();
+  if(S.tab === 'comp' && !inArchiveMode) renderTabComp();
   else renderTabSurvey();
 
   $('bar').classList.remove('hidden');
   document.body.classList.add('has-bar');
   updateProgress();
+}
+
+function renderUnitPeriodBanner(){
+  var el = $('unitPeriodBanner');
+  if(!el) return;
+  var grants = (S.data.myPeriodGrants || []);
+  if(!grants.length){ el.innerHTML = ''; return; }
+
+  var curName = (S.data.period && S.data.period.name) || 'текущий';
+  var options = [{ id:null, label: curName + ' (текущий)' }].concat(grants.map(function(g){
+    return { id: g.periodId, label: g.periodName + ' (архив, ' + periodGrantTimeLeft(g.expiresAt) + ')' };
+  }));
+
+  el.innerHTML = '<div class="unit-period-banner" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
+    options.map(function(o){
+      var on = (S.editingPeriodId || null) === o.id;
+      return '<button type="button" class="sub-tab'+(on?' on':'')+'" data-pid="'+esc(o.id==null?'':String(o.id))+'">'+esc(o.label)+'</button>';
+    }).join('')+
+  '</div>';
+
+  el.querySelectorAll('button[data-pid]').forEach(function(btn){
+    btn.onclick = function(){
+      var pid = btn.dataset.pid ? Number(btn.dataset.pid) : null;
+      switchUnitEditingPeriod(pid);
+    };
+  });
+}
+
+function switchUnitEditingPeriod(periodId){
+  if(periodId === (S.editingPeriodId || null)) return;
+
+  function doSwitch(){
+    if(periodId == null){
+      S.editingPeriodId = null;
+      S.surveys = S.data.surveys.filter(function(r){ return r.unit === S.unit; })
+                                .map(function(r){ return JSON.parse(JSON.stringify(r)); });
+      S.removed = [];
+      S.dirty = false;
+      $('btnSave').onclick = function(){ save(false); };
+      renderUnit();
+      return;
+    }
+
+    call('apiSurveysForPeriod', S.token, S.unit, periodId).then(function(res){
+      if(!res || !res.ok){ toast((res&&res.error)||'Ошибка загрузки архивных данных', 'no'); return; }
+      S.editingPeriodId = periodId;
+      S.surveys = res.surveys || [];
+      S.removed = [];
+      S.dirty = false;
+      $('btnSave').onclick = function(){ doSaveArchive(); };
+      renderUnit();
+    });
+  }
+
+  if(S.dirty){
+    askDirty('Переключить период').then(function(yes){ if(yes) doSwitch(); });
+  } else {
+    doSwitch();
+  }
+}
+
+function doSaveArchive(){
+  if(S.saving) return;
+  S.saving = true;
+  $('btnSave').disabled = true;
+  $('btnSave').textContent = 'Сохраняем…';
+
+  call('apiSaveSurvey', S.token, { unit: S.unit, upsert: S.surveys, remove: S.removed, periodId: S.editingPeriodId }).then(function(res){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+
+    if(!res || !res.ok){
+      toast((res && res.error) || 'Не удалось сохранить', 'no');
+      return;
+    }
+
+    S.surveys.forEach(function(x, k){
+      if(!x.id) x.id = (res.newIds && res.newIds[k]) || x.id;
+    });
+    S.removed = [];
+    S.dirty = false;
+
+    // Часть строк могла принадлежать другому ответственному (см. isOwnedByOther
+    // на сервере) — остальное уже сохранилось (newIds выше это учли), но по
+    // этим строкам локальное состояние теперь расходится с базой. Полноценный
+    // ask()+doRefresh_() как в doSave() тут не подходит — doRefresh_() всегда
+    // перечитывает ТЕКУЩИЙ период, а не конкретный архивный S.editingPeriodId —
+    // поэтому просто предупреждаем тостом, не притворяясь, что сохранилось всё.
+    if(res.blocked && res.blocked.length){
+      toast('Не всё сохранено — часть строк уже занята другим: ' +
+        res.blocked.map(function(x){ return x.company; }).join(', '), 'no');
+    } else {
+      toast('Архивные данные сохранены', 'ok');
+    }
+    renderTabSurvey();
+  }).catch(function(){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+    toast('Нет связи с сервером', 'no');
+  });
 }
 
 // ─────────── Вкладка 1: конкуренты ───────────
@@ -2683,21 +2792,27 @@ function openBatchSurveySheet(posName){
 // ОБЩЕЕ: черновик, прогресс
 // ═══════════════════════════════════════════════════════════
 function markDirty(){
-  if(S.ro) return;
+  if(S.ro && !S.editingPeriodId) return;
   var was = S.dirty;
   S.dirty = true;
-  store.set(LS_DRAFT+S.unit, JSON.stringify({
-    rows: S.rows,
-    added: S.added,
-    surveys: S.surveys,
-    removed: S.removed,
-    note: S.note,
-    tab: S.tab || 'comp',
-    savedAt: new Date().toISOString()
-  }));
+  // Локальный черновик привязан только к unit, без учёта года — в архивном
+  // режиме НЕ сохраняем его, иначе он может подмешать архивные правки в
+  // черновик текущего года при следующем обычном открытии этого же
+  // подразделения (ключ LS_DRAFT+unit один и тот же для обоих режимов).
+  if(!S.editingPeriodId){
+    store.set(LS_DRAFT+S.unit, JSON.stringify({
+      rows: S.rows,
+      added: S.added,
+      surveys: S.surveys,
+      removed: S.removed,
+      note: S.note,
+      tab: S.tab || 'comp',
+      savedAt: new Date().toISOString()
+    }));
+  }
   if(!was){
     var b = $('btnSave');
-    if(b) b.classList.toggle('hidden', S.ro);
+    if(b) b.classList.toggle('hidden', S.ro && !S.editingPeriodId);
   }
 }
 
@@ -2752,7 +2867,7 @@ function updateProgress(){
     }
   }
 
-  $('btnSave').classList.toggle('hidden', S.ro || !S.dirty);
+  $('btnSave').classList.toggle('hidden', (S.ro && !S.editingPeriodId) || !S.dirty);
   $('btnSave').textContent = 'Сохранить';
 }
 
@@ -2838,8 +2953,8 @@ function openAddSheet(){
     if(q.length < 2){ box.innerHTML = ''; return; }
     var hit = S.data.companies.filter(function(c){ return c.name.toLowerCase().indexOf(q) >= 0; }).slice(0,7);
     box.innerHTML = hit.length ? '<div class="sug">'+hit.map(function(c){
-      return '<div data-n="'+esc(c.name)+'" data-s="'+esc(c.seg)+'" data-r="'+esc(c.region)+'">'+
-        esc(c.name)+'<small>'+esc([c.seg,c.region].filter(String).join(' · '))+'</small></div>'; }).join('')+'</div>' : '';
+      return '<button type="button" data-n="'+esc(c.name)+'" data-s="'+esc(c.seg)+'" data-r="'+esc(c.region)+'">'+
+        esc(c.name)+'<small>'+esc([c.seg,c.region].filter(String).join(' · '))+'</small></button>'; }).join('')+'</div>' : '';
     box.querySelectorAll('[data-n]').forEach(function(d){
       d.onclick = function(){
         nameEl.value = d.dataset.n;
@@ -2886,7 +3001,7 @@ function openAddSheet(){
 $('btnSave').onclick = function(){ save(false); };
 
 function save(submit){
-  if(S.saving || S.ro) return;
+  if(S.saving || (S.ro && !S.editingPeriodId)) return;
   if(!submit){ doSave(false); return; }
 
   var c = counts();
@@ -2909,7 +3024,7 @@ function save(submit){
 }
 
 function doSave(submit){
-  if(S.saving || S.ro) return;
+  if(S.saving || (S.ro && !S.editingPeriodId)) return;
   S.saving = true;
   $('btnSave').disabled = true;
   $('btnSave').textContent = 'Сохраняем…';
@@ -3243,7 +3358,10 @@ function renderDashboard(){
   // Общий фильтр — направление, HR BP, регион (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
+  var periodsList = d.periodsList || [];
   h += '<div id="dashFilterBar" class="toolbar dash-filters"'+(filterHidden ? ' style="display:none"' : '')+'>'+
+    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:260,
+      items: periodsList.map(function(p){ return { v:String(p.id), label: p.name + (p.at ? ' — ' + fmtDateTime(p.at) : '') }; }) }) : '')+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
@@ -3291,12 +3409,13 @@ function renderDashboard(){
     };
   });
 
+  wireNiceSelect('dashPeriod', function(v){ S.dashFilters.period = v; fetchDashboard(true); });
   wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
   wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
   wireNiceSelect('dashRegion', function(v){ S.dashFilters.region = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
-    S.dashFilters = { dir:'', hrbp:'', region:'', search:'' };
+    S.dashFilters = { dir:'', hrbp:'', region:'', search:'', period:S.dashFilters.period };
     setNiceSelect('dashDir', '');
     setNiceSelect('dashHrbp', '');
     setNiceSelect('dashRegion', '');
@@ -7512,6 +7631,7 @@ function openBulkDeptAssignModal(myDir, employees){
 function renderAdminPeriod(){
   var p = S.data.period || {};
   var closed = p.state === 'закрыт';
+  var canEdit = hasCap('period:edit');
 
   var h = '<div class="card period-card">'+
     '<div class="period-card-kicker">Текущий период сбора</div>'+
@@ -7521,12 +7641,25 @@ function renderAdminPeriod(){
       (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
       (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(fmtDateTime(p.at))+')':'') : '') +
     '</div>'+
-    (closed
-      ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
-      : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')+
-  '</div>';
+    (canEdit
+      ? (closed
+          ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
+          : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')
+      : '')+
+  '</div>'+
+  (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
+    '<div class="period-card-kicker">Доступ к редактированию архива</div>'+
+    '<div id="periodGrantsForm" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>'+
+    '<div id="periodGrantsList">Загрузка…</div>'+
+  '</div>' : '')+
+  (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
+    '<div class="period-card-kicker">Архивные периоды</div>'+
+    '<div id="periodsManageList">Загрузка…</div>'+
+  '</div>' : '');
 
   $('adminContent').innerHTML = h;
+
+  if(canEdit) loadPeriodGrantsPanel();
 
   if($('btnAdminPeriodOpen')){
     $('btnAdminPeriodOpen').onclick = function(){
@@ -7571,6 +7704,127 @@ function renderAdminPeriod(){
       });
     };
   }
+}
+
+function periodGrantTimeLeft(expiresAt){
+  // expires_at из БД — наивная строка "YYYY-MM-DD HH:MM:SS" (UTC без метки).
+  // new Date() на неё прочитал бы её как ЛОКАЛЬНОЕ время браузера — тот же
+  // сдвиг, что чинит fmtDateTime() в app-core.js; здесь та же нормализация.
+  var raw = String(expiresAt || '');
+  var iso = /[Zz]|[+\-]\d{2}:?\d{2}$/.test(raw) ? raw : raw.replace(' ', 'T') + 'Z';
+  var ms = new Date(iso).getTime() - Date.now();
+  if(ms <= 0) return 'истёк';
+  var h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return (h>0 ? h+'ч ' : '') + m+'м';
+}
+
+function loadPeriodGrantsPanel(){
+  Promise.all([
+    call('apiPeriodGrantsPanel', S.token),
+    call('apiPeriodGrantUsers', S.token)
+  ]).then(function(res){
+    var panel = res[0], usersRes = res[1];
+    if(!panel || !panel.ok){
+      $('periodGrantsList').innerHTML = '<div class="err">'+esc((panel&&panel.error)||'Ошибка загрузки')+'</div>';
+      return;
+    }
+    var periods = panel.periods || [];
+    var users = (usersRes && usersRes.ok ? usersRes.users : []).filter(function(u){ return u.active; });
+
+    if(!periods.length){
+      $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
+    } else {
+      $('periodGrantsForm').innerHTML =
+        niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
+        niceSelect({ id:'grantPeriodSel', width:280, value: periods[0] ? String(periods[0].id) : '', items: periods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
+        '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
+      wireNiceSelect('grantUserSel', function(){});
+      wireNiceSelect('grantPeriodSel', function(){});
+      $('btnGrantPeriod').onclick = function(){
+        var userLogin = $('grantUserSel').dataset.value;
+        var periodId = $('grantPeriodSel').dataset.value;
+        if(!userLogin || !periodId){ toast('Выберите сотрудника и год', 'no'); return; }
+        call('apiPeriodGrantCreate', S.token, userLogin, Number(periodId)).then(function(r){
+          if(r && r.ok){ toast('Доступ выдан на 24 часа'); loadPeriodGrantsPanel(); }
+          else toast((r&&r.error)||'Ошибка', 'no');
+        });
+      };
+    }
+
+    renderPeriodGrantsList(panel.grants || []);
+    renderPeriodsManageList(periods);
+  });
+}
+
+function renderPeriodsManageList(periods){
+  var el = $('periodsManageList');
+  if(!el) return;
+  if(!periods.length){
+    el.innerHTML = '<div class="note">Архивных периодов пока нет.</div>';
+    return;
+  }
+  el.innerHTML = '<table class="co-tbl"><thead><tr>'+
+    '<th>Период</th><th>Анкет</th><th></th>'+
+    '</tr></thead><tbody>'+
+    periods.map(function(p){
+      var n = p.surveysCount || 0;
+      var canDelete = n === 0;
+      return '<tr>'+
+        '<td>'+esc(p.name)+(p.updatedAt ? '<br><small style="color:var(--muted)">'+esc(fmtDateTime(p.updatedAt))+'</small>' : '')+'</td>'+
+        '<td>'+n+'</td>'+
+        '<td>'+(canDelete
+          ? '<button class="btn-ghost btn-danger" data-del-period="'+p.id+'">Удалить</button>'
+          : '<button class="btn-ghost" disabled title="В периоде есть анкеты — удалить нельзя">Удалить</button>')+
+        '</td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table>';
+
+  el.querySelectorAll('button[data-del-period]').forEach(function(btn){
+    btn.onclick = function(){
+      var periodId = Number(btn.dataset.delPeriod);
+      ask({
+        title: 'Удалить этот период?',
+        html: 'Период пустой (0 анкет) — действие необратимо.',
+        ok: 'Удалить',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiPeriodDelete', S.token, periodId).then(function(r){
+          if(r && r.ok){ toast('Период удалён'); loadPeriodGrantsPanel(); }
+          else toast((r&&r.error)||'Ошибка', 'no');
+        });
+      });
+    };
+  });
+}
+
+function renderPeriodGrantsList(grants){
+  if(!grants.length){
+    $('periodGrantsList').innerHTML = '<div class="note">Сейчас нет активных выданных доступов.</div>';
+    return;
+  }
+  $('periodGrantsList').innerHTML = '<table class="co-tbl"><thead><tr>'+
+    '<th>Сотрудник</th><th>Год</th><th>Истекает</th><th></th>'+
+    '</tr></thead><tbody>'+
+    grants.map(function(g){
+      return '<tr>'+
+        '<td>'+esc(g.userFio)+'</td>'+
+        '<td>'+esc(g.periodName)+'</td>'+
+        '<td>'+periodGrantTimeLeft(g.expiresAt)+'</td>'+
+        '<td><button class="btn-ghost btn-danger" data-revoke-user="'+esc(g.userLogin)+'" data-revoke-period="'+g.periodId+'">Отозвать</button></td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table>';
+
+  $('periodGrantsList').querySelectorAll('button[data-revoke-user]').forEach(function(btn){
+    btn.onclick = function(){
+      call('apiPeriodGrantRevoke', S.token, btn.dataset.revokeUser, Number(btn.dataset.revokePeriod)).then(function(r){
+        if(r && r.ok){ toast('Доступ отозван'); loadPeriodGrantsPanel(); }
+        else toast((r&&r.error)||'Ошибка', 'no');
+      });
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════

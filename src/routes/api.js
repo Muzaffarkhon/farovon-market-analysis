@@ -11,6 +11,7 @@ const adminController = require('../controllers/adminController');
 const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
 const benchmarkController = require('../controllers/benchmarkController');
+const streamController = require('../controllers/streamController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -52,6 +53,9 @@ router.use((req, res, next) => {
   next();
 });
 
+// Живое обновление (SSE) — дашборд и часть админки, см. streamController.js.
+router.get('/stream', streamController.stream);
+
 // Профиль и сессия
 router.get('/auth/resume', authController.resume);
 router.post('/auth/change-password', authController.changePassword);
@@ -63,6 +67,7 @@ router.post('/telegram/unlink', telegramController.unlink);
 // Опрос и данные
 router.post('/survey/save', surveyController.saveSurveyData);
 router.post('/survey/save-details', surveyController.saveSurveyDetails);
+router.post('/survey/for-period', surveyController.getSurveysForPeriod);
 router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
@@ -100,6 +105,11 @@ router.post('/admin/dictionary/:kind', requireCapability('dictionary:create', 'd
 router.post('/admin/dictionary/:kind/delete', requireCapability('dictionary:edit'), dictionaryController.remove);
 
 router.post('/admin/period', requireCapability('period:edit'), adminController.setPeriod);
+router.post('/admin/period-grants', requireCapability('period:edit'), adminController.grantPeriodEdit);
+router.post('/admin/period-grants/revoke', requireCapability('period:edit'), adminController.revokePeriodEdit);
+router.get('/admin/period-grants', requireCapability('period:edit'), adminController.listPeriodGrants);
+router.get('/admin/period-grants/users', requireCapability('period:edit'), adminController.getUsersForPeriodGrants);
+router.post('/admin/periods/delete', requireCapability('period:edit'), adminController.deletePeriod);
 router.post('/admin/maintenance', requireCapability('service:edit'), adminController.runMaintenance);
 router.post('/admin/import-survey', requireCapability('service:edit'), adminController.importSurvey);
 router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);

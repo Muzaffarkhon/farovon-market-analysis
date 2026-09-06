@@ -276,8 +276,13 @@ async function handleStatus(chatId) {
 
   const placeholders = unitsList.map(() => '?').join(',');
   const comps = await queryAll(`SELECT actual FROM competitors WHERE unit IN (${placeholders})`, unitsList);
+  // Только текущий год сбора — тот же счётчик, что показывает приложение
+  // (см. dashboardController.getHRBPDashboard); без этого бот считал бы
+  // анкеты всех лет сразу и не совпадал бы с тем, что видно в самом приложении.
+  const currentPeriod = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
   const survs = await queryAll(
-    `SELECT id FROM surveys WHERE state != 'удалена' AND unit IN (${placeholders})`, unitsList);
+    `SELECT id FROM surveys WHERE state != 'удалена' AND unit IN (${placeholders}) AND period_id = ?`,
+    [...unitsList, currentPeriod ? currentPeriod.id : null]);
 
   let done = 0;
   comps.forEach(c => {

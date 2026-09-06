@@ -4,40 +4,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
 const { cached } = require('../services/refCache');
-const { benefitsToList, bonusesFromRow } = require('./surveyController');
-
-// Приведение строки surveys к форме для фронта. Вынесено, чтобы одинаково
-// маппить и анкеты пользователя, и анкеты смежной группы (для «заполнить раз
-// на всю группу»).
-function mapSurveyRow(s) {
-  return {
-    id: s.sid,
-    unit: s.unit,
-    company: s.company,
-    posOur: s.pos_our,
-    posTheir: s.pos_their || '',
-    grade: s.grade || '',
-    payFrom: s.pay_from || '',
-    payTo: s.pay_to || '',
-    cur: s.cur || 'сомони',
-    payPer: s.pay_per || 'в месяц',
-    // Переменная часть: bonuses — массив [{type,size,per}] (несколько видов).
-    // bonHas/bonSize/bonType/bonPer оставлены для обратной совместимости фронта
-    // и держат первый элемент; у старых записей массив синтезируется из bon_*.
-    bonuses: bonusesFromRow(s),
-    bonHas: s.bon_has || 'не знаю',
-    bonSize: s.bon_size || '',
-    bonType: s.bon_type || '',
-    bonPer: s.bon_per || '',
-    schedule: s.schedule || '',
-    benefits: benefitsToList(s.benefits),
-    note: s.note || '',
-    source: s.source || '',
-    trust: s.trust || '',
-    by: s.created_by || '',
-    at: s.created_at || ''
-  };
-}
+const { mapSurveyRow } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
 
 function hashPassword(pwd) {
@@ -117,13 +84,14 @@ exports.logout = async (req, res) => {
 async function getPeriodInfo() {
   const p = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
   return p ? {
+    id: p.id,
     name: p.name,
     state: p.state,
     from: p.from_date || '',
     to: p.to_date || '',
     by: p.updated_by || '',
     at: p.updated_at || ''
-  } : { name: 'Обзор рынка', state: 'открыт' };
+  } : { id: null, name: 'Обзор рынка', state: 'открыт' };
 }
 
 async function getUserPayload(user) {
@@ -153,6 +121,15 @@ async function getUserPayload(user) {
   //    + сброс при правках через админку, чтобы не бить в Turso на каждый
   //    вход/resume. compRows/survRows не кэшируем: это данные пользователя,
   //    меняются постоянно и должны отражаться сразу.
+  const period = await cached('period', () => getPeriodInfo(), 30 * 1000);
+
+  const myPeriodGrantsRaw = await queryAll(
+    `SELECT g.period_id AS "periodId", p.name AS "periodName", g.expires_at AS "expiresAt"
+     FROM period_edit_grants g JOIN periods p ON p.id = g.period_id
+     WHERE g.user_login = ? AND g.expires_at > CURRENT_TIMESTAMP`,
+    [user.login]
+  );
+
   const [
     allUnits,
     compRows,
@@ -163,7 +140,6 @@ async function getUserPayload(user) {
     regRows,
     customSegments,
     customRegions,
-    period,
     roleCaps
   ] = await Promise.all([
     cached('divisions', async () => {
@@ -178,7 +154,7 @@ async function getUserPayload(user) {
       }
     }),
     queryAll('SELECT unit, actual FROM competitors'),
-    queryAll("SELECT unit FROM surveys WHERE state != 'удалена'"),
+    queryAll("SELECT unit FROM surveys WHERE state != 'удалена' AND period_id = ?", [period.id]),
     cached('dictCompanies', () => withDirs(
       "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
@@ -193,7 +169,6 @@ async function getUserPayload(user) {
               UNION SELECT DISTINCT TRIM(region) FROM competitors WHERE TRIM(COALESCE(region,'')) <> '' ORDER BY v`)),
     cached('customSegments', () => safeNames('dictionary_segments')),
     cached('customRegions', () => safeNames('dictionary_regions')),
-    cached('period', () => getPeriodInfo(), 30 * 1000),
     (user.role === 'admin')
       ? Promise.resolve([])
       : cached('roleCaps:' + user.role, () => queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]).catch(() => []))
@@ -264,7 +239,7 @@ async function getUserPayload(user) {
     : Promise.resolve([]);
 
   const userSurveysPromise = (myUnits.length > 0)
-    ? queryAll(`SELECT * FROM surveys WHERE unit IN (${myUnits.map(() => '?').join(',')}) AND state != 'удалена'`, myUnits)
+    ? queryAll(`SELECT * FROM surveys WHERE unit IN (${myUnits.map(() => '?').join(',')}) AND state != 'удалена' AND period_id = ?`, [...myUnits, period.id])
     : Promise.resolve([]);
 
   const staffingPromise = (async () => {
@@ -299,7 +274,7 @@ async function getUserPayload(user) {
         const [posRows, compRowsGroup, survRowsGroup] = await Promise.all([
           queryAll(`SELECT unit, position FROM unit_positions WHERE unit IN (${up})`, unitsInGroup),
           queryAll(`SELECT unit, company FROM competitors WHERE unit IN (${up})`, unitsInGroup),
-          queryAll(`SELECT * FROM surveys WHERE unit IN (${up}) AND state != 'удалена'`, unitsInGroup)
+          queryAll(`SELECT * FROM surveys WHERE unit IN (${up}) AND state != 'удалена' AND period_id = ?`, [...unitsInGroup, period.id])
         ]);
 
         posRows.forEach(r => {
@@ -370,6 +345,7 @@ async function getUserPayload(user) {
       capabilities
     },
     period,
+    myPeriodGrants: myPeriodGrantsRaw,
     mustChangePassword: !!user.must_change_password,
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
     needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),

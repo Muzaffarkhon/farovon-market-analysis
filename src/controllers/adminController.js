@@ -87,6 +87,24 @@ exports.getUsers = async (req, res) => {
 };
 
 /**
+ * Узкая выборка пользователей для пикера «кому выдать доступ» в панели
+ * архивных грантов (loadPeriodGrantsPanel во фронте — читает только
+ * login/fio/active). Отдельно от getUsers(), потому что этот маршрут
+ * специально разрешён для hrbp через capability period:edit (а не
+ * users:view) — hrbp не должен получать в довесок телефоны, подразделения,
+ * дату последнего входа и статус привязки Telegram всех пользователей.
+ */
+exports.getUsersForPeriodGrants = async (req, res) => {
+  try {
+    const users = await queryAll("SELECT login, fio, active FROM users WHERE archived_at IS NULL ORDER BY fio ASC");
+    res.json({ ok: true, users: users.map(u => ({ login: u.login, fio: u.fio, active: !!u.active })) });
+  } catch (err) {
+    console.error('getUsersForPeriodGrants error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки списка пользователей' });
+  }
+};
+
+/**
  * Защита учётной записи администратора.
  *
  * Заблокированный или заархивированный админ не может войти — а войти под
@@ -793,10 +811,19 @@ exports.setPeriod = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `, [cleanName, cleanState, from || null, to || null, req.user.fio || req.user.login]);
 
+    // Новый год сбора — «чистый лист» по актуальности конкурентов: старые
+    // отметки «актуально»/«не актуально» могли устареть за год, HR BP должны
+    // перепроверить каждую заново. Сами анкеты (surveys) не трогаем — они
+    // просто перестают быть «текущим периодом» за счёт period_id (см.
+    // surveyController.saveSurveyDetails и authController.getUserPayload).
+    if (cleanState === 'открыт') {
+      await run("UPDATE competitors SET actual = 'уточнить'");
+    }
+
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'период сбора',
-      `Период: ${cleanName}, Статус: ${cleanState}`
+      `Период: ${cleanName}, Статус: ${cleanState}` + (cleanState === 'открыт' ? ' (актуальность конкурентов сброшена)' : '')
     ]);
 
     const updated = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
@@ -814,6 +841,155 @@ exports.setPeriod = async (req, res) => {
   } catch (err) {
     console.error('setPeriod error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка настройки периода' });
+  }
+};
+
+// ─── Точечный доступ к редактированию архивного года ───
+// См. docs/superpowers/specs/2026-09-05-archive-edit-access-design.md.
+// Выдача — INSERT ... ON CONFLICT DO UPDATE: повторная выдача тому же
+// человеку на тот же год продлевает 24 часа заново, а не плодит дубликаты
+// (UNIQUE(user_login, period_id) из миграции).
+exports.grantPeriodEdit = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const periodId = Number(req.body.periodId);
+
+  if (!userLogin) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник' });
+  }
+  if (!Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан период' });
+  }
+
+  try {
+    const period = await queryOne('SELECT id, name FROM periods WHERE id = ?', [periodId]);
+    if (!period) {
+      return res.status(404).json({ ok: false, error: 'Период не найден' });
+    }
+    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    if (latest && latest.id === periodId) {
+      return res.status(400).json({ ok: false, error: 'Текущий период редактируется без гранта' });
+    }
+
+    await run(`
+      INSERT INTO period_edit_grants (user_login, period_id, granted_by, granted_at, expires_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 day'))
+      ON CONFLICT(user_login, period_id) DO UPDATE SET
+        granted_by = excluded.granted_by,
+        granted_at = CURRENT_TIMESTAMP,
+        expires_at = excluded.expires_at
+    `, [userLogin, periodId, req.user.fio || req.user.login]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'выдан доступ к архивному периоду',
+      `Сотрудник: ${userLogin}, период: ${period.name}, на 24ч`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('grantPeriodEdit error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка выдачи доступа' });
+  }
+};
+
+exports.revokePeriodEdit = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const periodId = Number(req.body.periodId);
+
+  if (!userLogin || !Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник или период' });
+  }
+
+  try {
+    await run('DELETE FROM period_edit_grants WHERE user_login = ? AND period_id = ?', [userLogin, periodId]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'отозван доступ к архивному периоду',
+      `Сотрудник: ${userLogin}, период id: ${periodId}`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('revokePeriodEdit error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка отзыва доступа' });
+  }
+};
+
+exports.listPeriodGrants = async (req, res) => {
+  try {
+    const [grants, periods] = await Promise.all([
+      queryAll(`
+        SELECT g.user_login AS "userLogin", COALESCE(u.fio, g.user_login) AS "userFio",
+               g.period_id AS "periodId", p.name AS "periodName",
+               g.granted_by AS "grantedBy", g.granted_at AS "grantedAt", g.expires_at AS "expiresAt"
+        FROM period_edit_grants g
+        JOIN periods p ON p.id = g.period_id
+        LEFT JOIN users u ON u.login = g.user_login
+        WHERE g.expires_at > CURRENT_TIMESTAMP
+        ORDER BY g.expires_at DESC
+      `),
+      queryAll(`
+        SELECT p.id, p.name, p.updated_at AS "updatedAt",
+               (SELECT COUNT(*) FROM surveys s WHERE s.period_id = p.id AND s.state != 'удалена') AS "surveysCount"
+        FROM periods p
+        WHERE p.id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
+        ORDER BY p.id DESC
+      `)
+    ]);
+
+    res.json({ ok: true, grants, periods });
+  } catch (err) {
+    console.error('listPeriodGrants error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки списка доступов' });
+  }
+};
+
+/**
+ * Удаление архивного периода — только если в нём нет ни одной анкеты (значит
+ * это пустой тестовый период, а не реальный год сбора). Текущий (последний)
+ * период удалить нельзя никогда — проверка та же, что в grantPeriodEdit.
+ * Заодно убираем выданные на этот период гранты — они всё равно бессмысленны
+ * без самого периода.
+ */
+exports.deletePeriod = async (req, res) => {
+  const periodId = Number(req.body.periodId);
+  if (!Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан период' });
+  }
+
+  try {
+    const period = await queryOne('SELECT id, name FROM periods WHERE id = ?', [periodId]);
+    if (!period) {
+      return res.status(404).json({ ok: false, error: 'Период не найден' });
+    }
+
+    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    if (latest && latest.id === periodId) {
+      return res.status(400).json({ ok: false, error: 'Текущий период удалить нельзя' });
+    }
+
+    const surveysCount = await queryOne(
+      "SELECT COUNT(*) AS n FROM surveys WHERE period_id = ? AND state != 'удалена'",
+      [periodId]
+    );
+    if (Number(surveysCount.n) > 0) {
+      return res.status(400).json({ ok: false, error: 'В периоде есть анкеты — удалить нельзя' });
+    }
+
+    await run('DELETE FROM period_edit_grants WHERE period_id = ?', [periodId]);
+    await run('DELETE FROM periods WHERE id = ?', [periodId]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'удалён архивный период',
+      `Период: ${period.name} (id ${periodId})`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deletePeriod error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка удаления периода' });
   }
 };
 
@@ -1499,13 +1675,13 @@ exports.importSurvey = async (req, res) => {
   }
 
   try {
-    const [divisions, users, dc, dp, existing, period] = await Promise.all([
+    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
+    const [divisions, users, dc, dp, existing] = await Promise.all([
       queryAll('SELECT unit FROM divisions'),
       queryAll('SELECT fio FROM users WHERE archived_at IS NULL'),
       queryAll('SELECT name FROM dictionary_companies'),
       queryAll('SELECT name FROM dictionary_positions'),
-      queryAll("SELECT sid, unit, company, pos_their, pay_from FROM surveys WHERE state = 'активна'"),
-      queryOne('SELECT name FROM periods ORDER BY id DESC LIMIT 1'),
+      queryAll("SELECT sid, unit, company, pos_their, pay_from FROM surveys WHERE state = 'активна' AND period_id = ?", [period.id]),
     ]);
 
     const norm = surveyImport.norm;
@@ -1575,11 +1751,11 @@ exports.importSurvey = async (req, res) => {
           sql: `UPDATE surveys SET company = ?, pos_our = ?, pos_their = ?, pay_from = ?, pay_to = ?,
                   cur = ?, pay_per = ?, bon_has = ?, bon_size = ?, bon_per = ?, benefits = ?,
                   schedule = ?, source = ?, note = ?, created_by = ?, created_at = ?, period = ?
-                WHERE sid = ?`,
+                WHERE sid = ? AND period_id = ?`,
           args: [
             p.company, p.pos_our, p.pos_their, p.pay_from, p.pay_to, p.cur, p.pay_per,
             p.bon_has, p.bon_size, p.bon_per, p.benefits, p.schedule, p.source, p.note,
-            p.created_by, p.created_at, p.period, p._dupOf,
+            p.created_by, p.created_at, p.period, p._dupOf, period.id,
           ],
         });
         updated++;
@@ -1589,12 +1765,12 @@ exports.importSurvey = async (req, res) => {
         sql: `INSERT INTO surveys
                 (sid, unit, company, pos_our, pos_their, grade, pay_from, pay_to, cur, pay_per,
                  bon_has, bon_size, bon_type, bon_per, benefits, schedule, extra, source, trust, note,
-                 created_by, created_at, state, period)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 created_by, created_at, state, period, period_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           p.sid, p.unit, p.company, p.pos_our, p.pos_their, p.grade, p.pay_from, p.pay_to,
           p.cur, p.pay_per, p.bon_has, p.bon_size, p.bon_type, p.bon_per, p.benefits,
-          p.schedule, p.extra, p.source, p.trust, p.note, p.created_by, p.created_at, p.state, p.period,
+          p.schedule, p.extra, p.source, p.trust, p.note, p.created_by, p.created_at, p.state, p.period, period.id,
         ],
       });
       inserted++;
