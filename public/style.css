@@ -4019,6 +4019,26 @@ label.lbl {
   white-space: nowrap;
 }
 
+/* Универсальная сортировка/ширина столбцов — см. tableEnhance.js. Не
+   применяем курсор-указатель к заголовкам с уже своей сортировкой
+   (data-sort/data-rsort — там свой arrow() уже в тексте заголовка). */
+.co-tbl thead th:not([data-sort]):not([data-rsort]) {
+  cursor: pointer;
+  user-select: none;
+}
+
+.co-tbl thead th[data-sort-dir="asc"]::after {
+  content: " \25B2";
+  font-size: 9px;
+  color: var(--accent);
+}
+
+.co-tbl thead th[data-sort-dir="desc"]::after {
+  content: " \25BC";
+  font-size: 9px;
+  color: var(--accent);
+}
+
 .co-tbl td {
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
