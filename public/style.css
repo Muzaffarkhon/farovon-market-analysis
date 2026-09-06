@@ -5198,6 +5198,23 @@ label.lbl {
   }
 }
 
+/* Переключатели года (дашборд + панель выдачи доступа) — название периода
+   плюс дата/время создания часто длиннее общего max-width:300px у панели,
+   и обрезалось многоточием без возможности прочитать. Даём этим двум
+   спискам панель пошире и перенос строки вместо обрезки — остальные
+   .nselect (направление/HR BP/регион и т.д.) не трогаем, там короткие
+   значения и однострочный вид уместнее. */
+#dashPeriod .nselect-panel,
+#grantPeriodSel .nselect-panel {
+  max-width: 380px;
+}
+
+#dashPeriod .nselect-opt,
+#grantPeriodSel .nselect-opt {
+  white-space: normal;
+  line-height: 1.3;
+}
+
 .search-wrap {
   position: relative;
 }
