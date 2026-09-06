@@ -5,7 +5,14 @@
   // Не показываем внутри Telegram WebApp или если уже установлено (standalone)
   var isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator && window.navigator.standalone);
   var isTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
-  if (isStandalone || isTelegram) return;
+  // display-mode: standalone определяет только САМО установленное окно —
+  // если человек установил приложение через системное меню браузера (а не
+  // через нашу кнопку), это никак не помечается в localStorage, и баннер
+  // «Установить» продолжает всплывать в обычной вкладке при каждом визите.
+  // appinstalled ниже ставит этот флаг НАВСЕГДА, независимо от способа установки.
+  var isInstalled = false;
+  try { isInstalled = localStorage.getItem('farovon_pwa_installed') === '1'; } catch (e) {}
+  if (isStandalone || isTelegram || isInstalled) return;
 
   // Проверяем, не скрывал ли пользователь баннер за последние 7 дней
   var dismissedAt = null;
@@ -110,6 +117,14 @@
     e.preventDefault();
     deferredPrompt = e;
     showBanner('android');
+  });
+
+  // Срабатывает при ЛЮБОМ успешном способе установки (наша кнопка, системное
+  // меню браузера) — ставим постоянный флаг, чтобы баннер больше никогда не
+  // показывался в обычной вкладке этого браузера.
+  window.addEventListener('appinstalled', function(){
+    try { localStorage.setItem('farovon_pwa_installed', '1'); } catch (e) {}
+    dismiss();
   });
 
   // 2. iOS Safari
