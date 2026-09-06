@@ -1627,8 +1627,25 @@ function doSaveArchive(){
     });
     S.removed = [];
     S.dirty = false;
-    toast('Архивные данные сохранены', 'ok');
+
+    // Часть строк могла принадлежать другому ответственному (см. isOwnedByOther
+    // на сервере) — остальное уже сохранилось (newIds выше это учли), но по
+    // этим строкам локальное состояние теперь расходится с базой. Полноценный
+    // ask()+doRefresh_() как в doSave() тут не подходит — doRefresh_() всегда
+    // перечитывает ТЕКУЩИЙ период, а не конкретный архивный S.editingPeriodId —
+    // поэтому просто предупреждаем тостом, не притворяясь, что сохранилось всё.
+    if(res.blocked && res.blocked.length){
+      toast('Не всё сохранено — часть строк уже занята другим: ' +
+        res.blocked.map(function(x){ return x.company; }).join(', '), 'no');
+    } else {
+      toast('Архивные данные сохранены', 'ok');
+    }
     renderTabSurvey();
+  }).catch(function(){
+    S.saving = false;
+    $('btnSave').disabled = false;
+    $('btnSave').textContent = 'Сохранить';
+    toast('Нет связи с сервером', 'no');
   });
 }
 
@@ -2775,7 +2792,7 @@ function openBatchSurveySheet(posName){
 // ОБЩЕЕ: черновик, прогресс
 // ═══════════════════════════════════════════════════════════
 function markDirty(){
-  if(S.ro) return;
+  if(S.ro && !S.editingPeriodId) return;
   var was = S.dirty;
   S.dirty = true;
   // Локальный черновик привязан только к unit, без учёта года — в архивном
@@ -2795,7 +2812,7 @@ function markDirty(){
   }
   if(!was){
     var b = $('btnSave');
-    if(b) b.classList.toggle('hidden', S.ro);
+    if(b) b.classList.toggle('hidden', S.ro && !S.editingPeriodId);
   }
 }
 
@@ -2850,7 +2867,7 @@ function updateProgress(){
     }
   }
 
-  $('btnSave').classList.toggle('hidden', S.ro || !S.dirty);
+  $('btnSave').classList.toggle('hidden', (S.ro && !S.editingPeriodId) || !S.dirty);
   $('btnSave').textContent = 'Сохранить';
 }
 
@@ -2984,7 +3001,7 @@ function openAddSheet(){
 $('btnSave').onclick = function(){ save(false); };
 
 function save(submit){
-  if(S.saving || S.ro) return;
+  if(S.saving || (S.ro && !S.editingPeriodId)) return;
   if(!submit){ doSave(false); return; }
 
   var c = counts();
@@ -3007,7 +3024,7 @@ function save(submit){
 }
 
 function doSave(submit){
-  if(S.saving || S.ro) return;
+  if(S.saving || (S.ro && !S.editingPeriodId)) return;
   S.saving = true;
   $('btnSave').disabled = true;
   $('btnSave').textContent = 'Сохраняем…';
@@ -7686,7 +7703,12 @@ function renderAdminPeriod(){
 }
 
 function periodGrantTimeLeft(expiresAt){
-  var ms = new Date(expiresAt).getTime() - Date.now();
+  // expires_at из БД — наивная строка "YYYY-MM-DD HH:MM:SS" (UTC без метки).
+  // new Date() на неё прочитал бы её как ЛОКАЛЬНОЕ время браузера — тот же
+  // сдвиг, что чинит fmtDateTime() в app-core.js; здесь та же нормализация.
+  var raw = String(expiresAt || '');
+  var iso = /[Zz]|[+\-]\d{2}:?\d{2}$/.test(raw) ? raw : raw.replace(' ', 'T') + 'Z';
+  var ms = new Date(iso).getTime() - Date.now();
   if(ms <= 0) return 'истёк';
   var h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
   return (h>0 ? h+'ч ' : '') + m+'м';

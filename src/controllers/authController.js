@@ -4,40 +4,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
 const { cached } = require('../services/refCache');
-const { benefitsToList, bonusesFromRow } = require('./surveyController');
-
-// Приведение строки surveys к форме для фронта. Вынесено, чтобы одинаково
-// маппить и анкеты пользователя, и анкеты смежной группы (для «заполнить раз
-// на всю группу»).
-function mapSurveyRow(s) {
-  return {
-    id: s.sid,
-    unit: s.unit,
-    company: s.company,
-    posOur: s.pos_our,
-    posTheir: s.pos_their || '',
-    grade: s.grade || '',
-    payFrom: s.pay_from || '',
-    payTo: s.pay_to || '',
-    cur: s.cur || 'сомони',
-    payPer: s.pay_per || 'в месяц',
-    // Переменная часть: bonuses — массив [{type,size,per}] (несколько видов).
-    // bonHas/bonSize/bonType/bonPer оставлены для обратной совместимости фронта
-    // и держат первый элемент; у старых записей массив синтезируется из bon_*.
-    bonuses: bonusesFromRow(s),
-    bonHas: s.bon_has || 'не знаю',
-    bonSize: s.bon_size || '',
-    bonType: s.bon_type || '',
-    bonPer: s.bon_per || '',
-    schedule: s.schedule || '',
-    benefits: benefitsToList(s.benefits),
-    note: s.note || '',
-    source: s.source || '',
-    trust: s.trust || '',
-    by: s.created_by || '',
-    at: s.created_at || ''
-  };
-}
+const { mapSurveyRow } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
 
 function hashPassword(pwd) {

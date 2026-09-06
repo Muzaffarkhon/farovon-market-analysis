@@ -87,6 +87,24 @@ exports.getUsers = async (req, res) => {
 };
 
 /**
+ * Узкая выборка пользователей для пикера «кому выдать доступ» в панели
+ * архивных грантов (loadPeriodGrantsPanel во фронте — читает только
+ * login/fio/active). Отдельно от getUsers(), потому что этот маршрут
+ * специально разрешён для hrbp через capability period:edit (а не
+ * users:view) — hrbp не должен получать в довесок телефоны, подразделения,
+ * дату последнего входа и статус привязки Telegram всех пользователей.
+ */
+exports.getUsersForPeriodGrants = async (req, res) => {
+  try {
+    const users = await queryAll("SELECT login, fio, active FROM users WHERE archived_at IS NULL ORDER BY fio ASC");
+    res.json({ ok: true, users: users.map(u => ({ login: u.login, fio: u.fio, active: !!u.active })) });
+  } catch (err) {
+    console.error('getUsersForPeriodGrants error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки списка пользователей' });
+  }
+};
+
+/**
  * Защита учётной записи администратора.
  *
  * Заблокированный или заархивированный админ не может войти — а войти под

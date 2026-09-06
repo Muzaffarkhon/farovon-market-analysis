@@ -3,13 +3,29 @@
 const { queryOne } = require('../db/database');
 
 /**
+ * expires_at приходит из SQLite как наивная строка "YYYY-MM-DD HH:MM:SS" (без
+ * временной зоны), записанная datetime('now', ...) — то есть UTC. JS-конструктор
+ * Date трактует такую строку (пробел вместо "T", нет "Z"/смещения) как ЛОКАЛЬНОЕ
+ * время, а не UTC — на сервере в Asia/Dushanbe (UTC+5) это сдвигает момент
+ * истечения на ~5 часов вперёд. SQL-сравнения (WHERE expires_at > CURRENT_TIMESTAMP)
+ * этой проблемы не имеют — обе стороны там наивные UTC-строки. Тот же приём,
+ * что и в public/app-core.js:fmtDateTime — помечаем строку как UTC явно.
+ */
+function toUtcMs(s) {
+  if (!s) return NaN;
+  const str = String(s);
+  const iso = /[Zz]|[+\-]\d{2}:?\d{2}$/.test(str) ? str : str.replace(' ', 'T') + 'Z';
+  return new Date(iso).getTime();
+}
+
+/**
  * Активен ли грант с таким сроком истечения на момент `nowIso`. Чистая
  * функция ради тестируемости без обращения к БД — реальный текущий момент
  * передаётся явно вызывающим кодом (`new Date().toISOString()`).
  */
 function isGrantActive(expiresAt, nowIso) {
   if (!expiresAt) return false;
-  return new Date(expiresAt).getTime() > new Date(nowIso).getTime();
+  return toUtcMs(expiresAt) > toUtcMs(nowIso);
 }
 
 /**
