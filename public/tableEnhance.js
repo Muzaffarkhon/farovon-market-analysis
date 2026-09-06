@@ -18,7 +18,8 @@
 // данных, а «запоминать» состояние для каждой из них потребовало бы точно
 // того же per-table кода, которого эта задача старается избежать.
 (function(){
-  var RESIZE_ZONE = 6; // px от правого края <th>, где курсор становится resize
+  var RESIZE_ZONE = 9; // px от правого края <th>, где курсор становится resize
+                       // (должно совпадать с шириной .co-tbl thead th::before в style.css)
 
   function getCellText(row, idx){
     var cell = row.children[idx];
@@ -97,6 +98,7 @@
     if(rect.right - e.clientX <= RESIZE_ZONE && e.clientX <= rect.right){
       resizing = { th: th, startX: e.clientX, startWidth: rect.width };
       th.dataset.justResized = '1';
+      th.classList.add('is-resizing'); // держит видимый разделитель, пока тянем
       e.preventDefault();
     }
   });
@@ -106,6 +108,7 @@
     var th = resizing.th;
     resizing = null;
     document.body.style.cursor = '';
+    th.classList.remove('is-resizing');
     // Небольшая задержка — иначе click, который браузер шлёт сразу после
     // mouseup, попадёт в обработчик сортировки выше и случайно пересортирует.
     setTimeout(function(){ delete th.dataset.justResized; }, 50);

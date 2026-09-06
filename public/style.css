@@ -4008,6 +4008,7 @@ label.lbl {
 }
 
 .co-tbl th {
+  position: relative; /* якорь для ::before-ручки изменения ширины */
   background: var(--card-2);
   color: var(--muted);
   font-weight: 700;
@@ -4025,6 +4026,25 @@ label.lbl {
 .co-tbl thead th:not([data-sort]):not([data-rsort]) {
   cursor: pointer;
   user-select: none;
+}
+
+/* Ручка изменения ширины столбца: зона захвата у правого края заголовка.
+   Ширина зоны (9px) совпадает с RESIZE_ZONE в tableEnhance.js. Видимый
+   разделитель появляется при наведении на заголовок и держится, пока
+   столбец тянут (класс .is-resizing ставит JS). */
+.co-tbl thead th::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+}
+.co-tbl thead th:hover::before,
+.co-tbl thead th.is-resizing::before {
+  border-right: 2px solid var(--accent);
 }
 
 .co-tbl thead th[data-sort-dir="asc"]::after {
