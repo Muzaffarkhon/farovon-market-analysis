@@ -2953,8 +2953,8 @@ function openAddSheet(){
     if(q.length < 2){ box.innerHTML = ''; return; }
     var hit = S.data.companies.filter(function(c){ return c.name.toLowerCase().indexOf(q) >= 0; }).slice(0,7);
     box.innerHTML = hit.length ? '<div class="sug">'+hit.map(function(c){
-      return '<div data-n="'+esc(c.name)+'" data-s="'+esc(c.seg)+'" data-r="'+esc(c.region)+'">'+
-        esc(c.name)+'<small>'+esc([c.seg,c.region].filter(String).join(' · '))+'</small></div>'; }).join('')+'</div>' : '';
+      return '<button type="button" data-n="'+esc(c.name)+'" data-s="'+esc(c.seg)+'" data-r="'+esc(c.region)+'">'+
+        esc(c.name)+'<small>'+esc([c.seg,c.region].filter(String).join(' · '))+'</small></button>'; }).join('')+'</div>' : '';
     box.querySelectorAll('[data-n]').forEach(function(d){
       d.onclick = function(){
         nameEl.value = d.dataset.n;

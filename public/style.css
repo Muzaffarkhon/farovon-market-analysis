@@ -4637,6 +4637,14 @@ label.lbl {
   background: var(--accent-soft);
 }
 
+.sug button small {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
 /* ═══ Закреплённые шапки таблиц ═══════════════════════════════════════════
    Работает только если у прокручиваемого контейнера есть своя высота: sticky
    считается относительно ближайшего скроллящегося предка. Раньше .tblwrap имел
