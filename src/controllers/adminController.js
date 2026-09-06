@@ -930,9 +930,11 @@ exports.listPeriodGrants = async (req, res) => {
         ORDER BY g.expires_at DESC
       `),
       queryAll(`
-        SELECT id, name, updated_at AS "updatedAt" FROM periods
-        WHERE id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
-        ORDER BY id DESC
+        SELECT p.id, p.name, p.updated_at AS "updatedAt",
+               (SELECT COUNT(*) FROM surveys s WHERE s.period_id = p.id AND s.state != 'удалена') AS "surveysCount"
+        FROM periods p
+        WHERE p.id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
+        ORDER BY p.id DESC
       `)
     ]);
 
@@ -940,6 +942,54 @@ exports.listPeriodGrants = async (req, res) => {
   } catch (err) {
     console.error('listPeriodGrants error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки списка доступов' });
+  }
+};
+
+/**
+ * Удаление архивного периода — только если в нём нет ни одной анкеты (значит
+ * это пустой тестовый период, а не реальный год сбора). Текущий (последний)
+ * период удалить нельзя никогда — проверка та же, что в grantPeriodEdit.
+ * Заодно убираем выданные на этот период гранты — они всё равно бессмысленны
+ * без самого периода.
+ */
+exports.deletePeriod = async (req, res) => {
+  const periodId = Number(req.body.periodId);
+  if (!Number.isFinite(periodId)) {
+    return res.status(400).json({ ok: false, error: 'Не указан период' });
+  }
+
+  try {
+    const period = await queryOne('SELECT id, name FROM periods WHERE id = ?', [periodId]);
+    if (!period) {
+      return res.status(404).json({ ok: false, error: 'Период не найден' });
+    }
+
+    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    if (latest && latest.id === periodId) {
+      return res.status(400).json({ ok: false, error: 'Текущий период удалить нельзя' });
+    }
+
+    const surveysCount = await queryOne(
+      "SELECT COUNT(*) AS n FROM surveys WHERE period_id = ? AND state != 'удалена'",
+      [periodId]
+    );
+    if (Number(surveysCount.n) > 0) {
+      return res.status(400).json({ ok: false, error: 'В периоде есть анкеты — удалить нельзя' });
+    }
+
+    await run('DELETE FROM period_edit_grants WHERE period_id = ?', [periodId]);
+    await run('DELETE FROM periods WHERE id = ?', [periodId]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'удалён архивный период',
+      `Период: ${period.name} (id ${periodId})`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deletePeriod error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка удаления периода' });
   }
 };
 

@@ -678,6 +678,7 @@ var API_ROUTES = {
   apiPeriodGrantUsers: function(args){ return fetchJson('/api/admin/period-grants/users', { method:'GET', token:args[0] }); },
   apiPeriodGrantCreate: function(args){ return fetchJson('/api/admin/period-grants', { method:'POST', token:args[0], body:{ userLogin:args[1], periodId:args[2] } }); },
   apiPeriodGrantRevoke: function(args){ return fetchJson('/api/admin/period-grants/revoke', { method:'POST', token:args[0], body:{ userLogin:args[1], periodId:args[2] } }); },
+  apiPeriodDelete: function(args){ return fetchJson('/api/admin/periods/delete', { method:'POST', token:args[0], body:{ periodId:args[1] } }); },
   apiAddDictionary: function(args){ return fetchJson('/api/survey/dictionary/add', { method:'POST', token:args[0], body:{ block:args[1], name:args[2], segment:args[3], region:args[4] } }); },
   // Обе кнопки «+ Добавить» в пикере вызывали методы, которых в этой таблице
   // не было: call() отклонял промис ещё до сети, и пользователь видел «Нет

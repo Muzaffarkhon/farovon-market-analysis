@@ -7651,6 +7651,10 @@ function renderAdminPeriod(){
     '<div class="period-card-kicker">Доступ к редактированию архива</div>'+
     '<div id="periodGrantsForm" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>'+
     '<div id="periodGrantsList">Загрузка…</div>'+
+  '</div>' : '')+
+  (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
+    '<div class="period-card-kicker">Архивные периоды</div>'+
+    '<div id="periodsManageList">Загрузка…</div>'+
   '</div>' : '');
 
   $('adminContent').innerHTML = h;
@@ -7748,6 +7752,50 @@ function loadPeriodGrantsPanel(){
     }
 
     renderPeriodGrantsList(panel.grants || []);
+    renderPeriodsManageList(periods);
+  });
+}
+
+function renderPeriodsManageList(periods){
+  var el = $('periodsManageList');
+  if(!el) return;
+  if(!periods.length){
+    el.innerHTML = '<div class="note">Архивных периодов пока нет.</div>';
+    return;
+  }
+  el.innerHTML = '<table class="co-tbl"><thead><tr>'+
+    '<th>Период</th><th>Анкет</th><th></th>'+
+    '</tr></thead><tbody>'+
+    periods.map(function(p){
+      var n = p.surveysCount || 0;
+      var canDelete = n === 0;
+      return '<tr>'+
+        '<td>'+esc(p.name)+(p.updatedAt ? '<br><small style="color:var(--muted)">'+esc(fmtDateTime(p.updatedAt))+'</small>' : '')+'</td>'+
+        '<td>'+n+'</td>'+
+        '<td>'+(canDelete
+          ? '<button class="btn-ghost btn-danger" data-del-period="'+p.id+'">Удалить</button>'
+          : '<button class="btn-ghost" disabled title="В периоде есть анкеты — удалить нельзя">Удалить</button>')+
+        '</td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table>';
+
+  el.querySelectorAll('button[data-del-period]').forEach(function(btn){
+    btn.onclick = function(){
+      var periodId = Number(btn.dataset.delPeriod);
+      ask({
+        title: 'Удалить этот период?',
+        html: 'Период пустой (0 анкет) — действие необратимо.',
+        ok: 'Удалить',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiPeriodDelete', S.token, periodId).then(function(r){
+          if(r && r.ok){ toast('Период удалён'); loadPeriodGrantsPanel(); }
+          else toast((r&&r.error)||'Ошибка', 'no');
+        });
+      });
+    };
   });
 }
 

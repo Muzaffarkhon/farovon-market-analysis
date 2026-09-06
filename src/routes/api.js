@@ -105,6 +105,7 @@ router.post('/admin/period-grants', requireCapability('period:edit'), adminContr
 router.post('/admin/period-grants/revoke', requireCapability('period:edit'), adminController.revokePeriodEdit);
 router.get('/admin/period-grants', requireCapability('period:edit'), adminController.listPeriodGrants);
 router.get('/admin/period-grants/users', requireCapability('period:edit'), adminController.getUsersForPeriodGrants);
+router.post('/admin/periods/delete', requireCapability('period:edit'), adminController.deletePeriod);
 router.post('/admin/maintenance', requireCapability('service:edit'), adminController.runMaintenance);
 router.post('/admin/import-survey', requireCapability('service:edit'), adminController.importSurvey);
 router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);
