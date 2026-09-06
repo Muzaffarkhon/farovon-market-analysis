@@ -1,4 +1,5 @@
 const { queryAll, queryOne, run, batch } = require('../db/database');
+const { getActivePeriod } = require('./periodService');
 const { hasCapability } = require('../middleware/auth');
 const { summarizeVarPay, parseBonusesCol } = require('./analyticsService');
 
@@ -250,7 +251,7 @@ class BenchmarkService {
     // superpowers/specs/2026-09-04-yearly-archive-design.md): без этого
     // сравнение «мы vs рынок» тихо смешивало бы все года подряд, пока
     // дашборд уже умеет их различать.
-    const currentPeriod = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    const currentPeriod = await getActivePeriod();
     const survRows = await queryAll(`
       SELECT pay_from, pay_to, cur, company,
              bon_has, bon_size, bon_type, bon_per, bonuses

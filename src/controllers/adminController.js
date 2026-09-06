@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
+const { getActivePeriod, resolvePeriodAction } = require('../services/periodService');
 const { suggestAdjacentGroups, detectRegion } = require('../services/adjacentGroups');
 const { sendMassReminder } = require('../services/telegramService');
 const { CAPABILITIES, ROLES, STRUCTURAL_NOTES, RESERVED_ROLE_KEYS } = require('../config/capabilities');
@@ -788,16 +789,45 @@ exports.batchAssignCascade = async (req, res) => {
 };
 
 // ─── Период сбора ───
+
+// Форма периода для фронта — та же, что отдавал старый setPeriod, плюс id
+// (теперь он нужен клиенту: dashboard фильтрует анкеты по period_id).
+function formatPeriod(p) {
+  return {
+    id: p ? p.id : null,
+    name: (p && p.name) || 'Обзор рынка',
+    state: (p && p.state) || 'открыт',
+    from: (p && p.from_date) || '',
+    to: (p && p.to_date) || '',
+    by: (p && p.updated_by) || '',
+    at: (p && p.updated_at) || ''
+  };
+}
+
+//
+// Одна ручка на четыре действия (см. periodService.resolvePeriodAction и
+// docs/superpowers/specs/2026-09-06-period-restore-design.md):
+//   close    — закрыть активный период (правим строку, новую не создаём)
+//   reopen   — снова открыть активный период (undo случайного «Закрыть»)
+//   new      — открыть новый период (новая строка становится активной,
+//              актуальность конкурентов сбрасывается на «уточнить»)
+//   activate — вернуть активным ранее созданный период по id (undo
+//              случайного «Открыть новый»; поднять архивный год)
+//
+// «Активный период» = строка periods с is_active = 1; смена активного —
+// это UPDATE флага в атомарном batch, а не INSERT, поэтому surveys.period_id
+// старых периодов остаются валидными и данные вернувшегося периода видны
+// сразу.
 exports.setPeriod = async (req, res) => {
-  const { state, name, from, to } = req.body;
-
-  const cleanName = (name && String(name).trim()) ? String(name).trim() : 'Обзор рынка';
-  let cleanState = String(state || 'открыт').trim().toLowerCase();
-  if (!['открыт', 'закрыт'].includes(cleanState)) {
-    cleanState = 'открыт';
+  const resolved = resolvePeriodAction(req.body);
+  if (resolved.error) {
+    return res.status(400).json({ ok: false, error: resolved.error });
   }
+  const { action, name, id } = resolved;
+  const by = req.user.fio || req.user.login;
+  const { from, to } = req.body;
 
-  if (from && to && String(from).trim() && String(to).trim()) {
+  if (action === 'new' && from && to && String(from).trim() && String(to).trim()) {
     const dFrom = new Date(from);
     const dTo = new Date(to);
     if (!isNaN(dFrom.getTime()) && !isNaN(dTo.getTime()) && dFrom > dTo) {
@@ -806,38 +836,62 @@ exports.setPeriod = async (req, res) => {
   }
 
   try {
-    await run(`
-      INSERT INTO periods (name, state, from_date, to_date, updated_by, updated_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `, [cleanName, cleanState, from || null, to || null, req.user.fio || req.user.login]);
+    const active = await getActivePeriod();
+    let auditDetail;
 
-    // Новый год сбора — «чистый лист» по актуальности конкурентов: старые
-    // отметки «актуально»/«не актуально» могли устареть за год, HR BP должны
-    // перепроверить каждую заново. Сами анкеты (surveys) не трогаем — они
-    // просто перестают быть «текущим периодом» за счёт period_id (см.
-    // surveyController.saveSurveyDetails и authController.getUserPayload).
-    if (cleanState === 'открыт') {
+    if (action === 'close') {
+      await run(
+        "UPDATE periods SET state = 'закрыт', updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE is_active = 1",
+        [by]
+      );
+      auditDetail = `Период «${active.name}»: закрыт`;
+
+    } else if (action === 'reopen') {
+      await run(
+        "UPDATE periods SET state = 'открыт', updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE is_active = 1",
+        [by]
+      );
+      auditDetail = `Период «${active.name}»: открыт заново`;
+
+    } else if (action === 'new') {
+      await batch([
+        { sql: 'UPDATE periods SET is_active = 0 WHERE is_active = 1', args: [] },
+        {
+          sql: `INSERT INTO periods (name, state, from_date, to_date, updated_by, updated_at, is_active)
+                VALUES (?, 'открыт', ?, ?, ?, CURRENT_TIMESTAMP, 1)`,
+          args: [name, from || null, to || null, by]
+        }
+      ]);
+      // Новый год сбора — «чистый лист» по актуальности конкурентов: старые
+      // отметки «актуально»/«не актуально» могли устареть за год, HR BP
+      // должны перепроверить каждую заново. Анкеты не трогаем — они
+      // остаются за своим периодом по surveys.period_id.
       await run("UPDATE competitors SET actual = 'уточнить'");
+      auditDetail = `Период «${name}»: открыт новый (актуальность конкурентов сброшена)`;
+
+    } else { // activate
+      const target = await queryOne('SELECT id, name, is_active FROM periods WHERE id = ?', [id]);
+      if (!target) {
+        return res.status(404).json({ ok: false, error: 'Период не найден' });
+      }
+      if (target.is_active) {
+        return res.json({ ok: true, already: true, period: formatPeriod(await getActivePeriod()) });
+      }
+      await batch([
+        { sql: 'UPDATE periods SET is_active = 0 WHERE is_active = 1', args: [] },
+        {
+          sql: "UPDATE periods SET is_active = 1, state = 'открыт', updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          args: [by, id]
+        }
+      ]);
+      auditDetail = `Период «${target.name}» (#${id}): возвращён активным`;
     }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
-      req.user.login,
-      'период сбора',
-      `Период: ${cleanName}, Статус: ${cleanState}` + (cleanState === 'открыт' ? ' (актуальность конкурентов сброшена)' : '')
+      req.user.login, 'период сбора', auditDetail
     ]);
 
-    const updated = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
-    res.json({
-      ok: true,
-      period: {
-        name: updated.name,
-        state: updated.state,
-        from: updated.from_date || '',
-        to: updated.to_date || '',
-        by: updated.updated_by || '',
-        at: updated.updated_at || ''
-      }
-    });
+    res.json({ ok: true, period: formatPeriod(await getActivePeriod()) });
   } catch (err) {
     console.error('setPeriod error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка настройки периода' });
@@ -865,7 +919,7 @@ exports.grantPeriodEdit = async (req, res) => {
     if (!period) {
       return res.status(404).json({ ok: false, error: 'Период не найден' });
     }
-    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    const latest = await getActivePeriod();
     if (latest && latest.id === periodId) {
       return res.status(400).json({ ok: false, error: 'Текущий период редактируется без гранта' });
     }
@@ -929,12 +983,16 @@ exports.listPeriodGrants = async (req, res) => {
         WHERE g.expires_at > CURRENT_TIMESTAMP
         ORDER BY g.expires_at DESC
       `),
+      // Все периоды — и активный тоже. Фронт показывает их списком «Все
+      // периоды сбора»: у активного бейдж и нет кнопок, у остальных —
+      // «Сделать активным снова» и (если 0 анкет) «Удалить». Форма выдачи
+      // грантов отдельно отфильтровывает активный (на него грант не нужен).
       queryAll(`
-        SELECT p.id, p.name, p.updated_at AS "updatedAt",
+        SELECT p.id, p.name, p.state, p.is_active AS "isActive",
+               p.updated_at AS "updatedAt", p.updated_by AS "updatedBy",
                (SELECT COUNT(*) FROM surveys s WHERE s.period_id = p.id AND s.state != 'удалена') AS "surveysCount"
         FROM periods p
-        WHERE p.id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
-        ORDER BY p.id DESC
+        ORDER BY p.is_active DESC, p.id DESC
       `)
     ]);
 
@@ -947,8 +1005,8 @@ exports.listPeriodGrants = async (req, res) => {
 
 /**
  * Удаление архивного периода — только если в нём нет ни одной анкеты (значит
- * это пустой тестовый период, а не реальный год сбора). Текущий (последний)
- * период удалить нельзя никогда — проверка та же, что в grantPeriodEdit.
+ * это пустой тестовый период, а не реальный год сбора). Активный период
+ * удалить нельзя никогда — проверка та же, что в grantPeriodEdit.
  * Заодно убираем выданные на этот период гранты — они всё равно бессмысленны
  * без самого периода.
  */
@@ -964,9 +1022,9 @@ exports.deletePeriod = async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Период не найден' });
     }
 
-    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    const latest = await getActivePeriod();
     if (latest && latest.id === periodId) {
-      return res.status(400).json({ ok: false, error: 'Текущий период удалить нельзя' });
+      return res.status(400).json({ ok: false, error: 'Активный период удалить нельзя' });
     }
 
     const surveysCount = await queryOne(
@@ -1675,7 +1733,7 @@ exports.importSurvey = async (req, res) => {
   }
 
   try {
-    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
+    const period = await getActivePeriod();
     const [divisions, users, dc, dp, existing] = await Promise.all([
       queryAll('SELECT unit FROM divisions'),
       queryAll('SELECT fio FROM users WHERE archived_at IS NULL'),

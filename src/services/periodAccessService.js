@@ -1,6 +1,7 @@
 'use strict';
 
 const { queryOne } = require('../db/database');
+const { getActivePeriod } = require('./periodService');
 
 /**
  * expires_at приходит из SQLite как наивная строка "YYYY-MM-DD HH:MM:SS" (без
@@ -45,8 +46,12 @@ function isGrantActive(expiresAt, nowIso) {
  * @returns {Promise<{ok:true, period:{id:number|null,state:string,name:string}} | {ok:false,status:number,error:string}>}
  */
 async function resolveEditablePeriod(requestedPeriodId, user) {
-  const latest = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1'))
-    || { id: null, state: 'открыт', name: 'Обзор рынка' };
+  const active = await getActivePeriod();
+  const latest = {
+    id: active.id,
+    state: active.state,
+    name: active.name || 'Обзор рынка'
+  };
 
   const requested = (requestedPeriodId === null || requestedPeriodId === undefined || requestedPeriodId === '')
     ? null

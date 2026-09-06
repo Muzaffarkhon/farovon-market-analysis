@@ -1,4 +1,5 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
+const { getActivePeriod } = require('../services/periodService');
 const { queryAll, queryOne, run } = require('../db/database');
 
 /**
@@ -75,7 +76,7 @@ exports.getCBDashboard = async (req, res) => {
 
 exports.getHRBPDashboard = async (req, res) => {
   try {
-    const periodRaw = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
+    const periodRaw = await getActivePeriod();
     const [divisions, competitors, surveys] = await Promise.all([
       queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
       queryAll('SELECT unit, actual, updated_at FROM competitors'),

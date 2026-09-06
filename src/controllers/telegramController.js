@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryOne, queryAll, run } = require('../db/database');
 const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('../services/telegramService');
+const { getActivePeriod } = require('../services/periodService');
 
 const LINK_TTL_MINUTES = 10;
 
@@ -279,7 +280,7 @@ async function handleStatus(chatId) {
   // Только текущий год сбора — тот же счётчик, что показывает приложение
   // (см. dashboardController.getHRBPDashboard); без этого бот считал бы
   // анкеты всех лет сразу и не совпадал бы с тем, что видно в самом приложении.
-  const currentPeriod = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+  const currentPeriod = await getActivePeriod();
   const survs = await queryAll(
     `SELECT id FROM surveys WHERE state != 'удалена' AND unit IN (${placeholders}) AND period_id = ?`,
     [...unitsList, currentPeriod ? currentPeriod.id : null]);

@@ -108,7 +108,8 @@ CREATE TABLE IF NOT EXISTS periods (
   from_date TEXT,
   to_date TEXT,
   updated_by TEXT,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  is_active INTEGER NOT NULL DEFAULT 0 -- ровно одна строка = 1: текущий период сбора
 );
 
 CREATE TABLE IF NOT EXISTS period_edit_grants (

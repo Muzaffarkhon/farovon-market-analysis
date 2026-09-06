@@ -1,4 +1,5 @@
 const { queryAll, queryOne } = require('../db/database');
+const { getActivePeriod } = require('./periodService');
 
 // Стандартный месяц для приведения часовой тарифной ставки (ЧТС) к месячному
 // окладу: 168 часов. Нужно, чтобы часовые ставки не занижали вилки должностей.
@@ -256,10 +257,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   // подразделениям. Предикат по строке divisions приходит из контроллера.
   const unitFilter = typeof opts.unitFilter === 'function' ? opts.unitFilter : null;
 
-  // Годовой архив: без явного filters.period дашборд показывает последний
-  // (текущий) период — periodsList уходит на фронт для выпадающего списка.
-  const periodsList = await queryAll('SELECT id, name, updated_at AS "updatedAt" FROM periods ORDER BY id DESC');
-  const currentPeriodId = periodsList.length ? periodsList[0].id : null;
+  // Годовой архив: без явного filters.period дашборд показывает активный
+  // период — periodsList уходит на фронт для выпадающего списка.
+  const periodsList = await queryAll('SELECT id, name, updated_at AS "updatedAt", is_active AS "isActive" FROM periods ORDER BY id DESC');
+  const currentPeriodId = (periodsList.find(p => p.isActive) || periodsList[0] || {}).id ?? null;
   const viewingPeriodId = resolveDashboardPeriodId(filters.period, currentPeriodId);
 
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
@@ -635,7 +636,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   const totalComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].totalComp, 0);
   const checkedComps = Object.keys(unitMap).reduce((acc, k) => acc + unitMap[k].doneComp, 0);
 
-  const periodRow = (await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1')) || { name: 'Обзор рынка', state: 'открыт' };
+  const periodRow = await getActivePeriod();
 
   return {
     ok: true,

@@ -7643,7 +7643,8 @@ function renderAdminPeriod(){
     '</div>'+
     (canEdit
       ? (closed
-          ? '<button id="btnAdminPeriodOpen" class="btn-line period-card-act is-open">Открыть новый период</button>'
+          ? '<button id="btnAdminPeriodReopen" class="btn-line period-card-act is-open">Открыть закрытый обратно</button>'+
+            '<button id="btnAdminPeriodOpen" class="btn-line period-card-act">Открыть новый период</button>'
           : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')
       : '')+
   '</div>'+
@@ -7653,7 +7654,8 @@ function renderAdminPeriod(){
     '<div id="periodGrantsList">Загрузка…</div>'+
   '</div>' : '')+
   (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
-    '<div class="period-card-kicker">Архивные периоды</div>'+
+    '<div class="period-card-kicker">Все периоды сбора</div>'+
+    '<div class="note" style="margin:2px 0 8px">Если период закрыли или открыли новый по ошибке — верните нужный кнопкой «Сделать активным». Данные периода привязаны к нему и вернутся вместе с ним.</div>'+
     '<div id="periodsManageList">Загрузка…</div>'+
   '</div>' : '');
 
@@ -7670,10 +7672,31 @@ function renderAdminPeriod(){
         ok: 'Открыть период'
       }).then(function(name){
         if(!name) return;
-        call('apiSetPeriod', S.token, { state:'открыт', name:name }).then(function(res){
+        call('apiSetPeriod', S.token, { action:'new', name:name }).then(function(res){
           if(res && res.ok){
             S.data.period = res.period;
-            toast('Период открыт');
+            toast('Новый период открыт');
+            renderAdminPeriod();
+          } else {
+            toast((res&&res.error)||'Ошибка');
+          }
+        });
+      });
+    };
+  }
+
+  if($('btnAdminPeriodReopen')){
+    $('btnAdminPeriodReopen').onclick = function(){
+      ask({
+        title: 'Открыть текущий период обратно?',
+        html: 'Период «'+esc(p.name || 'Обзор рынка')+'» снова станет открытым — сотрудники смогут вносить данные за этот год. Новый период не создаётся.',
+        ok: 'Открыть обратно'
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiSetPeriod', S.token, { action:'reopen' }).then(function(res){
+          if(res && res.ok){
+            S.data.period = res.period;
+            toast('Период снова открыт');
             renderAdminPeriod();
           } else {
             toast((res&&res.error)||'Ошибка');
@@ -7687,12 +7710,12 @@ function renderAdminPeriod(){
     $('btnAdminPeriodClose').onclick = function(){
       ask({
         title: 'Закрыть период сбора данных?',
-        html: 'Руководители и сотрудники больше не смогут изменять данные (только просмотр).',
+        html: 'Руководители и сотрудники больше не смогут изменять данные (только просмотр).\nЕсли закрыли по ошибке — «Открыть закрытый обратно» вернёт всё как было.',
         ok: 'Закрыть период',
         danger: true
       }).then(function(yes){
         if(!yes) return;
-        call('apiSetPeriod', S.token, { state:'закрыт' }).then(function(res){
+        call('apiSetPeriod', S.token, { action:'close' }).then(function(res){
           if(res && res.ok){
             S.data.period = res.period;
             toast('Период закрыт');
@@ -7729,14 +7752,17 @@ function loadPeriodGrantsPanel(){
       return;
     }
     var periods = panel.periods || [];
+    // На активный период грант не нужен (он и так редактируется) — в форме
+    // выдачи показываем только архивные.
+    var grantablePeriods = periods.filter(function(p){ return !p.isActive; });
     var users = (usersRes && usersRes.ok ? usersRes.users : []).filter(function(u){ return u.active; });
 
-    if(!periods.length){
+    if(!grantablePeriods.length){
       $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
     } else {
       $('periodGrantsForm').innerHTML =
         niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
-        niceSelect({ id:'grantPeriodSel', width:280, value: periods[0] ? String(periods[0].id) : '', items: periods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
+        niceSelect({ id:'grantPeriodSel', width:280, value: grantablePeriods[0] ? String(grantablePeriods[0].id) : '', items: grantablePeriods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
         '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
       wireNiceSelect('grantUserSel', function(){});
       wireNiceSelect('grantPeriodSel', function(){});
@@ -7760,25 +7786,60 @@ function renderPeriodsManageList(periods){
   var el = $('periodsManageList');
   if(!el) return;
   if(!periods.length){
-    el.innerHTML = '<div class="note">Архивных периодов пока нет.</div>';
+    el.innerHTML = '<div class="note">Периодов пока нет.</div>';
     return;
   }
   el.innerHTML = '<table class="co-tbl"><thead><tr>'+
-    '<th>Период</th><th>Анкет</th><th></th>'+
+    '<th>Период</th><th>Статус</th><th>Анкет</th><th></th>'+
     '</tr></thead><tbody>'+
     periods.map(function(p){
       var n = p.surveysCount || 0;
-      var canDelete = n === 0;
-      return '<tr>'+
-        '<td>'+esc(p.name)+(p.updatedAt ? '<br><small style="color:var(--muted)">'+esc(fmtDateTime(p.updatedAt))+'</small>' : '')+'</td>'+
+      var active = !!p.isActive;
+      var closed = p.state === 'закрыт';
+      var meta = [];
+      if(p.updatedAt) meta.push(esc(fmtDateTime(p.updatedAt)));
+      if(p.updatedBy) meta.push('изменил ' + esc(p.updatedBy));
+      var statusCell = active
+        ? '<span class="pill p-ok">Активен'+(closed?' · закрыт':'')+'</span>'
+        : (closed ? '<span class="pill p-no">закрыт</span>' : '<span class="pill p-mid">открыт</span>');
+      var actCell = active
+        ? '<span style="color:var(--muted);font-size:13px">текущий</span>'
+        : '<button class="btn-ghost" data-activate-period="'+p.id+'">Сделать активным</button>'+
+          (n === 0
+            ? ' <button class="btn-ghost btn-danger" data-del-period="'+p.id+'">Удалить</button>'
+            : ' <button class="btn-ghost" disabled title="В периоде есть анкеты — удалить нельзя">Удалить</button>');
+      return '<tr'+(active?' style="background:var(--ok-soft)"':'')+'>'+
+        '<td><b>'+esc(p.name)+'</b>'+(meta.length ? '<br><small style="color:var(--muted)">'+meta.join(' · ')+'</small>' : '')+'</td>'+
+        '<td>'+statusCell+'</td>'+
         '<td>'+n+'</td>'+
-        '<td>'+(canDelete
-          ? '<button class="btn-ghost btn-danger" data-del-period="'+p.id+'">Удалить</button>'
-          : '<button class="btn-ghost" disabled title="В периоде есть анкеты — удалить нельзя">Удалить</button>')+
-        '</td>'+
+        '<td style="white-space:nowrap">'+actCell+'</td>'+
       '</tr>';
     }).join('')+
     '</tbody></table>';
+
+  el.querySelectorAll('button[data-activate-period]').forEach(function(btn){
+    btn.onclick = function(){
+      var periodId = Number(btn.dataset.activatePeriod);
+      var row = btn.closest('tr');
+      var pName = row ? row.querySelector('b').textContent : 'этот период';
+      ask({
+        title: 'Сделать активным этот период?',
+        html: 'Текущим станет период «'+esc(pName)+'» и он будет открыт — сотрудники снова смогут вносить данные за этот год. Прежний активный период станет архивным (его данные сохранятся).',
+        ok: 'Сделать активным'
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiSetPeriod', S.token, { action:'activate', id:periodId }).then(function(r){
+          if(r && r.ok){
+            S.data.period = r.period;
+            toast('Период возвращён');
+            renderAdminPeriod();
+          } else {
+            toast((r&&r.error)||'Ошибка', 'no');
+          }
+        });
+      });
+    };
+  });
 
   el.querySelectorAll('button[data-del-period]').forEach(function(btn){
     btn.onclick = function(){
@@ -8954,7 +9015,8 @@ function openProgress(){
         (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>на уточнении</span></div>' : '')+
       '</div>'+
       (closed
-        ? '<button id="btnPeriod" class="btn-line page-head-act" style="color:var(--ok);border-color:var(--ok)">Открыть новый период</button>'
+        ? '<button id="btnPeriodReopen" class="btn-line page-head-act" style="color:var(--ok);border-color:var(--ok)">Открыть закрытый обратно</button>'+
+          '<button id="btnPeriod" class="btn-line page-head-act">Открыть новый период</button>'
         : '<button id="btnPeriod" class="btn-line btn-danger page-head-act">Закрыть период</button>')+
       '</div>';
 
@@ -9104,7 +9166,7 @@ function openProgress(){
       if(closed){
         askText({
           title: 'Открыть новый период',
-          html: 'Руководители снова смогут вносить и удалять данные.',
+          html: 'Начнётся новый год сбора с чистого листа. Данные закрытого периода останутся в архиве.',
           value: 'Обзор рынка — ' +
             new Date().toLocaleDateString('ru-RU', {month:'long', year:'numeric'}),
           placeholder: 'Название периода',
@@ -9112,23 +9174,38 @@ function openProgress(){
         }).then(function(name){
           if(name === null) return;
           btn.disabled = true; btn.textContent = 'Открываем…';
-          call('apiSetPeriod', S.token, { state:'открыт', name:name })
+          call('apiSetPeriod', S.token, { action:'new', name:name })
             .then(afterPeriod).catch(periodFail);
         });
       } else {
         ask({
           title: 'Закрыть период заполнения?',
           html: 'Руководители перейдут в режим просмотра — вносить и удалять данные ' +
-                'они больше не смогут.\nВы как HR BP сможете править и после закрытия.',
+                'они больше не смогут.\nВы как HR BP сможете править и после закрытия. ' +
+                'Если закрыли по ошибке — «Открыть закрытый обратно» вернёт всё как было.',
           ok: 'Закрыть период',
           danger: true
         }).then(function(yes){
           if(!yes) return;
           btn.disabled = true; btn.textContent = 'Закрываем…';
-          call('apiSetPeriod', S.token, { state:'закрыт' }).then(afterPeriod).catch(periodFail);
+          call('apiSetPeriod', S.token, { action:'close' }).then(afterPeriod).catch(periodFail);
         });
       }
     };
+    if($('btnPeriodReopen')){
+      $('btnPeriodReopen').onclick = function(){
+        var btn = this;
+        ask({
+          title: 'Открыть текущий период обратно?',
+          html: 'Период снова станет открытым — руководители смогут вносить данные за этот год. Новый период не создаётся.',
+          ok: 'Открыть обратно'
+        }).then(function(yes){
+          if(!yes) return;
+          btn.disabled = true; btn.textContent = 'Открываем…';
+          call('apiSetPeriod', S.token, { action:'reopen' }).then(afterPeriod).catch(periodFail);
+        });
+      };
+    }
     function afterPeriod(res){
       if(!res || !res.ok){ toast((res&&res.error)||'Не удалось изменить период'); openProgress(); return; }
       S.data.period = res.period;
