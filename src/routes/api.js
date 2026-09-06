@@ -11,6 +11,7 @@ const adminController = require('../controllers/adminController');
 const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
 const benchmarkController = require('../controllers/benchmarkController');
+const streamController = require('../controllers/streamController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -51,6 +52,9 @@ router.use((req, res, next) => {
   });
   next();
 });
+
+// Живое обновление (SSE) — дашборд и часть админки, см. streamController.js.
+router.get('/stream', streamController.stream);
 
 // Профиль и сессия
 router.get('/auth/resume', authController.resume);
