@@ -245,13 +245,18 @@ class BenchmarkService {
 
     const canViewLicensed = user && (user.role === 'admin' || (await hasCapability(user, 'benchmarks:view_licensed')));
 
-    // 1. Проекция внутреннего сбора (таблица surveys)
+    // 1. Проекция внутреннего сбора (таблица surveys) — только текущий год
+    // сбора, тем же образом, что дашборд и форма заполнения (см. docs/
+    // superpowers/specs/2026-09-04-yearly-archive-design.md): без этого
+    // сравнение «мы vs рынок» тихо смешивало бы все года подряд, пока
+    // дашборд уже умеет их различать.
+    const currentPeriod = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
     const survRows = await queryAll(`
       SELECT pay_from, pay_to, cur, company,
              bon_has, bon_size, bon_type, bon_per, bonuses
       FROM surveys
-      WHERE state != 'удалена' AND LOWER(TRIM(pos_our)) = LOWER(TRIM(?))
-    `, [ourPosName]);
+      WHERE state != 'удалена' AND LOWER(TRIM(pos_our)) = LOWER(TRIM(?)) AND period_id = ?
+    `, [ourPosName, currentPeriod ? currentPeriod.id : null]);
 
     const internalValues = [];
     // Совокупный доход = оклад + переменная часть, приведённая к месяцу. В
