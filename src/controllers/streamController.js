@@ -31,7 +31,7 @@ async function signatureFor(user) {
   if (await hasCapability(user, 'dashboard:view')) {
     const row = await queryOne(`
       SELECT
-        (SELECT id || ':' || state FROM periods ORDER BY id DESC LIMIT 1) AS period,
+        (SELECT id || ':' || state FROM periods WHERE is_active = 1 LIMIT 1) AS period,
         (SELECT COUNT(*) FROM surveys WHERE state != 'удалена') AS "survCount",
         (SELECT MAX(created_at) FROM surveys WHERE state != 'удалена') AS "survMax",
         (SELECT COUNT(*) FROM competitors) AS "compCount",
@@ -44,6 +44,7 @@ async function signatureFor(user) {
     const row = await queryOne(`
       SELECT
         (SELECT COUNT(*) FROM periods) AS "periodCount",
+        (SELECT id || ':' || state FROM periods WHERE is_active = 1 LIMIT 1) AS "activePeriod",
         (SELECT COUNT(*) FROM period_edit_grants WHERE expires_at > CURRENT_TIMESTAMP) AS "grantCount",
         (SELECT MAX(granted_at) FROM period_edit_grants) AS "grantMax"
     `);

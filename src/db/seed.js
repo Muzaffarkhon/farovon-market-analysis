@@ -33,8 +33,8 @@ async function runSeed() {
   if (bundle.period) {
     const p = bundle.period;
     await run(
-      `INSERT OR REPLACE INTO periods (id, name, state, from_date, to_date, updated_by)
-       VALUES (1, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO periods (id, name, state, from_date, to_date, updated_by, is_active)
+       VALUES (1, ?, ?, ?, ?, ?, 1)`,
       [
         p.name || 'Обзор рынка 2026',
         p.state || 'открыт',

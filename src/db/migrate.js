@@ -324,6 +324,24 @@ async function migrate() {
     UNIQUE(user_login, period_id)
   )`);
 
+  // Восстановление периода: «текущий период» больше не «самая новая строка»,
+  // а строка с is_active = 1. Это позволяет вернуть прошлый период активным
+  // (закрыли/открыли новый по ошибке), не создавая копию с новым id и не
+  // отвязывая анкеты по surveys.period_id (см. docs/superpowers/specs/
+  // 2026-09-06-period-restore-design.md).
+  const addedIsActive = await ensureColumn('periods', 'is_active', 'INTEGER NOT NULL DEFAULT 0');
+  if (addedIsActive) {
+    // До этой миграции текущим считался новейший период — переносим на него.
+    await run(`UPDATE periods SET is_active = 1
+               WHERE id = (SELECT id FROM periods ORDER BY id DESC LIMIT 1)`);
+    console.log('🔧 Миграция: periods.is_active проставлен новейшему периоду');
+  }
+  // Страховка от рассинхрона (ручная правка БД, сбой в середине операции):
+  // если активной строки нет вовсе — активировать новейшую.
+  await run(`UPDATE periods SET is_active = 1
+             WHERE id = (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
+               AND NOT EXISTS (SELECT 1 FROM periods WHERE is_active = 1)`);
+
   console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
 }
 

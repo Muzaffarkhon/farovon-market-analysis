@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
+const { getActivePeriod } = require('../services/periodService');
 const { suggestAdjacentGroups, detectRegion } = require('../services/adjacentGroups');
 const { sendMassReminder } = require('../services/telegramService');
 const { CAPABILITIES, ROLES, STRUCTURAL_NOTES, RESERVED_ROLE_KEYS } = require('../config/capabilities');
@@ -865,7 +866,7 @@ exports.grantPeriodEdit = async (req, res) => {
     if (!period) {
       return res.status(404).json({ ok: false, error: 'Период не найден' });
     }
-    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    const latest = await getActivePeriod();
     if (latest && latest.id === periodId) {
       return res.status(400).json({ ok: false, error: 'Текущий период редактируется без гранта' });
     }
@@ -964,7 +965,7 @@ exports.deletePeriod = async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Период не найден' });
     }
 
-    const latest = await queryOne('SELECT id FROM periods ORDER BY id DESC LIMIT 1');
+    const latest = await getActivePeriod();
     if (latest && latest.id === periodId) {
       return res.status(400).json({ ok: false, error: 'Текущий период удалить нельзя' });
     }
@@ -1675,7 +1676,7 @@ exports.importSurvey = async (req, res) => {
   }
 
   try {
-    const period = (await queryOne('SELECT id, state, name FROM periods ORDER BY id DESC LIMIT 1')) || { id: null, state: 'открыт', name: 'Обзор рынка' };
+    const period = await getActivePeriod();
     const [divisions, users, dc, dp, existing] = await Promise.all([
       queryAll('SELECT unit FROM divisions'),
       queryAll('SELECT fio FROM users WHERE archived_at IS NULL'),

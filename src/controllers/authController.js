@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
 const { cached } = require('../services/refCache');
+const { getActivePeriod } = require('../services/periodService');
 const { mapSurveyRow } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
 
@@ -82,7 +83,7 @@ exports.logout = async (req, res) => {
 };
 
 async function getPeriodInfo() {
-  const p = await queryOne('SELECT * FROM periods ORDER BY id DESC LIMIT 1');
+  const p = await getActivePeriod();
   return p ? {
     id: p.id,
     name: p.name,

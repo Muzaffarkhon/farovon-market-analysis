@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
 const { resolveEditablePeriod } = require('../services/periodAccessService');
+const { getActivePeriod } = require('../services/periodService');
 
 // Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
 // одинаков, а Math.random().slice(2,7) — всего ~60 млн вариантов, при десятках
@@ -170,7 +171,7 @@ exports.saveSurveyData = async (req, res) => {
   }
 
   try {
-    const period = await queryOne('SELECT state FROM periods ORDER BY id DESC LIMIT 1');
+    const period = await getActivePeriod();
     if (period && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
     }
@@ -369,13 +370,13 @@ exports.saveSurveyDetails = async (req, res) => {
     }
     const period = resolved.period;
     // Проверка «период закрыт → только элевейтед-роли» имеет смысл ТОЛЬКО
-    // для текущего (последнего) периода — это временное состояние между
+    // для текущего (активного) периода — это временное состояние между
     // закрытием и открытием следующего года. Для архивного периода admin
     // уже разрешён resolveEditablePeriod безусловно, а для остальных ролей
     // единственный путь сюда — живой грант, который сам по себе достаточное
     // разрешение (иначе грант никогда бы не сработал ни для кого, кроме
     // hrbp/admin/cb, что противоречит всей цели этой задачи).
-    const latestRow = await queryOne('SELECT id, state FROM periods ORDER BY id DESC LIMIT 1');
+    const latestRow = await getActivePeriod();
     const isCurrentPeriod = !latestRow || period.id === latestRow.id;
     if (isCurrentPeriod && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
       return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
