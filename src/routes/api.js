@@ -94,6 +94,7 @@ router.post('/admin/users/:login/restore', requireCapability('users:edit'), admi
 
 router.get('/admin/divisions', requireCapability('divisions:view'), adminController.getDivisions);
 router.post('/admin/divisions', requireCapability('divisions:edit'), adminController.saveDivision);
+router.post('/admin/divisions/create', requireCapability('divisions:edit'), adminController.createDivision);
 router.post('/admin/divisions/move', requireCapability('divisions:edit'), adminController.moveDivisionCascade);
 router.post('/admin/divisions/batch-assign', requireCapability('divisions:edit'), adminController.batchAssignCascade);
 router.post('/admin/divisions/adjacent-group', requireCapability('divisions:edit'), adminController.applyAdjacentGroup);

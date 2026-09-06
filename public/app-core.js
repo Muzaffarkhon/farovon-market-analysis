@@ -701,6 +701,7 @@ var API_ROUTES = {
   apiAdminRestoreUser: function(args){ return fetchJson('/api/admin/users/' + encodeURIComponent(args[1]) + '/restore', { method:'POST', token:args[0] }); },
   apiAdminGetDivisions: function(args){ return fetchJson('/api/admin/divisions', { method:'GET', token:args[0] }); },
   apiAdminSaveDivision: function(args){ return fetchJson('/api/admin/divisions', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminCreateDivision: function(args){ return fetchJson('/api/admin/divisions/create', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminBatchAssignDivision: function(args){ return fetchJson('/api/admin/divisions/batch-assign', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminApplyAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },

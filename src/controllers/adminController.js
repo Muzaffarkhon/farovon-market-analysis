@@ -689,6 +689,70 @@ exports.saveDivision = async (req, res) => {
   }
 };
 
+/**
+ * Создание нового подразделения. saveDivision выше только обновляет
+ * существующие строки (UPDATE ... WHERE unit = ?), поэтому завести новый
+ * отдел через него было нельзя. Структуру меняют только admin/C&B — как и
+ * в saveDivision, dir_head сюда не пускаем.
+ *
+ * Минимум — название (unit, UNIQUE). Направление и ответственные
+ * необязательны: без направления отдел попадёт в «Без направления», без
+ * ответственных — просто ждёт назначения. parent_unit не задаём (отдел
+ * верхнего уровня внутри направления); подотдел и остальное — уже через
+ * обычную панель редактирования и «переместить».
+ */
+exports.createDivision = async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'cb') {
+    return res.status(403).json({ ok: false, error: 'Недостаточно прав для создания подразделения' });
+  }
+
+  const { unit, dir, head, resp, hrbp, region, note } = req.body;
+  if (!unit || !String(unit).trim()) {
+    return res.status(400).json({ ok: false, error: 'Укажите название подразделения' });
+  }
+
+  const cleanUnit = String(unit).trim();
+  const cleanDir = dir && String(dir).trim() ? String(dir).trim() : null;
+  const clean = (v) => (v && String(v).trim() ? String(v).trim() : null);
+  const cHead = clean(head), cResp = clean(resp), cHrbp = clean(hrbp);
+  const cRegion = clean(region), cNote = clean(note);
+
+  try {
+    // Сверка без учёта регистра/пробелов — в JS, а не в SQL: SQLite LOWER()
+    // работает только с ASCII, кириллицу не приводит.
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const allUnits = await queryAll('SELECT unit FROM divisions');
+    if (allUnits.some(d => norm(d.unit) === norm(cleanUnit))) {
+      return res.status(409).json({ ok: false, error: 'Подразделение с таким названием уже есть' });
+    }
+
+    const nextNum = await queryOne('SELECT COALESCE(MAX(num), 0) + 1 AS n FROM divisions');
+
+    await run(`
+      INSERT INTO divisions (unit, dir, num, head, resp, hrbp, region, note, org_role, parent_unit, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'line', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `, [cleanUnit, cleanDir, (nextNum && nextNum.n) || 1, cHead, cResp, cHrbp, cRegion, cNote]);
+
+    // Закрепить новое подразделение за назначенными людьми (как ветка
+    // !existing в saveDivision, но по всем троим сразу).
+    for (const person of [cResp, cHead, cHrbp]) {
+      if (person) await syncUserDivisionAssignment(null, person, cleanUnit);
+    }
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'создано подразделение',
+      `Подразделение: ${cleanUnit}, Направление: ${cleanDir || '—'}, Отв: ${cResp || '—'}, HRBP: ${cHrbp || '—'}`
+    ]);
+
+    const created = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
+    res.json({ ok: true, division: created, message: 'Подразделение создано' });
+  } catch (err) {
+    console.error('createDivision error:', err && err.message ? err.message : err);
+    res.status(500).json({ ok: false, error: 'Ошибка создания подразделения' });
+  }
+};
+
 exports.moveDivisionCascade = async (req, res) => {
   const { unit, targetDir, parentUnit, cascadeCompetitors } = req.body;
   if (!unit || !targetDir) {

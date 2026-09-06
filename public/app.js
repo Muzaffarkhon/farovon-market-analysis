@@ -5469,6 +5469,10 @@ function renderAdminDivisions(){
           ic('link', 13) + ' Смежные группы' +
           ((function(){ var n = new Set((S.adminDivs||[]).map(function(x){ return String(x.group_key||'').trim(); }).filter(Boolean)).size; return n ? ' ('+n+')' : ''; })())+
         '</button>'+
+        (hasCap('divisions:edit') ?
+          '<button class="btn-line" id="btnAddDivision" style="margin-left:8px;gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
+            ic('plus', 13) + ' Добавить подразделение</button>'
+          : '')+
         // Кнопка «Отменить» — показывается только когда стек не пустой
         ((S.myUndoStack && S.myUndoStack.length) ?
           '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="margin-left:8px;gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
@@ -5938,6 +5942,10 @@ function renderAdminDivisions(){
             '<button class="seg-btn" id="btnOrgTree">' + ic('units', 14) + ' Схема оргструктуры</button>'+
             '<button class="seg-btn on" id="btnOrgTable">' + ic('book', 14) + ' Таблица</button>'+
           '</div>'+
+          (hasCap('divisions:edit') ?
+            '<button class="btn-line" id="btnAddDivision" style="gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
+              ic('plus', 13) + ' Добавить подразделение</button>'
+            : '')+
         '</div>'+
         '<div>'+tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
       '</div>'+
@@ -6023,6 +6031,8 @@ function renderAdminDivisions(){
   if(btnUndo) btnUndo.onclick = popUndo;
   var btnAdjG = $('btnAdjGroups');
   if(btnAdjG) btnAdjG.onclick = openAdjacentGroupsModal;
+  var btnAddDiv = $('btnAddDivision');
+  if(btnAddDiv) btnAddDiv.onclick = openAddDivisionModal;
 
   // Конструктор: смена направления через выпадающий список
   var selChangeDir = $('selChangeDir');
@@ -6987,6 +6997,109 @@ function promptAssignStaffToUnit(fio, targetUnit){
  * Автоподсказки по конкретному подразделению живут в его карточке
  * (openDivisionModal, блок #dmGrpSug).
  */
+// Создание нового подразделения. Раньше через приложение завести отдел было
+// нельзя — saveDivision только обновляет существующие строки. Минимум —
+// название; направление и ответственные необязательны и дозаполняются в
+// обычной панели справа. См. adminController.createDivision.
+function openAddDivisionModal(){
+  var dirs = [];
+  (S.adminDivs || []).forEach(function(x){
+    var d = String(x.dir || '').trim();
+    if(d && dirs.indexOf(d) < 0) dirs.push(d);
+  });
+  dirs.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+
+  var people = (S.adminUsers || [])
+    .filter(function(u){ return u && u.active && u.fio; })
+    .map(function(u){ return u.fio; })
+    .sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+  var personOpts = function(){
+    return '<option value="">— не назначен —</option>' +
+      people.map(function(f){ return '<option value="'+esc(f)+'">'+esc(f)+'</option>'; }).join('');
+  };
+
+  var preDir = (S.selectedOrgNode && S.selectedOrgNode.dir) || '';
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in" style="max-width:520px">'+
+    '<div class="sheet-hd"><b>Новое подразделение</b><button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="adErr" class="err hidden" style="margin-bottom:8px"></div>'+
+
+    '<label class="lbl">Название подразделения *</label>'+
+    '<input id="adName" placeholder="напр. Отдел логистики Анхор" style="width:100%">'+
+
+    '<label class="lbl" style="margin-top:10px">Направление</label>'+
+    '<select id="adDir" style="width:100%">'+
+      '<option value="">— без направления —</option>'+
+      dirs.map(function(d){ return '<option value="'+esc(d)+'"'+(d === preDir ? ' selected' : '')+'>'+esc(d)+'</option>'; }).join('')+
+      '<option value="__new__">➕ Новое направление…</option>'+
+    '</select>'+
+    '<input id="adDirNew" placeholder="Название нового направления" style="width:100%;margin-top:6px" hidden>'+
+
+    '<div class="field-grid" style="margin-top:10px">'+
+      '<div><label class="lbl">Руководитель отдела</label><select id="adHead" style="width:100%">'+personOpts()+'</select></div>'+
+      '<div><label class="lbl">Ответственный за обзор</label><select id="adResp" style="width:100%">'+personOpts()+'</select></div>'+
+    '</div>'+
+    '<label class="lbl" style="margin-top:10px">HR BP</label>'+
+    '<select id="adHrbp" style="width:100%">'+personOpts()+'</select>'+
+
+    '<p class="step-hint" style="margin:10px 0 0">Регион, смежную группу и подчинение подотделу можно задать после создания — в панели справа.</p>'+
+    '<div style="height:14px"></div>'+
+    '<button id="adCreate" class="btn-primary">Создать подразделение</button>'+
+    '<div style="height:8px"></div>'+
+  '</div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', function(e){ if(e.target === el || e.target.dataset.x) el.remove(); });
+
+  var dirSel = el.querySelector('#adDir');
+  var dirNew = el.querySelector('#adDirNew');
+  dirSel.onchange = function(){
+    dirNew.hidden = dirSel.value !== '__new__';
+    if(!dirNew.hidden) dirNew.focus();
+  };
+  el.querySelector('#adName').focus();
+
+  var showErr = function(msg){
+    var box = el.querySelector('#adErr');
+    box.textContent = msg; box.classList.remove('hidden');
+  };
+
+  el.querySelector('#adCreate').onclick = function(){
+    var name = (el.querySelector('#adName').value || '').trim();
+    if(!name){ showErr('Укажите название подразделения'); return; }
+    var dir = dirSel.value === '__new__'
+      ? (dirNew.value || '').trim()
+      : dirSel.value;
+    if(dirSel.value === '__new__' && !dir){ showErr('Укажите название нового направления'); return; }
+
+    var body = {
+      unit: name,
+      dir: dir,
+      head: el.querySelector('#adHead').value || '',
+      resp: el.querySelector('#adResp').value || '',
+      hrbp: el.querySelector('#adHrbp').value || ''
+    };
+    var btn = this; btn.disabled = true; btn.textContent = 'Создаём…';
+    call('apiAdminCreateDivision', S.token, body).then(function(res){
+      if(res && res.ok){
+        toast('Подразделение «'+name+'» создано', 'ok');
+        el.remove();
+        // приземлиться на новый отдел, чтобы сразу дозаполнить
+        S.selectedOrgNode = { type: 'unit', unit: name, dir: dir };
+        if(dir) S.expandedDir = dir;
+        loadAdminDivisions();
+      } else {
+        btn.disabled = false; btn.textContent = 'Создать подразделение';
+        showErr((res && (res.error || res.message)) || 'Не удалось создать');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Создать подразделение';
+      showErr('Нет связи с сервером');
+    });
+  };
+}
+
 function openAdjacentGroupsModal(){
   var divs = (S.adminDivs || []).slice();
   var groups = {};
