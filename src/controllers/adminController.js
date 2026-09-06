@@ -930,7 +930,7 @@ exports.listPeriodGrants = async (req, res) => {
         ORDER BY g.expires_at DESC
       `),
       queryAll(`
-        SELECT id, name FROM periods
+        SELECT id, name, updated_at AS "updatedAt" FROM periods
         WHERE id != (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
         ORDER BY id DESC
       `)

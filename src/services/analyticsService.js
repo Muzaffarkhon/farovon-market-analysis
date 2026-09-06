@@ -258,7 +258,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
   // Годовой архив: без явного filters.period дашборд показывает последний
   // (текущий) период — periodsList уходит на фронт для выпадающего списка.
-  const periodsList = await queryAll('SELECT id, name FROM periods ORDER BY id DESC');
+  const periodsList = await queryAll('SELECT id, name, updated_at AS "updatedAt" FROM periods ORDER BY id DESC');
   const currentPeriodId = periodsList.length ? periodsList[0].id : null;
   const viewingPeriodId = resolveDashboardPeriodId(filters.period, currentPeriodId);
 
@@ -676,7 +676,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       by: periodRow.updated_by || '',
       at: periodRow.updated_at || ''
     },
-    periodsList: periodsList.map(p => ({ id: p.id, name: p.name })),
+    periodsList: periodsList.map(p => ({ id: p.id, name: p.name, at: p.updatedAt || '' })),
     viewingPeriodId
   };
 }

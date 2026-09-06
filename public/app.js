@@ -3360,8 +3360,8 @@ function renderDashboard(){
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
   var periodsList = d.periodsList || [];
   h += '<div id="dashFilterBar" class="toolbar dash-filters"'+(filterHidden ? ' style="display:none"' : '')+'>'+
-    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:200,
-      items: periodsList.map(function(p){ return { v:String(p.id), label:p.name }; }) }) : '')+
+    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:260,
+      items: periodsList.map(function(p){ return { v:String(p.id), label: p.name + (p.at ? ' — ' + fmtDateTime(p.at) : '') }; }) }) : '')+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
@@ -7732,7 +7732,7 @@ function loadPeriodGrantsPanel(){
     } else {
       $('periodGrantsForm').innerHTML =
         niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
-        niceSelect({ id:'grantPeriodSel', width:200, value: periods[0] ? String(periods[0].id) : '', items: periods.map(function(p){ return { v:String(p.id), label:p.name }; }) })+
+        niceSelect({ id:'grantPeriodSel', width:280, value: periods[0] ? String(periods[0].id) : '', items: periods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
         '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
       wireNiceSelect('grantUserSel', function(){});
       wireNiceSelect('grantPeriodSel', function(){});
