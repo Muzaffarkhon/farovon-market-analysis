@@ -1099,6 +1099,9 @@ function renderUnits(){
   u.forEach(function(x){
     totalAll += x.total; doneAll += x.done; askAll += (x.ask||0); svAll += (x.surveys||0);
   });
+  // «На уточнении» — уникальные компании (с сервера), а не построчная сумма
+  // ask по отделам (одна компания привязана к десяткам подразделений).
+  var askCompanies = (S.data.marketAskCompanies != null) ? S.data.marketAskCompanies : askAll;
 
   // Смежные группы сворачиваются в одну карточку: данные общие, заполняется
   // раз на все площадки (см. openUnit → mergeGroupSurveys, серверный разнос).
@@ -1127,7 +1130,7 @@ function renderUnits(){
     '<span class="us-h">'+display.length+'</span> '+declOfNum(display.length, ['подразделение','подразделения','подразделений'])+
     '<span class="us-dot"></span>'+
     '<b>'+doneAll+'</b> из '+totalAll+' '+declOfNum(totalAll, ['компании проверено','компаний проверено','компаний проверено'])+
-    (askAll ? '<span class="us-dot"></span><span class="us-ask">'+askAll+' на уточнении</span>' : '')+
+    (askCompanies ? '<span class="us-dot"></span><span class="us-ask">'+askCompanies+' '+declOfNum(askCompanies, ['компания','компании','компаний'])+' на уточнении</span>' : '')+
     '<span class="us-dot"></span>'+
     '<b>'+svAll+'</b> '+declOfNum(svAll, ['запись по рынку','записи по рынку','записей по рынку'])+
     '</div>';
@@ -9110,7 +9113,11 @@ function openProgress(){
 
     var done = r.rows.filter(function(x){ return x.total && x.done === x.total; }).length;
     var svTotal = r.rows.reduce(function(s,x){ return s + (x.surveys||0); }, 0);
-    var askTotal = r.rows.reduce(function(s,x){ return s + (x.ask||0); }, 0);
+    // Уникальные компании «на уточнении» (с сервера); построчная сумма x.ask
+    // задваивает одну компанию по десяткам отделов.
+    var askTotal = (r.marketAskCompanies != null)
+      ? r.marketAskCompanies
+      : r.rows.reduce(function(s,x){ return s + (x.ask||0); }, 0);
 
     // Период, итоги и действие — одной строкой. Раньше это были карточка на
     // 520px в колонку, отдельная строка-заголовок с итогами и отдельная
@@ -9131,7 +9138,7 @@ function openProgress(){
       '<div class="page-head-stats">'+
         '<div class="phs"><b>'+done+'</b><span>из '+r.rows.length+' заполнено</span></div>'+
         '<div class="phs"><b>'+svTotal+'</b><span>записей по должностям</span></div>'+
-        (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>на уточнении</span></div>' : '')+
+        (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>'+declOfNum(askTotal, ['компания','компании','компаний'])+' на уточнении</span></div>' : '')+
       '</div>'+
       (closed
         ? '<button id="btnPeriodReopen" class="btn-line page-head-act" style="color:var(--ok);border-color:var(--ok)">Открыть закрытый обратно</button>'+

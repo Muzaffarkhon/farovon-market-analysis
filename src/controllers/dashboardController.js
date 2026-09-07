@@ -79,7 +79,7 @@ exports.getHRBPDashboard = async (req, res) => {
     const periodRaw = await getActivePeriod();
     const [divisions, competitors, surveys] = await Promise.all([
       queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
-      queryAll('SELECT unit, actual, updated_at FROM competitors'),
+      queryAll('SELECT unit, company, actual, updated_at FROM competitors'),
       queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
     ]);
 
@@ -126,11 +126,24 @@ exports.getHRBPDashboard = async (req, res) => {
 
     out.sort((a, b) => (a.done / (a.total || 1)) - (b.done / (b.total || 1)));
 
+    // Уникальные компании «на уточнении» в видимых пользователю подразделениях —
+    // построчная сумма ask по отделам многократно считает одну и ту же компанию.
+    const visibleUnits = new Set(out.map(r => r.unit));
+    const askCompanySet = new Set();
+    competitors.forEach(c => {
+      if (!visibleUnits.has(c.unit)) return;
+      if ((c.actual || '').toLowerCase() !== 'уточнить') return;
+      askCompanySet.add(String(c.company || '').trim().toLowerCase());
+    });
+    askCompanySet.delete('');
+    const marketAskCompanies = askCompanySet.size;
+
     const period = periodRaw || { name: 'Обзор рынка', state: 'открыт' };
 
     res.json({
       ok: true,
       rows: out,
+      marketAskCompanies,
       period: {
         name: period.name,
         state: period.state,
