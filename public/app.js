@@ -968,8 +968,14 @@ function renderHome(){
          (p.to ? 'до ' + p.to : '') + (periodOpen ? '' : ' · закрыт'), periodOpen ? 'ok' : 'mut') +
   '</div>';
 
-  if(agg.ask){
-    h += '<div class="note home-hint">На уточнении: <b>' + agg.ask + '</b> — эти компании ещё не считаются проверенными.</div>';
+  // Уникальные компании «на уточнении» (с сервера). agg.ask — построчная сумма
+  // по отделам, одна компания в ней задваивается десятки раз; для плашки нужен
+  // счёт уникальных компаний в подразделениях пользователя.
+  var askCompanies = (S.data.marketAskCompanies != null) ? S.data.marketAskCompanies : agg.ask;
+  if(askCompanies){
+    h += '<div class="note home-hint">На уточнении: <b>' + askCompanies + '</b> ' +
+      declOfNum(askCompanies, ['компания', 'компании', 'компаний']) +
+      ' — ещё не считаются проверенными.</div>';
   }
 
   h += '<div class="sec-title home-sec">Разделы</div>';

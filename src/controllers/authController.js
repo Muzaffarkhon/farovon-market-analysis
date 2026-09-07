@@ -177,13 +177,23 @@ async function getUserPayload(user) {
 
   // Подсчёт прогресса по доступным подразделениям (в памяти)
   const compMap = {};
+  // Одна компания привязана к десяткам подразделений, поэтому построчная
+  // сумма ask по отделам («Далерон» × 130 отделов = +130) вводит в
+  // заблуждение. Для плашки на «Главной» считаем УНИКАЛЬНЫЕ компании,
+  // у которых хоть одна связка в статусе «уточнить».
+  const askCompanySet = new Set();
   compRows.forEach(c => {
     if (!compMap[c.unit]) compMap[c.unit] = { total: 0, done: 0, ask: 0 };
     compMap[c.unit].total++;
     const act = (c.actual || '').toLowerCase();
     if (act === 'актуально' || act === 'не актуально') compMap[c.unit].done++;
-    else if (act === 'уточнить') compMap[c.unit].ask++;
+    else if (act === 'уточнить') {
+      compMap[c.unit].ask++;
+      askCompanySet.add(String(c.company || '').trim().toLowerCase());
+    }
   });
+  askCompanySet.delete('');
+  const marketAskCompanies = askCompanySet.size;
 
   const survMap = {};
   survRows.forEach(s => {
@@ -351,6 +361,9 @@ async function getUserPayload(user) {
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
     needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),
     units: visibleUnits,
+    // Уникальных компаний «на уточнении» в видимых пользователю подразделениях
+    // (для плашки на «Главной» — вместо суммы построчных ask по отделам).
+    marketAskCompanies,
     allUnits: allUnits,
     rows: userCompetitors.map(c => ({
       id: c.cid,
