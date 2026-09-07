@@ -1,5 +1,6 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
 const { getActivePeriod } = require('../services/periodService');
+const { isHiddenCompany } = require('../services/companyFilter');
 const { queryAll, queryOne, run } = require('../db/database');
 
 /**
@@ -77,11 +78,30 @@ exports.getCBDashboard = async (req, res) => {
 exports.getHRBPDashboard = async (req, res) => {
   try {
     const periodRaw = await getActivePeriod();
-    const [divisions, competitors, surveys] = await Promise.all([
+    const [divisions, competitorsRaw, surveys, staffing] = await Promise.all([
       queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
       queryAll('SELECT unit, company, actual, updated_at FROM competitors'),
-      queryAll("SELECT unit, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
+      queryAll("SELECT unit, pos_our, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
+      queryAll('SELECT unit, position FROM unit_positions').catch(() => []),
     ]);
+    // ООО / ҶДММ исключены из обзора рынка (см. services/companyFilter).
+    const competitors = competitorsRaw.filter(c => !isHiddenCompany(c.company));
+
+    // Должности по подразделению: знаменатель — штатка (unit_positions),
+    // числитель — сколько из этих должностей уже закрыто рынком (есть хотя бы
+    // одна запись surveys за текущий период с таким pos_our).
+    const normPos = (v) => String(v || '').trim().toLowerCase();
+    const posMap = {};
+    staffing.forEach(sp => {
+      if (!posMap[sp.unit]) posMap[sp.unit] = { set: new Set(), filled: new Set() };
+      posMap[sp.unit].set.add(normPos(sp.position));
+    });
+    surveys.forEach(s => {
+      const p = normPos(s.pos_our);
+      if (!p) return;
+      const pm = posMap[s.unit];
+      if (pm && pm.set.has(p)) pm.filled.add(p);
+    });
 
     const compMap = {};
     const lastMap = {};
@@ -110,6 +130,7 @@ exports.getHRBPDashboard = async (req, res) => {
       }
 
       const c = compMap[d.unit] || { total: 0, done: 0, ask: 0 };
+      const pm = posMap[d.unit];
       out.push({
         unit: d.unit,
         dir: d.dir || '',
@@ -119,6 +140,8 @@ exports.getHRBPDashboard = async (req, res) => {
         done: c.done,
         ask: c.ask,
         surveys: survMap[d.unit] || 0,
+        posTotal: pm ? pm.set.size : 0,
+        posFilled: pm ? pm.filled.size : 0,
         state: (c.total > 0 && c.done === c.total) ? 'заполнено' : (c.done > 0 ? 'в процессе' : 'не начато'),
         at: lastMap[d.unit] || ''
       });
@@ -126,23 +149,37 @@ exports.getHRBPDashboard = async (req, res) => {
 
     out.sort((a, b) => (a.done / (a.total || 1)) - (b.done / (b.total || 1)));
 
-    // Уникальные компании «на уточнении» в видимых пользователю подразделениях —
-    // построчная сумма ask по отделам многократно считает одну и ту же компанию.
+    // Уникальные компании в видимых пользователю подразделениях — построчная
+    // сумма total/done/ask по отделам многократно считает одну и ту же компанию
+    // («Далерон» висит на 130 отделах). «проверено» — все связи компании
+    // актуально/не актуально; «на уточнении» — хоть одна связь «уточнить».
     const visibleUnits = new Set(out.map(r => r.unit));
-    const askCompanySet = new Set();
+    const compByName = new Map();
     competitors.forEach(c => {
       if (!visibleUnits.has(c.unit)) return;
-      if ((c.actual || '').toLowerCase() !== 'уточнить') return;
-      askCompanySet.add(String(c.company || '').trim().toLowerCase());
+      const name = String(c.company || '').trim().toLowerCase();
+      if (!name) return;
+      const act = (c.actual || '').toLowerCase();
+      let e = compByName.get(name);
+      if (!e) { e = { allChecked: true, anyAsk: false }; compByName.set(name, e); }
+      if (act === 'уточнить') { e.anyAsk = true; e.allChecked = false; }
+      else if (act !== 'актуально' && act !== 'не актуально') { e.allChecked = false; }
     });
-    askCompanySet.delete('');
-    const marketAskCompanies = askCompanySet.size;
+    let marketCompaniesDone = 0;
+    let marketAskCompanies = 0;
+    compByName.forEach(e => {
+      if (e.allChecked) marketCompaniesDone++;
+      if (e.anyAsk) marketAskCompanies++;
+    });
+    const marketCompanies = compByName.size;
 
     const period = periodRaw || { name: 'Обзор рынка', state: 'открыт' };
 
     res.json({
       ok: true,
       rows: out,
+      marketCompanies,
+      marketCompaniesDone,
       marketAskCompanies,
       period: {
         name: period.name,

@@ -381,6 +381,19 @@ function openProfile(){
   var roleNames = { admin:'Администратор', cb:'C&B Аналитик', hrbp:'HR BP', dir_head:'Руководитель направления', head:'Руководитель отдела', user:'Сотрудник' };
   var fio = userLabel();
 
+  // Уникальных компаний-участников рынка (с сервера); фолбэк — считаем сами по
+  // строкам rows, если старый ответ без поля.
+  var prMarketCompanies = (S.data.marketCompanies != null)
+    ? S.data.marketCompanies
+    : (function(){
+        var s = {};
+        (S.data.rows || []).forEach(function(r){
+          var n = String(r.company || '').trim().toLowerCase();
+          if(n) s[n] = 1;
+        });
+        return Object.keys(s).length;
+      })();
+
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
@@ -396,11 +409,14 @@ function openProfile(){
     '<div class="profile-facts">'+
       '<div class="pf"><b>'+((S.data.units || []).length)+'</b><span>'+
         declOfNum((S.data.units || []).length, ['подразделение','подразделения','подразделений'])+'</span></div>'+
-      '<div class="pf"><b>'+((S.data.rows || []).length)+'</b><span>'+
-        declOfNum((S.data.rows || []).length, ['участник рынка','участника рынка','участников рынка'])+'</span></div>'+
+      // Уникальные компании, а не строки rows (одна компания привязана к
+      // десяткам подразделений — там связок было бы под 3600).
+      '<div class="pf"><b>'+(prMarketCompanies)+'</b><span>'+
+        declOfNum(prMarketCompanies, ['участник рынка','участника рынка','участников рынка'])+'</span></div>'+
       '<div class="pf"><b>'+((S.data.surveys || []).length)+'</b><span>'+
         declOfNum((S.data.surveys || []).length, ['запись','записи','записей'])+'</span></div>'+
     '</div>'+
+    '<button id="prName" class="btn-line">'+ic('profile')+'Изменить ФИО</button>'+
     '<button id="prPwd" class="btn-line">'+ic('key')+'Сменить пароль</button>'+
     '<button id="prTg" class="btn-line">'+(hasTg ? ic('check')+'Telegram привязан' : ic('link')+'Привязать Telegram')+'</button>'+
     '<button id="prUnits" class="btn-line">'+ic('units')+'Мои подразделения</button>'+
@@ -419,6 +435,7 @@ function openProfile(){
     if(e.target === el || e.target.dataset.x) el.remove();
   });
 
+  el.querySelector('#prName').onclick = function(){ el.remove(); openEditName(); };
   el.querySelector('#prPwd').onclick = function(){ el.remove(); openPassword(); };
   el.querySelector('#prTg').onclick = function(){
     el.remove();
@@ -430,6 +447,55 @@ function openProfile(){
   if(prAssign) prAssign.onclick = function(){ el.remove(); openDeptAssign(); };
   el.querySelector('#prRefresh').onclick = function(){ el.remove(); doRefresh(); };
   el.querySelector('#prOut').onclick = function(){ el.remove(); doLogout(); };
+}
+
+/**
+ * Смена собственного ФИО. ФИО в системе хранится строкой во многих местах
+ * (оргструктура, списки ответственных, история), сервер меняет его сразу
+ * везде одной операцией и возвращает свежий payload + токен.
+ */
+function openEditName(){
+  var cur = String((S.data.user && S.data.user.fio) || '').trim();
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd"><b>Изменить ФИО</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<p style="font-size:14px;color:var(--muted);margin:2px 0 10px">Новое ФИО подставится сразу везде: в оргструктуре, в списках ответственных и в истории изменений.</p>'+
+    '<div id="nmErr" class="err hidden"></div>'+
+    '<label class="lbl">ФИО полностью</label>'+
+    '<input id="nmVal" type="text" autocomplete="name">'+
+    '<div style="height:16px"></div>'+
+    '<button id="nmGo" class="btn-primary">Сохранить</button>'+
+    '</div>';
+  document.body.appendChild(el);
+  el.querySelector('#nmVal').value = cur;
+
+  var err = function(m){ var e = el.querySelector('#nmErr'); e.textContent = m; e.classList.remove('hidden'); };
+  guardClose(el, function(){ return el.querySelector('#nmVal').value.replace(/\s+/g, ' ').trim() !== cur; });
+
+  el.querySelector('#nmGo').onclick = function(){
+    var v = el.querySelector('#nmVal').value.replace(/\s+/g, ' ').trim();
+    if(v.length < 3){ err('Введите ФИО (минимум 3 символа)'); return; }
+    if(v === cur){ el.remove(); return; }
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+    call('apiChangeName', S.token, v).then(function(r){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      if(!r || !r.ok){ err((r && r.error) || 'Не удалось изменить ФИО'); return; }
+      persistToken(r);
+      if(r.data) S.data = r.data;
+      el.remove();
+      toast('ФИО обновлено');
+      if(typeof renderTopNav === 'function') renderTopNav();
+      if(S.appView === 'home' && typeof renderHome === 'function') renderHome();
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      err('Нет связи с сервером');
+    });
+  };
+
+  setTimeout(function(){ el.querySelector('#nmVal').focus(); }, 60);
 }
 
 /** Смена собственного пароля. forced=true — принудительно после входа по
@@ -893,7 +959,12 @@ function renderHome(){
     a.ask += x.ask || 0; a.surveys += x.surveys || 0;
     return a;
   }, { total:0, done:0, ask:0, surveys:0 });
-  var pct = agg.total ? Math.round(agg.done / agg.total * 100) : 0;
+  // «Участники рынка» — уникальные компании (с сервера); построчная сумма
+  // total/done по отделам задваивает одну компанию десятки раз (agg.* — фолбэк
+  // на случай старого ответа без этих полей).
+  var mcTotal = (S.data.marketCompanies != null) ? S.data.marketCompanies : agg.total;
+  var mcDone = (S.data.marketCompaniesDone != null) ? S.data.marketCompaniesDone : agg.done;
+  var pct = mcTotal ? Math.round(mcDone / mcTotal * 100) : 0;
 
   var p = S.data.period || {};
   var periodOpen = p.state !== 'закрыт';
@@ -938,8 +1009,8 @@ function renderHome(){
   }
 
   var nextStep = '';
-  if(!isElevated && periodOpen && agg.total && agg.done < agg.total){
-    nextStep = 'Идёт сбор. Проверьте участников рынка и внесите оклады — осталось ' + (agg.total - agg.done) + '.';
+  if(!isElevated && periodOpen && mcTotal && mcDone < mcTotal){
+    nextStep = 'Идёт сбор. Проверьте участников рынка и внесите оклады — осталось ' + (mcTotal - mcDone) + '.';
   } else if(!isElevated && periodOpen){
     nextStep = 'Участники рынка проверены. Загляните в «Данные по рынку» — не забыты ли оклады по должностям.';
   } else if(!periodOpen){
@@ -962,7 +1033,7 @@ function renderHome(){
 
   h += '<div class="home-stats">'+
     stat(units.length, isElevated ? 'подразделений' : 'моих подразделений', null) +
-    stat(pct + '%', 'участники рынка проверены', agg.total ? (agg.done + ' из ' + agg.total) : 'нет данных') +
+    stat(pct + '%', 'участники рынка проверены', mcTotal ? (mcDone + ' из ' + mcTotal) : 'нет данных') +
     stat(agg.surveys, 'записей по рынку', null) +
     stat('<span class="home-period-name">' + esc(p.name || '—') + '</span>', 'период сбора',
          (p.to ? 'до ' + p.to : '') + (periodOpen ? '' : ' · закрыт'), periodOpen ? 'ok' : 'mut') +
@@ -1099,9 +1170,11 @@ function renderUnits(){
   u.forEach(function(x){
     totalAll += x.total; doneAll += x.done; askAll += (x.ask||0); svAll += (x.surveys||0);
   });
-  // «На уточнении» — уникальные компании (с сервера), а не построчная сумма
-  // ask по отделам (одна компания привязана к десяткам подразделений).
+  // Уникальные компании (с сервера), а не построчная сумма total/done/ask по
+  // отделам — одна компания привязана к десяткам подразделений.
   var askCompanies = (S.data.marketAskCompanies != null) ? S.data.marketAskCompanies : askAll;
+  var mcTotal = (S.data.marketCompanies != null) ? S.data.marketCompanies : totalAll;
+  var mcDone = (S.data.marketCompaniesDone != null) ? S.data.marketCompaniesDone : doneAll;
 
   // Смежные группы сворачиваются в одну карточку: данные общие, заполняется
   // раз на все площадки (см. openUnit → mergeGroupSurveys, серверный разнос).
@@ -1129,7 +1202,7 @@ function renderUnits(){
   h += '<div class="units-summary">'+
     '<span class="us-h">'+display.length+'</span> '+declOfNum(display.length, ['подразделение','подразделения','подразделений'])+
     '<span class="us-dot"></span>'+
-    '<b>'+doneAll+'</b> из '+totalAll+' '+declOfNum(totalAll, ['компании проверено','компаний проверено','компаний проверено'])+
+    '<b>'+mcDone+'</b> из '+mcTotal+' '+declOfNum(mcTotal, ['компании проверено','компаний проверено','компаний проверено'])+
     (askCompanies ? '<span class="us-dot"></span><span class="us-ask">'+askCompanies+' '+declOfNum(askCompanies, ['компания','компании','компаний'])+' на уточнении</span>' : '')+
     '<span class="us-dot"></span>'+
     '<b>'+svAll+'</b> '+declOfNum(svAll, ['запись по рынку','записи по рынку','записей по рынку'])+
@@ -9113,8 +9186,14 @@ function openProgress(){
 
     var done = r.rows.filter(function(x){ return x.total && x.done === x.total; }).length;
     var svTotal = r.rows.reduce(function(s,x){ return s + (x.surveys||0); }, 0);
-    // Уникальные компании «на уточнении» (с сервера); построчная сумма x.ask
-    // задваивает одну компанию по десяткам отделов.
+    // Уникальные компании (с сервера); построчные суммы x.total/x.done/x.ask
+    // задваивают одну компанию по десяткам отделов.
+    var mcTotal = (r.marketCompanies != null)
+      ? r.marketCompanies
+      : r.rows.reduce(function(s,x){ return s + (x.total||0); }, 0);
+    var mcDone = (r.marketCompaniesDone != null)
+      ? r.marketCompaniesDone
+      : r.rows.reduce(function(s,x){ return s + (x.done||0); }, 0);
     var askTotal = (r.marketAskCompanies != null)
       ? r.marketAskCompanies
       : r.rows.reduce(function(s,x){ return s + (x.ask||0); }, 0);
@@ -9137,6 +9216,7 @@ function openProgress(){
       '</div>'+
       '<div class="page-head-stats">'+
         '<div class="phs"><b>'+done+'</b><span>из '+r.rows.length+' заполнено</span></div>'+
+        '<div class="phs"><b>'+mcDone+'</b><span>из '+mcTotal+' '+declOfNum(mcTotal, ['компания проверена','компании проверено','компаний проверено'])+'</span></div>'+
         '<div class="phs"><b>'+svTotal+'</b><span>записей по должностям</span></div>'+
         (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>'+declOfNum(askTotal, ['компания','компании','компаний'])+' на уточнении</span></div>' : '')+
       '</div>'+
@@ -9261,18 +9341,23 @@ function openProgress(){
       }
       var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Подразделение</th><th>Ответственный</th><th class="num">Компании</th>'+
-        '<th class="num">Уточнить</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
+        '<th class="num">Уточнить</th><th class="num">Должности</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
       t += rows.length ? rows.map(function(x){
         var pct = x.total ? Math.round(x.done/x.total*100) : 0;
         var cls = pct>=100 ? 'p-ok' : (pct>0 ? 'p-mid' : 'p-no');
         var scls = x.surveys>0 ? 'p-ok' : 'p-no';
+        // Должности: закрыто рынком из штатки подразделения. Нет штатки — «—».
+        var pt = x.posTotal||0, pf = x.posFilled||0;
+        var pcls = pt===0 ? 'p-no' : (pf>=pt ? 'p-ok' : (pf>0 ? 'p-mid' : 'p-no'));
+        var posCell = pt===0 ? '—' : '<span class="pill '+pcls+'">'+pf+'/'+pt+'</span>';
         return '<tr class="dash-row" data-u="'+esc(x.unit)+'" style="cursor:pointer">'+
           '<td><b>'+esc(x.unit)+'</b></td><td>'+esc(x.resp)+'</td>'+
           '<td class="num"><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
           '<td class="num">'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
+          '<td class="num">'+posCell+'</td>'+
           '<td class="num"><span class="pill '+scls+'">'+(x.surveys||0)+'</span></td>'+
           '<td class="num" style="font-size:13px;color:var(--muted)">'+esc(fmtDateTime(x.at)||'—')+'</td></tr>';
-      }).join('') : '<tr><td colspan="6"><div class="empty">Ничего не найдено</div></td></tr>';
+      }).join('') : '<tr><td colspan="7"><div class="empty">Ничего не найдено</div></td></tr>';
       t += '</tbody></table></div>';
       if($('dashSumTblBox')) $('dashSumTblBox').innerHTML = t;
 
