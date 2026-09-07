@@ -2144,6 +2144,10 @@ function svLabel(){
   if(mc.totalSlots > 0){
     return mc.filledCount + '/' + mc.totalSlots;
   }
+  // Компаний ещё нет — показываем внесённые записи из числа должностей штатки.
+  if(mc.totalPositions > 0){
+    return S.surveys.length + '/' + mc.totalPositions;
+  }
   return String(S.surveys.length);
 }
 
@@ -2159,6 +2163,10 @@ function renderTabSurvey(){
         '<span>Заполнено <b>' + mc.filledCount + '</b> из <b>' + mc.totalSlots + '</b> (' + mc.pct + '%)</span>'+
         '<div class="fill-progress fill-progress--sm'+(mc.pct>=100?' is-done':'')+'"><i style="width:' + mc.pct + '%"></i></div>'+
       '</div>';
+    } else if(mc.totalPositions > 0){
+      tbSlot.innerHTML = '<div class="fill-toolbar-prog"><span>В штатке подразделения <b>' +
+        mc.totalPositions + '</b> ' + declOfNum(mc.totalPositions, ['должность', 'должности', 'должностей']) +
+        '. Компании появятся после Шага 1.</span></div>';
     } else {
       tbSlot.innerHTML = '';
     }
@@ -2916,6 +2924,12 @@ function updateProgress(){
       $('progT').textContent = mc.filledCount + ' из ' + mc.totalSlots;
       $('progS').className = '';
       $('progS').textContent = 'карточек заполнено (' + mc.pct + '%)';
+    } else if(mc.totalPositions > 0){
+      // Компаний ещё нет (Шаг 1 пуст) — знаменателя-матрицы нет, но штатка
+      // подразделения известна: показываем её как ориентир.
+      $('progT').textContent = S.surveys.length + ' из ' + mc.totalPositions;
+      $('progS').className = '';
+      $('progS').textContent = declOfNum(mc.totalPositions, ['должность в штатке', 'должности в штатке', 'должностей в штатке']);
     } else {
       $('progT').textContent = S.surveys.length + (S.removed.length ? ' (−'+S.removed.length+')' : '');
       $('progS').className = '';
