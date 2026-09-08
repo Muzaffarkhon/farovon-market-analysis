@@ -2196,6 +2196,55 @@ label.lbl {
   margin: 8px 0;
 }
 
+/* Липкий низ карточки должности: кнопка сохранения всегда на виду + подсказка
+   «ниже ещё N компаний», когда список не помещается на экран. */
+.batch-foot {
+  position: sticky;
+  bottom: calc(-1 * env(safe-area-inset-bottom));
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px -18px calc(-20px - env(safe-area-inset-bottom));
+  padding: 10px 18px calc(12px + env(safe-area-inset-bottom));
+  background: var(--card);
+}
+.batch-foot::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -22px;
+  height: 22px;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--card), transparent);
+}
+.batch-foot-cue {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-soft, var(--card));
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: batch-cue-bob 1.6s ease-in-out infinite;
+}
+.batch-foot-cue svg { transform: rotate(0deg); }
+.batch-foot-cue:hover { color: var(--text); border-color: var(--accent); }
+@keyframes batch-cue-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+@media (min-width: 640px) {
+  .batch-foot { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+  .batch-foot::before { left: -18px; right: -18px; }
+}
+
 /* turn-7b — плоская редактируемая таблица для десктопа: одна строка на
    компанию, оклад правится в ячейке, «Параметры» разворачивают детальные
    поля под строкой на всю ширину. */
@@ -2342,6 +2391,19 @@ label.lbl {
 .batch-card.st-no {
   border-left: 4px solid var(--no);
   background: var(--card);
+}
+
+/* Не сохранили из-за незаполненных обязательных полей (график / бонусы /
+   источник / надёжность) — подсветка карточки и конкретных наборов чипов. */
+.batch-card--needs {
+  border-color: var(--warn);
+  border-left: 4px solid var(--warn);
+  background: rgba(245, 158, 11, 0.05);
+}
+.chips.chips--invalid {
+  outline: 2px solid var(--warn);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 .batch-card.st-ask {
@@ -5844,6 +5906,10 @@ html.compact {
   box-shadow: var(--shadow-lg);
 }
 
+/* Меню по правому клику на строке таблицы (tableEnhance.js) — та же
+   визуальная база, что у «⋮»-меню строк. */
+.tbl-ctx-menu { max-width: min(280px, 88vw); }
+
 .row-menu-item {
   display: flex;
   align-items: center;
@@ -6352,6 +6418,15 @@ html.compact {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+/* Единый кластер кнопок управления оргструктурой (Схема · Таблица · Смежные
+   группы · Добавить подразделение · Отменить) — одинаковый в обоих режимах. */
+.org-toolbar-btns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .org-top-pill-title {
@@ -8488,6 +8563,80 @@ html.compact {
   box-shadow: none;
 }
 .bx-std-benefits:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+
+/* ── Льготы: выпадающий список с галочками ───────────────────────────── */
+.bx-bd { position: relative; margin-top: 2px; }
+.bx-bd-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--input-bg, var(--card));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+.bx-bd-trigger .bx-bd-sum.ph { color: var(--muted); font-weight: 500; }
+.bx-bd.open .bx-bd-trigger { border-color: var(--accent); }
+.bx-bd.open .bx-bd-trigger svg { transform: rotate(180deg); }
+.bx-bd-panel {
+  margin-top: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  padding: 4px;
+}
+.bx-bd-grp {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 8px 8px 4px;
+}
+.bx-bd-grp:first-child { padding-top: 4px; }
+.bx-bd-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+.bx-bd-opt:hover { background: var(--hover, rgba(0,0,0,0.04)); }
+.bx-bd-opt.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.bx-bd-opt input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+.bx-bd-other {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 2px;
+  border-top: 1px dashed var(--line);
+}
+.bx-bd-other-inp {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg, var(--card));
+  color: var(--text);
+}
+.bx-bd-other .btn-line { flex-shrink: 0; min-height: 32px; }
 
 /* Подсказка автоопределённой смежной группы в карточке подразделения */
 .dm-grpsug {
