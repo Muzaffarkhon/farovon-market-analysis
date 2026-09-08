@@ -242,6 +242,9 @@ exports.saveUser = async (req, res) => {
         WHERE id = ?
       `, [String(fio).trim(), newRole, cleanPhone || null, active !== false ? 1 : 0, unitsStr, existing.id]);
 
+      // Двусторонняя синхронизация: закреплённые подразделения пользователя с divisions.resp
+      await syncUserUnitsWithDivisions(String(fio).trim(), existing.units, unitsStr, existing.fio);
+
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
         'админ правка пользователя',
@@ -268,6 +271,11 @@ exports.saveUser = async (req, res) => {
         INSERT INTO users (login, password_hash, fio, role, phone, units, active)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [finalLogin, hash, String(fio).trim(), targetRole, cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
+
+      // Двусторонняя синхронизация для нового пользователя
+      if (unitsStr) {
+        await syncUserUnitsWithDivisions(String(fio).trim(), '', unitsStr);
+      }
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -535,6 +543,27 @@ exports.clearAdjacentGroup = async (req, res) => {
   }
 };
 
+function splitFioList(str) {
+  if (!str) return [];
+  return String(str)
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function joinFioList(arr) {
+  const unique = [];
+  const seen = new Set();
+  (arr || []).forEach(item => {
+    const clean = String(item || '').trim();
+    if (clean && !seen.has(clean.toLowerCase())) {
+      seen.add(clean.toLowerCase());
+      unique.push(clean);
+    }
+  });
+  return unique.join(', ');
+}
+
 // Находим пользователя точным поиском или нечётким сопоставлением по Фамилии и Имени
 async function findUserByFioFlexible(fioText) {
   if (!fioText || !String(fioText).trim()) return null;
@@ -556,36 +585,112 @@ async function findUserByFioFlexible(fioText) {
   return null;
 }
 
-// Вспомогательная функция двусторонней синхронизации подразделений в профиле пользователя (users.units)
-async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
+// Двусторонняя синхронизация: при сохранении пользователя обновляем divisions.resp и competitors.resp
+async function syncUserUnitsWithDivisions(userFio, oldUnitsStr, newUnitsStr, oldFio) {
   try {
-    // 1. Если был старый ответственный и он изменился — удаляем подразделение из его списка
-    if (oldPerson && (!newPerson || oldPerson.toLowerCase().trim() !== newPerson.toLowerCase().trim())) {
-      const trimmedOld = oldPerson.trim();
-      const stillAssigned = await queryOne(
-        `SELECT id FROM divisions WHERE unit = ? AND (LOWER(TRIM(resp)) = LOWER(?) OR LOWER(TRIM(head)) = LOWER(?) OR LOWER(TRIM(hrbp)) = LOWER(?))`,
-        [cleanUnit, trimmedOld, trimmedOld, trimmedOld]
-      );
-      if (!stillAssigned) {
-        const oldUser = await findUserByFioFlexible(trimmedOld);
-        if (oldUser && oldUser.units) {
-          const remaining = oldUser.units.split(';').map(x => x.trim()).filter(x => x && x.toLowerCase() !== cleanUnit.toLowerCase());
-          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remaining.join(';'), oldUser.id]);
+    const parseUnits = s => (Array.isArray(s) ? s : String(s || '').split(';')).map(x => x.trim()).filter(Boolean);
+    const oldUnits = parseUnits(oldUnitsStr);
+    const newUnits = parseUnits(newUnitsStr);
+    const effectiveOldFio = oldFio || userFio;
+
+    const added = newUnits.filter(u => !oldUnits.some(o => o.toLowerCase() === u.toLowerCase()));
+    const removed = oldUnits.filter(u => !newUnits.some(n => n.toLowerCase() === u.toLowerCase()));
+    const kept = newUnits.filter(u => oldUnits.some(o => o.toLowerCase() === u.toLowerCase()));
+
+    // 1. Добавленные отделы: добавляем userFio в список ответственных divisions.resp
+    for (const unitName of added) {
+      const div = await queryOne('SELECT id, resp FROM divisions WHERE LOWER(unit) = LOWER(?)', [unitName]);
+      if (div) {
+        const curList = splitFioList(div.resp);
+        if (!curList.some(f => f.toLowerCase() === userFio.toLowerCase())) {
+          curList.push(userFio);
+          const newRespStr = joinFioList(curList);
+          await run('UPDATE divisions SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newRespStr, div.id]);
+          await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newRespStr, unitName]);
         }
       }
     }
 
-    // 2. Добавляем подразделение новому ответственному
-    if (newPerson && String(newPerson).trim()) {
-      const trimmedNew = String(newPerson).trim();
-      const newUser = await findUserByFioFlexible(trimmedNew);
+    // 2. Удалённые отделы: убираем effectiveOldFio (и userFio) из divisions.resp
+    for (const unitName of removed) {
+      const div = await queryOne('SELECT id, resp FROM divisions WHERE LOWER(unit) = LOWER(?)', [unitName]);
+      if (div && div.resp) {
+        const curList = splitFioList(div.resp);
+        const remList = curList.filter(f => f.toLowerCase() !== effectiveOldFio.toLowerCase() && f.toLowerCase() !== userFio.toLowerCase());
+        const newRespStr = joinFioList(remList);
+        if (newRespStr !== div.resp) {
+          await run('UPDATE divisions SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newRespStr, div.id]);
+          await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newRespStr, unitName]);
+        }
+      }
+    }
+
+    // 3. Если изменилось само ФИО у сохранённых отделов: переименовываем
+    if (oldFio && oldFio.trim().toLowerCase() !== userFio.trim().toLowerCase()) {
+      for (const unitName of kept) {
+        const div = await queryOne('SELECT id, resp, head, hrbp FROM divisions WHERE LOWER(unit) = LOWER(?)', [unitName]);
+        if (div) {
+          let updated = false;
+          let newResp = div.resp;
+          let newHead = div.head;
+          let newHrbp = div.hrbp;
+          if (div.resp) {
+            const list = splitFioList(div.resp).map(f => f.toLowerCase() === oldFio.toLowerCase() ? userFio : f);
+            newResp = joinFioList(list);
+            if (newResp !== div.resp) updated = true;
+          }
+          if (div.head && div.head.toLowerCase() === oldFio.toLowerCase()) { newHead = userFio; updated = true; }
+          if (div.hrbp && div.hrbp.toLowerCase() === oldFio.toLowerCase()) { newHrbp = userFio; updated = true; }
+          if (updated) {
+            await run('UPDATE divisions SET resp = ?, head = ?, hrbp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newResp, newHead, newHrbp, div.id]);
+            await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newResp, unitName]);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('syncUserUnitsWithDivisions error:', err);
+  }
+}
+
+// Вспомогательная функция двусторонней синхронизации подразделений в профиле пользователя (users.units)
+async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
+  try {
+    const oldList = splitFioList(oldPerson);
+    const newList = splitFioList(newPerson);
+
+    // 1. Кого сняли с подразделения — удаляем подразделение из их списка units
+    const removedFios = oldList.filter(oldFio => !newList.some(n => n.toLowerCase() === oldFio.toLowerCase()));
+    for (const fio of removedFios) {
+      const stillAssigned = await queryOne(
+        `SELECT id FROM divisions WHERE unit = ? AND (LOWER(TRIM(head)) = LOWER(?) OR LOWER(TRIM(hrbp)) = LOWER(?))`,
+        [cleanUnit, fio.toLowerCase(), fio.toLowerCase()]
+      );
+      if (!stillAssigned) {
+        const oldUser = await findUserByFioFlexible(fio);
+        if (oldUser && oldUser.units) {
+          const remaining = oldUser.units.split(';').map(x => x.trim()).filter(x => x && x.toLowerCase() !== cleanUnit.toLowerCase());
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remaining.join('; '), oldUser.id]);
+        }
+      }
+    }
+
+    // 2. Кого добавили в подразделение — добавляем подразделение в их список units
+    const addedFios = newList.filter(newFio => !oldList.some(o => o.toLowerCase() === newFio.toLowerCase()));
+    for (const fio of addedFios) {
+      const newUser = await findUserByFioFlexible(fio);
       if (newUser) {
         const list = newUser.units ? newUser.units.split(';').map(x => x.trim()).filter(Boolean) : [];
         if (!list.some(x => x.toLowerCase() === cleanUnit.toLowerCase())) {
           list.push(cleanUnit);
-          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join(';'), newUser.id]);
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join('; '), newUser.id]);
         }
       }
+    }
+
+    // 3. Также синхронизируем competitors.resp если изменился resp
+    if (newPerson !== undefined) {
+      await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newPerson || '', cleanUnit]);
     }
   } catch (err) {
     console.error('syncUserDivisionAssignment error:', err);

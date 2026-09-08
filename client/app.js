@@ -5265,9 +5265,11 @@ function openUserModal(login){
       return !q || x.unit.toLowerCase().indexOf(q) >= 0 || x.dir.toLowerCase().indexOf(q) >= 0;
     });
     el.querySelector('#umUnitList').innerHTML = list.slice(0, 100).map(function(x){
+      var dInfo = (S.adminDivs || []).find(function(d){ return d.unit === x.unit; }) || x;
+      var curResp = dInfo.resp ? esc(dInfo.resp) : '<span style="color:var(--warn)">не назначен</span>';
       return '<label class="pickrow"><input type="checkbox" data-u="'+esc(x.unit)+'"'+
         (userUnits[x.unit]?' checked':'')+'><span>'+esc(x.unit)+
-        '<br><small style="color:var(--muted)">'+esc(x.dir)+'</small></span></label>';
+        '<br><small style="color:var(--muted)">'+esc(x.dir)+' · Отв: '+curResp+'</small></span></label>';
     }).join('') || '<p style="color:var(--muted);padding:8px">'+(onlyChecked ? 'Нет закреплённых подразделений' : 'Ничего не найдено')+'</p>';
   }
   drawUnits();
@@ -5320,6 +5322,18 @@ function openUserModal(login){
       if(res && res.ok){
         el.remove();
         loadAdminUsers();
+        if(S.token){
+          call('apiAdminGetDivisions', S.token).then(function(dRes){
+            if(dRes && dRes.ok && dRes.divisions) S.adminDivs = dRes.divisions;
+          }).catch(function(){});
+        }
+        pushUndo({
+          action: 'save_user_units',
+          login: payload.login,
+          fio: payload.fio,
+          oldUnits: origUnits,
+          newUnits: assignedUnits
+        });
         if(!isEdit){
           ask({
             title: 'Пользователь создан',
@@ -5590,6 +5604,67 @@ function popUndo(){
       S.myUndoStack.push(rec);
       toast('Не удалось отменить', 'err');
     });
+
+  } else if(rec.action === 'assign_resp'){
+    // Обратный вызов: вернуть прежних ответственных подразделения
+    call('apiAdminSaveDivision', S.token, {
+      unit: rec.unit,
+      resp: rec.oldResp
+    }).then(function(res){
+      if(res && res.ok){
+        var d = (S.adminDivs || []).find(function(x){ return x.unit === rec.unit; });
+        if(d) d.resp = rec.oldResp;
+        if(S.selectedOrgNode && S.selectedOrgNode.unit === rec.unit){
+          S.selectedOrgNode.resp = rec.oldResp;
+        }
+        if(S.token){
+          call('apiAdminGetUsers', S.token).then(function(uRes){
+            if(uRes && uRes.ok && uRes.users) S.adminUsers = uRes.users;
+          }).catch(function(){});
+        }
+        toast('Отменено: ответственный «' + rec.unit + '» возвращён', 'ok');
+        renderAdminDivisions();
+      } else {
+        S.myUndoStack.push(rec);
+        toast((res && res.error) || 'Не удалось отменить', 'err');
+      }
+    }).catch(function(){
+      S.myUndoStack.push(rec);
+      toast('Нет связи с сервером', 'err');
+    });
+
+  } else if(rec.action === 'save_user_units'){
+    // Обратный вызов: вернуть старые подразделения пользователя
+    var oldUnitsArr = (rec.oldUnits || '').split(';').map(function(s){ return s.trim(); }).filter(Boolean);
+    var u = (S.adminUsers || []).find(function(x){ return x.login === rec.login; });
+    if(u){
+      var payload = {
+        login: u.login,
+        fio: u.fio,
+        role: u.role,
+        phone: u.phone,
+        active: u.active,
+        units: oldUnitsArr
+      };
+      call('apiAdminSaveUser', S.token, payload).then(function(res){
+        if(res && res.ok){
+          u.units = oldUnitsArr;
+          loadAdminUsers();
+          if(S.token){
+            call('apiAdminGetDivisions', S.token).then(function(dRes){
+              if(dRes && dRes.ok && dRes.divisions) S.adminDivs = dRes.divisions;
+            }).catch(function(){});
+          }
+          toast('Отменено: подразделения пользователя «' + (u.fio || u.login) + '» возвращены', 'ok');
+        } else {
+          S.myUndoStack.push(rec);
+          toast((res && res.error) || 'Не удалось отменить', 'err');
+        }
+      }).catch(function(){
+        S.myUndoStack.push(rec);
+        toast('Нет связи с сервером', 'err');
+      });
+    }
   }
 }
 
@@ -6882,8 +6957,28 @@ function openStaffModal(unitName){
   if(!d) return;
 
   var uStaff = (S.adminUsers || []).filter(function(u){
-    return u.unit && u.unit.toLowerCase() === unitName.toLowerCase();
+    var uList = (u.units || []).map(function(s){ return s.toLowerCase(); });
+    return uList.indexOf(unitName.toLowerCase()) >= 0;
   });
+
+  var respList = (d.resp || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var respRowsHtml = respList.length ? respList.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
+      '<div class="org-avatar-circle org-avatar-circle--resp org-avatar-circle--sm">'+getInitials(r)+'</div>'+
+      '<div style="flex:1">'+
+        '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+esc(r)+'</div>'+
+        '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка</div>'+
+      '</div>'+
+    '</div>';
+  }).join('') : (
+    '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
+      '<div class="org-avatar-circle org-avatar-circle--resp org-avatar-circle--sm">О</div>'+
+      '<div style="flex:1">'+
+        '<div style="font-size:13.5px;font-weight:600;color:var(--warn)">Не назначен</div>'+
+        '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка</div>'+
+      '</div>'+
+    '</div>'
+  );
 
   var el = document.createElement('div');
   el.className = 'sheet';
@@ -6906,13 +7001,7 @@ function openStaffModal(unitName){
           '<div style="font-size:12px;color:var(--muted)">Руководитель отдела</div>'+
         '</div>'+
       '</div>'+
-      '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
-        '<div class="org-avatar-circle org-avatar-circle--resp org-avatar-circle--sm">'+getInitials(d.resp || 'О')+'</div>'+
-        '<div style="flex:1">'+
-          '<div style="font-size:13.5px;font-weight:600;color:var(--text)">'+(d.resp ? esc(d.resp) : '<span style="color:var(--warn)">Не назначен</span>')+'</div>'+
-          '<div style="font-size:12px;color:var(--muted)">Ответственный за обзор рынка</div>'+
-        '</div>'+
-      '</div>'+
+      respRowsHtml +
       '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-hover);border-radius:8px">'+
         '<div class="org-avatar-circle org-avatar-circle--hrbp org-avatar-circle--sm">'+getInitials(d.hrbp || 'H')+'</div>'+
         '<div style="flex:1">'+
@@ -7619,8 +7708,30 @@ function openDivisionModal(unit, opts){
 
   var fioList = restricted ? deptFio : allFio;
   var fioEmptyLabel = restricted ? 'В этом направлении пока никто не закреплён' : undefined;
+
+  function bindMultiPickFioField(root, id, title, listFn, store, key, emptyLabel){
+    var btn = root.querySelector('#'+id);
+    if(!btn) return;
+    btn.onclick = function(){
+      var currentSelected = (store[key] || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      openMultiPicker({
+        title: title,
+        list: listFn(),
+        value: currentSelected,
+        onPick: function(arr){
+          store[key] = arr.join(', ');
+          var sp = btn.querySelector('span');
+          if(sp){
+            sp.textContent = store[key] || emptyLabel || 'Выбрать из пользователей';
+            sp.className = store[key] ? '' : 'ph';
+          }
+        }
+      });
+    };
+  }
+
   bindPickField(el, 'dmHead', 'Руководитель отдела', fioList, picked, 'head', fioEmptyLabel);
-  bindPickField(el, 'dmResp', 'Ответственный за обзор', fioList, picked, 'resp', fioEmptyLabel);
+  bindMultiPickFioField(el, 'dmResp', 'Ответственные за обзор', fioList, picked, 'resp', fioEmptyLabel);
   if(!restricted){
     bindPickField(el, 'dmHrbp', 'HR BP', allFio, picked, 'hrbp');
   }
@@ -7658,6 +7769,13 @@ function openDivisionModal(unit, opts){
     call('apiAdminSaveDivision', S.token, payload).then(function(res){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
+        pushUndo({
+          action: 'assign_resp',
+          unit: d.unit,
+          oldResp: d.resp || '',
+          newResp: payload.resp || ''
+        });
+
         // Мгновенная синхронизация локальных данных в памяти
         d.dir = payload.dir;
         d.head = payload.head;
