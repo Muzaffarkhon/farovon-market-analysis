@@ -5,10 +5,14 @@
   "main": "src/server.js",
   "scripts": {
     "build": "echo \"Build complete\"",
+    "vercel-build": "node src/db/migrateCli.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
     "test": "node --test"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "keywords": [
     "c&b",

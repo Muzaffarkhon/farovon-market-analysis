@@ -38,7 +38,7 @@ Win: ... | Lose: ... (что сломается на проде 24/7)
 4. **Scope & RBAC Isolation:** Руководитель направления (`dir_head`) видит и назначает сотрудников **строго внутри своего направления** (`dir`). Исключить утечку списка всех 112+ сотрудников.
 5. **Смежные группы (`group_key`):** Объединение должностей на Шаге 2 и подсказки компаний на Шаге 1 работают по `group_key` — **без смешивания фактических окладов и данных surveys между разными unit**.
 6. **Bcrypt & Auth:** Запрещено сохранять пароли в открытом виде (`raw_password` удалён). Пароли — только `bcryptjs.hash(pw, 10)`. JWT сессии с поддержкой кириллицы (UTF-8).
-7. **Frontend Audit Sync:** Vanilla JS/CSS SPA в `public/index.html` и `public/style.css`. Любое добавление `call(api)` обязано быть синхронизировано с маршрутами в `src/server.js` (33 эндпоинта) и проходить `src/tools/auditFrontend.js`.
+7. **Frontend Audit Sync:** Vanilla JS/CSS SPA в `client/index.html` и `client/style.css`. Любое добавление `call(api)` обязано быть синхронизировано с маршрутами в `src/server.js` (33 эндпоинта) и проходить `src/tools/auditFrontend.js`.
 8. **Telegram Bot & Webhook:** Рассылка напоминаний — с задержками (anti-flood, max 25 msg/s), обработка `403 Forbidden` (пользователь заблокировал бота). Команды бота (`/status`, `/unlink`, `/help`) должны быть синхронизированы в `setMyCommands`.
 9. **Audit Logging:** Все критические действия (назначение ответственных, сброс паролей, архивация, раздача пула компаний, удаление анкет) обязаны фиксироваться в таблице `audit_log`.
 10. **Apple HIG & 22 SVG:** Интерфейс строится строго по дизайн-токенам Apple HIG (десктопный сайдбар, адаптивные таблицы, компактный режим `html.compact` для мобильных/TMA, 22 векторные SVG-иконки без эмодзи в кнопках и табах).
@@ -60,5 +60,5 @@ node --check src/config/capabilities.js
 - **Стек:** Node.js 20+, Express 4.21, `@libsql/client` (Turso Cloud LibSQL SQLite), `bcryptjs`, `jsonwebtoken`, `node-telegram-bot-api`, Vanilla HTML5/CSS3 SPA (Apple HIG)
 - **Repo:** https://github.com/Muzaffarkhon/farovon-market-analysis
 - **Ветка:** `main`, запуск: `npm start` или `npm run dev` (`node --watch src/server.js`)
-- **Deploy:** Render.com Web Service (`https://farovon-market-analysis.onrender.com`) + Turso Cloud (AWS Frankfurt) + UptimeRobot (`/health`)
+- **Deploy:** Vercel serverless (`api/index.js` оборачивает Express, `vercel.json` rewrites → `/api`, регион `fra1`; миграции — `npm run vercel-build` → `src/db/migrateCli.js`) + Turso Cloud (AWS Frankfurt). Render.com (`https://farovon-market-analysis.onrender.com`) держится запасным на тот же Turso. UptimeRobot (`/health`).
 - **НЕ ТРОГАТЬ:** `.env`, облачную БД Turso без бэкапа, учетку `admin`, 33 эндпоинта без проверки `auditFrontend.js`.

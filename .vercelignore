@@ -1,0 +1,12 @@
+# Не нужно в рантайме serverless-функции — уменьшаем загрузку.
+# Пути с ведущим «/» привязаны к корню: НЕ трогаем src/data/*.json,
+# который require()-ится сервисами в рантайме.
+.git
+/docs
+/data
+/.agents
+/.github
+/.claude
+/src/data/seedBundle.json
+*.test.js
+/test

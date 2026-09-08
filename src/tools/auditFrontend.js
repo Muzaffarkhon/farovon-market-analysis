@@ -7,8 +7,8 @@
  *     именно так «+ Добавить должность» молча не работала.
  */
 const fs = require('fs');
-const html = fs.readFileSync('public/index.html', 'utf8');
-const css = fs.readFileSync('public/style.css', 'utf8');
+const html = fs.readFileSync('client/index.html', 'utf8');
+const css = fs.readFileSync('client/style.css', 'utf8');
 
 const blocks = html.match(/<script>[\s\S]*?<\/script>/g) || [];
 const js = blocks
