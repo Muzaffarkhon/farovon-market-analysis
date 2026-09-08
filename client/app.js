@@ -2307,6 +2307,10 @@ function openBatchSurveySheet(posName){
     'Корпоративный транспорт / развозка'
   ].filter(function(b){ return benefitsList.indexOf(b) >= 0; });
 
+  // Закреплённые сверху в выпадающем списке льгот — стандартный набор без ДМС
+  // (ДМС просили не выносить в топ, он остаётся среди обычных пунктов справочника).
+  var STD_PINNED = STD_BENEFITS.filter(function(b){ return !/дмс/i.test(b) && !/мед\w*\s+страхован/i.test(b); });
+
   // Формируем состояние записей по каждой компании
   var entries = actualCos.map(function(co){
     var exist = S.surveys.find(function(s){
@@ -2469,10 +2473,10 @@ function openBatchSurveySheet(posName){
         '</div>'+
 
         '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
-        (STD_BENEFITS.length
-          ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Стандартный набор</button>'
+        (STD_PINNED.length
+          ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Отметить частые</button>'
           : '')+
-        benefitChips(benefitGroups, item.benefits)+
+        benefitDropdown(item.benefits, benefitGroups, STD_PINNED)+
 
         '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
         '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
@@ -2558,14 +2562,69 @@ function openBatchSurveySheet(posName){
         cardsHtml+
       '</div>'+
 
-      '<div style="height:10px"></div>'+
-      '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
-      '<div style="height:8px"></div>'+
+      // Липкий низ: кнопка сохранения всегда на виду, а над ней — подсказка
+      // «ниже ещё N», когда список компаний не помещается на экран (важнее
+      // всего в альбомной ориентации, где высота маленькая).
+      '<div class="batch-foot">'+
+        '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
+        '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
+      '</div>'+
     '</div>';
   }
 
   renderSheetContent();
   document.body.appendChild(el);
+
+  // Перерисовать выпадающий список льгот в карточке из текущего item.benefits
+  // (после «Отметить частые» и добавления своей льготы). keepOpen — оставить
+  // панель раскрытой, т.к. человек продолжает выбирать.
+  function refreshBenefitDropdown(card, item, keepOpen){
+    var wrap = card && card.querySelector('.bx-bd');
+    if(!wrap) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = benefitDropdown(item.benefits, benefitGroups, STD_PINNED);
+    var fresh = tmp.firstChild;
+    if(keepOpen){
+      fresh.classList.add('open');
+      var p = fresh.querySelector('.bx-bd-panel');
+      if(p) p.classList.remove('hidden');
+    }
+    wrap.parentNode.replaceChild(fresh, wrap);
+  }
+
+  // ── Подсказка «ниже ещё компании» ───────────────────────────────────────
+  // Показываем, только когда список реально не помещается и мы не у конца.
+  // Текст — сколько карточек компаний ещё под сгибом.
+  function updateScrollCue(){
+    if(!el.isConnected){
+      window.removeEventListener('resize', updateScrollCue);
+      window.removeEventListener('orientationchange', updateScrollCue);
+      return;
+    }
+    var sc = el.querySelector('.sheet-in');
+    var cue = el.querySelector('.batch-foot-cue');
+    if(!sc || !cue) return;
+    var foot = el.querySelector('.batch-foot');
+    var footTop = foot ? foot.offsetTop : sc.scrollHeight;
+    var viewBottom = sc.scrollTop + sc.clientHeight;
+    var remain = footTop - viewBottom;
+    if(remain <= 24){ cue.hidden = true; return; }
+    var cards = el.querySelectorAll('.batch-card');
+    var below = 0;
+    for(var i = 0; i < cards.length; i++){
+      if(cards[i].offsetTop + cards[i].offsetHeight - 8 > viewBottom) below++;
+    }
+    cue.querySelector('span').textContent = below
+      ? 'ниже ещё ' + below + ' ' + declOfNum(below, ['компания', 'компании', 'компаний'])
+      : 'прокрутите вниз';
+    cue.hidden = false;
+  }
+  var _cueSheet = el.querySelector('.sheet-in');
+  if(_cueSheet) _cueSheet.addEventListener('scroll', updateScrollCue, { passive: true });
+  window.addEventListener('resize', updateScrollCue);
+  window.addEventListener('orientationchange', updateScrollCue);
+  el.addEventListener('_recue', updateScrollCue);
+  setTimeout(updateScrollCue, 60);
 
   var initialSnapshot = JSON.stringify(entries);
   function isSheetDirty(){
@@ -2584,6 +2643,62 @@ function openBatchSurveySheet(posName){
           return false;
         }
       }
+
+      // Обязательные поля: у каждой НАЧАТОЙ строки компании должны быть заполнены
+      // график, наличие бонусов, источник данных и надёжность — ключевые атрибуты
+      // для сравнения, без них запись почти бесполезна. Пустые строки (компанию
+      // не трогали) пропускаем.
+      var REQUIRED_DETAIL = [
+        { key: 'schedule', label: 'График работы',   chips: 'schedule' },
+        { key: 'bonHas',   label: 'Бонусы и премии',  chips: 'bonHas' },
+        { key: 'source',   label: 'Откуда данные',    chips: 'source' },
+        { key: 'trust',    label: 'Надёжность',       chips: 'trust' }
+      ];
+      [].forEach.call(el.querySelectorAll('.batch-card--needs'), function(c){ c.classList.remove('batch-card--needs'); });
+      [].forEach.call(el.querySelectorAll('.chips--invalid'), function(c){ c.classList.remove('chips--invalid'); });
+      var reqErrors = [];
+      entries.forEach(function(item, ri){
+        var started = !!(
+          String(item.payFrom || '').trim() || String(item.payTo || '').trim() ||
+          String(item.posTheir || '').trim() || String(item.grade || '').trim() ||
+          String(item.extra || '').trim() || String(item.note || '').trim() ||
+          (Array.isArray(item.benefits) && item.benefits.length) ||
+          (Array.isArray(item.bonuses) && item.bonuses.some(function(b){ return b && (b.type || String(b.size == null ? '' : b.size).trim() || b.per); })) ||
+          String(item.schedule || '').trim() || String(item.bonHas || '').trim() ||
+          String(item.source || '').trim() || String(item.trust || '').trim()
+        );
+        if(!started) return;
+        var miss = REQUIRED_DETAIL.filter(function(f){ return !String(item[f.key] == null ? '' : item[f.key]).trim(); });
+        if(!miss.length) return;
+        reqErrors.push({ co: item.co, miss: miss });
+        var card = el.querySelector('.batch-card[data-idx="' + ri + '"]');
+        if(card){
+          card.classList.add('batch-card--needs');
+          var panel = card.querySelector('.batch-more-panel');
+          if(panel && panel.classList.contains('hidden')){
+            panel.classList.remove('hidden');
+            var mb = card.querySelector('[data-act="toggle-more"]');
+            if(mb) mb.classList.add('open');
+          }
+          miss.forEach(function(f){
+            var box = card.querySelector('.chips[data-chips="' + f.chips + '"]');
+            if(box) box.classList.add('chips--invalid');
+          });
+        }
+      });
+      if(reqErrors.length){
+        var first = reqErrors[0];
+        toast(
+          reqErrors.length === 1
+            ? 'Заполните обязательные поля в «' + first.co + '»: ' + first.miss.map(function(f){ return f.label; }).join(', ')
+            : 'Не хватает обязательных полей (график, бонусы, источник, надёжность) в ' + reqErrors.length + ' ' + declOfNum(reqErrors.length, ['компании', 'компаниях', 'компаниях']),
+          'warn'
+        );
+        var firstCard = el.querySelector('.batch-card--needs');
+        if(firstCard && firstCard.scrollIntoView) firstCard.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return false;
+      }
+
       entries.forEach(function(item){
         var pFromStr = String(item.payFrom == null ? '' : item.payFrom).trim();
         var pToStr = String(item.payTo == null ? '' : item.payTo).trim();
@@ -2715,31 +2830,61 @@ function openBatchSurveySheet(posName){
       return;
     }
 
-    // «Стандартный набор» льгот — отметить частые позиции соцпакета одной кнопкой
+    // Подсказка «ниже ещё компании» — прокручиваем список почти на экран вниз
+    if(e.target.closest('[data-act="scroll-more"]')){
+      var sc2 = el.querySelector('.sheet-in');
+      if(sc2) sc2.scrollBy({ top: Math.max(160, sc2.clientHeight - 140), behavior: 'smooth' });
+      return;
+    }
+
+    // «Отметить частые» — одним кликом проставить закреплённый набор льгот
+    // (STD_PINNED). Повторный клик, если весь набор уже стоит, — снимает его.
     var stdBtn = e.target.closest('[data-act="std-benefits"]');
     if(stdBtn){
       var stdCard = stdBtn.closest('.batch-card');
       var stdItem = entries[+stdCard.dataset.idx];
-      // Toggle: если весь набор уже отмечен — снимаем его (защита от случайного
-      // клика), иначе добавляем недостающие позиции.
-      var allOn = STD_BENEFITS.length > 0 && STD_BENEFITS.every(function(b){
+      if(!Array.isArray(stdItem.benefits)) stdItem.benefits = [];
+      var allOn = STD_PINNED.length > 0 && STD_PINNED.every(function(b){
         return stdItem.benefits.indexOf(b) >= 0;
       });
       if(allOn){
-        stdItem.benefits = stdItem.benefits.filter(function(b){
-          return STD_BENEFITS.indexOf(b) < 0;
-        });
+        stdItem.benefits = stdItem.benefits.filter(function(b){ return STD_PINNED.indexOf(b) < 0; });
       } else {
-        STD_BENEFITS.forEach(function(b){
+        STD_PINNED.forEach(function(b){
           if(stdItem.benefits.indexOf(b) < 0) stdItem.benefits.push(b);
         });
       }
-      var box = stdCard.querySelector('.chips[data-chips="benefits"]');
-      if(box) box.querySelectorAll('button').forEach(function(bn){
-        bn.classList.toggle('on', stdItem.benefits.indexOf(bn.dataset.v) >= 0);
-      });
+      refreshBenefitDropdown(stdCard, stdItem, true);
       updateCardCompleteness(stdCard, stdItem);
-      toast(allOn ? 'Стандартный набор льгот снят' : 'Стандартный набор льгот отмечен', allOn ? '' : 'ok');
+      toast(allOn ? 'Частые льготы сняты' : 'Частые льготы отмечены', allOn ? '' : 'ok');
+      return;
+    }
+
+    // Выпадающий список льгот: раскрыть/свернуть
+    var bdTog = e.target.closest('[data-act="bd-toggle"]');
+    if(bdTog){
+      var bdWrap = bdTog.closest('.bx-bd');
+      var bdPanel = bdWrap.querySelector('.bx-bd-panel');
+      if(bdPanel) bdPanel.classList.toggle('hidden');
+      bdWrap.classList.toggle('open', bdPanel && !bdPanel.classList.contains('hidden'));
+      setTimeout(function(){ el.dispatchEvent(new Event('_recue')); }, 0);
+      return;
+    }
+
+    // Льготы → «Добавить» свою (свободный ввод). Сохраняется в записи анкеты.
+    var bdAdd = e.target.closest('[data-act="bd-other-add"]');
+    if(bdAdd){
+      var bdCard = bdAdd.closest('.batch-card');
+      var bdItem = entries[+bdCard.dataset.idx];
+      var inp = bdCard.querySelector('.bx-bd-other-inp');
+      var nv = inp ? String(inp.value || '').trim() : '';
+      if(!nv){ if(inp) inp.focus(); return; }
+      if(!Array.isArray(bdItem.benefits)) bdItem.benefits = [];
+      var exists = bdItem.benefits.some(function(b){ return b.toLowerCase() === nv.toLowerCase(); });
+      if(!exists) bdItem.benefits.push(nv);
+      refreshBenefitDropdown(bdCard, bdItem, true);
+      updateCardCompleteness(bdCard, bdItem);
+      toast(exists ? 'Такая льгота уже отмечена' : 'Добавлена льгота: ' + nv, exists ? '' : 'ok');
       return;
     }
 
@@ -2749,6 +2894,7 @@ function openBatchSurveySheet(posName){
       var panel = card.querySelector('.batch-more-panel');
       panel.classList.toggle('hidden');
       moreBtn.classList.toggle('open');
+      setTimeout(function(){ el.dispatchEvent(new Event('_recue')); }, 0);
       return;
     }
 
@@ -2866,6 +3012,24 @@ function openBatchSurveySheet(posName){
 
     if(e.target.classList.contains('b-cur')){ item.cur = e.target.value; S.fillPrefs.cur = item.cur; }
     if(e.target.classList.contains('b-pay-per')){ item.payPer = e.target.value; S.fillPrefs.payPer = item.payPer; }
+
+    // Галочка льготы в выпадающем списке
+    if(e.target.matches('input[data-act="bd-opt"]')){
+      if(!Array.isArray(item.benefits)) item.benefits = [];
+      var bv = e.target.dataset.v;
+      var bk = item.benefits.indexOf(bv);
+      if(e.target.checked && bk < 0) item.benefits.push(bv);
+      else if(!e.target.checked && bk >= 0) item.benefits.splice(bk, 1);
+      var lab = e.target.closest('.bx-bd-opt');
+      if(lab) lab.classList.toggle('on', e.target.checked);
+      var sum = card.querySelector('.bx-bd-sum');
+      if(sum){
+        var n = item.benefits.length;
+        sum.textContent = n ? n + ' ' + declOfNum(n, ['льгота', 'льготы', 'льгот']) + ' выбрано' : 'Выберите льготы';
+        sum.classList.toggle('ph', !n);
+      }
+    }
+
     updateCardCompleteness(card, item);
   });
 
@@ -5494,6 +5658,31 @@ function renderAdminDivisions(){
   var staffSearch = (($('staffSearch') && $('staffSearch').value) ? $('staffSearch').value : '').toLowerCase();
   var curView = S.adminDivsView || 'tree';
 
+  // Единый кластер кнопок управления оргструктурой — один и тот же порядок и
+  // вид в обоих режимах: Схема · Таблица · Смежные группы · Добавить
+  // подразделение (· Отменить). Раньше кнопки были раскиданы — в «Таблице»
+  // не было «Смежных групп», отступы и порядок различались между видами.
+  function orgToolbarBtns(view){
+    var adjN = new Set((S.adminDivs || []).map(function(x){ return String(x.group_key || '').trim(); }).filter(Boolean)).size;
+    return '<div class="org-toolbar-btns">'+
+      '<div class="seg">'+
+        '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
+        '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
+      '</div>'+
+      '<button class="btn-line" id="btnAdjGroups" style="gap:5px" title="Смежные группы площадок">'+
+        ic('link', 13) + ' Смежные группы' + (adjN ? ' ('+adjN+')' : '')+
+      '</button>'+
+      (hasCap('divisions:edit') ?
+        '<button class="btn-line" id="btnAddDivision" style="gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
+          ic('plus', 13) + ' Добавить подразделение</button>'
+        : '')+
+      ((S.myUndoStack && S.myUndoStack.length) ?
+        '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
+          ic('undo', 13) + ' Отменить</button>'
+        : '')+
+    '</div>';
+  }
+
   var filtered = divs.filter(function(d){
     if(!d) return false;
     var uStr = (d.unit || '').toLowerCase();
@@ -5557,23 +5746,7 @@ function renderAdminDivisions(){
             '<input id="divSearch" placeholder="Поиск подразделения…" value="'+esc(search)+'">'+
           '</div>'+
         '</div>'+
-        '<div class="seg">'+
-          '<button class="seg-btn on" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
-          '<button class="seg-btn" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
-        '</div>'+
-        '<button class="btn-line" id="btnAdjGroups" style="margin-left:8px;gap:5px" title="Смежные группы площадок">'+
-          ic('link', 13) + ' Смежные группы' +
-          ((function(){ var n = new Set((S.adminDivs||[]).map(function(x){ return String(x.group_key||'').trim(); }).filter(Boolean)).size; return n ? ' ('+n+')' : ''; })())+
-        '</button>'+
-        (hasCap('divisions:edit') ?
-          '<button class="btn-line" id="btnAddDivision" style="margin-left:8px;gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
-            ic('plus', 13) + ' Добавить подразделение</button>'
-          : '')+
-        // Кнопка «Отменить» — показывается только когда стек не пустой
-        ((S.myUndoStack && S.myUndoStack.length) ?
-          '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="margin-left:8px;gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
-            ic('undo', 13) + ' Отменить</button>'
-          : '')+
+        orgToolbarBtns('tree')+
       '</div>';
 
     var DIR_W = 260, DIR_GAP = 16;
@@ -6031,17 +6204,10 @@ function renderAdminDivisions(){
     // Режим таблицы
     h += '<div class="org-tree-wrapper">'+
       '<div class="org-tree-toolbar">'+
-        '<div style="display:flex;align-items:center;gap:8px">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
           '<div class="search-wrap">'+icBare('search')+
             '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'"></div>'+
-          '<div class="seg">'+
-            '<button class="seg-btn" id="btnOrgTree">' + ic('units', 14) + ' Схема оргструктуры</button>'+
-            '<button class="seg-btn on" id="btnOrgTable">' + ic('book', 14) + ' Таблица</button>'+
-          '</div>'+
-          (hasCap('divisions:edit') ?
-            '<button class="btn-line" id="btnAddDivision" style="gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
-              ic('plus', 13) + ' Добавить подразделение</button>'
-            : '')+
+          orgToolbarBtns('table')+
         '</div>'+
         '<div>'+tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
       '</div>'+

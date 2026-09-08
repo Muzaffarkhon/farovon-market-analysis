@@ -1058,6 +1058,60 @@ function benefitChips(groups, value){
 }
 
 /**
+ * Льготы: выпадающий список с галочками. Самые частые (pinned — STD_BENEFITS
+ * без ДМС) закреплены сверху, ниже — весь справочник по разделам, в конце —
+ * «Другое» со свободным вводом. Введённое там значение сохраняется прямо в
+ * записи анкеты (item.benefits) как новая льгота — в общий справочник не
+ * попадает, но в таблице/«Параметрах» отображается, т.к. рендерится из записи.
+ * Контейнер несёт data-bd; сохраняемое значение — плоский список выбранных строк.
+ */
+function benefitDropdown(value, groups, pinned){
+  var sel = value || [];
+  pinned = pinned || [];
+  var pinnedSet = {}; pinned.forEach(function(b){ pinnedSet[b] = 1; });
+  var dictSet = {};
+  (groups || []).forEach(function(g){ (g.items || []).forEach(function(it){ dictSet[it] = 1; }); });
+
+  function optRow(v){
+    var on = sel.indexOf(v) >= 0;
+    return '<label class="bx-bd-opt'+(on ? ' on' : '')+'">'+
+      '<input type="checkbox" data-act="bd-opt" data-v="'+esc(v)+'"'+(on ? ' checked' : '')+'>'+
+      '<span>'+esc(v)+'</span></label>';
+  }
+
+  var sumTxt = sel.length
+    ? sel.length + ' ' + declOfNum(sel.length, ['льгота', 'льготы', 'льгот']) + ' выбрано'
+    : 'Выберите льготы';
+
+  var html = '<div class="bx-bd" data-bd="1">'+
+    '<button type="button" class="bx-bd-trigger" data-act="bd-toggle">'+
+      '<span class="bx-bd-sum'+(sel.length ? '' : ' ph')+'">'+esc(sumTxt)+'</span>'+
+      icBare('chevron', 13)+
+    '</button>'+
+    '<div class="bx-bd-panel hidden">';
+
+  if(pinned.length){
+    html += '<div class="bx-bd-grp">Часто выбирают</div>' + pinned.map(optRow).join('');
+  }
+  (groups || []).forEach(function(g){
+    var items = (g.items || []).filter(function(it){ return !pinnedSet[it]; });
+    if(!items.length) return;
+    html += '<div class="bx-bd-grp">'+esc(g.category || 'Прочее')+'</div>' + items.map(optRow).join('');
+  });
+  var custom = sel.filter(function(v){ return !pinnedSet[v] && !dictSet[v]; });
+  if(custom.length){
+    html += '<div class="bx-bd-grp">Добавленные</div>' + custom.map(optRow).join('');
+  }
+
+  html += '<div class="bx-bd-other">'+
+      '<input type="text" class="bx-bd-other-inp" placeholder="Другое — своя льгота" maxlength="80">'+
+      '<button type="button" class="btn-line" data-act="bd-other-add">'+icBare('plus', 12)+' Добавить</button>'+
+    '</div>'+
+  '</div></div>';
+  return html;
+}
+
+/**
  * Экран выбора значения из справочника: поиск + строгий список.
  * Свободного ввода нет — иначе одна и та же должность попадает в таблицу
  * в пяти написаниях. Если нужного значения нет, его добавляют кнопкой внизу,
