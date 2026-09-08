@@ -1180,6 +1180,19 @@ function renderUnits(){
   // раз на все площадки (см. openUnit → mergeGroupSurveys, серверный разнос).
   var display = collapseUnitGroups(u);
 
+  // Незаполненные и требующие заполнения подразделения поднимаются выше,
+  // чтобы руководитель в первую очередь видел их и заполнил:
+  // 0. «Не начато» (0 компаний, 0 анкет) — самый верх
+  // 1. Компании начаты/проверены, но анкеты ещё 0
+  // 2. «В работе» (анкеты начаты, но ещё не готово)
+  // 3. «Готово» — полностью заполненные опускаются вниз
+  display.sort(function(a, b){
+    var sa = getUnitSortScore(a);
+    var sb = getUnitSortScore(b);
+    if(sa !== sb) return sa - sb;
+    return (a._origIdx || 0) - (b._origIdx || 0);
+  });
+
   var h = periodBanner();
 
   if(!obSeen()){
@@ -1241,9 +1254,13 @@ function renderUnits(){
  */
 function collapseUnitGroups(units){
   var out = [], seen = {};
-  (units || []).forEach(function(x){
+  (units || []).forEach(function(x, idx){
     var g = String(x.group || '').trim();
-    if(!g){ out.push(x); return; }
+    if(!g){
+      x._origIdx = idx;
+      out.push(x);
+      return;
+    }
     if(seen[g]){
       var grp = seen[g];
       grp.members.push(x);
@@ -1255,6 +1272,7 @@ function collapseUnitGroups(units){
     }
     var rec = {
       __group: true,
+      _origIdx: idx,
       key: g,
       dir: x.dir || '',
       unit: x.unit,               // представитель — по нему openUnit → currentUnitGroup
@@ -1282,6 +1300,24 @@ function shortMemberName(unitName, key){
   return n;
 }
 
+function getUnitCardStatus(x){
+  var sv = x.surveys || 0;
+  var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
+  if(x.done === 0 && sv === 0) return { k:'none', t:'Не начато' };
+  if(step1done && sv > 0) return { k:'ok', t:'Готово' };
+  return { k:'part', t:'В работе' };
+}
+
+function getUnitSortScore(x){
+  var sv = x.surveys || 0;
+  var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
+  var isOk = step1done && sv > 0;
+  if(isOk) return 3;       // Готово — опускаем вниз
+  if(sv > 0) return 2;     // В работе (есть анкеты, но не всё проверено/завершено)
+  if(x.done > 0) return 1; // Компании начаты/проверены, но анкеты ещё 0
+  return 0;                // Не начато (0 компаний, 0 анкет) — самый верх
+}
+
 function renderUnitCards(list){
   if(!list.length) return '<div class="empty">Подразделения не найдены</div>';
   return list.map(function(x){
@@ -1298,10 +1334,7 @@ function renderGroupCard(x){
   var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
   var pct = x.total ? Math.round(x.done / x.total * 100) : 0;
   var askPct = x.total ? Math.round((x.ask || 0) / x.total * 100) : 0;
-  var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
-  var st = (x.done === 0 && sv === 0) ? { k:'none', t:'Не начато' }
-         : (step1done && sv > 0)      ? { k:'ok',   t:'Готово' }
-         :                             { k:'part', t:'В работе' };
+  var st = getUnitCardStatus(x);
   var names = x.members.map(function(m){ return shortMemberName(m.unit, x.key); });
 
   return '<div class="unit unit--group" data-u="'+esc(x.unit)+'">'+
@@ -1337,10 +1370,7 @@ function renderPlainUnitCard(x){
     var svPct = totalSlots > 0 ? Math.min(100, Math.round(sv / totalSlots * 100)) : (sv ? 100 : 0);
 
     // Статус для мгновенной читаемости списка — не надо вчитываться в полосы.
-    var step1done = x.total > 0 && x.done >= x.total && !(x.ask || 0);
-    var st = (x.done === 0 && sv === 0) ? { k:'none', t:'Не начато' }
-           : (step1done && sv > 0)      ? { k:'ok',   t:'Готово' }
-           :                             { k:'part', t:'В работе' };
+    var st = getUnitCardStatus(x);
 
     return '<div class="unit" data-u="'+esc(x.unit)+'">'+
       '<div class="u-body">'+
