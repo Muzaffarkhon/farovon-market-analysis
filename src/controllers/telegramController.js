@@ -348,40 +348,47 @@ exports.webhook = async (req, res) => {
     return res.status(401).end();
   }
 
-  // Telegram ждёт быстрый 200 независимо от результата обработки — иначе будет
-  // повторять доставку. Обрабатываем и подтверждаем сразу.
-  res.status(200).end();
-
+  // ВАЖНО: на serverless (Vercel) исполнение функции замораживается сразу после
+  // отправки ответа — всё, что запланировано «на потом» через await, не
+  // доедет. Поэтому обработку (и отправку ответа боту) завершаем ДО res.end(),
+  // а не после. Обработчики короткие (запрос к БД + одна отправка), в таймаут
+  // доставки Telegram (~60 c) укладываемся с запасом; повторной доставки из-за
+  // «медленного 200» на практике не бывает.
   try {
-    const cb = req.body && req.body.callback_query;
-    if (cb) { await handleStaleCallback(cb); return; }
-
-    const msg = req.body && req.body.message;
-    if (!msg || !msg.chat) return;
-
-    const chatId = msg.chat.id;
-
-    if (msg.contact) {
-      await handleContact(chatId, msg.from && msg.from.id, msg.contact);
-      return;
-    }
-
-    if (!msg.text) return;
-    const text = msg.text.trim();
-
-    const startMatch = text.match(/^\/start(?:\s+([a-f0-9]{32}))?$/i);
-    if (startMatch) { await handleStart(chatId, startMatch[1]); return; }
-
-    // Ручной запасной путь — если диплинк из приложения не подставил
-    // /start в поле ввода, человек всё равно может набрать /link сам.
-    if (/^\/link\b/i.test(text)) { await handleStart(chatId, null); return; }
-    if (/^\/(login|creds|password|pass|dostup)\b/i.test(text)) { await handleLogin(chatId); return; }
-    if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
-    if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
-    if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
-
-    await sendTelegramMessage(chatId, 'Не понял команду.\n\n' + HELP_TEXT);
+    await processTelegramUpdate(req.body);
   } catch (err) {
     console.error('Telegram webhook error:', err);
   }
+  res.status(200).end();
 };
+
+async function processTelegramUpdate(body) {
+  const cb = body && body.callback_query;
+  if (cb) { await handleStaleCallback(cb); return; }
+
+  const msg = body && body.message;
+  if (!msg || !msg.chat) return;
+
+  const chatId = msg.chat.id;
+
+  if (msg.contact) {
+    await handleContact(chatId, msg.from && msg.from.id, msg.contact);
+    return;
+  }
+
+  if (!msg.text) return;
+  const text = msg.text.trim();
+
+  const startMatch = text.match(/^\/start(?:\s+([a-f0-9]{32}))?$/i);
+  if (startMatch) { await handleStart(chatId, startMatch[1]); return; }
+
+  // Ручной запасной путь — если диплинк из приложения не подставил
+  // /start в поле ввода, человек всё равно может набрать /link сам.
+  if (/^\/link\b/i.test(text)) { await handleStart(chatId, null); return; }
+  if (/^\/(login|creds|password|pass|dostup)\b/i.test(text)) { await handleLogin(chatId); return; }
+  if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
+  if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
+  if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
+
+  await sendTelegramMessage(chatId, 'Не понял команду.\n\n' + HELP_TEXT);
+}
