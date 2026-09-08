@@ -60,6 +60,7 @@ router.get('/live-signature', liveController.signature);
 // Профиль и сессия
 router.get('/auth/resume', authController.resume);
 router.post('/auth/change-password', authController.changePassword);
+router.post('/auth/change-name', authController.changeName);
 router.post('/auth/set-units', authController.setUnits);
 router.post('/auth/onboarded', authController.markOnboarded);
 router.post('/telegram/link', telegramController.link);

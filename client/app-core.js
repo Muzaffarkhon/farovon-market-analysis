@@ -667,6 +667,7 @@ var API_ROUTES = {
   apiResume: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiRefresh: function(args){ return fetchJson('/api/auth/resume', { method:'GET', token:args[0] }); },
   apiChangePassword: function(args){ return fetchJson('/api/auth/change-password', { method:'POST', token:args[0], body:{ oldPassword:args[1], newPassword:args[2] } }); },
+  apiChangeName: function(args){ return fetchJson('/api/auth/change-name', { method:'POST', token:args[0], body:{ fio:args[1] } }); },
   apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
   apiMarkOnboarded: function(args){ return fetchJson('/api/auth/onboarded', { method:'POST', token:args[0] }); },
   apiTelegramLink: function(args){ return fetchJson('/api/telegram/link', { method:'POST', token:args[0] }); },

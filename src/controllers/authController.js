@@ -3,8 +3,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryAll, queryOne, run } = require('../db/database');
-const { cached } = require('../services/refCache');
+const { cached, invalidate } = require('../services/refCache');
 const { getActivePeriod } = require('../services/periodService');
+const { isHiddenCompany } = require('../services/companyFilter');
 const { mapSurveyRow } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
 
@@ -154,7 +155,7 @@ async function getUserPayload(user) {
         }
       }
     }),
-    queryAll('SELECT unit, actual FROM competitors'),
+    queryAll('SELECT unit, company, actual FROM competitors'),
     queryAll("SELECT unit FROM surveys WHERE state != 'удалена' AND period_id = ?", [period.id]),
     cached('dictCompanies', () => withDirs(
       "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
@@ -175,25 +176,19 @@ async function getUserPayload(user) {
       : cached('roleCaps:' + user.role, () => queryAll('SELECT capability FROM role_capabilities WHERE role = ?', [user.role]).catch(() => []))
   ]);
 
+  // ООО / ҶДММ исключены из обзора рынка — фильтруем на выдаче (см.
+  // services/companyFilter). Дальше по коду используем только compRowsShown.
+  const compRowsShown = compRows.filter(c => !isHiddenCompany(c.company));
+
   // Подсчёт прогресса по доступным подразделениям (в памяти)
   const compMap = {};
-  // Одна компания привязана к десяткам подразделений, поэтому построчная
-  // сумма ask по отделам («Далерон» × 130 отделов = +130) вводит в
-  // заблуждение. Для плашки на «Главной» считаем УНИКАЛЬНЫЕ компании,
-  // у которых хоть одна связка в статусе «уточнить».
-  const askCompanySet = new Set();
-  compRows.forEach(c => {
+  compRowsShown.forEach(c => {
     if (!compMap[c.unit]) compMap[c.unit] = { total: 0, done: 0, ask: 0 };
     compMap[c.unit].total++;
     const act = (c.actual || '').toLowerCase();
     if (act === 'актуально' || act === 'не актуально') compMap[c.unit].done++;
-    else if (act === 'уточнить') {
-      compMap[c.unit].ask++;
-      askCompanySet.add(String(c.company || '').trim().toLowerCase());
-    }
+    else if (act === 'уточнить') compMap[c.unit].ask++;
   });
-  askCompanySet.delete('');
-  const marketAskCompanies = askCompanySet.size;
 
   const survMap = {};
   survRows.forEach(s => {
@@ -225,6 +220,32 @@ async function getUserPayload(user) {
       note: d.survey_note || ''
     }));
   }
+
+  // Уникальные компании по видимым подразделениям. Одна компания-конкурент
+  // привязана к десяткам отделов («Далерон» — к 130), поэтому построчная сумма
+  // total/done/ask по отделам раздувается (до 3632 связок при ~194 компаниях).
+  // Для плашек «участники рынка проверены / на уточнении» нужен счёт уникальных
+  // company: «проверено» — все связи компании актуально/не актуально; «на
+  // уточнении» — хоть одна связь в статусе «уточнить».
+  const visibleUnitSet = new Set(visibleUnits.map(u => u.unit));
+  const compByName = new Map();
+  compRowsShown.forEach(c => {
+    if (!visibleUnitSet.has(c.unit)) return;
+    const name = String(c.company || '').trim().toLowerCase();
+    if (!name) return;
+    const act = (c.actual || '').toLowerCase();
+    let e = compByName.get(name);
+    if (!e) { e = { allChecked: true, anyAsk: false }; compByName.set(name, e); }
+    if (act === 'уточнить') { e.anyAsk = true; e.allChecked = false; }
+    else if (act !== 'актуально' && act !== 'не актуально') { e.allChecked = false; }
+  });
+  let marketCompaniesDone = 0;
+  let marketAskCompanies = 0;
+  compByName.forEach(e => {
+    if (e.allChecked) marketCompaniesDone++;
+    if (e.anyAsk) marketAskCompanies++;
+  });
+  const marketCompanies = compByName.size;
 
   const dictPositions = dictPositionsRows.map(x => x.name);
 
@@ -298,6 +319,7 @@ async function getUserPayload(user) {
         compRowsGroup.forEach(r => {
           const g = unitToGroup[r.unit];
           if (!g) return;
+          if (isHiddenCompany(r.company)) return; // ООО / ҶДММ — вне обзора
           if (!companiesByGroup[g]) companiesByGroup[g] = new Set();
           companiesByGroup[g].add(r.company);
         });
@@ -361,11 +383,13 @@ async function getUserPayload(user) {
     needsUnitPick: unitsList.length === 0 && user.role !== 'admin' && user.role !== 'cb' && canSelfPick,
     needsAssignment: unitsList.length === 0 && selfAssignRoles.includes(user.role),
     units: visibleUnits,
-    // Уникальных компаний «на уточнении» в видимых пользователю подразделениях
-    // (для плашки на «Главной» — вместо суммы построчных ask по отделам).
+    // Уникальные компании по видимым подразделениям — вместо суммы построчных
+    // total/done/ask по отделам (одна компания висит на десятках подразделений).
+    marketCompanies,
+    marketCompaniesDone,
     marketAskCompanies,
     allUnits: allUnits,
-    rows: userCompetitors.map(c => ({
+    rows: userCompetitors.filter(c => !isHiddenCompany(c.company)).map(c => ({
       id: c.cid,
       unit: c.unit,
       company: c.company,
@@ -658,6 +682,80 @@ exports.changePassword = async (req, res) => {
   } catch (err) {
     console.error('Change password error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка смены пароля' });
+  }
+};
+
+/**
+ * Смена собственного ФИО. ФИО в этой схеме продублировано строкой во многих
+ * местах (divisions.head/resp/hrbp, competitors.resp/hrbp/updated_by,
+ * surveys.created_by, periods.updated_by) и служит ключом сопоставления
+ * пользователя с оргструктурой — поэтому меняем его сразу везде, одной
+ * операцией, и запрещаем коллизию с ФИО другого активного пользователя.
+ */
+exports.changeName = async (req, res) => {
+  const newFio = String((req.body && req.body.fio) || '').replace(/\s+/g, ' ').trim();
+  if (newFio.length < 3 || newFio.length > 120 || !/[A-Za-zА-Яа-яЁёҒғӢӣҚқҲҳҶҷӮ]/.test(newFio)) {
+    return res.status(400).json({ ok: false, error: 'Введите корректное ФИО (3–120 символов)' });
+  }
+
+  try {
+    const me = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    if (!me) return res.status(404).json({ ok: false, error: 'Пользователь не найден' });
+
+    const oldFio = String(me.fio || '').trim();
+    const sessStart = Number(req.tokenClaims && req.tokenClaims.sess) || Date.now();
+
+    if (newFio === oldFio) {
+      return res.json({ ok: true, message: 'ФИО без изменений', data: await getUserPayload(me) });
+    }
+
+    const clash = await queryOne(
+      'SELECT 1 FROM users WHERE id <> ? AND archived_at IS NULL AND LOWER(TRIM(fio)) = LOWER(?)',
+      [me.id, newFio]
+    );
+    if (clash) {
+      return res.status(409).json({ ok: false, error: 'Пользователь с таким ФИО уже есть' });
+    }
+
+    // Колонки, где ФИО лежит строкой. Часть из них — списки через запятую
+    // (competitors.resp = «Иванов И., Петров П.»), поэтому правим поэлементно:
+    // подстроку внутри чужого имени не трогаем.
+    const NAME_COLS = [
+      ['divisions', 'head'], ['divisions', 'resp'], ['divisions', 'hrbp'],
+      ['competitors', 'resp'], ['competitors', 'hrbp'], ['competitors', 'updated_by'],
+      ['surveys', 'created_by'], ['periods', 'updated_by'],
+    ];
+    let refs = 0;
+    for (const [table, col] of NAME_COLS) {
+      let rows;
+      try {
+        rows = await queryAll(`SELECT DISTINCT ${col} AS v FROM ${table} WHERE ${col} LIKE ?`, ['%' + oldFio + '%']);
+      } catch (e) {
+        continue; // колонки может не быть в старой схеме
+      }
+      for (const r of rows) {
+        const parts = String(r.v || '').split(',').map(s => s.trim());
+        if (!parts.includes(oldFio)) continue;
+        const next = parts.map(p => (p === oldFio ? newFio : p)).join(', ');
+        if (next === r.v) continue;
+        const upd = await run(`UPDATE ${table} SET ${col} = ? WHERE ${col} = ?`, [next, r.v]);
+        refs += upd.rowsAffected || 0;
+      }
+    }
+
+    await run('UPDATE users SET fio = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newFio, me.id]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      me.login, 'смена ФИО', `«${oldFio}» → «${newFio}» (обновлено ссылок: ${refs})`
+    ]);
+    invalidate(); // сброс кэша оргструктуры — иначе у других стой фио до TTL
+
+    const fresh = await queryOne('SELECT * FROM users WHERE id = ?', [me.id]);
+    const token = makeToken(fresh, sessStart);
+    setSessionCookie(res, token);
+    res.json({ ok: true, message: 'ФИО обновлено', token, data: await getUserPayload(fresh) });
+  } catch (err) {
+    console.error('changeName error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось изменить ФИО' });
   }
 };
 

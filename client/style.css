@@ -4114,6 +4114,23 @@ label.lbl {
   background: var(--card-hover);
 }
 
+/* На телефоне таблицы шли тем же кеглем и отступами, что на десктопе, и
+   занимали слишком много места / уезжали в горизонтальный скролл. Уплотняем:
+   мельче шрифт, уже ячейки, компактнее пилюли и поля поколоночного фильтра. */
+@media (max-width: 640px) {
+  .co-tbl { font-size: 12.5px; }
+  .co-tbl th {
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+    padding: 6px 8px;
+  }
+  .co-tbl td { padding: 6px 8px; }
+  .co-tbl tr:last-child td { padding-bottom: 12px; }
+  .co-tbl .pill { padding: 1px 6px; font-size: 11.5px; }
+  .co-tbl tr.tbl-filt .tf-in { min-height: 26px; font-size: 12px; padding: 2px 6px; }
+  .tblwrap { border-radius: var(--radius-xs, 6px); }
+}
+
 .dept-quick-select,
 .dept-pick-btn {
   width: 100%;
