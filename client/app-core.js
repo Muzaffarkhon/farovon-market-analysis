@@ -1396,7 +1396,7 @@ function openMultiPicker(opts){
           return '<button type="button" class="mp-row'+(chosen[v] ? ' on' : '')+'" '+
             'data-v="'+esc(v)+'"><i></i><span>'+esc(v)+'</span></button>';
         }).join('') +'</div>'
-      : '<div class="pk-empty">Совпадений нет</div>';
+      : '<div class="pk-empty">'+esc(opts.emptyLabel || 'Совпадений нет')+'</div>';
   }
   draw();
   q.oninput = draw;

@@ -7678,36 +7678,51 @@ function openDivisionModal(unit, opts){
   };
 
   /**
-   * dir_head назначает по своему направлению — раньше пикер показывал всех
-   * ~111 сотрудников компании, среди которых своё направление было не
-   * найти. Сужаем до тех, кто уже как-то связан с направлением: у себя в
-   * профиле имеет юнит из S.adminDivs (он у dir_head и так уже отдан
-   * сервером только по своему направлению — см. getDivisions), либо уже
-   * упомянут в head/resp/hrbp одного из этих подразделений. Если список
-   * пуст (совсем новое направление, никто ещё не привязан) — не запираем
-   * dir_head в тупик, откатываемся на полный список.
+   * В выпадающем списке показываем ТОЛЬКО сотрудников этого департамента или подразделения.
+   * Контекст формируется строго по подразделению d.unit и департаменту d.dir:
+   * 1. Сотрудники, у которых в units прикреплен этот отдел (d.unit) или это направление (d.dir).
+   * 2. Лица, уже упомянутые в руководстве/ответственных (head, resp, hrbp) этого отдела или направления.
    */
   var deptFio = function(){
-    var deptUnits = {};
-    (S.adminDivs || []).forEach(function(x){ deptUnits[x.unit] = true; });
+    var thisDir = (d.dir || '').toLowerCase().trim();
+    var thisUnit = (d.unit || '').toLowerCase().trim();
+
+    var targetUnits = {};
+    if(thisUnit) targetUnits[thisUnit] = true;
+    if(thisDir){
+      targetUnits[thisDir] = true;
+      (S.adminDivs || []).forEach(function(x){
+        if((x.dir || '').toLowerCase().trim() === thisDir){
+          targetUnits[(x.unit || '').toLowerCase().trim()] = true;
+        }
+      });
+    }
+
     var names = {};
     (S.adminUsers || []).forEach(function(u){
-      if((u.units || []).some(function(un){ return deptUnits[un]; })) names[u.fio] = true;
-    });
-    (S.adminDivs || []).forEach(function(x){
-      [x.head, x.resp, x.hrbp].forEach(function(field){
-        String(field || '').split(',').forEach(function(n){
-          n = n.trim();
-          if(n) names[n] = true;
-        });
+      if(u.active === false) return;
+      var inDept = (u.units || []).some(function(un){
+        return targetUnits[String(un || '').toLowerCase().trim()];
       });
+      if(inDept && u.fio) names[u.fio.trim()] = true;
     });
-    var list = uniqSortedList(Object.keys(names));
-    return list.length ? list : allFio();
+
+    (S.adminDivs || []).forEach(function(x){
+      if((x.dir || '').toLowerCase().trim() === thisDir || (x.unit || '').toLowerCase().trim() === thisUnit){
+        [x.head, x.resp, x.hrbp].forEach(function(field){
+          String(field || '').split(',').forEach(function(n){
+            n = n.trim();
+            if(n) names[n] = true;
+          });
+        });
+      }
+    });
+
+    return uniqSortedList(Object.keys(names));
   };
 
-  var fioList = restricted ? deptFio : allFio;
-  var fioEmptyLabel = restricted ? 'В этом направлении пока никто не закреплён' : undefined;
+  var fioList = deptFio;
+  var fioEmptyLabel = 'В этом департаменте / подразделении пока нет привязанных сотрудников';
 
   function bindMultiPickFioField(root, id, title, listFn, store, key, emptyLabel){
     var btn = root.querySelector('#'+id);
@@ -7718,6 +7733,7 @@ function openDivisionModal(unit, opts){
         title: title,
         list: listFn(),
         value: currentSelected,
+        emptyLabel: emptyLabel,
         onPick: function(arr){
           store[key] = arr.join(', ');
           var sp = btn.querySelector('span');
