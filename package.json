@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "build": "echo \"Build complete\"",
-    "vercel-build": "node src/db/migrateCli.js",
+    "vercel-build": "node src/db/migrateCli.js && mkdir -p public && touch public/.vercel-keep",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
