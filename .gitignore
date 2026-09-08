@@ -37,6 +37,12 @@ Thumbs.db
 # graphify knowledge-graph output (regenerate with: graphify . --update)
 graphify-out/
 
+# Vercel: пустой каталог статики, создаётся на этапе vercel-build (весь трафик
+# идёт через serverless-функцию api/index.js; Vercel лишь требует, чтобы
+# outputDirectory существовал). Локально не нужен.
+/public/
+.vercel/
+
 # Scratch: одноразовые скрипты разбора / проверки данных, не для репозитория
 scratch/
 .obsidian/

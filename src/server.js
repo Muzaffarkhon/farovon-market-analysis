@@ -23,7 +23,7 @@ const { ensureWebhook } = require('./services/telegramService');
 const missing = config.missingSecrets();
 if (missing.length) {
   console.error(`❌ Не заданы обязательные переменные окружения: ${missing.join(', ')}`);
-  console.error('   Render → Environment (или файл .env локально, см. .env.example), затем перезапуск.');
+  console.error('   Vercel → Settings → Environment Variables (или файл .env локально, см. .env.example), затем редеплой.');
   process.exit(1);
 }
 
@@ -33,15 +33,27 @@ const app = express();
 // бесполезны, а rate-limit считал бы всех клиентов за одного.
 app.set('trust proxy', 1);
 
+// Ленивая инициализация для serverless (Vercel): один раз на инстанс функции,
+// не блокируя запрос. При локальном запуске дублируется явным вызовом ниже —
+// повторный вызов безвреден (ensureBootstrapped идемпотентен).
+app.use((req, res, next) => {
+  ensureBootstrapped();
+  next();
+});
+
 // Статус последнего прогона миграций — виден в /health, чтобы «поднялся, но
 // схема не мигрировала» не оставалось незамеченным (миграция намеренно не
 // блокирует старт — транзиентный сбой Turso не должен ронять весь сервис).
 let migrationStatus = 'pending';
 
-// Проверка подключения к базе данных и запуск идемпотентных миграций.
-// Миграцию пробуем несколько раз с нарастающей паузой — на холодном старте
-// Render соединение с Turso иногда не встаёт с первого раза.
-(async () => {
+// Первичная инициализация: проверка БД, идемпотентные миграции схемы, регистрация
+// Telegram-вебхука. На Render это выполнялось один раз при старте долгоживущего
+// процесса. На Vercel процесса-долгожителя нет: основной прогон миграций делает
+// `npm run vercel-build` (src/db/migrateCli.js) при каждом деплое, а bootstrap()
+// здесь — подстраховка, срабатывающая один раз на инстанс serverless-функции
+// (см. ensureBootstrapped ниже) на случай, если сборочный прогон был пропущен
+// или не удался.
+async function bootstrap() {
   try {
     const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
     console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
@@ -49,6 +61,8 @@ let migrationStatus = 'pending';
     console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
 
+  // Миграцию пробуем несколько раз с нарастающей паузой — на холодном старте
+  // соединение с Turso иногда не встаёт с первого раза.
   const delays = [0, 2000, 4000];
   for (let attempt = 0; attempt < delays.length; attempt++) {
     if (delays[attempt]) await new Promise(r => setTimeout(r, delays[attempt]));
@@ -64,7 +78,16 @@ let migrationStatus = 'pending';
   }
 
   await ensureWebhook();
-})();
+}
+
+// Единственный запуск bootstrap() на процесс/инстанс. На Vercel вызывается лениво
+// из middleware (fire-and-forget — первый запрос не тормозится: миграции уже
+// прогнаны на этапе сборки); при локальном запуске — явно перед app.listen.
+let bootstrapPromise = null;
+function ensureBootstrapped() {
+  if (!bootstrapPromise) bootstrapPromise = bootstrap().catch(() => {});
+  return bootstrapPromise;
+}
 
 // Middleware
 // CORS по белому списку вместо `cors()` (который отдавал Access-Control-Allow-Origin: *
@@ -145,7 +168,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(path.join(__dirname, '../public'), { etag: false, maxAge: 0 }));
+app.use(express.static(path.join(__dirname, '../client'), { etag: false, maxAge: 0 }));
 
 // API роуты
 app.use('/api', apiRoutes);
@@ -186,7 +209,7 @@ app.get('/health', async (req, res) => {
 
 // SPA fallback для роутинга
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 // Обработчик ошибок
@@ -194,26 +217,14 @@ app.use(errorHandler);
 
 // Запуск сервера
 if (require.main === module) {
-  // Миграции запускает IIFE выше (единственный вызов) — второй параллельный
-  // прогон плодил гонки на UPDATE'ах при объединении дубликатов пользователей.
+  // Единственный прогон миграций — параллельный второй плодил гонки на
+  // UPDATE'ах при объединении дубликатов пользователей.
+  ensureBootstrapped();
 
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
     console.log(`📁 База данных: ${config.dbPath}`);
     console.log(`🌐 Окружение: ${config.nodeEnv}\n`);
-
-    // Keep-Alive пинг для предотвращения засыпания Render в рабочее время (каждые 9 мин)
-    if (config.nodeEnv === 'production' || process.env.RENDER) {
-      const http = require('http');
-      const PING_INTERVAL = 9 * 60 * 1000;
-      setInterval(() => {
-        try {
-          http.get(`http://127.0.0.1:${config.port}/health`, (res) => {
-            res.resume();
-          }).on('error', () => {});
-        } catch (e) {}
-      }, PING_INTERVAL).unref();
-    }
   });
 }
 

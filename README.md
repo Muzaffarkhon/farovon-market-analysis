@@ -47,8 +47,10 @@ farovon-market-analysis/
 │   ├── routes/             # REST API роуты (/api/auth, /api/survey, /api/dashboard, /api/admin, /api/benchmarks)
 │   ├── services/           # Аналитика, бенчмаркинг, смежные группы, рассылка в Telegram
 │   ├── tools/              # Офлайн-скрипты (сид-бандл, аудит фронта) — сервером не читаются
-│   └── server.js           # Точка входа Express сервера
-├── public/                 # SPA Фронтенд (index.html, app.js, app-core.js, style.css)
+│   └── server.js           # Точка входа Express сервера (локально / Render-fallback)
+├── api/                    # Vercel: index.js оборачивает Express в serverless-функцию
+├── vercel.json             # Vercel: rewrites → /api, регион fra1, maxDuration
+├── client/                 # SPA Фронтенд (index.html, app.js, app-core.js, style.css)
 ├── test/                   # Юнит-тесты (node:test) — `npm test`
 ├── data/                   # Исходные справочники (CSV / XLSX) для генерации сид-бандла
 ├── docs/                   # Документация; docs/archive/ — исторические отчёты
@@ -98,7 +100,7 @@ npm run dev     # разработка, автоперезагрузка
 npm start       # продакшн
 npm test        # юнит-тесты
 ```
-Сервер: `http://localhost:3000`. Продакшн — Render (автодеплой из `main`).
+Сервер: `http://localhost:3000`. Продакшн — Vercel serverless (автодеплой из `main`, `api/index.js` + `vercel.json`; миграции схемы — `npm run vercel-build`). Render держится запасным на тот же Turso.
 
 ---
 

@@ -10,7 +10,7 @@ const { getActivePeriod } = require('./periodService');
  * время, а не UTC — на сервере в Asia/Dushanbe (UTC+5) это сдвигает момент
  * истечения на ~5 часов вперёд. SQL-сравнения (WHERE expires_at > CURRENT_TIMESTAMP)
  * этой проблемы не имеют — обе стороны там наивные UTC-строки. Тот же приём,
- * что и в public/app-core.js:fmtDateTime — помечаем строку как UTC явно.
+ * что и в client/app-core.js:fmtDateTime — помечаем строку как UTC явно.
  */
 function toUtcMs(s) {
   if (!s) return NaN;
