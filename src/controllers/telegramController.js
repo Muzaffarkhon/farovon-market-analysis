@@ -132,7 +132,7 @@ async function resetAndSendCredentials(user, source) {
   if (!user.telegram_chat_id) return { ok: false, reason: 'not_linked' };
 
   const tempPassword = generateTempPassword();
-  const platformUrl = config.webappUrl || 'https://farovon-market-analysis.onrender.com';
+  const platformUrl = config.webappUrl;
 
   const msg = `🔐 <b>Данные для входа в систему «Обзор рынка»:</b>\n\n` +
     `👤 <b>Логин:</b> <code>${escHtml(user.login)}</code>\n` +
@@ -140,15 +140,22 @@ async function resetAndSendCredentials(user, source) {
     `⚠️ <i>Рекомендуем сменить этот пароль в профиле сразу после входа.</i>\n\n` +
     `🌐 <b>Ссылка на платформу:</b>\n${platformUrl}`;
 
+  // web_app открывает платформу как полноценный Telegram Mini App (на весь
+  // экран, без адресной строки, с интеграцией темы). Требует HTTPS — на
+  // локальном http://localhost падаем на обычную url-кнопку (встроенный
+  // браузер Telegram), иначе Telegram отклонит всё сообщение и пользователь
+  // останется без учётных данных.
+  const openButton = /^https:\/\//i.test(platformUrl)
+    ? { text: '🚀 Открыть «Обзор рынка»', web_app: { url: platformUrl } }
+    : { text: '🚀 Открыть «Обзор рынка»', url: platformUrl };
+
   // Сначала пытаемся доставить — и только если ушло, меняем хэш. Иначе при
   // недоступном боте пароль бы уже сменился, а пользователь остался бы без
   // нового (лок-аут).
   const sent = await sendTelegramMessage(user.telegram_chat_id, msg, {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [
-        [{ text: '🚀 Открыть «Обзор рынка»', url: platformUrl }]
-      ]
+      inline_keyboard: [[openButton]]
     }
   });
   if (!sent) return { ok: false, reason: 'send_failed' };
