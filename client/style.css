@@ -5464,11 +5464,34 @@ label.lbl {
   padding: 8px 2px 4px;
   font-size: 13.5px;
   color: var(--muted);
+  flex-wrap: wrap;
 }
 
-.mp-bar span {
+.mp-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-right: auto;
+}
+
+.mp-bar-left span,
+.mp-bar span {
   font-weight: 600;
+}
+
+.mp-only-lbl {
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.mp-only-lbl input[type="checkbox"] {
+  cursor: pointer;
 }
 
 .mp-bar button {

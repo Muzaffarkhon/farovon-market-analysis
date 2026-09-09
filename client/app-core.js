@@ -1508,7 +1508,13 @@ function openMultiPicker(opts){
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="pk-search"><div class="search-wrap">'+icBare('search')+'<input id="mpQ" placeholder="Поиск…" autocomplete="off" '+
       'autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>'+
-    '<div class="mp-bar"><span id="mpCnt"></span>'+
+    '<div class="mp-bar">'+
+      '<div class="mp-bar-left">'+
+        '<span id="mpCnt"></span>'+
+        '<label class="mp-only-lbl">'+
+          '<input type="checkbox" id="mpOnlyChecked"> Показать отмеченных'+
+        '</label>'+
+      '</div>'+
       '<button type="button" class="btn-ghost" id="mpAll">Выбрать все</button>'+
       '<button type="button" class="btn-ghost" id="mpNone">Снять все</button></div>'+
     '<div id="mpBody"></div>'+
@@ -1519,25 +1525,32 @@ function openMultiPicker(opts){
 
   var q = el.querySelector('#mpQ');
   var body = el.querySelector('#mpBody');
+  var onlyCheckedBox = el.querySelector('#mpOnlyChecked');
 
   function visible(){
     var s = norm(q.value);
-    return (opts.list || []).filter(function(v){ return !s || norm(v).indexOf(s) >= 0; });
+    var onlyChecked = onlyCheckedBox && onlyCheckedBox.checked;
+    return (opts.list || []).filter(function(v){
+      if(onlyChecked && !chosen[v]) return false;
+      return !s || norm(v).indexOf(s) >= 0;
+    });
   }
 
   function draw(){
     var list = visible();
     var n = Object.keys(chosen).filter(function(k){ return chosen[k]; }).length;
     el.querySelector('#mpCnt').textContent = 'Отмечено: ' + n;
+    var emptyText = (onlyCheckedBox && onlyCheckedBox.checked && !n) ? 'Нет отмеченных записей' : (opts.emptyLabel || 'Совпадений нет');
     body.innerHTML = list.length
       ? '<div class="pk-list">'+ list.map(function(v){
           return '<button type="button" class="mp-row'+(chosen[v] ? ' on' : '')+'" '+
             'data-v="'+esc(v)+'"><i></i><span>'+esc(v)+'</span></button>';
         }).join('') +'</div>'
-      : '<div class="pk-empty">'+esc(opts.emptyLabel || 'Совпадений нет')+'</div>';
+      : '<div class="pk-empty">'+esc(emptyText)+'</div>';
   }
   draw();
   q.oninput = draw;
+  if(onlyCheckedBox) onlyCheckedBox.onchange = draw;
 
   el.addEventListener('click', function(e){
     if(e.target === el || e.target.dataset.x){ el.remove(); return; }
