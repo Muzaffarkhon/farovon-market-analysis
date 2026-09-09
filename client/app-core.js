@@ -710,7 +710,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = 'v2.4.0';
+var APP_VERSION = 'v2.5.0';
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
  *  Неразрывные пробелы, чтобы инициалы не переносились. */
@@ -2561,11 +2561,12 @@ function navRenderBtn(it, cls){
 
   if(cls === 'rail-item'){
     var caret = hasSub
-      ? '<span class="rail-sub-caret" data-rail-caret="'+it.key+'" title="Подразделы: ' + esc(it.label) + '">'+
+      ? '<span class="rail-sub-caret" data-rail-caret="'+it.key+'" aria-label="Подразделы: ' + esc(it.label) + '">'+
           '<svg class="rail-caret-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'+
         '</span>'
       : '';
-    return '<button class="'+cls+danger+on+(hasSub ? ' has-sub' : '')+'" data-nav="'+it.key+'" title="'+esc(it.label)+'">'+
+    var btnTitle = (window.S && S.railCollapsed) ? (' title="' + esc(it.label) + '"') : '';
+    return '<button class="'+cls+danger+on+(hasSub ? ' has-sub' : '')+'" data-nav="'+it.key+'"'+btnTitle+'>'+
       icon+'<span>'+lbl+'</span>'+caret+'</button>';
   }
 
@@ -2590,6 +2591,9 @@ function closeRailDropdown(){
     if(activeRailDropdown.caret){
       activeRailDropdown.caret.classList.remove('is-open');
     }
+    if(activeRailDropdown.btn){
+      activeRailDropdown.btn.classList.remove('dropdown-open');
+    }
     activeRailDropdown = null;
   }
 }
@@ -2610,6 +2614,7 @@ function toggleRailDropdown(navKey, btn){
   var subs = it.subsections || it.submenu;
   if(!subs || !subs.length) return;
 
+  btn.classList.add('dropdown-open');
   var caret = btn.querySelector('.rail-sub-caret');
   if(caret) caret.classList.add('is-open');
 
@@ -2624,10 +2629,13 @@ function toggleRailDropdown(navKey, btn){
   '<div class="rail-dropdown-list">';
 
   subs.forEach(function(sub, idx){
+    var isActive = false;
+    if(navKey === 'benchmarks' && window.BM_STATE && ('benchmarks:' + BM_STATE.tab) === sub.key) isActive = true;
+    if(navKey === 'dashboard' && window.S && ('dashboard:' + (S.dashTab || 'overview')) === sub.key) isActive = true;
     var iconSvg = ICONS[sub.icon]
       ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none">' + ICONS[sub.icon] + '</svg>'
       : ic(sub.icon, 15);
-    html += '<button class="rail-dropdown-item" data-idx="' + idx + '" title="' + esc(sub.label) + '">' +
+    html += '<button class="rail-dropdown-item' + (isActive ? ' on' : '') + '" data-idx="' + idx + '">' +
       iconSvg + '<span>' + esc(sub.label) + '</span>' +
     '</button>';
   });
@@ -2641,12 +2649,12 @@ function toggleRailDropdown(navKey, btn){
   var left = rect.right + 6;
   var top = rect.top;
 
-  var h = el.offsetHeight || (subs.length * 36 + 40);
+  var h = el.offsetHeight || (subs.length * 36 + 46);
   if(top + h > window.innerHeight - 12){
     top = Math.max(12, window.innerHeight - h - 12);
   }
 
-  if(left + 230 > window.innerWidth){
+  if(left + 240 > window.innerWidth){
     left = Math.max(8, rect.left);
     top = rect.bottom + 4;
   }
@@ -2665,7 +2673,7 @@ function toggleRailDropdown(navKey, btn){
     }
   };
 
-  activeRailDropdown = { key: navKey, el: el, caret: caret };
+  activeRailDropdown = { key: navKey, el: el, caret: caret, btn: btn };
 }
 
 if(!window._railDropdownBound){
