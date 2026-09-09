@@ -710,7 +710,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = 'v2.3.0';
+var APP_VERSION = 'v2.4.0';
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
  *  Неразрывные пробелы, чтобы инициалы не переносились. */
@@ -818,10 +818,12 @@ function icBare(name, size){
 // МНОГОВКЛАДОЧНАЯ РАБОЧАЯ ОБЛАСТЬ (В стиле АИСТ / aist.taxsee.com)
 // ═══════════════════════════════════════════════════════════
 var WorkspaceTabs = {
-  tabs: [],          // [{ id, key, title, icon, run, state, paneEl, scroll }]
+  tabs: [],          // [{ id, key, title, icon, run, state, paneEl, scroll, pinned, needsRefresh }]
   activeId: null,
   history: [],
   isInsideTabRun: false,
+  draggedId: null,
+  syncChannel: (typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('farovon_ws_sync') : null),
 
   getTab: function(id){
     for(var i = 0; i < this.tabs.length; i++){
@@ -847,11 +849,20 @@ var WorkspaceTabs = {
     var bar = document.getElementById('workspaceTabs');
     if(!bar) return;
     var self = this;
+
+    // Клик левой кнопкой мыши
     bar.onclick = function(e){
+      self.closeContextMenu();
       var closeBtn = e.target.closest('[data-ws-close]');
       if(closeBtn){
         e.stopPropagation();
         self.closeTab(closeBtn.dataset.wsClose);
+        return;
+      }
+      var newBtn = e.target.closest('#btnWsNewTab');
+      if(newBtn){
+        e.stopPropagation();
+        self.duplicateTab(self.activeId);
         return;
       }
       var tabEl = e.target.closest('[data-ws-id]');
@@ -859,7 +870,10 @@ var WorkspaceTabs = {
         self.activateTab(tabEl.dataset.wsId);
       }
     };
+
+    // Клик средней кнопкой (колёсиком) — закрытие
     bar.onauxclick = function(e){
+      self.closeContextMenu();
       if(e.button === 1){
         var tabEl = e.target.closest('[data-ws-id]');
         if(tabEl){
@@ -869,19 +883,152 @@ var WorkspaceTabs = {
         }
       }
     };
+
+    // Правый клик — контекстное меню
+    bar.oncontextmenu = function(e){
+      var tabEl = e.target.closest('[data-ws-id]');
+      if(tabEl){
+        e.preventDefault();
+        e.stopPropagation();
+        self.openContextMenu(tabEl.dataset.wsId, e.clientX, e.clientY);
+      }
+    };
+
+    // Закрытие контекстного меню при клике в любом месте или Escape
+    document.addEventListener('click', function(e){
+      if(!e.target.closest('.ws-tab-context-menu')){
+        self.closeContextMenu();
+      }
+    });
+
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') self.closeContextMenu();
+    });
+
+    // Drag & Drop перетаскивание вкладок
+    bar.ondragstart = function(e){
+      var tabEl = e.target.closest('[data-ws-id]');
+      if(!tabEl) return;
+      var tab = self.getTab(tabEl.dataset.wsId);
+      if(!tab || tab.pinned){
+        e.preventDefault();
+        return;
+      }
+      self.draggedId = tab.id;
+      tabEl.classList.add('is-dragging');
+      if(e.dataTransfer){
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', tab.id);
+      }
+    };
+
+    bar.ondragover = function(e){
+      if(!self.draggedId) return;
+      var targetTabEl = e.target.closest('[data-ws-id]');
+      if(!targetTabEl) return;
+      var targetTab = self.getTab(targetTabEl.dataset.wsId);
+      if(!targetTab || targetTab.id === self.draggedId) return;
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+      var rect = targetTabEl.getBoundingClientRect();
+      var isAfter = (e.clientX - rect.left) > (rect.width / 2);
+
+      // Закреплённые вкладки всегда остаются первыми
+      if(targetTab.pinned && !isAfter) return;
+
+      var allTabs = bar.querySelectorAll('.ws-tab');
+      for(var i = 0; i < allTabs.length; i++){
+        allTabs[i].classList.remove('drop-before', 'drop-after');
+      }
+      if(isAfter){
+        targetTabEl.classList.add('drop-after');
+      } else {
+        targetTabEl.classList.add('drop-before');
+      }
+    };
+
+    bar.ondragleave = function(e){
+      var tabEl = e.target.closest('[data-ws-id]');
+      if(tabEl){
+        tabEl.classList.remove('drop-before', 'drop-after');
+      }
+    };
+
+    bar.ondrop = function(e){
+      if(!self.draggedId) return;
+      e.preventDefault();
+      var targetTabEl = e.target.closest('[data-ws-id]');
+      if(!targetTabEl){ self.cleanupDrag(); return; }
+      var targetId = targetTabEl.dataset.wsId;
+      var draggedId = self.draggedId;
+      if(targetId === draggedId){ self.cleanupDrag(); return; }
+
+      var rect = targetTabEl.getBoundingClientRect();
+      var isAfter = (e.clientX - rect.left) > (rect.width / 2);
+
+      var fromIdx = -1, toIdx = -1;
+      for(var i = 0; i < self.tabs.length; i++){
+        if(self.tabs[i].id === draggedId) fromIdx = i;
+        if(self.tabs[i].id === targetId) toIdx = i;
+      }
+
+      if(fromIdx > -1 && toIdx > -1){
+        var draggedItem = self.tabs.splice(fromIdx, 1)[0];
+        var newToIdx = -1;
+        for(var j = 0; j < self.tabs.length; j++){
+          if(self.tabs[j].id === targetId){ newToIdx = j; break; }
+        }
+        var insertAt = isAfter ? newToIdx + 1 : newToIdx;
+        var minIdx = 0;
+        while(minIdx < self.tabs.length && self.tabs[minIdx].pinned) minIdx++;
+        if(insertAt < minIdx) insertAt = minIdx;
+
+        self.tabs.splice(insertAt, 0, draggedItem);
+        self.renderBar();
+      }
+      self.cleanupDrag();
+    };
+
+    bar.ondragend = function(){
+      self.cleanupDrag();
+    };
+
+    // Слушатель канала синхронизации между окнами/вкладками
+    if(this.syncChannel){
+      this.syncChannel.onmessage = function(ev){
+        if(ev && ev.data && ev.data.type === 'datachange'){
+          self.handleDataChange(ev.data.meta);
+        }
+      };
+    }
+  },
+
+  cleanupDrag: function(){
+    this.draggedId = null;
+    var bar = document.getElementById('workspaceTabs');
+    if(bar){
+      var allTabs = bar.querySelectorAll('.ws-tab');
+      for(var i = 0; i < allTabs.length; i++){
+        allTabs[i].classList.remove('is-dragging', 'drop-before', 'drop-after');
+      }
+    }
   },
 
   openTab: function(opts){
     if(!opts || !opts.key) return null;
-    var existing = this.getTabByKey(opts.key);
-    if(existing){
-      if(opts.title) existing.title = opts.title;
-      if(opts.icon) existing.icon = opts.icon;
-      if(opts.state){
-        for(var k in opts.state){ existing.state[k] = opts.state[k]; }
+    if(!opts.forceNew){
+      var existing = this.getTabByKey(opts.key);
+      if(existing){
+        if(opts.title) existing.title = opts.title;
+        if(opts.icon) existing.icon = opts.icon;
+        if(opts.pinned !== undefined) existing.pinned = !!opts.pinned;
+        if(opts.state){
+          for(var k in opts.state){ existing.state[k] = opts.state[k]; }
+        }
+        this.activateTab(existing.id);
+        return existing;
       }
-      this.activateTab(existing.id);
-      return existing;
     }
 
     var bodyContainer = document.getElementById('body');
@@ -903,12 +1050,64 @@ var WorkspaceTabs = {
       run: opts.run,
       state: opts.state || {},
       paneEl: pane,
-      scroll: 0
+      scroll: 0,
+      pinned: !!opts.pinned,
+      needsRefresh: false
     };
 
-    this.tabs.push(tab);
+    if(tab.pinned){
+      var pinIdx = 0;
+      while(pinIdx < this.tabs.length && this.tabs[pinIdx].pinned) pinIdx++;
+      this.tabs.splice(pinIdx, 0, tab);
+    } else {
+      this.tabs.push(tab);
+    }
+
     this.activateTab(id, true);
     return tab;
+  },
+
+  duplicateTab: function(id){
+    var src = this.getTab(id);
+    if(!src) return;
+
+    var baseTitle = src.title.replace(/\s*\(\d+\)$/, '');
+    var count = 1;
+    this.tabs.forEach(function(t){
+      if(t.title.indexOf(baseTitle) === 0) count++;
+    });
+    var newTitle = baseTitle + ' (' + count + ')';
+    var newKey = src.key + '#dup_' + Math.random().toString(36).slice(2, 7);
+
+    var bodyContainer = document.getElementById('body');
+    if(!bodyContainer) return;
+
+    var newId = 'tab_' + Math.random().toString(36).slice(2, 9);
+    var pane = document.createElement('div');
+    pane.className = 'workspace-pane';
+    pane.id = 'pane_' + newId;
+    pane.dataset.tabId = newId;
+    bodyContainer.appendChild(pane);
+
+    var dupTab = {
+      id: newId,
+      key: newKey,
+      title: newTitle,
+      icon: src.icon,
+      run: src.run,
+      state: Object.assign({}, src.state || {}, { dirty: false }),
+      paneEl: pane,
+      scroll: 0,
+      pinned: false,
+      needsRefresh: false
+    };
+
+    var srcIdx = this.tabs.indexOf(src);
+    if(srcIdx >= 0) this.tabs.splice(srcIdx + 1, 0, dupTab);
+    else this.tabs.push(dupTab);
+
+    this.activateTab(newId, true);
+    if(typeof toast === 'function') toast('Вкладка дублирована: ' + newTitle, 'ok');
   },
 
   activateTab: function(id, isNew){
@@ -947,7 +1146,10 @@ var WorkspaceTabs = {
       target.paneEl.classList.remove('hidden');
     }
 
-    if(isNew || (target.paneEl && !target.paneEl.childNodes.length)){
+    var shouldRun = isNew || (target.paneEl && !target.paneEl.childNodes.length) || (target.needsRefresh && !target.state.dirty);
+
+    if(shouldRun){
+      target.needsRefresh = false;
       if(typeof target.run === 'function'){
         this.isInsideTabRun = true;
         try {
@@ -971,6 +1173,7 @@ var WorkspaceTabs = {
   closeTab: function(id, force){
     var tab = this.getTab(id);
     if(!tab) return;
+    if(tab.pinned && !force) return;
     var self = this;
     var isDirty = (this.activeId === id && S.dirty) || (tab.state && tab.state.dirty);
 
@@ -992,7 +1195,7 @@ var WorkspaceTabs = {
           var bodyContainer = document.getElementById('body');
           if(bodyContainer) bodyContainer.classList.remove('has-workspace-tabs');
           self.renderBar();
-          if(typeof switchView === 'function') switchView('units');
+          if(typeof switchView === 'function') switchView('home');
         }
       } else {
         self.renderBar();
@@ -1009,6 +1212,157 @@ var WorkspaceTabs = {
     } else {
       doClose();
     }
+  },
+
+  closeOtherTabs: function(id){
+    var self = this;
+    var toClose = this.tabs.filter(function(t){ return t.id !== id && !t.pinned; });
+    toClose.forEach(function(t){ self.closeTab(t.id); });
+  },
+
+  closeTabsToRight: function(id){
+    var self = this;
+    var idx = -1;
+    for(var i = 0; i < this.tabs.length; i++){
+      if(this.tabs[i].id === id){ idx = i; break; }
+    }
+    if(idx < 0) return;
+    var toClose = this.tabs.slice(idx + 1).filter(function(t){ return !t.pinned; });
+    toClose.forEach(function(t){ self.closeTab(t.id); });
+  },
+
+  refreshTab: function(id){
+    var tab = this.getTab(id);
+    if(!tab || typeof tab.run !== 'function') return;
+    var self = this;
+    if(tab.state && tab.state.dirty && typeof askDirty === 'function'){
+      askDirty('Обновить вкладку и сбросить черновик?').then(function(yes){
+        if(yes){
+          if(self.activeId === id) S.dirty = false;
+          tab.state.dirty = false;
+          tab.needsRefresh = false;
+          self.activateTab(id);
+          self.isInsideTabRun = true;
+          try { tab.run(); } finally { self.isInsideTabRun = false; }
+          if(typeof toast === 'function') toast('Вкладка обновлена', 'ok');
+        }
+      });
+    } else {
+      tab.needsRefresh = false;
+      this.activateTab(id);
+      this.isInsideTabRun = true;
+      try { tab.run(); } finally { this.isInsideTabRun = false; }
+      if(typeof toast === 'function') toast('Вкладка обновлена', 'ok');
+    }
+  },
+
+  notifyDataChange: function(meta){
+    meta = meta || {};
+    this.handleDataChange(meta);
+    if(this.syncChannel){
+      try { this.syncChannel.postMessage({ type: 'datachange', meta: meta }); } catch(e){}
+    }
+  },
+
+  handleDataChange: function(meta){
+    var self = this;
+    this.tabs.forEach(function(t){
+      if(t.id === self.activeId) return;
+
+      var isDirty = (t.state && t.state.dirty);
+      if(!isDirty){
+        t.needsRefresh = true;
+        if(t.paneEl && typeof t.run === 'function'){
+          var prevActive = self.activeId;
+          self.activeId = t.id;
+          self.isInsideTabRun = true;
+          try {
+            t.run();
+          } catch(e){}
+          finally {
+            self.isInsideTabRun = false;
+            self.activeId = prevActive;
+          }
+        }
+      } else {
+        t.needsRefresh = true;
+      }
+    });
+  },
+
+  openContextMenu: function(id, x, y){
+    this.closeContextMenu();
+    var tab = this.getTab(id);
+    if(!tab) return;
+    var self = this;
+
+    var menu = document.createElement('div');
+    menu.className = 'ws-tab-context-menu';
+    menu.id = 'wsContextMenu';
+
+    var items = [
+      {
+        icon: 'units',
+        label: 'Дублировать вкладку',
+        run: function(){ self.duplicateTab(id); }
+      },
+      {
+        icon: 'refresh',
+        label: 'Обновить данные',
+        run: function(){ self.refreshTab(id); }
+      }
+    ];
+
+    if(!tab.pinned){
+      items.push({ sep: true });
+      items.push({
+        icon: 'close',
+        label: 'Закрыть вкладку',
+        danger: true,
+        run: function(){ self.closeTab(id); }
+      });
+      items.push({
+        label: 'Закрыть другие вкладки',
+        run: function(){ self.closeOtherTabs(id); }
+      });
+      items.push({
+        label: 'Закрыть вкладки справа',
+        run: function(){ self.closeTabsToRight(id); }
+      });
+    }
+
+    menu.innerHTML = items.map(function(it, idx){
+      if(it.sep) return '<div class="ws-ctx-sep"></div>';
+      var icHtml = it.icon && typeof icBare === 'function' ? '<span style="opacity:0.75;display:inline-flex">'+icBare(it.icon, 13)+'</span>' : '';
+      return '<button type="button" class="ws-ctx-item ' + (it.danger ? 'danger' : '') + '" data-ctx-idx="' + idx + '">' +
+        icHtml + '<span>' + esc(it.label) + '</span>' +
+      '</button>';
+    }).join('');
+
+    menu.onclick = function(e){
+      var btn = e.target.closest('[data-ctx-idx]');
+      if(!btn) return;
+      var item = items[parseInt(btn.dataset.ctxIdx, 10)];
+      if(item && typeof item.run === 'function'){
+        self.closeContextMenu();
+        item.run();
+      }
+    };
+
+    document.body.appendChild(menu);
+
+    var mRect = menu.getBoundingClientRect();
+    var posX = x;
+    var posY = y;
+    if(posX + mRect.width > window.innerWidth) posX = window.innerWidth - mRect.width - 8;
+    if(posY + mRect.height > window.innerHeight) posY = window.innerHeight - mRect.height - 8;
+    menu.style.left = Math.max(8, posX) + 'px';
+    menu.style.top = Math.max(8, posY) + 'px';
+  },
+
+  closeContextMenu: function(){
+    var m = document.getElementById('wsContextMenu');
+    if(m && m.parentNode) m.parentNode.removeChild(m);
   },
 
   updateActiveTitle: function(title, icon){
@@ -1034,15 +1388,20 @@ var WorkspaceTabs = {
     var html = this.tabs.map(function(t){
       var isActive = (t.id === self.activeId);
       var isDirty = (isActive && S.dirty) || (t.state && t.state.dirty);
-      return '<div class="ws-tab ' + (isActive ? 'active' : '') + '" data-ws-id="' + esc(t.id) + '" title="' + esc(t.title) + '">' +
+      var isDraggable = !t.pinned;
+      return '<div class="ws-tab ' + (isActive ? 'active ' : '') + (t.pinned ? 'pinned ' : '') + '" ' +
+        'data-ws-id="' + esc(t.id) + '" ' +
+        (isDraggable ? 'draggable="true" ' : '') +
+        'title="' + esc(t.title) + (t.pinned ? ' (Закреплена)' : '') + '">' +
         '<span class="ws-tab-icon">' + (typeof icBare === 'function' ? icBare(t.icon, 13) : '') + '</span>' +
         '<span class="ws-tab-title">' + esc(t.title) + '</span>' +
         (isDirty ? '<span class="ws-tab-dirty" title="Несохранённые изменения"></span>' : '') +
-        '<button type="button" class="ws-tab-close" data-ws-close="' + esc(t.id) + '" title="Закрыть вкладку">' +
+        (!t.pinned ? '<button type="button" class="ws-tab-close" data-ws-close="' + esc(t.id) + '" title="Закрыть вкладку">' +
           '<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>' +
-        '</button>' +
+        '</button>' : '') +
       '</div>';
-    }).join('');
+    }).join('') +
+    '<button type="button" id="btnWsNewTab" class="ws-tab-new" title="Дублировать текущую вкладку / Новая">+</button>';
 
     bar.innerHTML = html;
 
@@ -1058,9 +1417,12 @@ window.addEventListener('keydown', function(e){
   if((e.ctrlKey || e.metaKey) && (e.key === 'w' || e.key === 'W' || e.keyCode === 87)){
     var tag = document.activeElement ? document.activeElement.tagName : '';
     if(tag !== 'INPUT' && tag !== 'TEXTAREA'){
-      if(window.WorkspaceTabs && WorkspaceTabs.activeId && WorkspaceTabs.tabs.length > 1){
-        e.preventDefault();
-        WorkspaceTabs.closeTab(WorkspaceTabs.activeId);
+      if(window.WorkspaceTabs && WorkspaceTabs.activeId){
+        var cur = WorkspaceTabs.getTab(WorkspaceTabs.activeId);
+        if(cur && !cur.pinned && WorkspaceTabs.tabs.length > 1){
+          e.preventDefault();
+          WorkspaceTabs.closeTab(WorkspaceTabs.activeId);
+        }
       }
     }
   }
@@ -1262,10 +1624,32 @@ function fetchJson(url, opts){
   });
 }
 
+var MUTATING_API_ACTIONS = [
+  'apiSave', 'apiSaveSurvey', 'apiDictSave', 'apiDictDelete',
+  'apiAdminSaveUser', 'apiAdminToggleUser', 'apiAdminResetPassword',
+  'apiAdminArchiveUser', 'apiAdminRestoreUser', 'apiAdminSaveDivision',
+  'apiAdminCreateDivision', 'apiAdminBatchAssignDivision',
+  'apiAdminApplyAdjacentGroup', 'apiAdminClearAdjacentGroup',
+  'apiAdminMoveDivision', 'apiAdminSaveRoleCapabilities',
+  'apiAdminCreateRole', 'apiAdminRenameRole', 'apiAdminDeleteRole',
+  'apiSetPeriod', 'apiPeriodGrantCreate', 'apiPeriodGrantRevoke'
+];
+
 function call(fn){
   var args = [].slice.call(arguments, 1);
-  if(API_ROUTES[fn]) return API_ROUTES[fn](args);
-  return Promise.reject(new Error('Неизвестный метод: ' + fn));
+  if(!API_ROUTES[fn]) return Promise.reject(new Error('Неизвестный метод: ' + fn));
+  var resPromise = API_ROUTES[fn](args);
+  if(MUTATING_API_ACTIONS.indexOf(fn) >= 0){
+    return resPromise.then(function(res){
+      if(res && res.ok !== false){
+        if(window.WorkspaceTabs && WorkspaceTabs.notifyDataChange){
+          WorkspaceTabs.notifyDataChange({ action: fn, args: args });
+        }
+      }
+      return res;
+    });
+  }
+  return resPromise;
 }
 
 var toastSeq = 0;
