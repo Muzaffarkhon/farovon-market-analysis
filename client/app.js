@@ -5847,18 +5847,49 @@ function batchAssignDirection(dir, roleType){
 
 function getInitials(name){
   if(!name) return '—';
-  var p = name.trim().split(/\s+/);
-  if(p.length >= 2) return (p[0][0] + p[1][0]).toUpperCase();
-  return (p[0][0] || '—').toUpperCase();
+  var p = String(name).trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '—';
+  if(p.length >= 2) return (p[0].charAt(0) + p[1].charAt(0)).toUpperCase();
+  return (p[0].charAt(0) || '—').toUpperCase();
 }
 
-/** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
+/** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
  *  Неразрывные пробелы, чтобы инициалы не переносились. */
 function shortFio(name){
-  var p = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if(!name) return '';
+  var raw = String(name).trim();
+  if(!raw) return '';
+  if(/^(не назначен|руководитель не назначен|ответственный не назначен|нет|—|-)$/i.test(raw)){
+    return raw;
+  }
+  if(raw.indexOf(',') >= 0){
+    return raw.split(/\s*,\s*/).map(function(part){
+      return shortFio(part);
+    }).filter(Boolean).join(', ');
+  }
+  var p = raw.split(/\s+/).filter(Boolean);
   if(p.length <= 1) return p[0] || '';
-  var initials = p.slice(1).map(function(x){ return x.charAt(0).toUpperCase() + '.'; }).join(' ');
-  return p[0] + ' ' + initials;
+  var initials = p.slice(1).map(function(x){
+    return x.charAt(0).toUpperCase() + '.';
+  });
+  return p[0] + ' ' + initials.join(' ');
+}
+
+/** Сравнение ФИО на совпадение персоны (с учетом отчества или сокращений) */
+function sameFio(a, b){
+  if(!a || !b) return false;
+  var sa = String(a).trim().toLowerCase();
+  var sb = String(b).trim().toLowerCase();
+  if(sa === sb) return true;
+  var pa = sa.split(/\s+/);
+  var pb = sb.split(/\s+/);
+  if(pa[0] && pb[0] && pa[0] === pb[0]){
+    if(pa[1] && pb[1]){
+      return pa[1].charAt(0) === pb[1].charAt(0);
+    }
+    return true;
+  }
+  return false;
 }
 
 /** Сворачивание подразделений одной смежной группы в одну карточку/строку */
@@ -6155,7 +6186,7 @@ function renderAdminDivisions(){
                 '<div class="org-board-avatar">' + (boardHead ? getInitials(boardHead) : ic('units', 18)) + '</div>'+
                 '<div style="overflow:hidden;flex:1">'+
                   '<div class="org-root-title" style="height:auto;min-height:auto">Совет директоров</div>'+
-                  '<div class="org-root-sub">'+(boardHead ? esc(boardHead) : 'Высший орган управления')+'</div>'+
+                  '<div class="org-root-sub" title="'+(boardHead ? esc(boardHead) : '')+'">'+(boardHead ? esc(shortFio(boardHead)) : 'Высший орган управления')+'</div>'+
                 '</div>'+
               '</div>'+
             '</div>'+
@@ -6169,7 +6200,7 @@ function renderAdminDivisions(){
                     '<div class="org-root-avatar">' + (execHead ? getInitials(execHead) : ic('units', 18)) + '</div>'+
                     '<div style="overflow:hidden;flex:1">'+
                       '<div class="org-root-title" style="height:auto;min-height:auto">Правление компании</div>'+
-                      '<div class="org-root-sub">'+(execHead ? esc(execHead) : 'Исполнительный орган')+' • '+lineDirNames.length+' направлений</div>'+
+                      '<div class="org-root-sub" title="'+(execHead ? esc(execHead) : '')+'">'+(execHead ? esc(shortFio(execHead)) : 'Исполнительный орган')+' • '+lineDirNames.length+' направлений</div>'+
                     '</div>'+
                   '</div>'+
                 '</div>'+
@@ -6187,7 +6218,7 @@ function renderAdminDivisions(){
                     '<div style="display:flex;align-items:center;gap:10px">'+
                       '<div class="org-root-avatar" style="width:34px;height:34px;background:var(--no-soft);color:var(--no)">'+getInitials(auditHead || auditUnitName)+'</div>'+
                       '<div style="overflow:hidden;flex:1">'+
-                        '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(auditHead ? esc(auditHead) : 'Руководитель не назначен')+'</div>'+
+                        '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(auditHead ? esc(auditHead) : '')+'">'+(auditHead ? esc(shortFio(auditHead)) : 'Руководитель не назначен')+'</div>'+
                         '<div style="font-size:11.5px;color:var(--muted)">Служба аудита</div>'+
                       '</div>'+
                     '</div>'+
@@ -6238,7 +6269,7 @@ function renderAdminDivisions(){
           '<div class="org-card-profile">'+
             '<div class="org-avatar-circle">'+getInitials(dirHead || dirHrbp || dir)+'</div>'+
             '<div class="org-card-profile-info">'+
-              '<div class="org-card-name">'+(dirHead ? esc(dirHead) : (dirHrbp ? esc(dirHrbp) : 'Руководитель не назначен'))+'</div>'+
+              '<div class="org-card-name" title="'+(dirHead ? esc(dirHead) : (dirHrbp ? esc(dirHrbp) : ''))+'">'+(dirHead ? esc(shortFio(dirHead)) : (dirHrbp ? esc(shortFio(dirHrbp)) : 'Руководитель не назначен'))+'</div>'+
               '<div class="org-card-role">'+(dirHead ? 'Руководитель' : (dirHrbp ? 'HR BP' : 'Направление'))+'</div>'+
             '</div>'+
           '</div>'+
@@ -6276,7 +6307,7 @@ function renderAdminDivisions(){
               '<div class="org-card-profile">'+
                 '<div class="org-avatar-circle org-avatar-circle--unit" style="border-color:var(--accent)">'+getInitials(headOrResp || d.group_key)+'</div>'+
                 '<div class="org-card-profile-info">'+
-                  '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
+                  '<div class="org-card-name" title="'+(headOrResp ? esc(headOrResp) : '')+'">'+(headOrResp ? esc(shortFio(headOrResp)) : 'Не назначен')+'</div>'+
                   '<div class="org-card-role">'+(d.resp ? 'Ответственный' : (d.head ? 'Руководитель' : 'Смежная группа'))+'</div>'+
                 '</div>'+
               '</div>'+
@@ -6303,7 +6334,7 @@ function renderAdminDivisions(){
             '<div class="org-card-profile">'+
               '<div class="org-avatar-circle org-avatar-circle--unit">'+getInitials(headOrResp || d.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
-                '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
+                '<div class="org-card-name" title="'+(headOrResp ? esc(headOrResp) : '')+'">'+(headOrResp ? esc(shortFio(headOrResp)) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(d.head ? 'Руководитель' : (d.resp ? 'Ответственный' : (d.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
               '</div>'+
             '</div>'+
@@ -6343,7 +6374,7 @@ function renderAdminDivisions(){
             '<div class="org-card-profile">'+
               '<div class="org-avatar-circle org-avatar-circle--sub">'+getInitials(suHead || su.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
-                '<div class="org-card-name">'+(suHead ? esc(suHead) : 'Не назначен')+'</div>'+
+                '<div class="org-card-name" title="'+(suHead ? esc(suHead) : '')+'">'+(suHead ? esc(shortFio(suHead)) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(su.head ? 'Руководитель' : (su.resp ? 'Ответственный' : (su.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
               '</div>'+
             '</div>'+
@@ -6380,7 +6411,7 @@ function renderAdminDivisions(){
             '<div class="org-card-profile">'+
               '<div class="org-avatar-circle org-avatar-circle--l5">'+getInitials(l5Head || l5.unit)+'</div>'+
               '<div class="org-card-profile-info">'+
-                '<div class="org-card-name">'+(l5Head ? esc(l5Head) : 'Не назначен')+'</div>'+
+                '<div class="org-card-name" title="'+(l5Head ? esc(l5Head) : '')+'">'+(l5Head ? esc(shortFio(l5Head)) : 'Не назначен')+'</div>'+
                 '<div class="org-card-role">'+(l5.head ? 'Руководитель' : (l5.resp ? 'Ответственный' : (l5.hrbp ? 'HR BP' : 'Сотрудник')))+'</div>'+
               '</div>'+
             '</div>'+
@@ -6458,16 +6489,37 @@ function renderAdminDivisions(){
                        (isAuditSelected ? 'Руководитель службы аудита' : (selNode.type === 'dir' ? 'Руководитель направления' : (isGroupSelected ? 'Руководитель' : 'Руководитель отдела'))));
         leaders.push({ fio: selNode.head, role: headRole, badge: 'Руководитель', roleType: 'head' });
       }
-      if(!isBoardSelected && !isAuditSelected && selNode && selNode.hrbp && selNode.hrbp !== selNode.head){
+      if(!isBoardSelected && !isAuditSelected && selNode && selNode.hrbp && !sameFio(selNode.hrbp, selNode.head)){
         leaders.push({ fio: selNode.hrbp, role: 'HR BP направления', badge: 'HR BP', roleType: 'hrbp' });
       }
-      if(!isBoardSelected && selNode && selNode.resp && selNode.resp !== selNode.head && selNode.resp !== selNode.hrbp){
-        leaders.push({ fio: selNode.resp, role: 'Ответственный за рынок', badge: 'Ответственный', roleType: 'resp' });
+
+      function hasLeaderFio(name){
+        if(!name) return true;
+        return leaders.some(function(l){
+          return sameFio(l.fio, name);
+        });
+      }
+
+      if(!isBoardSelected && selNode && selNode.resp){
+        var respList = String(selNode.resp).split(/[,;\n]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+        respList.forEach(function(rFio){
+          if(!hasLeaderFio(rFio)){
+            leaders.push({ fio: rFio, role: 'Ответственный за рынок', badge: 'Ответственный', roleType: 'resp' });
+          }
+        });
       } else if(isGroupSelected && selNode && selNode.members){
-        var gResps = uniqSortedList(selNode.members.map(function(m){ return m.resp || ''; }).filter(Boolean));
-        if(gResps.length > 0 && (!selNode.head || gResps.join(', ') !== selNode.head)){
-          leaders.push({ fio: gResps.join(', '), role: 'Ответственные за рынок', badge: 'Ответственный', roleType: 'resp' });
-        }
+        var gResps = [];
+        selNode.members.forEach(function(m){
+          String(m.resp || '').split(/[,;\n]+/).forEach(function(s){
+            var clean = s.trim();
+            if(clean && gResps.indexOf(clean) < 0 && !hasLeaderFio(clean)){
+              gResps.push(clean);
+            }
+          });
+        });
+        gResps.forEach(function(rFio){
+          leaders.push({ fio: rFio, role: 'Ответственный за рынок', badge: 'Ответственный', roleType: 'resp' });
+        });
       }
 
       h += '<div class="org-right-drawer">'+
@@ -6515,16 +6567,18 @@ function renderAdminDivisions(){
           (leaders.length ?
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители ' + leaders.length + '</div>'+
             leaders.map(function(ldr){
-              return '<div class="org-staff-row org-leader-drop-zone" draggable="true" data-drag-staff="'+esc(ldr.fio)+'" data-drop-role="'+(ldr.roleType||'head')+'" title="Зажмите для переноса или перетащите сюда сотрудника для смены руководителя">'+
-                '<div class="org-avatar-circle" style="background:var(--accent)">'+getInitials(ldr.fio)+'</div>'+
-                '<div style="flex:1;overflow:hidden">'+
-                  '<div style="font-size:13.5px;font-weight:600;color:var(--text);display:flex;align-items:center">'+
-                    esc(ldr.fio)+
+              var fullFio = ldr.fio || '';
+              var displayFio = shortFio(fullFio);
+              return '<div class="org-staff-row org-leader-drop-zone" draggable="true" data-drag-staff="'+esc(fullFio)+'" data-drop-role="'+(ldr.roleType||'head')+'" title="'+esc(fullFio)+' — ' + esc(ldr.role) + ' (зажмите для переноса)">'+
+                '<div class="org-avatar-circle" style="background:var(--accent)">'+getInitials(fullFio)+'</div>'+
+                '<div style="flex:1;min-width:0;overflow:hidden">'+
+                  '<div style="font-size:13.5px;font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:space-between;gap:6px">'+
+                    '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(fullFio)+'">'+esc(displayFio)+'</span>'+
                     '<span class="org-badge-role">'+esc(ldr.badge)+'</span>'+
                   '</div>'+
-                  '<div style="font-size:12px;color:var(--muted)">'+esc(ldr.role)+'</div>'+
+                  '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(ldr.role)+'">'+esc(ldr.role)+'</div>'+
                 '</div>'+
-                '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
+                '<span style="cursor:grab;color:var(--muted);flex-shrink:0">' + icBare('more', 14) + '</span>'+
               '</div>';
             }).join('') :
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители</div>'+
@@ -6539,13 +6593,15 @@ function renderAdminDivisions(){
             '</button>'+
           '</div>'+
           (displayStaff.length ? displayStaff.map(function(u){
-            return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или на руководителя вверху">'+
-              '<div class="org-avatar-circle" style="background:var(--subtle)">'+getInitials(u.fio)+'</div>'+
-              '<div style="flex:1;overflow:hidden">'+
-                '<div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(u.fio)+'</div>'+
-                '<div style="font-size:12px;color:var(--muted)">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
+            var fullFio = u.fio || '';
+            var displayFio = shortFio(fullFio);
+            return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(fullFio)+'" data-staff-role="'+esc(u.role)+'" title="'+esc(fullFio)+' — '+(u.role ? esc(u.role) : 'Сотрудник')+' (зажмите для переноса)">'+
+              '<div class="org-avatar-circle" style="background:var(--subtle)">'+getInitials(fullFio)+'</div>'+
+              '<div style="flex:1;min-width:0;overflow:hidden">'+
+                '<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(fullFio)+'">'+esc(displayFio)+'</div>'+
+                '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(u.role ? esc(u.role) : 'Сотрудник')+'">'+(u.role ? esc(u.role) : 'Сотрудник')+'</div>'+
               '</div>'+
-              '<span style="cursor:grab;color:var(--muted)">' + icBare('more', 14) + '</span>'+
+              '<span style="cursor:grab;color:var(--muted);flex-shrink:0">' + icBare('more', 14) + '</span>'+
             '</div>';
           }).join('') : '<p style="padding:12px;color:var(--muted);font-size:13px;text-align:center">Сотрудники не найдены</p>')+
 
@@ -6571,8 +6627,8 @@ function renderAdminDivisions(){
         '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
         collapsedRows.map(function(d){
           if(d.isGroup){
-            var respText = d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>');
-            var hrbpText = d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>';
+            var respText = d.resp ? ('<span title="'+esc(d.resp)+'">'+esc(shortFio(d.resp))+'</span>') : (d.head ? ('<span title="'+esc(d.head)+'">'+esc(shortFio(d.head))+'</span>') : '<span style="color:var(--warn)">Не назначен</span>');
+            var hrbpText = d.hrbp ? ('<span title="'+esc(d.hrbp)+'">'+esc(shortFio(d.hrbp))+'</span>') : '<span style="color:var(--warn)">Не назначен</span>';
             var memberPreview = d.members.map(function(m){ return esc(m.unit); }).slice(0, 3).join(', ') + (d.count > 3 ? ' и ещё ' + (d.count - 3) : '');
             return '<tr class="tr--group">'+
               '<td><b>«'+esc(d.group_key)+'»</b> <span class="badge" style="font-size:11px;margin-left:6px">Смежная · '+d.count+' площ.</span><br><small style="color:var(--muted)">'+esc(d.dir)+' · '+memberPreview+'</small></td>'+
@@ -6583,8 +6639,8 @@ function renderAdminDivisions(){
           }
           return '<tr>'+
             '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
-            '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
-            '<td>'+(d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
+            '<td>'+(d.resp ? ('<span title="'+esc(d.resp)+'">'+esc(shortFio(d.resp))+'</span>') : (d.head ? ('<span title="'+esc(d.head)+'">'+esc(shortFio(d.head))+'</span>') : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
+            '<td>'+(d.hrbp ? ('<span title="'+esc(d.hrbp)+'">'+esc(shortFio(d.hrbp))+'</span>') : '<span style="color:var(--warn)">Не назначен</span>')+'</td>'+
             '<td><button class="btn-line" data-u="'+esc(d.unit)+'" style="min-height:28px;font-size:13px;padding:0 10px">'+icBare('pencil',14)+' Назначить</button></td>'+
           '</tr>';
         }).join('')+

@@ -694,6 +694,36 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
+/** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
+ *  Неразрывные пробелы, чтобы инициалы не переносились. */
+function shortFio(name){
+  if(!name) return '';
+  var raw = String(name).trim();
+  if(!raw) return '';
+  if(/^(не назначен|руководитель не назначен|ответственный не назначен|нет|—|-)$/i.test(raw)){
+    return raw;
+  }
+  if(raw.indexOf(',') >= 0){
+    return raw.split(/\s*,\s*/).map(function(part){
+      return shortFio(part);
+    }).filter(Boolean).join(', ');
+  }
+  var p = raw.split(/\s+/).filter(Boolean);
+  if(p.length <= 1) return p[0] || '';
+  var initials = p.slice(1).map(function(x){
+    return x.charAt(0).toUpperCase() + '.';
+  });
+  return p[0] + ' ' + initials.join(' ');
+}
+
+function getInitials(name){
+  if(!name) return '—';
+  var p = String(name).trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '—';
+  if(p.length >= 2) return (p[0].charAt(0) + p[1].charAt(0)).toUpperCase();
+  return (p[0].charAt(0) || '—').toUpperCase();
+}
+
 /**
  * Разбор суммы оклада. Люди вводят по-разному: "10000", "10 000", "10,000",
  * "10.000" — пробел, запятая и точка здесь ВСЕГДА разделители тысяч (дробных
