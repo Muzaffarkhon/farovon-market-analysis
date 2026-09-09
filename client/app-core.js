@@ -441,6 +441,7 @@ function navSnapshot(){
     dashTab: S.dashTab,
     dashSumTab: S.dashSumTab,
     adminTab: S.adminTab,
+    dictKind: S.dictKind,
     adminDivsView: S.adminDivsView,
     adminUsersSearch: S.adminUsersSearch || '',
     adminUsersRole: S.adminUsersRole || '',
@@ -467,6 +468,7 @@ function applyNavObject(nav){
   if(nav.dashTab) S.dashTab = nav.dashTab;
   if(nav.dashSumTab) S.dashSumTab = nav.dashSumTab;
   if(nav.adminTab) S.adminTab = nav.adminTab;
+  if(nav.dictKind) S.dictKind = nav.dictKind;
   if(nav.adminDivsView) S.adminDivsView = nav.adminDivsView;
   if(nav.adminUsersSearch !== undefined) S.adminUsersSearch = nav.adminUsersSearch;
   if(nav.adminUsersRole !== undefined) S.adminUsersRole = nav.adminUsersRole;
@@ -507,6 +509,7 @@ function getAppViewKey(){
   if(v === 'admin'){
     var sub = S.adminTab || 'users';
     if(sub === 'divisions') return 'admin:divisions:' + (S.adminDivsView || 'tree');
+    if(sub === 'dict') return 'dict:' + (S.dictKind || 'companies');
     return 'admin:' + sub;
   }
   if(v === 'unit') return 'unit:' + (S.unit || '') + ':' + (S.tab || 'step1');
@@ -655,7 +658,7 @@ hookBodyScroll();
 // Черновик самого заполнения лежит в LS_DRAFT (markDirty) — правки не теряются
 // даже если человек уйдёт: при повторном открытии подразделения предложат их.
 function _navKey(s){
-  return !s ? '' : [s.appView, s.unit, s.tab, s.dashTab, s.dashSumTab, s.adminTab].join('|');
+  return !s ? '' : [s.appView, s.unit, s.tab, s.dashTab, s.dashSumTab, s.adminTab, s.dictKind].join('|');
 }
 function pushNavHistory(replace){
   if(!S.data || !window.history || !window.history.pushState) return;
@@ -1126,6 +1129,7 @@ var WorkspaceTabs = {
         cur.state.appView = S.appView;
         cur.state.unit = S.unit;
         cur.state.adminTab = S.adminTab;
+        cur.state.dictKind = S.dictKind;
         cur.state.dashTab = S.dashTab;
         cur.state.bmTab = (typeof BM_STATE !== 'undefined' ? BM_STATE.tab : null);
         cur.state.dirty = S.dirty;
@@ -1140,6 +1144,7 @@ var WorkspaceTabs = {
       if(target.state.appView !== undefined) S.appView = target.state.appView;
       if(target.state.unit !== undefined) S.unit = target.state.unit;
       if(target.state.adminTab !== undefined) S.adminTab = target.state.adminTab;
+      if(target.state.dictKind !== undefined) S.dictKind = target.state.dictKind;
       if(target.state.dashTab !== undefined) S.dashTab = target.state.dashTab;
       if(target.state.bmTab !== undefined && typeof BM_STATE !== 'undefined') BM_STATE.tab = target.state.bmTab;
       if(target.state.dirty !== undefined) S.dirty = target.state.dirty;
@@ -2632,8 +2637,17 @@ function toggleRailDropdown(navKey, btn){
 
   subs.forEach(function(sub, idx){
     var isActive = false;
-    if(navKey === 'benchmarks' && window.BM_STATE && ('benchmarks:' + BM_STATE.tab) === sub.key) isActive = true;
-    if(navKey === 'dashboard' && window.S && ('dashboard:' + (S.dashTab || 'overview')) === sub.key) isActive = true;
+    if(typeof sub.active === 'function'){
+      isActive = sub.active();
+    } else if(navKey === 'benchmarks' && window.BM_STATE && ('benchmarks:' + BM_STATE.tab) === sub.key){
+      isActive = true;
+    } else if(navKey === 'dashboard' && window.S && ('dashboard:' + (S.dashTab || 'overview')) === sub.key){
+      isActive = true;
+    } else if(navKey === 'users' && window.S && S.appView === 'admin' && sub.key === ('admin:' + (S.adminTab || 'users'))){
+      isActive = true;
+    } else if(navKey === 'dict' && window.S && S.appView === 'admin' && S.adminTab === 'dict' && sub.key === ('dict:' + (S.dictKind || 'companies'))){
+      isActive = true;
+    }
     var iconSvg = ICONS[sub.icon]
       ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none">' + ICONS[sub.icon] + '</svg>'
       : ic(sub.icon, 15);
@@ -2719,6 +2733,12 @@ function navHandleClick(e){
     m.moreEntry ? [m.moreEntry] : [],
     m.utility
   );
+  var extraSubs = [];
+  all.forEach(function(item){
+    if(item && item.subsections) extraSubs = extraSubs.concat(item.subsections);
+    if(item && item.submenu && item.submenu !== item.subsections) extraSubs = extraSubs.concat(item.submenu);
+  });
+  if(extraSubs.length) all = all.concat(extraSubs);
   var it = all.filter(function(x){ return x.key === b.dataset.nav; })[0];
   if(!it) return;
   // Кнопка-категория на нижней полосе: тап → выпадашка разделов.

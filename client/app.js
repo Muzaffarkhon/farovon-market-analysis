@@ -213,11 +213,74 @@ function navModel(){
       active:mkActive('dept_assign'), inTabs:false, run:function(){ openDeptAssign(); } });
   }
 
+  var usersSubs = [
+    {
+      key: 'admin:users',
+      label: 'Все пользователи',
+      icon: 'users',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'users'; },
+      run: function(){ openAdminPanel('users'); }
+    },
+    {
+      key: 'admin:archive',
+      label: 'Архив',
+      icon: 'archive',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'archive'; },
+      run: function(){ openAdminPanel('archive'); }
+    }
+  ];
+
+  var dictSubs = [
+    {
+      key: 'dict:companies',
+      label: 'Компании',
+      icon: 'units',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && (S.dictKind || 'companies') === 'companies'; },
+      run: function(){ openAdminPanel('dict', 'companies'); }
+    },
+    {
+      key: 'dict:positions',
+      label: 'Должности',
+      icon: 'clipboard',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'positions'; },
+      run: function(){ openAdminPanel('dict', 'positions'); }
+    },
+    {
+      key: 'dict:segments',
+      label: 'Сегменты',
+      icon: 'target',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'segments'; },
+      run: function(){ openAdminPanel('dict', 'segments'); }
+    },
+    {
+      key: 'dict:regions',
+      label: 'Регионы',
+      icon: 'units',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'regions'; },
+      run: function(){ openAdminPanel('dict', 'regions'); }
+    }
+  ];
+
   var adminAll = [
-    { key:'users', atab:'users', label:'Пользователи', icon:'users', cap:'users:view' },
-    { key:'archive', atab:'archive', label:'Архив', icon:'archive', cap:'users:view' },
+    {
+      key:'users',
+      atab:'users',
+      label:'Пользователи',
+      icon:'users',
+      cap:'users:view',
+      subsections: usersSubs,
+      submenu: usersSubs
+    },
     { key:'divisions', atab:'divisions', label:'Оргструктура', icon:'units', cap:'divisions:view' },
-    { key:'dict', atab:'dict', label:'Справочники', icon:'book', cap:'dictionary:view' },
+    {
+      key:'dict',
+      atab:'dict',
+      label:'Справочники',
+      icon:'book',
+      cap:'dictionary:view',
+      subsections: dictSubs,
+      submenu: dictSubs
+    },
     { key:'period', atab:'period', label:'Период сбора', icon:'clock', cap:'period:view' },
     { key:'tools', atab:'tools', label:'Сервисные утилиты', icon:'wrench', cap:'service:view' },
     { key:'audit', atab:'audit', label:'Журнал действий', icon:'clipboard', cap:'service:view' },
@@ -226,25 +289,22 @@ function navModel(){
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
     return t.adminOnly ? role === 'admin' : hasCap(t.cap);
   }).map(function(t){
-    t.active = (function(atab){
-      return function(){ return S.appView === 'admin' && S.adminTab === atab; };
-    })(t.atab);
+    t.active = (function(item){
+      return function(){
+        if(item.atab === 'users') {
+          return S.appView === 'admin' && (S.adminTab === 'users' || S.adminTab === 'archive');
+        }
+        return S.appView === 'admin' && S.adminTab === item.atab;
+      };
+    })(t);
     t.run = (function(tObj){
       return function(){
-        if(window.WorkspaceTabs && WorkspaceTabs.openTab){
-          WorkspaceTabs.openTab({
-            key: 'admin:' + tObj.atab,
-            title: tObj.label,
-            icon: tObj.icon,
-            state: { appView: 'admin', adminTab: tObj.atab, unit: null },
-            run: function(){
-              S.adminTab = tObj.atab;
-              openAdminPanel();
-            }
-          });
+        if(tObj.atab === 'users'){
+          openAdminPanel(S.adminTab === 'archive' ? 'archive' : 'users');
+        } else if(tObj.atab === 'dict'){
+          openAdminPanel('dict', S.dictKind || 'companies');
         } else {
-          S.adminTab = tObj.atab;
-          switchView('admin');
+          openAdminPanel(tObj.atab);
         }
       };
     })(t);
@@ -262,12 +322,29 @@ function navModel(){
       if(window.WorkspaceTabs && WorkspaceTabs.openTab){
         var atab = S.adminTab || (admin[0] ? admin[0].atab : 'users');
         var cur = admin.filter(function(x){ return x.atab === atab; })[0] || admin[0];
+        var tabTitle = cur ? cur.label : 'Панель администратора';
+        var tabIcon = cur ? cur.icon : 'admin';
+        var tabKey = 'admin:' + atab;
+        if(atab === 'dict'){
+          tabKey = 'dict:' + (S.dictKind || 'companies');
+          var dMeta = (typeof DICT_KINDS !== 'undefined' ? DICT_KINDS : []).filter(function(k){ return k.id === (S.dictKind || 'companies'); })[0];
+          if(dMeta) tabTitle = dMeta.label;
+          tabIcon = 'book';
+        } else if(atab === 'archive'){
+          tabTitle = 'Архив';
+          tabIcon = 'archive';
+          tabKey = 'admin:archive';
+        } else if(atab === 'users'){
+          tabTitle = 'Все пользователи';
+          tabIcon = 'users';
+          tabKey = 'admin:users';
+        }
         WorkspaceTabs.openTab({
-          key: 'admin:' + atab,
-          title: cur ? cur.label : 'Панель администратора',
-          icon: cur ? cur.icon : 'admin',
-          state: { appView: 'admin', adminTab: atab, unit: null },
-          run: function(){ openAdminPanel(); }
+          key: tabKey,
+          title: tabTitle,
+          icon: tabIcon,
+          state: { appView: 'admin', adminTab: atab, dictKind: S.dictKind, unit: null },
+          run: function(){ openAdminPanel(atab, S.dictKind); }
         });
       } else {
         switchView('admin');
@@ -5139,11 +5216,23 @@ function declOfNum(n, titles){
 // ═══════════════════════════════════════════════════════════
 // ПАНЕЛЬ АДМИНИСТРАТОРА
 // ═══════════════════════════════════════════════════════════
-function openAdminPanel(){
+function openAdminPanel(targetTab, targetSub){
+  if(targetTab) S.adminTab = targetTab;
+  if(targetTab === 'dict' && targetSub) S.dictKind = targetSub;
+
   var atab = S.adminTab || 'users';
+  if(atab === 'dict' && !S.dictKind) S.dictKind = 'companies';
+
+  var dictKindNames = {
+    companies: 'Компании',
+    positions: 'Должности',
+    segments: 'Сегменты',
+    regions: 'Регионы'
+  };
+
   var atabNames = {
-    users: 'Пользователи', archive: 'Архив', divisions: 'Оргструктура',
-    dict: 'Справочники', period: 'Период сбора', tools: 'Сервисные утилиты',
+    users: 'Все пользователи', archive: 'Архив', divisions: 'Оргструктура',
+    dict: (dictKindNames[S.dictKind] || 'Справочники'), period: 'Период сбора', tools: 'Сервисные утилиты',
     audit: 'Журнал действий', roles: 'Роли и доступы'
   };
   var atabIcons = {
@@ -5153,22 +5242,26 @@ function openAdminPanel(){
   };
   var tabTitle = atabNames[atab] || 'Администрирование';
   var tabIcon = atabIcons[atab] || 'admin';
+  var tabKey = (atab === 'dict') ? ('dict:' + (S.dictKind || 'companies')) : ('admin:' + atab);
 
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
     WorkspaceTabs.openTab({
-      key: 'admin:' + atab,
+      key: tabKey,
       title: tabTitle,
       icon: tabIcon,
-      state: { appView: 'admin', adminTab: atab, unit: null },
-      run: function(){ openAdminPanel(); }
+      state: { appView: 'admin', adminTab: atab, dictKind: S.dictKind, unit: null },
+      run: function(){ openAdminPanel(atab, S.dictKind); }
     });
     return;
+  }
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(tabTitle, tabIcon, tabKey);
   }
   S.appView = 'admin';
   S.unit = null;
   saveNavState();
   renderTopNav();
-  setTop('Администрирование', userLabel(), false, 'admin');
+  setTop(tabTitle, userLabel(), false, tabIcon);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   renderAdminPanel();
@@ -5204,7 +5297,27 @@ function renderAdminPanel(){
 
   saveNavState();
   var curTab = tabs.filter(function(t){ return t.id === S.adminTab; })[0];
-  setTop(curTab ? curTab.label : 'Панель Администратора', userLabel(), false, curTab ? curTab.icon : 'admin');
+  var pageTitle = curTab ? curTab.label : 'Панель Администратора';
+  var pageIcon = curTab ? curTab.icon : 'admin';
+  var pageKey = 'admin:' + S.adminTab;
+  if(S.adminTab === 'dict'){
+    var dictMeta = (typeof DICT_KINDS !== 'undefined' ? DICT_KINDS : []).filter(function(k){ return k.id === (S.dictKind || 'companies'); })[0];
+    if(dictMeta) pageTitle = dictMeta.label;
+    pageIcon = 'book';
+    pageKey = 'dict:' + (S.dictKind || 'companies');
+  } else if(S.adminTab === 'users'){
+    pageTitle = 'Все пользователи';
+    pageIcon = 'users';
+    pageKey = 'admin:users';
+  } else if(S.adminTab === 'archive'){
+    pageTitle = 'Архив';
+    pageIcon = 'archive';
+    pageKey = 'admin:archive';
+  }
+  setTop(pageTitle, userLabel(), false, pageIcon);
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(pageTitle, pageIcon, pageKey);
+  }
 
   var adminEl = $('adminContent');
   if(!adminEl){
@@ -5417,7 +5530,11 @@ function renderAdminUsers(){
   });
 
   // Поиск, фильтр роли, фильтр департамента, счётчик и кнопка — одной строкой
-  var h = '<div class="toolbar">'+
+  var h = '<div class="sub-tabs sub-tabs--inner">'+
+    '<button class="sub-tab on" id="btnSubUsers">Все пользователи</button>'+
+    '<button class="sub-tab" id="btnSubArchive">Архив</button>'+
+  '</div>'+
+  '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
       '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(rawSearch)+'"></div>'+
     '<select id="uRole" class="toolbar-select">'+
@@ -5490,6 +5607,11 @@ function renderAdminUsers(){
   h += '<div class="u-cards fx-stagger">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
+
+  var bSubArch = $('btnSubArchive');
+  if(bSubArch){
+    bSubArch.onclick = function(){ openAdminPanel('archive'); };
+  }
 
   // Двойной клик — редактирование, правый клик — меню действий ровно под курсором
   $('adminContent').querySelectorAll('tr[data-login], .u-card[data-login]').forEach(function(el){
@@ -5790,12 +5912,23 @@ function loadAdminArchive(){
 function renderAdminArchive(){
   var users = S.adminArchive || [];
 
-  var h = '<div class="sec-title">В архиве</div>'+
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle('Архив', 'archive', 'admin:archive');
+  }
+  setTop('Архив', userLabel(), false, 'archive');
+
+  var h = '<div class="sub-tabs sub-tabs--inner">'+
+    '<button class="sub-tab" id="btnSubUsers">Все пользователи</button>'+
+    '<button class="sub-tab on" id="btnSubArchive">Архив</button>'+
+  '</div>'+
+  '<div class="sec-title" style="margin-top:12px">В архиве</div>'+
     tblCount(users.length, null, ['учётная запись', 'учётные записи', 'учётных записей']);
 
   if(!users.length){
     h += '<div class="empty">Архив пуст</div>';
     $('adminContent').innerHTML = h;
+    var bSubU0 = $('btnSubUsers');
+    if(bSubU0) bSubU0.onclick = function(){ openAdminPanel('users'); };
     return;
   }
 
@@ -5832,6 +5965,8 @@ function renderAdminArchive(){
   h += '<div class="u-cards fx-stagger">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
+  var bSubU = $('btnSubUsers');
+  if(bSubU) bSubU.onclick = function(){ openAdminPanel('users'); };
   try { restoreViewScroll('admin:archive'); } catch(e){}
 }
 
@@ -9159,6 +9294,13 @@ function renderAdminDict(){
   if(!S.dictKind) S.dictKind = 'companies';
   if(S.dictQ == null) S.dictQ = '';
 
+  var curMeta = DICT_KINDS.filter(function(k){ return k.id === S.dictKind; })[0];
+  var dictTitle = curMeta ? curMeta.label : 'Справочники';
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(dictTitle, 'book', 'dict:' + S.dictKind);
+  }
+  setTop(dictTitle, userLabel(), false, 'book');
+
   var h = '<div class="sub-tabs sub-tabs--inner">'+ DICT_KINDS.map(function(k){
     return '<button class="sub-tab'+(S.dictKind === k.id ? ' on' : '')+'" data-dk="'+k.id+'">'+
       esc(k.label)+'</button>';
@@ -9167,7 +9309,17 @@ function renderAdminDict(){
 
   $('adminContent').innerHTML = h;
   $('adminContent').querySelectorAll('button[data-dk]').forEach(function(b){
-    b.onclick = function(){ S.dictKind = this.dataset.dk; S.dictQ = ''; renderAdminDict(); };
+    b.onclick = function(){
+      S.dictKind = this.dataset.dk;
+      S.dictQ = '';
+      var m = DICT_KINDS.filter(function(k){ return k.id === S.dictKind; })[0];
+      var newTitle = m ? m.label : 'Справочники';
+      if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+        WorkspaceTabs.updateActiveTitle(newTitle, 'book', 'dict:' + S.dictKind);
+      }
+      setTop(newTitle, userLabel(), false, 'book');
+      renderAdminDict();
+    };
   });
 
   loadDict();
