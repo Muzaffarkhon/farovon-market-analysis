@@ -27,8 +27,14 @@ const CORE_PATH = path.join(ROOT_DIR, 'client/app-core.js');
 const APP_PATH = path.join(ROOT_DIR, 'client/app.js');
 const SW_PATH = path.join(ROOT_DIR, 'client/sw.js');
 
-const VERSION_FILES = [
+const VERSION_METADATA_FILES = [
   'package.json',
+  'package-lock.json'
+];
+
+const VERSION_SYNC_FILES = [
+  'package.json',
+  'package-lock.json',
   'client/index.html',
   'client/app-core.js',
   'client/app.js',
@@ -100,7 +106,7 @@ function main() {
       process.exit(0);
     }
     // Проверяем, застейджено ли что-то кроме самих файлов версии
-    const nonVersionFiles = staged.filter(f => !VERSION_FILES.includes(f.replace(/\\/g, '/')));
+    const nonVersionFiles = staged.filter(f => !VERSION_METADATA_FILES.includes(f.replace(/\\/g, '/')));
     if (nonVersionFiles.length === 0) {
       // Застейджены только файлы версии — не бампаем повторно во избежание цикла
       process.exit(0);
@@ -184,7 +190,7 @@ function main() {
   // 6. Если в режиме git-хука или есть застейдженные файлы, добавляем файлы версии в git index
   if (isHook) {
     try {
-      execSync(`git add ${VERSION_FILES.join(' ')}`, { cwd: ROOT_DIR });
+      execSync(`git add ${VERSION_SYNC_FILES.join(' ')}`, { cwd: ROOT_DIR });
       console.log(`  ✓ Файлы версии автоматически добавлены в коммит (git add)`);
     } catch (e) {
       console.warn(`  ⚠️ Не удалось выполнить git add для файлов версии: ${e.message}`);
