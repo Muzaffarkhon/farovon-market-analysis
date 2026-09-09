@@ -309,7 +309,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.1')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -344,7 +344,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.1')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -397,7 +397,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.1')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -427,7 +427,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.2.1')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.2.2')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6522,30 +6522,45 @@ function renderAdminDivisions(){
         });
       }
 
+      var selSub = '';
+      if(isGroupSelected){
+        selSub = (selNode.members ? selNode.members.length : 0) + ' площадок' + (selNode.dir ? ' · ' + selNode.dir : '');
+      } else if(isBoardSelected){
+        selSub = 'Высший орган управления';
+      } else if(isExecSelected){
+        selSub = 'Исполнительный орган';
+      } else if(isAuditSelected){
+        selSub = 'Служба аудита';
+      } else if(selNode && selNode.dir && selNode.dir !== selTitle){
+        selSub = 'Направление: ' + selNode.dir;
+      } else if(selNode && (selNode.type === 'dir' || selNode.dir === selTitle)){
+        selSub = 'Направление компании';
+      }
+
       h += '<div class="org-right-drawer">'+
         '<div class="org-drawer-header">'+
-          '<div>'+
+          '<div style="min-width:0;flex:1">'+
             '<div class="org-drawer-title">'+esc(selTitle)+'</div>'+
-            '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+(isGroupSelected ? ((selNode.members ? selNode.members.length : 0) + ' площадок · ' + esc(selNode.dir || '')) : esc(selNode && selNode.dir ? selNode.dir : 'Направление'))+ '</div>'+
+            (selSub ? '<div class="org-drawer-subtitle">'+esc(selSub)+'</div>' : '')+
           '</div>'+
-          '<div style="display:flex;align-items:center;gap:4px">'+
+          '<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'+
             (isGroupSelected ?
-              '<button class="btn-ghost" data-group-assign="'+esc(selNode.groupKey || selNode.unit)+'" title="Назначить ответственного" style="padding:4px 8px;min-height:28px">' + ic('user', 13) + '</button>' :
-              '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:4px 8px;min-height:28px">' + ic('pencil', 13) + '</button>'
+              '<button class="btn-ghost" data-group-assign="'+esc(selNode.groupKey || selNode.unit)+'" title="Назначить ответственного" style="padding:2px 6px;min-height:26px;font-size:12px">' + ic('user', 13) + '</button>' :
+              '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:2px 6px;min-height:26px;font-size:12px">' + ic('pencil', 13) + '</button>'
             )+
-            '<button class="btn-ghost" id="btnToggleDrawer" title="Скрыть панель" style="padding:4px 8px;min-height:28px;color:var(--muted)">' + ic('close', 13) + '</button>'+
+            '<button class="btn-ghost" id="btnToggleDrawer" title="Скрыть панель" style="padding:2px 6px;min-height:26px;font-size:12px;color:var(--muted)">' + ic('close', 13) + '</button>'+
           '</div>'+
         '</div>'+
 
 
         '<div class="org-drawer-stats">'+
-          '<div class="org-stat-pill">Сотрудников направления <b>'+deptStaff.length+'</b></div>'+
-          '<div class="org-stat-pill">Руководителей <b>'+leaders.length+'</b></div>'+
+          '<div class="org-stat-pill"><span>Сотрудников</span><b>'+deptStaff.length+'</b></div>'+
+          '<div class="org-stat-pill"><span>Руководителей</span><b>'+leaders.length+'</b></div>'+
         '</div>'+
 
         '<div class="org-drawer-search">'+
           '<div class="search-wrap" style="width:100%">'+icBare('search', 13)+
-            '<input id="staffSearch" placeholder="Найти по имени или должности…" value="'+esc(staffSearch)+'" style="height:32px;font-size:13px"></div>'+
+            '<input id="staffSearch" placeholder="Найти по имени или должности…" value="'+esc(staffSearch)+'"></div>'+
         '</div>'+
 
         '<div class="org-drawer-body">'+
