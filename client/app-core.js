@@ -1126,6 +1126,7 @@ var WorkspaceTabs = {
         cur.state.unit = S.unit;
         cur.state.adminTab = S.adminTab;
         cur.state.dashTab = S.dashTab;
+        cur.state.bmTab = (typeof BM_STATE !== 'undefined' ? BM_STATE.tab : null);
         cur.state.dirty = S.dirty;
       }
     }
@@ -1139,6 +1140,7 @@ var WorkspaceTabs = {
       if(target.state.unit !== undefined) S.unit = target.state.unit;
       if(target.state.adminTab !== undefined) S.adminTab = target.state.adminTab;
       if(target.state.dashTab !== undefined) S.dashTab = target.state.dashTab;
+      if(target.state.bmTab !== undefined && typeof BM_STATE !== 'undefined') BM_STATE.tab = target.state.bmTab;
       if(target.state.dirty !== undefined) S.dirty = target.state.dirty;
     }
 
@@ -2553,21 +2555,151 @@ function navRenderBtn(it, cls){
   var icon = cls === 'rail-item'
     ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'
     : ic(it.icon);
+
+  var subs = it.subsections || it.submenu;
+  var hasSub = subs && subs.length >= 2;
+
+  if(cls === 'rail-item'){
+    var caret = hasSub
+      ? '<span class="rail-sub-caret" data-rail-caret="'+it.key+'" title="Подразделы: ' + esc(it.label) + '">'+
+          '<svg class="rail-caret-svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'+
+        '</span>'
+      : '';
+    return '<button class="'+cls+danger+on+(hasSub ? ' has-sub' : '')+'" data-nav="'+it.key+'" title="'+esc(it.label)+'">'+
+      icon+'<span>'+lbl+'</span>'+caret+'</button>';
+  }
+
   // На нижней полосе телефона кнопка-категория (есть submenu) помечается
   // «шевроном» сразу после подписи и открывает выпадашку разделов вместо
   // прямого перехода.
-  var hasSub = cls === 'nav-btn' && it.submenu && it.submenu.length >= 2;
-  var caret = hasSub
+  var caretPhone = (cls === 'nav-btn' && hasSub)
     ? '<svg class="nav-btn-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>'
     : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+caret+'</span></button>';
+    icon+'<span>'+lbl+caretPhone+'</span></button>';
+}
+
+var activeRailDropdown = null;
+
+function closeRailDropdown(){
+  if(activeRailDropdown){
+    if(activeRailDropdown.el && activeRailDropdown.el.parentNode){
+      activeRailDropdown.el.parentNode.removeChild(activeRailDropdown.el);
+    }
+    if(activeRailDropdown.caret){
+      activeRailDropdown.caret.classList.remove('is-open');
+    }
+    activeRailDropdown = null;
+  }
+}
+
+function toggleRailDropdown(navKey, btn){
+  if(activeRailDropdown && activeRailDropdown.key === navKey){
+    closeRailDropdown();
+    return;
+  }
+  closeRailDropdown();
+
+  if(!btn) return;
+  var m = navModel();
+  var all = m.primary.concat(m.admin, m.utility);
+  var it = all.filter(function(x){ return x.key === navKey; })[0];
+  if(!it) return;
+
+  var subs = it.subsections || it.submenu;
+  if(!subs || !subs.length) return;
+
+  var caret = btn.querySelector('.rail-sub-caret');
+  if(caret) caret.classList.add('is-open');
+
+  var el = document.createElement('div');
+  el.className = 'rail-dropdown-menu';
+  el.setAttribute('role', 'menu');
+
+  var html = '<div class="rail-dropdown-header">' +
+    '<span class="rail-dropdown-title">' + esc(it.label) + '</span>' +
+    '<span class="rail-dropdown-cnt">' + subs.length + ' подразд.</span>' +
+  '</div>' +
+  '<div class="rail-dropdown-list">';
+
+  subs.forEach(function(sub, idx){
+    var iconSvg = ICONS[sub.icon]
+      ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none">' + ICONS[sub.icon] + '</svg>'
+      : ic(sub.icon, 15);
+    html += '<button class="rail-dropdown-item" data-idx="' + idx + '" title="' + esc(sub.label) + '">' +
+      iconSvg + '<span>' + esc(sub.label) + '</span>' +
+    '</button>';
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+  document.body.appendChild(el);
+
+  // Позиционирование поверх левого меню в стиле АИСТ
+  var rect = btn.getBoundingClientRect();
+  var left = rect.right + 6;
+  var top = rect.top;
+
+  var h = el.offsetHeight || (subs.length * 36 + 40);
+  if(top + h > window.innerHeight - 12){
+    top = Math.max(12, window.innerHeight - h - 12);
+  }
+
+  if(left + 230 > window.innerWidth){
+    left = Math.max(8, rect.left);
+    top = rect.bottom + 4;
+  }
+
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+
+  el.onclick = function(ev){
+    var itemBtn = ev.target.closest('.rail-dropdown-item');
+    if(!itemBtn) return;
+    var idx = parseInt(itemBtn.dataset.idx, 10);
+    var targetSub = subs[idx];
+    closeRailDropdown();
+    if(targetSub && typeof targetSub.run === 'function'){
+      targetSub.run();
+    }
+  };
+
+  activeRailDropdown = { key: navKey, el: el, caret: caret };
+}
+
+if(!window._railDropdownBound){
+  window._railDropdownBound = true;
+  document.addEventListener('pointerdown', function(ev){
+    if(activeRailDropdown){
+      if(ev.target.closest('.rail-dropdown-menu') || ev.target.closest('.rail-sub-caret')){
+        return;
+      }
+      closeRailDropdown();
+    }
+  });
+  window.addEventListener('keydown', function(ev){
+    if(ev.key === 'Escape' && activeRailDropdown){
+      closeRailDropdown();
+    }
+  });
 }
 
 // Разрешает data-nav в элемент модели и выполняет его (служебные действия —
 // напрямую, смену раздела — через navGo с проверкой черновика).
 function navHandleClick(e){
+  var caret = e.target.closest('.rail-sub-caret');
+  if(caret){
+    e.stopPropagation();
+    e.preventDefault();
+    var btn = caret.closest('.rail-item');
+    var navKey = caret.dataset.railCaret || (btn && btn.dataset.nav);
+    toggleRailDropdown(navKey, btn);
+    return;
+  }
+
+  closeRailDropdown();
+
   var b = e.target.closest('button[data-nav]');
   if(!b) return;
   var m = navModel();
@@ -2605,6 +2737,27 @@ function renderNav(){
     }
     $('railNav').innerHTML = rh;
     $('railNav').onclick = navHandleClick;
+
+    var railHoverTimer = null;
+    $('railNav').onmouseover = function(e){
+      var caret = e.target.closest('.rail-sub-caret');
+      if(caret){
+        var btn = caret.closest('.rail-item');
+        var navKey = caret.dataset.railCaret || (btn && btn.dataset.nav);
+        if(!activeRailDropdown || activeRailDropdown.key !== navKey){
+          clearTimeout(railHoverTimer);
+          railHoverTimer = setTimeout(function(){
+            toggleRailDropdown(navKey, btn);
+          }, 180);
+        }
+      }
+    };
+    $('railNav').onmouseout = function(e){
+      var caret = e.target.closest('.rail-sub-caret');
+      if(caret){
+        clearTimeout(railHoverTimer);
+      }
+    };
 
     var fio = userLabel();
     $('railAv').textContent = fio.trim().slice(0, 1).toUpperCase() || '?';

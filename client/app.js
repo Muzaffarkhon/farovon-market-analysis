@@ -182,12 +182,27 @@ function navModel(){
   }
 
   if(canSeeDashboard()){
+    var dashSubs = [
+      { key:'dashboard:overview', label:'Обзор', icon:'dashboard', run:function(){ openDashboard('overview'); } },
+      { key:'dashboard:salaries', label:'Зарплатные вилки', icon:'wallet', run:function(){ openDashboard('salaries'); } },
+      { key:'dashboard:regions', label:'По регионам', icon:'units', run:function(){ openDashboard('regions'); } },
+      { key:'dashboard:registry', label:'Реестр данных', icon:'table', run:function(){ openDashboard('registry'); } },
+      { key:'dashboard:progress', label:'Прогресс по HR BP', icon:'target', run:function(){ openDashboard('progress'); } },
+      { key:'dashboard:benefits', label:'Льготы и Бонусы', icon:'medal', run:function(){ openDashboard('benefits'); } }
+    ];
     primary.push({ key:'dashboard', label:'Дашборд', icon:'dashboard',
-      active:mkActive('dashboard'), inTabs:true, run:function(){ switchView('dashboard'); } });
+      active:mkActive('dashboard'), inTabs:true, subsections:dashSubs, submenu:dashSubs,
+      run:function(){ switchView('dashboard'); } });
   }
   if(canSeeBenchmarks()){
+    var bmSubs = [
+      { key:'benchmarks:compare', label:'Сравнение по должности', icon:'chart', run:function(){ openBenchmarks('compare'); } },
+      { key:'benchmarks:mapping', label:'Сопоставление должностей', icon:'link', run:function(){ openBenchmarks('mapping'); } },
+      { key:'benchmarks:datasets', label:'Источники и датасеты', icon:'archive', run:function(){ openBenchmarks('datasets'); } }
+    ];
     primary.push({ key:'benchmarks', label:'Бенчмаркинг', icon:'chart',
-      active:mkActive('benchmarks'), inTabs:true, run:function(){ switchView('benchmarks'); } });
+      active:mkActive('benchmarks'), inTabs:true, subsections:bmSubs, submenu:bmSubs,
+      run:function(){ switchView('benchmarks'); } });
   }
   if(role === 'hrbp'){
     primary.push({ key:'hrbp_summary', label:'Сводка по HR BP', icon:'clipboard',
@@ -3574,14 +3589,29 @@ function skDash(){
 // ═══════════════════════════════════════════════════════════
 // АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
 // ═══════════════════════════════════════════════════════════
-function openDashboard(){
+function openDashboard(initialTab){
+  if(initialTab){
+    S.dashTab = initialTab;
+  }
+  var dashTitles = {
+    overview: { title: 'Дашборд: Обзор', icon: 'dashboard' },
+    salaries: { title: 'Зарплатные вилки', icon: 'wallet' },
+    regions: { title: 'По регионам', icon: 'units' },
+    registry: { title: 'Реестр данных', icon: 'table' },
+    progress: { title: 'Прогресс по HR BP', icon: 'target' },
+    benefits: { title: 'Льготы и Бонусы', icon: 'medal' }
+  };
+  var tabKey = initialTab ? ('dashboard:' + initialTab) : 'dashboard';
+  var tabTitle = (initialTab && dashTitles[initialTab]) ? dashTitles[initialTab].title : 'Дашборд';
+  var tabIcon = (initialTab && dashTitles[initialTab]) ? dashTitles[initialTab].icon : 'dashboard';
+
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
     WorkspaceTabs.openTab({
-      key: 'dashboard',
-      title: 'Дашборд',
-      icon: 'dashboard',
-      state: { appView: 'dashboard', unit: null },
-      run: function(){ openDashboard(); }
+      key: tabKey,
+      title: tabTitle,
+      icon: tabIcon,
+      state: { appView: 'dashboard', dashTab: S.dashTab, unit: null },
+      run: function(){ openDashboard(initialTab); }
     });
     return;
   }
@@ -10490,7 +10520,7 @@ function renderSourceBadge(sourceKey, isLicensed, customTitle){
   return '<span class="top-period-pill" style="margin-right:0"><span class="top-period-dot"></span> <b>' + esc(label) + '</b></span>' + licBadge;
 }
 
-function openBenchmarks(){
+function openBenchmarks(initialTab){
   if(!canSeeBenchmarks()){
     toast('У вас нет доступа к разделу бенчмаркинга', 'warn');
     if(S.appView === 'benchmarks'){
@@ -10498,13 +10528,26 @@ function openBenchmarks(){
     }
     return;
   }
+  if(initialTab){
+    BM_STATE.tab = initialTab;
+  }
+  var curTab = BM_STATE.tab || 'compare';
+  var bmTitles = {
+    compare: { title: 'Сравнение по должности', icon: 'chart' },
+    mapping: { title: 'Сопоставление должностей', icon: 'link' },
+    datasets: { title: 'Источники и датасеты', icon: 'archive' }
+  };
+  var tInfo = bmTitles[curTab] || { title: 'Бенчмаркинг', icon: 'chart' };
+
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    var tabKey = initialTab ? ('benchmarks:' + initialTab) : 'benchmarks';
+    var tabTitle = initialTab ? tInfo.title : 'Бенчмаркинг';
     WorkspaceTabs.openTab({
-      key: 'benchmarks',
-      title: 'Бенчмаркинг',
-      icon: 'chart',
-      state: { appView: 'benchmarks', unit: null },
-      run: function(){ openBenchmarks(); }
+      key: tabKey,
+      title: tabTitle,
+      icon: tInfo.icon,
+      state: { appView: 'benchmarks', bmTab: curTab, unit: null },
+      run: function(){ openBenchmarks(initialTab); }
     });
     return;
   }
@@ -10536,7 +10579,16 @@ function openBenchmarks(){
 
 function switchBmTab(tab){
   BM_STATE.tab = tab;
-  openBenchmarks();
+  var bmTitles = {
+    compare: { title: 'Сравнение по должности', icon: 'chart' },
+    mapping: { title: 'Сопоставление должностей', icon: 'link' },
+    datasets: { title: 'Источники и датасеты', icon: 'archive' }
+  };
+  var tInfo = bmTitles[tab] || { title: 'Бенчмаркинг', icon: 'chart' };
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(tInfo.title, tInfo.icon);
+  }
+  openBenchmarks(tab);
 }
 
 function loadBmInitialData(){

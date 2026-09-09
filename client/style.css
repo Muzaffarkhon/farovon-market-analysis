@@ -727,6 +727,149 @@ body.has-bar .wrap {
     color: var(--accent);
   }
 
+  .rail-item.has-sub {
+    position: relative;
+    padding-right: 4px;
+  }
+
+  .rail-sub-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-buttons);
+    color: var(--color-fog);
+    margin-left: auto;
+    flex: none !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .rail-item:hover .rail-sub-caret {
+    color: var(--color-charcoal);
+  }
+
+  .rail-sub-caret:hover,
+  .rail-sub-caret.is-open {
+    background: var(--color-ash);
+    color: var(--color-midnight-ink);
+  }
+
+  .rail-caret-svg {
+    transition: transform 0.15s ease;
+  }
+
+  .rail-sub-caret.is-open .rail-caret-svg {
+    transform: rotate(180deg);
+  }
+
+  .rail.is-collapsed .rail-sub-caret {
+    display: none;
+  }
+
+  /* Выпадающее меню подразделов (поверх левого меню в стиле АИСТ) */
+  .rail-dropdown-menu {
+    position: fixed;
+    z-index: 10050;
+    min-width: 230px;
+    max-width: 280px;
+    background: var(--color-snow-white);
+    border: 1px solid var(--color-ash);
+    border-radius: var(--radius-buttons);
+    box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+    padding: 5px;
+    animation: railDropAnim 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+  }
+
+  @keyframes railDropAnim {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .rail-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 5px;
+    margin-bottom: 3px;
+    border-bottom: 1px solid var(--color-ash);
+  }
+
+  .rail-dropdown-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-fog);
+  }
+
+  .rail-dropdown-cnt {
+    font-size: 10.5px;
+    color: var(--color-fog);
+    background: var(--color-paper-mist);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .rail-dropdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .rail-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--color-charcoal);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+  }
+
+  .rail-dropdown-item:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .rail-dropdown-item svg {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--color-fog);
+    transition: color 0.12s ease;
+  }
+
+  .rail-dropdown-item:hover svg {
+    color: var(--accent);
+  }
+
+  .rail-dropdown-item.on {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .rail-dropdown-item.on svg {
+    color: var(--accent);
+  }
+
   .rail-foot {
     margin-top: auto;
     padding-top: 10px;
