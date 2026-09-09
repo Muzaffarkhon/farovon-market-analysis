@@ -142,6 +142,15 @@ function canSeeDashboard(){
   return hasCap('dashboard:view');
 }
 
+/**
+ * Кто видит раздел бенчмаркинга.
+ * Доступ имеют admin, cb, либо пользователи с правом benchmarks:view в конструкторе доступов.
+ */
+function canSeeBenchmarks(){
+  var u = (S.data && S.data.user) || {};
+  return u.role === 'admin' || u.role === 'cb' || hasCap('benchmarks:view');
+}
+
 // ═══════════════════════════════════════════════════════════
 // ЕДИНАЯ МОДЕЛЬ НАВИГАЦИИ (Фаза 1 редизайна)
 // ═══════════════════════════════════════════════════════════
@@ -176,7 +185,7 @@ function navModel(){
     primary.push({ key:'dashboard', label:'Дашборд', icon:'dashboard',
       active:mkActive('dashboard'), inTabs:true, run:function(){ switchView('dashboard'); } });
   }
-  if(hasCap('benchmarks:view') || elevated){
+  if(canSeeBenchmarks()){
     primary.push({ key:'benchmarks', label:'Бенчмаркинг', icon:'chart',
       active:mkActive('benchmarks'), inTabs:true, run:function(){ switchView('benchmarks'); } });
   }
@@ -396,7 +405,13 @@ function switchView(v){
   if(v === 'home') renderHome();
   else if(v === 'units') renderUnits();
   else if(v === 'dashboard') openDashboard();
-  else if(v === 'benchmarks') openBenchmarks();
+  else if(v === 'benchmarks'){
+    if(!canSeeBenchmarks()){
+      toast('У вас нет доступа к разделу бенчмаркинга', 'warn');
+      return;
+    }
+    openBenchmarks();
+  }
   else if(v === 'admin') openAdminPanel();
   else if(v === 'progress') openProgress();
   else if(v === 'dept_assign') openDeptAssign();
@@ -969,7 +984,13 @@ function renderCurrentView(){
   if(S.appView === 'home') renderHome();
   else if(S.appView === 'unit' && S.unit) openUnit(S.unit);
   else if(S.appView === 'dashboard') openDashboard();
-  else if(S.appView === 'benchmarks') openBenchmarks();
+  else if(S.appView === 'benchmarks'){
+    if(!canSeeBenchmarks()){
+      renderHome();
+      return;
+    }
+    openBenchmarks();
+  }
   else if(S.appView === 'progress') openProgress();
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
@@ -1053,7 +1074,7 @@ function renderHome(){
   if(canSeeDashboard()){
     navCards.push({ label:'Дашборд', desc:'Вилки окладов, перцентили, гэп к рынку', icon:'dashboard', run:openDashboard });
   }
-  if(typeof openBenchmarks === 'function' && (hasCap('benchmarks:view') || isElevated)){
+  if(typeof openBenchmarks === 'function' && canSeeBenchmarks()){
     navCards.push({ label:'Бенчмаркинг', desc:'Сравнение вознаграждений по внешним источникам', icon:'chart', run:openBenchmarks });
   }
   if(r === 'hrbp'){
@@ -3719,6 +3740,10 @@ function renderDashboard(){
   var d = S.dashData;
   var sm = d.summary || {};
 
+  if(!canSeeBenchmarks() && S.dashTab === 'benchmarks'){
+    S.dashTab = 'overview';
+  }
+
   // 1. Вкладки Дашборда и Метрики в одной строке
   var tabs = [
     { id:'overview', icon:'dashboard', label:'Обзор' },
@@ -3729,6 +3754,9 @@ function renderDashboard(){
     { id:'progress', icon:'target', label:'Прогресс по HR BP' },
     { id:'benefits', icon:'medal', label:'Льготы и Бонусы' }
   ];
+  if(!canSeeBenchmarks()){
+    tabs = tabs.filter(function(t){ return t.id !== 'benchmarks'; });
+  }
   var h = '<div class="sub-tabs sub-tabs--sticky dash-tabbar">'+
     '<div class="dash-tab-strip">'+
       tabs.map(function(t){
@@ -3782,6 +3810,10 @@ function renderDashboard(){
   $('body').querySelectorAll('button[data-dtab]').forEach(function(btn){
     btn.onclick = function(){
       if(this.dataset.dtab === 'benchmarks'){
+        if(!canSeeBenchmarks()){
+          toast('У вас нет доступа к разделу бенчмаркинга', 'warn');
+          return;
+        }
         openBenchmarks();
         return;
       }
@@ -4176,16 +4208,18 @@ function renderOverviewTab(d){
   }
 
   // 2d. Мультиисточниковый бенчмаркинг (B1, Antal, Job Farovon, внутренний сбор)
-  h += '<div class="card" style="padding:0;overflow:hidden">'+
-    cardHd('Внешний бенчмаркинг', 'B1, Antal, Job Farovon')+
-    '<div style="padding:12px 14px">'+
-      '<div style="font-size:13.5px;color:var(--muted);line-height:1.45;margin-bottom:10px">'+
-        'Мультиисточниковое сопоставление вилок Фаровона с рыночными перцентилями P25–P75 и сводной медианой.'+
-      '</div>'+
-      '<button class="btn-line bmk-goto" onclick="openBenchmarks()">'+
-        ic('chart', 14)+' Перейти к бенчмаркингу →'+
-      '</button>'+
-    '</div></div>';
+  if(canSeeBenchmarks()){
+    h += '<div class="card" style="padding:0;overflow:hidden">'+
+      cardHd('Внешний бенчмаркинг', 'B1, Antal, Job Farovon')+
+      '<div style="padding:12px 14px">'+
+        '<div style="font-size:13.5px;color:var(--muted);line-height:1.45;margin-bottom:10px">'+
+          'Мультиисточниковое сопоставление вилок Фаровона с рыночными перцентилями P25–P75 и сводной медианой.'+
+        '</div>'+
+        '<button class="btn-line bmk-goto" onclick="openBenchmarks()">'+
+          ic('chart', 14)+' Перейти к бенчмаркингу →'+
+        '</button>'+
+      '</div></div>';
+  }
 
   h += '</div>'; // конец grid-ряда
 
@@ -10457,6 +10491,13 @@ function renderSourceBadge(sourceKey, isLicensed, customTitle){
 }
 
 function openBenchmarks(){
+  if(!canSeeBenchmarks()){
+    toast('У вас нет доступа к разделу бенчмаркинга', 'warn');
+    if(S.appView === 'benchmarks'){
+      switchView('home');
+    }
+    return;
+  }
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
     WorkspaceTabs.openTab({
       key: 'benchmarks',
