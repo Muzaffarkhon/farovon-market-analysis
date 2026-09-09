@@ -5645,6 +5645,18 @@ label.lbl {
   padding: 12px 0 2px;
 }
 
+.sheet-ver-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--subtle);
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
 /* Место кнопок «Заблокировать» и «В архив» у защищённых учёток: показываем,
    что действие недоступно, а не оставляем дыру в ряду кнопок. */
 .btn-icon.is-locked {
