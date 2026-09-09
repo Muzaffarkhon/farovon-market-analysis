@@ -526,9 +526,10 @@ function saveViewScroll(key){
   var tbl = b.querySelector('.tblwrap') || b.querySelector('.tbl-wrap') || b.querySelector('.co-list-scroll');
   var all = getAllViewScrolls();
   var prev = all[key] || {};
+  var isOrg = key.indexOf('admin:divisions') >= 0;
   all[key] = {
-    bodyTop: b.scrollTop,
-    bodyLeft: b.scrollLeft,
+    bodyTop: isOrg ? 0 : b.scrollTop,
+    bodyLeft: isOrg ? 0 : b.scrollLeft,
     tblTop: tbl ? tbl.scrollTop : 0,
     tblLeft: tbl ? tbl.scrollLeft : 0,
     activeId: (S.lastActiveIdByView && S.lastActiveIdByView[key]) || prev.activeId || null,
@@ -558,11 +559,16 @@ function restoreViewScroll(key, opts){
   if(!b) return;
 
   b._restoringScroll = true;
+  var isOrg = key.indexOf('admin:divisions') >= 0;
 
   var doApply = function(){
     if(!b) return;
-    if(data.bodyTop != null) b.scrollTop = data.bodyTop;
-    if(data.bodyLeft != null) b.scrollLeft = data.bodyLeft;
+    if(isOrg){
+      b.scrollTop = 0;
+    } else {
+      if(data.bodyTop != null) b.scrollTop = data.bodyTop;
+    }
+    if(data.bodyLeft != null) b.scrollLeft = isOrg ? 0 : data.bodyLeft;
 
     var tbl = b.querySelector('.tblwrap') || b.querySelector('.tbl-wrap') || b.querySelector('.co-list-scroll');
     if(tbl){
@@ -581,10 +587,19 @@ function restoreViewScroll(key, opts){
         document.querySelectorAll('.is-row-focused').forEach(function(el){ el.classList.remove('is-row-focused'); });
         row.classList.add('is-row-focused');
         try {
-          var rect = row.getBoundingClientRect();
-          var bRect = b.getBoundingClientRect();
-          if(rect.top < bRect.top + 20 || rect.bottom > bRect.bottom - 20){
-            row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          if(tbl && tbl.contains(row)){
+            var rTop = row.offsetTop;
+            var tScroll = tbl.scrollTop;
+            var tHeight = tbl.clientHeight;
+            if(rTop < tScroll || rTop > tScroll + tHeight - 40){
+              tbl.scrollTop = Math.max(0, rTop - 40);
+            }
+          } else {
+            var rect = row.getBoundingClientRect();
+            var bRect = b.getBoundingClientRect();
+            if(rect.top < bRect.top + 20 || rect.bottom > bRect.bottom - 20){
+              row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
           }
         } catch(e){}
       }

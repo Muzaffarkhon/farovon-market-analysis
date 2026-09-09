@@ -494,6 +494,11 @@ h3,
   box-sizing: border-box;
 }
 
+.wrap:has(.org-tree-wrapper),
+.wrap:has(.org-workspace-root) {
+  overflow-y: hidden;
+}
+
 body.has-bar .wrap {
   padding-bottom: 80px;
 }
@@ -6418,9 +6423,9 @@ html.compact {
 }
 
 .org-tree-wrapper .tblwrap--page {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
   overflow-y: auto;
   overflow-x: auto;
 }
