@@ -5016,7 +5016,15 @@ function renderAdminPanel(){
   var curTab = tabs.filter(function(t){ return t.id === S.adminTab; })[0];
   setTop(curTab ? curTab.label : 'Панель Администратора', userLabel(), false, curTab ? curTab.icon : 'admin');
 
-  $('body').innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>';
+  var adminEl = $('adminContent');
+  if(!adminEl){
+    $('body').innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>';
+  } else {
+    // Сохраняем текущие значения полей фильтров перед обновлением
+    if($('uSearch')) S.adminUsersSearch = $('uSearch').value;
+    if($('uRole')) S.adminUsersRole = $('uRole').value;
+    if($('uDept')) S.adminUsersDept = $('uDept').value;
+  }
 
   if(S.adminTab === 'users') loadAdminUsers();
   else if(S.adminTab === 'archive') loadAdminArchive();
@@ -5031,6 +5039,13 @@ function renderAdminPanel(){
 // ─── Вкладка: Пользователи ───
 function loadAdminUsers(){
   try { saveViewScroll('admin:users'); } catch(e){}
+  if($('uSearch')) S.adminUsersSearch = $('uSearch').value;
+  if($('uRole')) S.adminUsersRole = $('uRole').value;
+  if($('uDept')) S.adminUsersDept = $('uDept').value;
+
+  if(!S.adminUsers || !S.adminUsers.length){
+    $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка пользователей...</div>';
+  }
   // список ролей нужен для выпадашки в карточке пользователя — тянем в фоне
   if(!S.rolesList){
     call('apiAdminGetRoleCapabilities', S.token).then(function(rr){
@@ -5047,13 +5062,17 @@ function loadAdminUsers(){
   }
   call('apiAdminGetUsers', S.token).then(function(r){
     if(!r || !r.ok){
-      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки пользователей')+'</div>';
+      if(!S.adminUsers || !S.adminUsers.length){
+        $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки пользователей')+'</div>';
+      }
       return;
     }
     S.adminUsers = r.users || [];
     renderAdminUsers();
   }).catch(function(){
-    $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    if(!S.adminUsers || !S.adminUsers.length){
+      $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    }
   });
 }
 
@@ -5158,9 +5177,13 @@ function openDictActions(e, name){
 
 function renderAdminUsers(){
   var users = S.adminUsers || [];
-  var search = ($('uSearch') ? $('uSearch').value : '').toLowerCase();
-  var roleFilter = $('uRole') ? $('uRole').value : '';
-  var deptFilter = $('uDept') ? $('uDept').value : '';
+  var rawSearch = $('uSearch') ? $('uSearch').value : (S.adminUsersSearch || '');
+  var roleFilter = $('uRole') ? $('uRole').value : (S.adminUsersRole || '');
+  var deptFilter = $('uDept') ? $('uDept').value : (S.adminUsersDept || '');
+  S.adminUsersSearch = rawSearch;
+  S.adminUsersRole = roleFilter;
+  S.adminUsersDept = deptFilter;
+  var search = rawSearch.toLowerCase();
 
   // Список всех уникальных департаментов/направлений
   var dirs = [];
@@ -5206,7 +5229,7 @@ function renderAdminUsers(){
   // Поиск, фильтр роли, фильтр департамента, счётчик и кнопка — одной строкой
   var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
-      '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(search)+'"></div>'+
+      '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(rawSearch)+'"></div>'+
     '<select id="uRole" class="toolbar-select">'+
       '<option value="">Все роли ('+users.length+')</option>'+
       '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
@@ -5297,12 +5320,22 @@ function renderAdminUsers(){
 
   $('uSearch').oninput = function(){
     var pos = this.selectionStart;
+    S.adminUsersSearch = this.value;
+    saveNavState();
     renderAdminUsers();
     var again = $('uSearch');
     if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
   };
-  $('uRole').onchange = renderAdminUsers;
-  $('uDept').onchange = renderAdminUsers;
+  $('uRole').onchange = function(){
+    S.adminUsersRole = this.value;
+    saveNavState();
+    renderAdminUsers();
+  };
+  $('uDept').onchange = function(){
+    S.adminUsersDept = this.value;
+    saveNavState();
+    renderAdminUsers();
+  };
   $('btnAddUser').onclick = function(){ openUserModal(null); };
   try { restoreViewScroll('admin:users'); } catch(e){}
 }

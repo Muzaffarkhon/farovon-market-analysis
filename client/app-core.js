@@ -442,6 +442,9 @@ function navSnapshot(){
     dashSumTab: S.dashSumTab,
     adminTab: S.adminTab,
     adminDivsView: S.adminDivsView,
+    adminUsersSearch: S.adminUsersSearch || '',
+    adminUsersRole: S.adminUsersRole || '',
+    adminUsersDept: S.adminUsersDept || '',
     expandedDir: S.expandedDir,
     expandedUnit: S.expandedUnit,
     expandedSubUnit: S.expandedSubUnit || '',
@@ -465,6 +468,9 @@ function applyNavObject(nav){
   if(nav.dashSumTab) S.dashSumTab = nav.dashSumTab;
   if(nav.adminTab) S.adminTab = nav.adminTab;
   if(nav.adminDivsView) S.adminDivsView = nav.adminDivsView;
+  if(nav.adminUsersSearch !== undefined) S.adminUsersSearch = nav.adminUsersSearch;
+  if(nav.adminUsersRole !== undefined) S.adminUsersRole = nav.adminUsersRole;
+  if(nav.adminUsersDept !== undefined) S.adminUsersDept = nav.adminUsersDept;
   if(nav.expandedDir !== undefined) S.expandedDir = nav.expandedDir;
   if(nav.expandedUnit !== undefined) S.expandedUnit = nav.expandedUnit;
   if(nav.expandedSubUnit !== undefined) S.expandedSubUnit = nav.expandedSubUnit;
