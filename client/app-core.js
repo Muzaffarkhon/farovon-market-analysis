@@ -686,7 +686,23 @@ window.addEventListener('popstate', function(e){
   }
 });
 
-function $(id){ return document.getElementById(id); }
+function $(id){
+  if(!id) return null;
+  if(id === 'body' && window.WorkspaceTabs && window.WorkspaceTabs.getActivePane){
+    var p = window.WorkspaceTabs.getActivePane();
+    if(p) return p;
+  }
+  if(window.WorkspaceTabs && window.WorkspaceTabs.getActivePane){
+    var p = window.WorkspaceTabs.getActivePane();
+    if(p){
+      try {
+        var el = p.querySelector('#' + (window.CSS && CSS.escape ? CSS.escape(id) : id));
+        if(el) return el;
+      } catch(e){}
+    }
+  }
+  return document.getElementById(id);
+}
 // Экранирование для вставки в HTML. Помимо & < > " гасим и одинарную кавычку
 // (&#39;) — на случай атрибутов в одинарных кавычках и inline-обработчиков,
 // чтобы esc() был безопасен в любом HTML-контексте, а не только в "...".
@@ -694,7 +710,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = 'v2.2.2';
+var APP_VERSION = 'v2.3.0';
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
  *  Неразрывные пробелы, чтобы инициалы не переносились. */
@@ -797,6 +813,258 @@ function icBare(name, size){
   size = size || 14;
   return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none">'+(ICONS[name]||'')+'</svg>';
 }
+
+// ═══════════════════════════════════════════════════════════
+// МНОГОВКЛАДОЧНАЯ РАБОЧАЯ ОБЛАСТЬ (В стиле АИСТ / aist.taxsee.com)
+// ═══════════════════════════════════════════════════════════
+var WorkspaceTabs = {
+  tabs: [],          // [{ id, key, title, icon, run, state, paneEl, scroll }]
+  activeId: null,
+  history: [],
+  isInsideTabRun: false,
+
+  getTab: function(id){
+    for(var i = 0; i < this.tabs.length; i++){
+      if(this.tabs[i].id === id) return this.tabs[i];
+    }
+    return null;
+  },
+
+  getTabByKey: function(key){
+    for(var i = 0; i < this.tabs.length; i++){
+      if(this.tabs[i].key === key) return this.tabs[i];
+    }
+    return null;
+  },
+
+  getActivePane: function(){
+    if(!this.activeId) return null;
+    var t = this.getTab(this.activeId);
+    return t ? t.paneEl : null;
+  },
+
+  init: function(){
+    var bar = document.getElementById('workspaceTabs');
+    if(!bar) return;
+    var self = this;
+    bar.onclick = function(e){
+      var closeBtn = e.target.closest('[data-ws-close]');
+      if(closeBtn){
+        e.stopPropagation();
+        self.closeTab(closeBtn.dataset.wsClose);
+        return;
+      }
+      var tabEl = e.target.closest('[data-ws-id]');
+      if(tabEl){
+        self.activateTab(tabEl.dataset.wsId);
+      }
+    };
+    bar.onauxclick = function(e){
+      if(e.button === 1){
+        var tabEl = e.target.closest('[data-ws-id]');
+        if(tabEl){
+          e.preventDefault();
+          e.stopPropagation();
+          self.closeTab(tabEl.dataset.wsId);
+        }
+      }
+    };
+  },
+
+  openTab: function(opts){
+    if(!opts || !opts.key) return null;
+    var existing = this.getTabByKey(opts.key);
+    if(existing){
+      if(opts.title) existing.title = opts.title;
+      if(opts.icon) existing.icon = opts.icon;
+      if(opts.state){
+        for(var k in opts.state){ existing.state[k] = opts.state[k]; }
+      }
+      this.activateTab(existing.id);
+      return existing;
+    }
+
+    var bodyContainer = document.getElementById('body');
+    if(!bodyContainer) return null;
+    bodyContainer.classList.add('has-workspace-tabs');
+
+    var id = 'tab_' + Math.random().toString(36).slice(2, 9);
+    var pane = document.createElement('div');
+    pane.className = 'workspace-pane';
+    pane.id = 'pane_' + id;
+    pane.dataset.tabId = id;
+    bodyContainer.appendChild(pane);
+
+    var tab = {
+      id: id,
+      key: opts.key,
+      title: opts.title || 'Вкладка',
+      icon: opts.icon || 'units',
+      run: opts.run,
+      state: opts.state || {},
+      paneEl: pane,
+      scroll: 0
+    };
+
+    this.tabs.push(tab);
+    this.activateTab(id, true);
+    return tab;
+  },
+
+  activateTab: function(id, isNew){
+    var target = this.getTab(id);
+    if(!target) return;
+
+    if(this.activeId && this.activeId !== id){
+      var cur = this.getTab(this.activeId);
+      if(cur){
+        if(cur.paneEl){
+          cur.scroll = cur.paneEl.scrollTop || 0;
+          cur.paneEl.classList.add('hidden');
+        }
+        cur.state = cur.state || {};
+        cur.state.appView = S.appView;
+        cur.state.unit = S.unit;
+        cur.state.adminTab = S.adminTab;
+        cur.state.dashTab = S.dashTab;
+        cur.state.dirty = S.dirty;
+      }
+    }
+
+    this.activeId = id;
+    this.history = this.history.filter(function(hid){ return hid !== id; });
+    this.history.push(id);
+
+    if(target.state){
+      if(target.state.appView !== undefined) S.appView = target.state.appView;
+      if(target.state.unit !== undefined) S.unit = target.state.unit;
+      if(target.state.adminTab !== undefined) S.adminTab = target.state.adminTab;
+      if(target.state.dashTab !== undefined) S.dashTab = target.state.dashTab;
+      if(target.state.dirty !== undefined) S.dirty = target.state.dirty;
+    }
+
+    if(target.paneEl){
+      target.paneEl.classList.remove('hidden');
+    }
+
+    if(isNew || (target.paneEl && !target.paneEl.childNodes.length)){
+      if(typeof target.run === 'function'){
+        this.isInsideTabRun = true;
+        try {
+          target.run();
+        } finally {
+          this.isInsideTabRun = false;
+        }
+      }
+    }
+
+    if(target.paneEl){
+      target.paneEl.scrollTop = target.scroll || 0;
+    }
+
+    this.renderBar();
+
+    if(typeof renderNav === 'function') renderNav();
+    if(typeof updateTopPeriodBadge === 'function') updateTopPeriodBadge();
+  },
+
+  closeTab: function(id, force){
+    var tab = this.getTab(id);
+    if(!tab) return;
+    var self = this;
+    var isDirty = (this.activeId === id && S.dirty) || (tab.state && tab.state.dirty);
+
+    function doClose(){
+      if(tab.paneEl && tab.paneEl.parentNode){
+        tab.paneEl.parentNode.removeChild(tab.paneEl);
+      }
+      self.tabs = self.tabs.filter(function(t){ return t.id !== id; });
+      self.history = self.history.filter(function(hid){ return hid !== id; });
+
+      if(self.activeId === id){
+        if(self.history.length){
+          var prevId = self.history[self.history.length - 1];
+          self.activateTab(prevId);
+        } else if(self.tabs.length){
+          self.activateTab(self.tabs[self.tabs.length - 1].id);
+        } else {
+          self.activeId = null;
+          var bodyContainer = document.getElementById('body');
+          if(bodyContainer) bodyContainer.classList.remove('has-workspace-tabs');
+          self.renderBar();
+          if(typeof switchView === 'function') switchView('units');
+        }
+      } else {
+        self.renderBar();
+      }
+    }
+
+    if(isDirty && !force && typeof askDirty === 'function'){
+      askDirty('Закрыть вкладку «' + tab.title + '»').then(function(yes){
+        if(yes){
+          if(self.activeId === id) S.dirty = false;
+          doClose();
+        }
+      });
+    } else {
+      doClose();
+    }
+  },
+
+  updateActiveTitle: function(title, icon){
+    var cur = this.getTab(this.activeId);
+    if(!cur) return;
+    if(title) cur.title = title;
+    if(icon) cur.icon = icon;
+    this.renderBar();
+  },
+
+  renderBar: function(){
+    var bar = document.getElementById('workspaceTabs');
+    if(!bar) return;
+    if(!this.tabs.length){
+      bar.classList.add('hidden');
+      document.documentElement.style.setProperty('--tabs-bar-h', '0px');
+      return;
+    }
+    bar.classList.remove('hidden');
+    document.documentElement.style.setProperty('--tabs-bar-h', '36px');
+
+    var self = this;
+    var html = this.tabs.map(function(t){
+      var isActive = (t.id === self.activeId);
+      var isDirty = (isActive && S.dirty) || (t.state && t.state.dirty);
+      return '<div class="ws-tab ' + (isActive ? 'active' : '') + '" data-ws-id="' + esc(t.id) + '" title="' + esc(t.title) + '">' +
+        '<span class="ws-tab-icon">' + (typeof icBare === 'function' ? icBare(t.icon, 13) : '') + '</span>' +
+        '<span class="ws-tab-title">' + esc(t.title) + '</span>' +
+        (isDirty ? '<span class="ws-tab-dirty" title="Несохранённые изменения"></span>' : '') +
+        '<button type="button" class="ws-tab-close" data-ws-close="' + esc(t.id) + '" title="Закрыть вкладку">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>' +
+        '</button>' +
+      '</div>';
+    }).join('');
+
+    bar.innerHTML = html;
+
+    var activeEl = bar.querySelector('.ws-tab.active');
+    if(activeEl && typeof activeEl.scrollIntoView === 'function'){
+      try { activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch(e){}
+    }
+  }
+};
+window.WorkspaceTabs = WorkspaceTabs;
+
+window.addEventListener('keydown', function(e){
+  if((e.ctrlKey || e.metaKey) && (e.key === 'w' || e.key === 'W' || e.keyCode === 87)){
+    var tag = document.activeElement ? document.activeElement.tagName : '';
+    if(tag !== 'INPUT' && tag !== 'TEXTAREA'){
+      if(window.WorkspaceTabs && WorkspaceTabs.activeId && WorkspaceTabs.tabs.length > 1){
+        e.preventDefault();
+        WorkspaceTabs.closeTab(WorkspaceTabs.activeId);
+      }
+    }
+  }
+});
 /** Дата входа приходит с сервера сырым ISO-таймстампом — приводим к «ДД.ММ.ГГГГ ЧЧ:ММ». */
 /**
  * Дата и время в часовом поясе Душанбе (UTC+5).
@@ -1994,5 +2262,6 @@ function renderRail(){ renderNav(); }
   $('loginHelp').innerHTML =
     '<p style="text-align:center;color:var(--muted);font-size:14px;margin-top:16px">'+
     'Логин и пароль присылает бот. Не приходил — обратитесь к своему HR BP.</p>';
+  if(window.WorkspaceTabs) WorkspaceTabs.init();
 })();
 

@@ -202,9 +202,25 @@ function navModel(){
     t.active = (function(atab){
       return function(){ return S.appView === 'admin' && S.adminTab === atab; };
     })(t.atab);
-    t.run = (function(atab){
-      return function(){ S.adminTab = atab; switchView('admin'); };
-    })(t.atab);
+    t.run = (function(tObj){
+      return function(){
+        if(window.WorkspaceTabs && WorkspaceTabs.openTab){
+          WorkspaceTabs.openTab({
+            key: 'admin:' + tObj.atab,
+            title: tObj.label,
+            icon: tObj.icon,
+            state: { appView: 'admin', adminTab: tObj.atab, unit: null },
+            run: function(){
+              S.adminTab = tObj.atab;
+              openAdminPanel();
+            }
+          });
+        } else {
+          S.adminTab = tObj.atab;
+          switchView('admin');
+        }
+      };
+    })(t);
     return t;
   }) : [];
 
@@ -215,7 +231,21 @@ function navModel(){
     key:'admin', label:'Панель администратора', tabLabel:'Админка', icon:'admin',
     active:function(){ return S.appView === 'admin'; }, inTabs:true,
     submenu: admin.length >= 2 ? admin : null,
-    run:function(){ switchView('admin'); }
+    run:function(){
+      if(window.WorkspaceTabs && WorkspaceTabs.openTab){
+        var atab = S.adminTab || (admin[0] ? admin[0].atab : 'users');
+        var cur = admin.filter(function(x){ return x.atab === atab; })[0] || admin[0];
+        WorkspaceTabs.openTab({
+          key: 'admin:' + atab,
+          title: cur ? cur.label : 'Панель администратора',
+          icon: cur ? cur.icon : 'admin',
+          state: { appView: 'admin', adminTab: atab, unit: null },
+          run: function(){ openAdminPanel(); }
+        });
+      } else {
+        switchView('admin');
+      }
+    }
   } : null;
 
   var utility = [
@@ -244,7 +274,7 @@ function navModel(){
 function navGo(item){
   if(!item) return;
   if(item.active && item.active()) return;
-  if(S.dirty){
+  if(S.dirty && (!window.WorkspaceTabs || !WorkspaceTabs.openTab)){
     askDirty('Переключить раздел').then(function(yes){
       if(yes){ S.dirty = false; item.run(); }
     });
@@ -309,7 +339,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.3.0')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -344,7 +374,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.3.0')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -360,14 +390,13 @@ function openNavSubmenu(item){
 function renderTopNav(){ renderNav(); }
 
 function switchView(v){
-  S.appView = v;
-  S.unit = null;
-  renderTopNav();
   if(v === 'home') renderHome();
   else if(v === 'units') renderUnits();
   else if(v === 'dashboard') openDashboard();
   else if(v === 'benchmarks') openBenchmarks();
   else if(v === 'admin') openAdminPanel();
+  else if(v === 'progress') openProgress();
+  else if(v === 'dept_assign') openDeptAssign();
 }
 
 /**
@@ -397,7 +426,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.2.2')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.3.0')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -427,7 +456,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.2.2')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.3.0')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -940,6 +969,16 @@ function renderCurrentView(){
  * Карточки ведут в те же экраны, что и боковая панель (те же open*-функции).
  */
 function renderHome(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'home',
+      title: 'Главная',
+      icon: 'home',
+      state: { appView: 'home', unit: null },
+      run: function(){ renderHome(); }
+    });
+    return;
+  }
   S.appView = 'home';
   S.unit = null;
   S.dirty = false;
@@ -1155,6 +1194,16 @@ function renderUnitPicker(){
 // ЭКРАН: список подразделений
 // ═══════════════════════════════════════════════════════════
 function renderUnits(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'units',
+      title: 'Подразделения',
+      icon: 'units',
+      state: { appView: 'units', unit: null },
+      run: function(){ renderUnits(); }
+    });
+    return;
+  }
   S.appView = 'units';
   S.unit = null;
   S.dirty = false;
@@ -1497,6 +1546,9 @@ function setTop(title, sub, back, icon){
     $('ttl').innerHTML = (icon ? ic(icon, 15) : '') + esc(title) + (sub ? '<span class="sub"> · '+esc(sub)+'</span>' : '');
     $('btnBack').classList.toggle('hidden', !back);
   }
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(title, icon);
+  }
   // has-bar на <body> (не на #body) — CSS-правила отступа под липкую панель и
   // подъёма тостов написаны как `body.has-bar …`; раньше класс вешался на
   // #body, правила не срабатывали и панель наезжала на низ контента.
@@ -1549,6 +1601,16 @@ function mergeGroupSurveys(rows, unit){
 }
 
 function openUnit(unit, backTo){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'unit:' + unit,
+      title: unit,
+      icon: 'units',
+      state: { appView: 'unit', unit: unit },
+      run: function(){ openUnit(unit, backTo); }
+    });
+    return;
+  }
   S.backTo = backTo || renderUnits;
   S.appView = 'unit';
   S.unit = unit;
@@ -3470,6 +3532,16 @@ function skDash(){
 // АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
 // ═══════════════════════════════════════════════════════════
 function openDashboard(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'dashboard',
+      title: 'Дашборд',
+      icon: 'dashboard',
+      state: { appView: 'dashboard', unit: null },
+      run: function(){ openDashboard(); }
+    });
+    return;
+  }
   S.appView = 'dashboard';
   S.unit = null;
   saveNavState();
@@ -4974,6 +5046,30 @@ function declOfNum(n, titles){
 // ПАНЕЛЬ АДМИНИСТРАТОРА
 // ═══════════════════════════════════════════════════════════
 function openAdminPanel(){
+  var atab = S.adminTab || 'users';
+  var atabNames = {
+    users: 'Пользователи', archive: 'Архив', divisions: 'Оргструктура',
+    dict: 'Справочники', period: 'Период сбора', tools: 'Сервисные утилиты',
+    audit: 'Журнал действий', roles: 'Роли и доступы'
+  };
+  var atabIcons = {
+    users: 'users', archive: 'archive', divisions: 'units',
+    dict: 'book', period: 'clock', tools: 'wrench',
+    audit: 'clipboard', roles: 'shield'
+  };
+  var tabTitle = atabNames[atab] || 'Администрирование';
+  var tabIcon = atabIcons[atab] || 'admin';
+
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'admin:' + atab,
+      title: tabTitle,
+      icon: tabIcon,
+      state: { appView: 'admin', adminTab: atab, unit: null },
+      run: function(){ openAdminPanel(); }
+    });
+    return;
+  }
   S.appView = 'admin';
   S.unit = null;
   saveNavState();
@@ -8378,6 +8474,16 @@ function openDivisionModal(unit, opts){
  * за этим руководителем администратором (см. getDivisions/saveDivision).
  */
 function openDeptAssign(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'dept_assign',
+      title: 'Назначить ответственных',
+      icon: 'clipboard',
+      state: { appView: 'dept_assign', unit: null },
+      run: function(){ openDeptAssign(); }
+    });
+    return;
+  }
   S.appView = 'dept_assign';
   S.unit = null;
   saveNavState();
@@ -10020,6 +10126,16 @@ function wireAdminRoles(groups){
 // заполнил», без зарплатных вилок и перцентилей. Данные — apiDashboard.
 // ═══════════════════════════════════════════════════════════
 function openProgress(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'progress',
+      title: 'Сводка по подразделениям',
+      icon: 'clipboard',
+      state: { appView: 'progress', unit: null },
+      run: function(){ openProgress(); }
+    });
+    return;
+  }
   S.appView = 'progress';
   S.unit = null;
   saveNavState();
@@ -10319,6 +10435,16 @@ function renderSourceBadge(sourceKey, isLicensed, customTitle){
 }
 
 function openBenchmarks(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'benchmarks',
+      title: 'Бенчмаркинг',
+      icon: 'chart',
+      state: { appView: 'benchmarks', unit: null },
+      run: function(){ openBenchmarks(); }
+    });
+    return;
+  }
   S.appView = 'benchmarks';
   S.unit = null;
   saveNavState();
