@@ -434,22 +434,55 @@ exports.resetPassword = async (req, res) => {
 };
 
 // ─── Оргструктура ───
+/**
+ * Вычисляет набор доступных подразделений (с каскадом по parent_unit и dir)
+ * для руководителя направления (dir_head) или руководителя подотделов (head).
+ */
+function getAccessibleDivisions(user, allDivs) {
+  const userUnits = Array.isArray(user.units)
+    ? user.units
+    : (user.units ? String(user.units).split(';').map(s => s.trim()).filter(Boolean) : []);
+  const fio = (user.fio || '').trim();
+
+  const scopeUnits = new Set();
+  const scopeDirs = new Set();
+
+  for (const d of allDivs) {
+    const isMyDir = userUnits.includes(d.dir);
+    const isMyUnit = userUnits.includes(d.unit);
+    const isHead = fio && d.head && d.head.split(',').map(s => s.trim()).includes(fio);
+    if (isMyDir) scopeDirs.add(d.dir);
+    if (isMyDir || isMyUnit || isHead) scopeUnits.add(d.unit);
+  }
+
+  let added = true;
+  while (added) {
+    added = false;
+    for (const d of allDivs) {
+      if (!scopeUnits.has(d.unit)) {
+        if ((d.parent_unit && scopeUnits.has(d.parent_unit)) || (d.dir && scopeDirs.has(d.dir))) {
+          scopeUnits.add(d.unit);
+          added = true;
+        }
+      }
+    }
+  }
+
+  return allDivs.filter(d => scopeUnits.has(d.unit));
+}
+
 exports.getDivisions = async (req, res) => {
   try {
-    // dir_head видит и правит отделы своего направления или закреплённые подразделения.
-    if (req.user.role === 'dir_head') {
-      const myDirs = req.user.units || [];
-      if (!myDirs.length) return res.json({ ok: true, divisions: [], groupSuggestions: [] });
-      const placeholders = myDirs.map(() => '?').join(',');
-      const divisions = await queryAll(
-        `SELECT * FROM divisions WHERE dir IN (${placeholders}) OR unit IN (${placeholders}) ORDER BY num ASC, unit ASC`,
-        [...myDirs, ...myDirs]
-      );
-      return res.json({ ok: true, divisions, groupSuggestions: suggestAdjacentGroups(divisions) });
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'cb' || req.user.role === 'hrbp';
+    const allDivisions = await queryAll('SELECT * FROM divisions ORDER BY num ASC, unit ASC');
+
+    if (!isAdmin) {
+      // dir_head и head видят подразделения своего направления или своей ветки оргструктуры
+      const accessible = getAccessibleDivisions(req.user, allDivisions);
+      return res.json({ ok: true, divisions: accessible, groupSuggestions: suggestAdjacentGroups(accessible) });
     }
 
-    const divisions = await queryAll('SELECT * FROM divisions ORDER BY num ASC, unit ASC');
-    res.json({ ok: true, divisions, groupSuggestions: suggestAdjacentGroups(divisions) });
+    res.json({ ok: true, divisions: allDivisions, groupSuggestions: suggestAdjacentGroups(allDivisions) });
   } catch (err) {
     console.error('getDivisions error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки подразделений' });
@@ -710,19 +743,20 @@ exports.saveDivision = async (req, res) => {
     const existing = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
     const isAdmin = req.user.role === 'admin' || req.user.role === 'cb';
 
-    // dir_head назначает ответственных только по отделам СВОЕГО направления
+    // dir_head и head назначают ответственных только по подразделениям своего направления или своей ветки оргструктуры
     if (!isAdmin) {
-      if (req.user.role !== 'dir_head') {
+      if (req.user.role !== 'dir_head' && req.user.role !== 'head') {
         return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
       }
       if (!existing) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
 
-      const myDirs = req.user.units || [];
-      const inMyDirection = myDirs.includes(existing.dir) || myDirs.includes(existing.unit);
-      if (!inMyDirection) {
+      const allDivs = await queryAll('SELECT * FROM divisions');
+      const accessible = getAccessibleDivisions(req.user, allDivs);
+      const isAllowed = accessible.some(d => d.unit === cleanUnit);
+      if (!isAllowed) {
         return res.status(403).json({
           ok: false,
-          error: 'Можно назначать ответственных только по отделам своего направления'
+          error: 'Можно назначать ответственных только по подразделениям своего направления или ветки'
         });
       }
       if (cleanDir !== null && cleanDir !== existing.dir) {
@@ -744,7 +778,7 @@ exports.saveDivision = async (req, res) => {
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
-        'правка подразделения (dir_head)',
+        `правка подразделения (${req.user.role})`,
         `Подразделение: ${cleanUnit}, Рук: ${head}, Отв: ${resp}`
       ]);
 
@@ -925,6 +959,18 @@ exports.batchAssignCascade = async (req, res) => {
 
   const cleanDir = String(dir).trim();
   const cleanPerson = String(personName || '').trim();
+
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'cb';
+  if (!isAdmin) {
+    if (req.user.role === 'dir_head') {
+      const myDirs = req.user.units || [];
+      if (!myDirs.includes(cleanDir)) {
+        return res.status(403).json({ ok: false, error: 'Массовое назначение доступно только для своего направления' });
+      }
+    } else {
+      return res.status(403).json({ ok: false, error: 'Массовое назначение на всё направление доступно руководителю направления или администратору' });
+    }
+  }
 
   try {
     let divResult;
@@ -2033,3 +2079,5 @@ exports.importSurvey = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'Ошибка импорта. Подробности в логах сервера.' });
   }
 };
+
+exports.getAccessibleDivisions = getAccessibleDivisions;

@@ -5037,6 +5037,14 @@ function loadAdminUsers(){
       if(rr && rr.ok) S.rolesList = (rr.roles || []).map(function(x){ return { key:x.key, label:x.label }; });
     }).catch(function(){});
   }
+  if(!S.adminDivs || !S.adminDivs.length){
+    call('apiAdminGetDivisions', S.token).then(function(dRes){
+      if(dRes && dRes.ok){
+        S.adminDivs = dRes.divisions || [];
+        if($('uDept')) renderAdminUsers();
+      }
+    }).catch(function(){});
+  }
   call('apiAdminGetUsers', S.token).then(function(r){
     if(!r || !r.ok){
       $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки пользователей')+'</div>';
@@ -5152,16 +5160,50 @@ function renderAdminUsers(){
   var users = S.adminUsers || [];
   var search = ($('uSearch') ? $('uSearch').value : '').toLowerCase();
   var roleFilter = $('uRole') ? $('uRole').value : '';
+  var deptFilter = $('uDept') ? $('uDept').value : '';
+
+  // Список всех уникальных департаментов/направлений
+  var dirs = [];
+  if(S.adminDivs && S.adminDivs.length){
+    var dirSet = {};
+    S.adminDivs.forEach(function(d){
+      if(d.dir) dirSet[d.dir] = true;
+    });
+    dirs = Object.keys(dirSet).sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+  }
 
   var filtered = users.filter(function(u){
-    var matchSearch = !search || u.fio.toLowerCase().indexOf(search) >= 0 || u.login.toLowerCase().indexOf(search) >= 0;
+    var matchSearch = !search || (u.fio && u.fio.toLowerCase().indexOf(search) >= 0) || (u.login && u.login.toLowerCase().indexOf(search) >= 0);
     var matchRole = !roleFilter || u.role === roleFilter;
-    return matchSearch && matchRole;
+    var matchDept = true;
+    if(deptFilter){
+      matchDept = false;
+      var uUnits = u.units || [];
+      if(uUnits.indexOf(deptFilter) >= 0){
+        matchDept = true;
+      } else if(S.adminDivs && S.adminDivs.length){
+        var deptDivs = S.adminDivs.filter(function(d){ return d.dir === deptFilter; });
+        var deptUnitNames = deptDivs.map(function(d){ return d.unit; });
+        for(var i = 0; i < uUnits.length; i++){
+          if(deptUnitNames.indexOf(uUnits[i]) >= 0){ matchDept = true; break; }
+        }
+        if(!matchDept){
+          var fio = (u.fio || '').trim();
+          if(fio){
+            for(var j = 0; j < deptDivs.length; j++){
+              var d = deptDivs[j];
+              if((d.head && d.head.indexOf(fio) >= 0) || (d.resp && d.resp.indexOf(fio) >= 0) || (d.hrbp && d.hrbp.indexOf(fio) >= 0)){
+                matchDept = true; break;
+              }
+            }
+          }
+        }
+      }
+    }
+    return matchSearch && matchRole && matchDept;
   });
 
-  // Поиск, фильтр роли, счётчик и кнопка — одной строкой. Раньше это были три
-  // строки подряд (фильтры / кнопка / заголовок со счётчиком), и таблица из-за
-  // них начиналась заметно ниже, чем могла бы.
+  // Поиск, фильтр роли, фильтр департамента, счётчик и кнопка — одной строкой
   var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
       '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(search)+'"></div>'+
@@ -5173,6 +5215,12 @@ function renderAdminUsers(){
       '<option value="dir_head"'+(roleFilter==='dir_head'?' selected':'')+'>Руководители направлений</option>'+
       '<option value="head"'+(roleFilter==='head'?' selected':'')+'>Руководители отделов</option>'+
       '<option value="user"'+(roleFilter==='user'?' selected':'')+'>Сотрудники (user)</option>'+
+    '</select>'+
+    '<select id="uDept" class="toolbar-select" style="max-width:240px">'+
+      '<option value="">Все департаменты ('+dirs.length+')</option>'+
+      dirs.map(function(dirName){
+        return '<option value="'+esc(dirName)+'"'+(deptFilter===dirName?' selected':'')+'>'+esc(dirName)+'</option>';
+      }).join('')+
     '</select>'+
     tblCount(filtered.length, users.length, ['пользователь', 'пользователя', 'пользователей'])+
     '<button id="btnAddUser" class="btn-primary toolbar-act">+ Добавить пользователя</button>'+
@@ -5194,7 +5242,7 @@ function renderAdminUsers(){
       '<td class="u-t-dim">'+esc(u.phone || '—')+'</td>'+
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
-      '<td>'+(u.units?u.units.length:0)+'</td>'+
+      '<td class="u-t-dim" title="'+esc((u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</td>'+
       '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
@@ -5211,7 +5259,7 @@ function renderAdminUsers(){
         'Логин: <b>'+esc(u.login)+'</b>'+
         (u.phone ? ' · Тел: '+esc(u.phone) : '') +
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
-        '<br>Подразделений: <b>'+(u.units?u.units.length:0)+'</b>'+
+        '<br>Подразделений: <b title="'+esc((u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</b>'+
         (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
       '<div class="u-acts">'+userActs(u, false)+'</div>'+
@@ -5254,6 +5302,7 @@ function renderAdminUsers(){
     if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
   };
   $('uRole').onchange = renderAdminUsers;
+  $('uDept').onchange = renderAdminUsers;
   $('btnAddUser').onclick = function(){ openUserModal(null); };
   try { restoreViewScroll('admin:users'); } catch(e){}
 }
@@ -6337,6 +6386,34 @@ function renderAdminDivisions(){
         return !staffSearch || (u.fio && u.fio.toLowerCase().indexOf(staffSearch) >= 0) || (u.role && u.role.toLowerCase().indexOf(staffSearch) >= 0);
       });
 
+      var selDir = selNode ? (selNode.dir || (selNode.type === 'dir' ? selNode.unit : '')) : '';
+      var selUnit = selNode ? selNode.unit : '';
+
+      var isDeptStaff = function(u){
+        var uUnits = u.units || [];
+        if(selUnit && uUnits.indexOf(selUnit) >= 0) return true;
+        if(selDir && uUnits.indexOf(selDir) >= 0) return true;
+        if(selDir && S.adminDivs && S.adminDivs.length){
+          var deptDivs = S.adminDivs.filter(function(d){ return d.dir === selDir; });
+          var deptUnitNames = deptDivs.map(function(d){ return d.unit; });
+          for(var i = 0; i < uUnits.length; i++){
+            if(deptUnitNames.indexOf(uUnits[i]) >= 0) return true;
+          }
+          var fio = (u.fio || '').trim();
+          if(fio){
+            for(var j = 0; j < deptDivs.length; j++){
+              var d = deptDivs[j];
+              if((d.head && d.head.indexOf(fio) >= 0) || (d.resp && d.resp.indexOf(fio) >= 0) || (d.hrbp && d.hrbp.indexOf(fio) >= 0)) return true;
+            }
+          }
+        }
+        return false;
+      };
+
+      var deptStaff = allStaff.filter(isDeptStaff);
+      var showAllStaff = !!S.orgStaffShowAll || (deptStaff.length === 0 && !staffSearch);
+      var displayStaff = (showAllStaff || staffSearch) ? allStaff : deptStaff;
+
       var isBoardSelected = isBoardName(selTitle) || (selNode && isBoardName(selNode.unit || selNode.dir));
       var isExecSelected = isExecName(selTitle) || (selNode && isExecName(selNode.unit || selNode.dir));
       var isAuditSelected = isAuditName(selTitle) || (selNode && isAuditName(selNode.unit || selNode.dir));
@@ -6377,7 +6454,7 @@ function renderAdminDivisions(){
 
 
         '<div class="org-drawer-stats">'+
-          '<div class="org-stat-pill">Всего сотрудников <b>'+allStaff.length+'</b></div>'+
+          '<div class="org-stat-pill">Сотрудников направления <b>'+deptStaff.length+'</b></div>'+
           '<div class="org-stat-pill">Руководителей <b>'+leaders.length+'</b></div>'+
         '</div>'+
 
@@ -6421,9 +6498,14 @@ function renderAdminDivisions(){
             '<div class="org-leader-drop-zone" data-drop-role="head" style="border:1.5px dashed var(--line-strong);border-radius:var(--radius-sm);padding:16px 12px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer">+ Перетащите сотрудника сюда для назначения</div>'
           )+
 
-          // Подчинённые / Все сотрудники
-          '<div class="org-section-lbl" style="margin-top:8px">' + ic('users', 14) + 'Сотрудники для назначения (' + allStaff.length + ')</div>'+
-          (allStaff.length ? allStaff.map(function(u){
+          // Подчинённые / Сотрудники для назначения
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;margin-bottom:6px">'+
+            '<div class="org-section-lbl" style="margin:0">' + ic('users', 14) + (showAllStaff ? 'Все сотрудники (' + displayStaff.length + ')' : 'Сотрудники направления (' + displayStaff.length + ')') + '</div>'+
+            '<button type="button" class="btn-ghost" id="btnToggleStaffScope" style="font-size:11.5px;padding:2px 8px;min-height:22px;color:var(--accent);border-radius:4px">' +
+              (showAllStaff ? 'Только свои (' + deptStaff.length + ')' : 'Все компании (' + allStaff.length + ')') +
+            '</button>'+
+          '</div>'+
+          (displayStaff.length ? displayStaff.map(function(u){
             return '<div class="org-staff-row" draggable="true" data-drag-staff="'+esc(u.fio)+'" data-staff-role="'+esc(u.role)+'" title="Зажмите и перетащите сотрудника на карточку отдела или на руководителя вверху">'+
               '<div class="org-avatar-circle" style="background:var(--subtle)">'+getInitials(u.fio)+'</div>'+
               '<div style="flex:1;overflow:hidden">'+
@@ -6942,6 +7024,14 @@ function renderAdminDivisions(){
     var toggleDrawerBtn = e.target.closest('#btnToggleDrawer');
     if(toggleDrawerBtn){
       S.orgDrawerCollapsed = !S.orgDrawerCollapsed;
+      saveNavState();
+      renderAdminDivisions();
+      return;
+    }
+
+    var toggleStaffScopeBtn = e.target.closest('#btnToggleStaffScope');
+    if(toggleStaffScopeBtn){
+      S.orgStaffShowAll = !S.orgStaffShowAll;
       saveNavState();
       renderAdminDivisions();
       return;
