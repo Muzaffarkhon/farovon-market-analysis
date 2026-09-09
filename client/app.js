@@ -928,6 +928,7 @@ function renderCurrentView(){
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
   else renderUnits();
+  try { restoreViewScroll(); } catch(e){}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1242,8 +1243,12 @@ function renderUnits(){
 
   $('body').onclick = function(e){
     var el = e.target.closest('.unit');
-    if(el && el.dataset.u) openUnit(el.dataset.u);
+    if(el && el.dataset.u){
+      try { markActiveItem('unit_' + el.dataset.u, 'units'); } catch(e2){}
+      openUnit(el.dataset.u);
+    }
   };
+  try { restoreViewScroll('units'); } catch(e){}
 }
 
 /**
@@ -5025,6 +5030,7 @@ function renderAdminPanel(){
 
 // ─── Вкладка: Пользователи ───
 function loadAdminUsers(){
+  try { saveViewScroll('admin:users'); } catch(e){}
   // список ролей нужен для выпадашки в карточке пользователя — тянем в фоне
   if(!S.rolesList){
     call('apiAdminGetRoleCapabilities', S.token).then(function(rr){
@@ -5075,8 +5081,10 @@ function closeOverflowMenus(){
 function openOverflowMenu(e, actions){
   if(e){ e.preventDefault(); e.stopPropagation(); }
   closeOverflowMenus();
-  var anchor = e && (e.currentTarget || e.target.closest('button'));
-  if(!anchor) return;
+  var anchor = e && (e.currentTarget || (e.target && e.target.closest && e.target.closest('button')));
+  var hasCoord = e && typeof e.clientX === 'number' && e.clientX > 0;
+  var isMousePos = hasCoord && (e._fromCtx || e.type === 'contextmenu' || e.button === 2);
+  if(!anchor && !hasCoord) return;
 
   var menu = document.createElement('div');
   menu.className = 'row-menu-pop';
@@ -5098,9 +5106,17 @@ function openOverflowMenu(e, actions){
   });
   menu.onclick = function(evt){ evt.stopPropagation(); };
   document.body.appendChild(menu);
-  var rect = anchor.getBoundingClientRect();
-  menu.style.top = Math.min(window.innerHeight - menu.offsetHeight - 8, rect.bottom + 4) + 'px';
-  menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth)) + 'px';
+
+  if(isMousePos || (!anchor && hasCoord)){
+    var top = Math.min(window.innerHeight - menu.offsetHeight - 8, Math.max(8, e.clientY + 2));
+    var left = Math.min(window.innerWidth - menu.offsetWidth - 8, Math.max(8, e.clientX + 2));
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+  } else if(anchor){
+    var rect = anchor.getBoundingClientRect();
+    menu.style.top = Math.min(window.innerHeight - menu.offsetHeight - 8, rect.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.right - menu.offsetWidth)) + 'px';
+  }
   setTimeout(function(){ document.addEventListener('click', closeOverflowMenus, { once:true }); }, 0);
 }
 
@@ -5214,12 +5230,20 @@ function renderAdminUsers(){
 
   $('adminContent').innerHTML = h;
 
-  // Двойной клик на строку таблицы или карточку для быстрого открытия редактирования
+  // Двойной клик — редактирование, правый клик — меню действий ровно под курсором
   $('adminContent').querySelectorAll('tr[data-login], .u-card[data-login]').forEach(function(el){
     el.ondblclick = function(e){
       if(e.target.closest('button, a, input, select')) return;
       var login = this.dataset.login;
       if(login) openUserModal(login);
+    };
+    el.oncontextmenu = function(e){
+      if(e.target.closest('button, a, input, select')) return;
+      var login = this.dataset.login;
+      if(login){
+        e.preventDefault();
+        openUserActions(e, login);
+      }
     };
   });
 
@@ -5231,9 +5255,13 @@ function renderAdminUsers(){
   };
   $('uRole').onchange = renderAdminUsers;
   $('btnAddUser').onclick = function(){ openUserModal(null); };
+  try { restoreViewScroll('admin:users'); } catch(e){}
 }
 
 function openUserModal(login){
+  if(login){
+    try { markActiveItem('urow_' + login, 'admin:users'); } catch(e){}
+  }
   var u = login ? (S.adminUsers || []).filter(function(x){ return x.login === login; })[0] : null;
   var isEdit = !!u;
 
@@ -5351,6 +5379,7 @@ function openUserModal(login){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
         el.remove();
+        try { markActiveItem('urow_' + payload.login, 'admin:users'); } catch(e){}
         loadAdminUsers();
         if(S.token){
           call('apiAdminGetDivisions', S.token).then(function(dRes){
@@ -5531,10 +5560,12 @@ function renderAdminArchive(){
   h += '<div class="u-cards fx-stagger">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
+  try { restoreViewScroll('admin:archive'); } catch(e){}
 }
 
 // ─── Вкладка: Оргструктура ───
 function loadAdminDivisions(){
+  try { saveViewScroll('admin:divisions:' + (S.adminDivsView || 'tree')); } catch(e){}
   $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка оргструктуры...</div>';
   call('apiAdminGetDivisions', S.token).then(function(r){
     if(!r || !r.ok){
@@ -5748,6 +5779,56 @@ function shortFio(name){
   return p[0] + ' ' + initials;
 }
 
+/** Сворачивание подразделений одной смежной группы в одну карточку/строку */
+function collapseDivisionsForOrg(divList){
+  var groupsMap = {};
+  var result = [];
+
+  (divList || []).forEach(function(d){
+    var gk = String(d.group_key || '').trim();
+    if(!gk){
+      result.push(Object.assign({ isGroup: false }, d));
+    } else {
+      if(!groupsMap[gk]){
+        var gObj = {
+          isGroup: true,
+          group_key: gk,
+          unit: gk,
+          dir: d.dir || '',
+          head: d.head || '',
+          resp: d.resp || '',
+          hrbp: d.hrbp || '',
+          note: d.note || '',
+          org_role: d.org_role || 'line',
+          members: [d]
+        };
+        groupsMap[gk] = gObj;
+        result.push(gObj);
+      } else {
+        var g = groupsMap[gk];
+        g.members.push(d);
+        if(!g.resp && d.resp) g.resp = d.resp;
+        if(!g.head && d.head) g.head = d.head;
+        if(!g.hrbp && d.hrbp) g.hrbp = d.hrbp;
+      }
+    }
+  });
+
+  result.forEach(function(item){
+    if(item.isGroup){
+      item.count = item.members.length;
+      var resps = uniqSortedList(item.members.map(function(m){ return m.resp || ''; }).filter(Boolean));
+      if(resps.length > 0) item.resp = resps.join(', ');
+      var heads = uniqSortedList(item.members.map(function(m){ return m.head || ''; }).filter(Boolean));
+      if(heads.length > 0) item.head = heads.join(', ');
+      var hrbps = uniqSortedList(item.members.map(function(m){ return m.hrbp || ''; }).filter(Boolean));
+      if(hrbps.length > 0) item.hrbp = hrbps.join(', ');
+    }
+  });
+
+  return result;
+}
+
 var _orgClickTimer = null;
 var _lastCardClickTime = 0;
 var _lastCardClickKey = null;
@@ -5909,7 +5990,7 @@ function renderAdminDivisions(){
       : (L2_X + totalLineDirW / 2);
 
     // Уровень 3: Отделы выбранного направления (исключая системные органы верхушки)
-    var activeDirUnits = (S.expandedDir && dirGroups[S.expandedDir])
+    var rawActiveDirUnits = (S.expandedDir && dirGroups[S.expandedDir])
       ? dirGroups[S.expandedDir].filter(function(d){
           if(d.parent_unit) return false;
           if(d.unit === S.expandedDir) return false;
@@ -5917,6 +5998,7 @@ function renderAdminDivisions(){
           return true;
         })
       : [];
+    var activeDirUnits = collapseDivisionsForOrg(rawActiveDirUnits);
     var totalL3W = activeDirUnits.length * CARD_W + Math.max(0, activeDirUnits.length - 1) * GAP;
     var L3_X = (activeDirUnits.length > 0) ? Math.round(dirCenterX - totalL3W / 2) : L2_X;
 
@@ -6095,6 +6177,36 @@ function renderAdminDivisions(){
         '<div class="org-child-units-row' + (isSingleDirUnit ? ' has-single-child' : '') + '">';
 
       activeDirUnits.forEach(function(d){
+        if(d.isGroup){
+          var isGroupExpanded = (S.expandedUnit === d.unit || S.expandedUnit === d.group_key);
+          var isGroupActive = (S.selectedOrgNode && (
+            (S.selectedOrgNode.type === 'group' && S.selectedOrgNode.groupKey === d.group_key) ||
+            (S.selectedOrgNode.type === 'unit' && S.selectedOrgNode.unit === d.group_key)
+          )) || isGroupExpanded;
+          var headOrResp = d.head || d.resp || d.hrbp || '';
+
+          h += '<div class="org-child-unit-col">'+
+            '<div class=\'org-card-box org-card-box--group' + (isGroupActive ? ' is-active-card' : '') + '\' draggable="false" data-org-type="group" data-group-key="'+esc(d.group_key)+'" data-u="'+esc(d.group_key)+'" data-dir="'+esc(d.dir || '')+'" title="Смежная группа из '+d.count+' площадок (клик — состав, двойной клик — назначить)">'+
+              '<div class="org-card-subhd">'+
+                '<div class="org-card-title" title="«'+esc(d.group_key)+'»">«'+esc(d.group_key)+'»</div>'+
+                '<span class="org-lvl-badge" style="background:var(--accent-soft);color:var(--accent);border-color:transparent;font-size:10.5px">Смежная · '+d.count+'</span>'+
+              '</div>'+
+              '<div class="org-card-profile">'+
+                '<div class="org-avatar-circle org-avatar-circle--unit" style="border-color:var(--accent)">'+getInitials(headOrResp || d.group_key)+'</div>'+
+                '<div class="org-card-profile-info">'+
+                  '<div class="org-card-name">'+(headOrResp ? esc(headOrResp) : 'Не назначен')+'</div>'+
+                  '<div class="org-card-role">'+(d.resp ? 'Ответственный' : (d.head ? 'Руководитель' : 'Смежная группа'))+'</div>'+
+                '</div>'+
+              '</div>'+
+              '<div class="org-card-footer">'+
+                '<span>' + d.count + ' площадок</span>'+
+                '<button type="button" class="btn-line" data-group-assign="'+esc(d.group_key)+'" style="min-height:22px;padding:0 6px;font-size:11px;border-radius:4px">'+icBare('user', 11)+' Назначить</button>'+
+              '</div>'+
+            '</div>'+
+          '</div>';
+          return;
+        }
+
         var isUnitExpanded = (S.expandedUnit === d.unit);
         var isUnitActive = (S.selectedOrgNode && S.selectedOrgNode.type === 'unit' && S.selectedOrgNode.unit === d.unit) || isUnitExpanded;
         var headOrResp = d.head || d.resp || d.hrbp || '';
@@ -6218,7 +6330,8 @@ function renderAdminDivisions(){
       '</button>';
     } else {
       var selNode = S.selectedOrgNode || (filtered.length ? { type: 'unit', unit: filtered[0].unit, dir: filtered[0].dir, resp: filtered[0].resp, head: filtered[0].head, hrbp: filtered[0].hrbp } : null);
-      var selTitle = selNode ? (selNode.unit || selNode.dir || selNode.fio || 'Подразделение') : 'Подразделение';
+      var isGroupSelected = selNode && (selNode.type === 'group' || !!selNode.groupKey);
+      var selTitle = selNode ? (isGroupSelected ? 'Смежная группа «' + (selNode.groupKey || selNode.unit) + '»' : (selNode.unit || selNode.dir || selNode.fio || 'Подразделение')) : 'Подразделение';
 
       var allStaff = (S.adminUsers || []).filter(function(u){
         return !staffSearch || (u.fio && u.fio.toLowerCase().indexOf(staffSearch) >= 0) || (u.role && u.role.toLowerCase().indexOf(staffSearch) >= 0);
@@ -6232,7 +6345,7 @@ function renderAdminDivisions(){
       if(selNode && selNode.head){
         var headRole = isBoardSelected ? 'Председатель Совета директоров' :
                        (isExecSelected ? 'Председатель Правления' :
-                       (isAuditSelected ? 'Руководитель службы аудита' : (selNode.type === 'dir' ? 'Руководитель направления' : 'Руководитель отдела')));
+                       (isAuditSelected ? 'Руководитель службы аудита' : (selNode.type === 'dir' ? 'Руководитель направления' : (isGroupSelected ? 'Руководитель' : 'Руководитель отдела'))));
         leaders.push({ fio: selNode.head, role: headRole, badge: 'Руководитель', roleType: 'head' });
       }
       if(!isBoardSelected && !isAuditSelected && selNode && selNode.hrbp && selNode.hrbp !== selNode.head){
@@ -6240,16 +6353,24 @@ function renderAdminDivisions(){
       }
       if(!isBoardSelected && selNode && selNode.resp && selNode.resp !== selNode.head && selNode.resp !== selNode.hrbp){
         leaders.push({ fio: selNode.resp, role: 'Ответственный за рынок', badge: 'Ответственный', roleType: 'resp' });
+      } else if(isGroupSelected && selNode && selNode.members){
+        var gResps = uniqSortedList(selNode.members.map(function(m){ return m.resp || ''; }).filter(Boolean));
+        if(gResps.length > 0 && (!selNode.head || gResps.join(', ') !== selNode.head)){
+          leaders.push({ fio: gResps.join(', '), role: 'Ответственные за рынок', badge: 'Ответственный', roleType: 'resp' });
+        }
       }
 
       h += '<div class="org-right-drawer">'+
         '<div class="org-drawer-header">'+
           '<div>'+
             '<div class="org-drawer-title">'+esc(selTitle)+'</div>'+
-            '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+esc(selNode && selNode.dir ? selNode.dir : 'Направление')+ '</div>'+
+            '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+(isGroupSelected ? ((selNode.members ? selNode.members.length : 0) + ' площадок · ' + esc(selNode.dir || '')) : esc(selNode && selNode.dir ? selNode.dir : 'Направление'))+ '</div>'+
           '</div>'+
           '<div style="display:flex;align-items:center;gap:4px">'+
-            '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:4px 8px;min-height:28px">' + ic('pencil', 13) + '</button>'+
+            (isGroupSelected ?
+              '<button class="btn-ghost" data-group-assign="'+esc(selNode.groupKey || selNode.unit)+'" title="Назначить ответственного" style="padding:4px 8px;min-height:28px">' + ic('user', 13) + '</button>' :
+              '<button class="btn-ghost" data-act="edit-selected-node" title="Редактировать параметры" style="padding:4px 8px;min-height:28px">' + ic('pencil', 13) + '</button>'
+            )+
             '<button class="btn-ghost" id="btnToggleDrawer" title="Скрыть панель" style="padding:4px 8px;min-height:28px;color:var(--muted)">' + ic('close', 13) + '</button>'+
           '</div>'+
         '</div>'+
@@ -6266,6 +6387,20 @@ function renderAdminDivisions(){
         '</div>'+
 
         '<div class="org-drawer-body">'+
+          (isGroupSelected && selNode.members ?
+            '<div style="margin-bottom:12px;padding:10px;border-radius:8px;background:var(--card-hover);font-size:12.5px">'+
+              '<div style="font-weight:600;margin-bottom:6px;color:var(--text-dim)">Площадки группы ('+selNode.members.length+'):</div>'+
+              '<div style="display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto">'+
+                selNode.members.map(function(m){
+                  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;border-radius:5px;background:var(--bg)">'+
+                    '<span>'+esc(m.unit)+'</span>'+
+                    (m.region ? '<span class="badge" style="font-size:10px">'+esc(m.region)+'</span>' : '')+
+                  '</div>';
+                }).join('')+
+              '</div>'+
+              '<button type="button" class="btn-line" data-group-assign="'+esc(selNode.groupKey || selNode.unit)+'" style="width:100%;margin-top:8px;min-height:28px;font-size:12px">'+icBare('user',12)+' Назначить ответственного группе</button>'+
+            '</div>'
+          : '')+
           // Руководители
           (leaders.length ?
             '<div class="org-section-lbl">' + ic('users', 14) + 'Руководители ' + leaders.length + '</div>'+
@@ -6307,6 +6442,7 @@ function renderAdminDivisions(){
 
   } else {
     // Режим таблицы
+    var collapsedRows = collapseDivisionsForOrg(filtered);
     h += '<div class="org-tree-wrapper">'+
       '<div class="org-tree-toolbar">'+
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
@@ -6314,11 +6450,22 @@ function renderAdminDivisions(){
             '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'"></div>'+
           orgToolbarBtns('table')+
         '</div>'+
-        '<div>'+tblCount(filtered.length, (S.adminDivs || []).length, ['подразделение', 'подразделения', 'подразделений'])+'</div>'+
+        '<div>'+tblCount(collapsedRows.length, (S.adminDivs || []).length, ['позиция', 'позиции', 'позиций'])+'</div>'+
       '</div>'+
       '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
-        filtered.map(function(d){
+        collapsedRows.map(function(d){
+          if(d.isGroup){
+            var respText = d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>');
+            var hrbpText = d.hrbp ? esc(d.hrbp) : '<span style="color:var(--warn)">Не назначен</span>';
+            var memberPreview = d.members.map(function(m){ return esc(m.unit); }).slice(0, 3).join(', ') + (d.count > 3 ? ' и ещё ' + (d.count - 3) : '');
+            return '<tr class="tr--group">'+
+              '<td><b>«'+esc(d.group_key)+'»</b> <span class="badge" style="font-size:11px;margin-left:6px">Смежная · '+d.count+' площ.</span><br><small style="color:var(--muted)">'+esc(d.dir)+' · '+memberPreview+'</small></td>'+
+              '<td>'+respText+'</td>'+
+              '<td>'+hrbpText+'</td>'+
+              '<td><button class="btn-line" data-group-assign="'+esc(d.group_key)+'" style="min-height:28px;font-size:13px;padding:0 10px">'+icBare('user',14)+' Назначить группе</button></td>'+
+            '</tr>';
+          }
           return '<tr>'+
             '<td><b>'+esc(d.unit)+'</b><br><small style="color:var(--muted)">'+esc(d.dir)+'</small></td>'+
             '<td>'+(d.resp ? esc(d.resp) : (d.head ? esc(d.head) : '<span style="color:var(--warn)">Не назначен</span>'))+'</td>'+
@@ -6810,10 +6957,50 @@ function renderAdminDivisions(){
       return;
     }
 
+    var groupAssignBtn = e.target.closest('[data-group-assign]');
+    if(groupAssignBtn){
+      e.stopPropagation();
+      openGroupAssignModal(groupAssignBtn.getAttribute('data-group-assign'));
+      return;
+    }
+
     var editBtn = e.target.closest('button[data-u]:not([data-act])');
     if(editBtn){
       openDivisionModal(editBtn.dataset.u);
       return;
+    }
+
+    var groupCard = e.target.closest('.org-card-box[data-group-key]');
+    if(groupCard && !e.target.closest('button')){
+      var gk = groupCard.dataset.groupKey;
+      var gDir = groupCard.dataset.dir;
+      var gDivs = (S.adminDivs || []).filter(function(x){ return String(x.group_key || '').trim() === gk; });
+      S.selectedOrgNode = {
+        type: 'group',
+        groupKey: gk,
+        unit: gk,
+        dir: gDir,
+        members: gDivs,
+        resp: uniqSortedList(gDivs.map(function(m){ return m.resp || ''; }).filter(Boolean)).join(', '),
+        head: uniqSortedList(gDivs.map(function(m){ return m.head || ''; }).filter(Boolean)).join(', '),
+        hrbp: uniqSortedList(gDivs.map(function(m){ return m.hrbp || ''; }).filter(Boolean)).join(', ')
+      };
+      S.orgDrawerCollapsed = false;
+      renderAdminDivisions();
+      return;
+    }
+  };
+
+  $('adminContent').ondblclick = function(e){
+    var groupCard = e.target.closest('.org-card-box[data-group-key]');
+    if(groupCard){
+      openGroupAssignModal(groupCard.dataset.groupKey);
+      return;
+    }
+    var card = e.target.closest('.org-card-box[data-u]');
+    if(card){
+      var u = card.dataset.u;
+      if(u) openStaffModal(u);
     }
   };
 
@@ -6977,6 +7164,7 @@ function renderAdminDivisions(){
       }
     });
   });
+  try { restoreViewScroll('admin:divisions:' + (S.adminDivsView || 'tree')); } catch(e){}
 }
 
 /**
@@ -7481,6 +7669,108 @@ function openAddDivisionModal(){
   };
 }
 
+function bindMultiPickFioField(root, id, title, listFn, store, key, emptyLabel){
+  var btn = root.querySelector('#'+id);
+  if(!btn) return;
+  btn.onclick = function(){
+    var currentSelected = (store[key] || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    openMultiPicker({
+      title: title,
+      list: listFn(),
+      value: currentSelected,
+      emptyLabel: emptyLabel,
+      onPick: function(arr){
+        store[key] = arr.join(', ');
+        var sp = btn.querySelector('span');
+        if(sp){
+          sp.textContent = store[key] || emptyLabel || 'Выбрать из пользователей';
+          sp.className = store[key] ? '' : 'ph';
+        }
+      }
+    });
+  };
+}
+
+function openGroupAssignModal(groupKey){
+  if(!groupKey) return;
+  var members = (S.adminDivs || []).filter(function(x){
+    return String(x.group_key || '').trim() === String(groupKey).trim();
+  });
+  if(!members.length){
+    toast('В группе нет площадок', 'no');
+    return;
+  }
+
+  var curResps = uniqSortedList(members.map(function(x){ return x.resp || ''; }).filter(Boolean));
+  var curRespVal = curResps.join(', ');
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in" style="max-width:540px">'+
+    '<div class="sheet-hd"><b>Назначить ответственного · «'+esc(groupKey)+'»</b><button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<p class="step-hint" style="margin:4px 0 14px">Ответственный будет назначен сразу на все '+members.length+' площадок этой смежной группы и получит доступ к заполнению рынка по ним.</p>'+
+    '<div style="margin-bottom:14px;padding:10px 12px;border-radius:8px;background:var(--card-hover);font-size:12.5px">'+
+      '<div style="font-weight:600;margin-bottom:6px;color:var(--text-dim)">Площадки группы ('+members.length+'):</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto">'+
+        members.map(function(m){ return '<span class="badge">'+esc(m.unit)+(m.region ? ' · '+esc(m.region) : '')+'</span>'; }).join('')+
+      '</div>'+
+    '</div>'+
+    '<label class="lbl">Ответственные за обзор рынка</label>'+
+    pickField('grpRespField', curRespVal, 'Выбрать из пользователей')+
+    '<div style="height:18px"></div>'+
+    '<button id="grpSaveResp" class="btn-primary">Сохранить для всех '+members.length+' площадок</button>'+
+    '<div style="height:8px"></div>'+
+  '</div>';
+  document.body.appendChild(el);
+  el.addEventListener('click', function(e){ if(e.target === el || e.target.dataset.x) el.remove(); });
+
+  var picked = { resp: curRespVal };
+  var allFios = uniqSortedList((S.adminUsers || []).filter(function(u){ return u.active !== 0; }).map(function(u){ return u.fio; }));
+
+  bindMultiPickFioField(el, 'grpRespField', 'Ответственные за обзор', function(){ return allFios; }, picked, 'resp', 'Выбрать из пользователей');
+
+  el.querySelector('#grpSaveResp').onclick = function(){
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Сохраняем…';
+    var newResp = picked.resp;
+
+    var promises = members.map(function(d){
+      return call('apiAdminSaveDivision', S.token, {
+        unit: d.unit,
+        dir: d.dir,
+        head: d.head,
+        resp: newResp,
+        hrbp: d.hrbp,
+        note: d.note,
+        group: d.group_key,
+        region: d.region,
+        org_role: d.org_role
+      });
+    });
+
+    Promise.all(promises).then(function(results){
+      var failed = results.filter(function(r){ return !r || !r.ok; });
+      if(failed.length > 0){
+        toast('Часть площадок не удалось обновить ('+failed.length+')', 'no');
+      } else {
+        toast('Ответственный назначен на все '+members.length+' площадок', 'ok');
+      }
+      el.remove();
+      loadAdminDivisions();
+      if(S.token){
+        call('apiAdminGetUsers', S.token).then(function(uRes){
+          if(uRes && uRes.ok) S.adminUsers = uRes.users || [];
+        });
+      }
+    }).catch(function(){
+      btn.disabled = false;
+      btn.textContent = 'Сохранить для всех площадок';
+      toast('Ошибка сети при сохранении', 'no');
+    });
+  };
+}
+
 function openAdjacentGroupsModal(){
   var divs = (S.adminDivs || []).slice();
   var groups = {};
@@ -7499,10 +7789,24 @@ function openAdjacentGroupsModal(){
     '<div class="lbl" style="margin-bottom:6px">Существующие группы ('+groupKeys.length+')</div>'+
     (groupKeys.length
       ? '<div class="ag-list">'+groupKeys.map(function(k){
+          var mems = groups[k];
+          var curResps = uniqSortedList(mems.map(function(x){ return x.resp || ''; }).filter(Boolean));
+          var respStr = curResps.length ? curResps.join(', ') : 'Не назначен';
           return '<div class="ag-grp">'+
-            '<div class="ag-grp-h"><b>«'+esc(k)+'»</b><span>'+groups[k].length+' площадок</span>'+
-              '<button type="button" class="btn-line ag-clear" data-key="'+esc(k)+'">Разъединить</button></div>'+
-            '<div class="ag-grp-u">'+groups[k].map(function(x){ return '<span>'+esc(x.unit)+(x.region ? ' · '+esc(x.region) : '')+'</span>'; }).join('')+'</div>'+
+            '<div class="ag-grp-h">'+
+              '<div>'+
+                '<b>«'+esc(k)+'»</b>'+
+                '<span style="margin-left:8px">'+mems.length+' площадок</span>'+
+                '<div style="font-size:12px;color:var(--text-dim);margin-top:2px">'+
+                  icBare('user', 12)+' <b>Ответственный:</b> '+esc(respStr)+
+                '</div>'+
+              '</div>'+
+              '<div style="display:flex;gap:6px;align-items:center">'+
+                '<button type="button" class="btn-line ag-assign" data-key="'+esc(k)+'">'+icBare('user', 12)+' Назначить</button>'+
+                '<button type="button" class="btn-line ag-clear" data-key="'+esc(k)+'">Разъединить</button>'+
+              '</div>'+
+            '</div>'+
+            '<div class="ag-grp-u">'+mems.map(function(x){ return '<span>'+esc(x.unit)+(x.region ? ' · '+esc(x.region) : '')+'</span>'; }).join('')+'</div>'+
           '</div>';
         }).join('')+'</div>'
       : '<div class="ag-empty">Пока ни одной группы</div>')+
@@ -7537,6 +7841,13 @@ function openAdjacentGroupsModal(){
   $('agSearch').oninput = renderPick;
   renderPick();
 
+  [].slice.call(el.querySelectorAll('.ag-assign')).forEach(function(b){
+    b.onclick = function(){
+      var k = b.getAttribute('data-key');
+      openGroupAssignModal(k);
+    };
+  });
+
   [].slice.call(el.querySelectorAll('.ag-clear')).forEach(function(b){
     b.onclick = function(){
       var k = b.getAttribute('data-key');
@@ -7569,6 +7880,9 @@ function openAdjacentGroupsModal(){
  */
 function openDivisionModal(unit, opts){
   opts = opts || {};
+  if(unit){
+    try { markActiveItem('divrow_' + unit, 'admin:divisions:' + (S.adminDivsView || 'table')); } catch(e){}
+  }
   var restricted = !!opts.restricted;
   var onSaved = opts.onSaved || loadAdminDivisions;
 
@@ -8562,6 +8876,7 @@ function drawDict(){
   $('dictBox').querySelectorAll('button[data-dict-act]').forEach(function(b){
     b.onclick = function(e){ openDictActions(e, this.dataset.dictAct); };
   });
+  try { restoreViewScroll('admin:dict'); } catch(e){}
 }
 
 function bindDictBar(){

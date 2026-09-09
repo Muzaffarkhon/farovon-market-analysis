@@ -176,12 +176,23 @@
 
     var table = tr.closest('table');
 
-    // 1) У строки есть собственный «⋮» — открываем ровно его меню.
+    // 1) У строки есть собственный «⋮» — открываем ровно его меню по координатам курсора.
     var trigger = tr.querySelector('.row-menu-trigger');
     if(trigger){
       e.preventDefault();
       closeCtxMenu();
-      trigger.click();
+      if(typeof openUserActions === 'function' && tr.dataset.login){
+        openUserActions(e, tr.dataset.login);
+        return;
+      }
+      var customEvt = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: e.clientX,
+        clientY: e.clientY
+      });
+      customEvt._fromCtx = true;
+      trigger.dispatchEvent(customEvt);
       return;
     }
 

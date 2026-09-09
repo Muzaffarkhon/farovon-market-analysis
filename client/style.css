@@ -4176,6 +4176,23 @@ label.lbl {
   background: var(--card-hover);
 }
 
+/* Фокус/активная строка таблицы после обновления или редактирования */
+.co-tbl tr.is-row-focused td,
+.u-card.is-row-focused,
+.unit.is-row-focused {
+  background: var(--accent-soft) !important;
+  box-shadow: inset 3px 0 0 var(--accent);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+/* Карточки и строки смежных групп в оргструктуре */
+.org-card-box--group {
+  border-left: 3px solid var(--accent) !important;
+}
+.tr--group td:first-child {
+  border-left: 3px solid var(--accent);
+}
+
 /* На телефоне таблицы шли тем же кеглем и отступами, что на десктопе, и
    занимали слишком много места / уезжали в горизонтальный скролл. Уплотняем:
    мельче шрифт, уже ячейки, компактнее пилюли и поля поколоночного фильтра. */

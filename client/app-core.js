@@ -478,6 +478,7 @@ function applyNavObject(nav){
 
 function saveNavState(){
   try { store.set(LS_NAV, JSON.stringify(navSnapshot())); } catch(e){}
+  try { saveViewScroll(); } catch(e){}
   pushNavHistory(false);
 }
 
@@ -489,6 +490,143 @@ function restoreNavState(){
   } catch(e){}
   return false;
 }
+
+// ═══════════════════════════════════════════════════════════
+// БЕСШОВНОЕ СОХРАНЕНИЕ И ВОССТАНОВЛЕНИЕ ПРОКРУТКИ И ФОКУСА
+// ═══════════════════════════════════════════════════════════
+var SS_SCROLLS = 'farovon_view_scrolls';
+
+function getAppViewKey(){
+  var v = S.appView || 'home';
+  if(v === 'admin'){
+    var sub = S.adminTab || 'users';
+    if(sub === 'divisions') return 'admin:divisions:' + (S.adminDivsView || 'tree');
+    return 'admin:' + sub;
+  }
+  if(v === 'unit') return 'unit:' + (S.unit || '') + ':' + (S.tab || 'step1');
+  if(v === 'dashboard') return 'dashboard:' + (S.dashTab || 'summary') + ':' + (S.dashSumTab || 'units');
+  if(v === 'benchmarks') return 'benchmarks:' + (S.bmTab || 'summary');
+  return v;
+}
+
+function getAllViewScrolls(){
+  if(S.viewScrolls) return S.viewScrolls;
+  try {
+    var raw = sessionStorage.getItem(SS_SCROLLS);
+    if(raw){ S.viewScrolls = JSON.parse(raw) || {}; return S.viewScrolls; }
+  } catch(e){}
+  S.viewScrolls = {};
+  return S.viewScrolls;
+}
+
+function saveViewScroll(key){
+  key = key || getAppViewKey();
+  var b = $('body');
+  if(!b) return;
+  var tbl = b.querySelector('.tblwrap') || b.querySelector('.tbl-wrap') || b.querySelector('.co-list-scroll');
+  var all = getAllViewScrolls();
+  var prev = all[key] || {};
+  all[key] = {
+    bodyTop: b.scrollTop,
+    bodyLeft: b.scrollLeft,
+    tblTop: tbl ? tbl.scrollTop : 0,
+    tblLeft: tbl ? tbl.scrollLeft : 0,
+    activeId: (S.lastActiveIdByView && S.lastActiveIdByView[key]) || prev.activeId || null,
+    ts: Date.now()
+  };
+  try {
+    sessionStorage.setItem(SS_SCROLLS, JSON.stringify(all));
+  } catch(e){}
+}
+
+function markActiveItem(id, key){
+  if(!id) return;
+  key = key || getAppViewKey();
+  if(!S.lastActiveIdByView) S.lastActiveIdByView = {};
+  S.lastActiveIdByView[key] = id;
+  saveViewScroll(key);
+}
+
+function restoreViewScroll(key, opts){
+  key = key || getAppViewKey();
+  opts = opts || {};
+  var all = getAllViewScrolls();
+  var data = all[key];
+  if(!data) return;
+
+  var b = $('body');
+  if(!b) return;
+
+  b._restoringScroll = true;
+
+  var doApply = function(){
+    if(!b) return;
+    if(data.bodyTop != null) b.scrollTop = data.bodyTop;
+    if(data.bodyLeft != null) b.scrollLeft = data.bodyLeft;
+
+    var tbl = b.querySelector('.tblwrap') || b.querySelector('.tbl-wrap') || b.querySelector('.co-list-scroll');
+    if(tbl){
+      if(data.tblTop != null) tbl.scrollTop = data.tblTop;
+      if(data.tblLeft != null) tbl.scrollLeft = data.tblLeft;
+    }
+
+    var actId = opts.activeId || data.activeId;
+    if(actId){
+      var clean = actId.replace(/^(urow_|divrow_|unit_)/, '');
+      var row = document.getElementById(actId) ||
+                document.querySelector('[data-login="'+clean+'"]') ||
+                document.querySelector('[data-unit="'+clean+'"]') ||
+                document.querySelector('[data-u="'+clean+'"]');
+      if(row){
+        document.querySelectorAll('.is-row-focused').forEach(function(el){ el.classList.remove('is-row-focused'); });
+        row.classList.add('is-row-focused');
+        try {
+          var rect = row.getBoundingClientRect();
+          var bRect = b.getBoundingClientRect();
+          if(rect.top < bRect.top + 20 || rect.bottom > bRect.bottom - 20){
+            row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          }
+        } catch(e){}
+      }
+    }
+  };
+
+  doApply();
+  requestAnimationFrame(doApply);
+  setTimeout(doApply, 40);
+  setTimeout(function(){
+    doApply();
+    if(b) b._restoringScroll = false;
+  }, 160);
+}
+
+function hookBodyScroll(){
+  var b = $('body');
+  if(!b || b._scrollHooked) return;
+  b._scrollHooked = true;
+  var timer = null;
+  b.addEventListener('scroll', function(){
+    if(b._restoringScroll) return;
+    if(timer) clearTimeout(timer);
+    timer = setTimeout(function(){
+      saveViewScroll();
+    }, 80);
+  }, { passive: true });
+}
+
+window.addEventListener('beforeunload', function(){
+  try { saveViewScroll(); } catch(e){}
+});
+
+document.addEventListener('click', function(e){
+  var row = e.target.closest('tr[data-login], .u-card[data-login], tr[data-unit], .unit[data-u], .org-card-box[data-unit]');
+  if(row){
+    var id = row.id || (row.dataset.login ? 'urow_' + row.dataset.login : (row.dataset.unit ? 'divrow_' + row.dataset.unit : (row.dataset.u ? 'unit_' + row.dataset.u : null)));
+    if(id) markActiveItem(id);
+  }
+}, true);
+
+hookBodyScroll();
 
 // ─── Кнопки браузера/телефона «назад/вперёд» ──────────────────────────────
 // Каждая смена экрана кладёт снимок в history. «Назад/вперёд» ловит popstate,
