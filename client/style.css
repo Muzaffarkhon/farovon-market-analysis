@@ -928,26 +928,44 @@ body.has-bar .wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 0 !important;
+  max-height: 18px !important;
   border-radius: 50%;
   color: var(--subtle);
-  border: none;
+  border: none !important;
   background: transparent;
-  padding: 0;
+  padding: 0 !important;
   cursor: pointer;
-  margin-left: 2px;
+  margin: 0 0 0 4px;
   flex-shrink: 0;
-  transition: background 0.12s, color 0.12s;
+  box-shadow: none !important;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s, transform 0.1s;
+}
+
+.ws-tab-close svg {
+  display: block;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 .ws-tab-close:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--text);
+  background: rgba(0, 0, 0, 0.08) !important;
+  border: none !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
 }
 
 [data-theme="dark"] .ws-tab-close:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.ws-tab-close:active {
+  transform: scale(0.92);
 }
 
 .wrap.has-workspace-tabs {
