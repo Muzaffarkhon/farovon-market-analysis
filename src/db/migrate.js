@@ -342,6 +342,54 @@ async function migrate() {
              WHERE id = (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
                AND NOT EXISTS (SELECT 1 FROM periods WHERE is_active = 1)`);
 
+  // Синхронизация пользователей с оргструктурой и штатным расписанием 1С (2026-09-09).
+  // Обычные сотрудники сняты с общедепартаментских «шапок» и привязаны к конкретным
+  // заводам/цехам/отделам; руководители отделов переведены в роль head; актуализированы
+  // руководство Департамента снабжения и логистики (Пономарев Олег) и Отдела кадров (Худойдотов Рустам).
+  await run(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  const orgFixApplied = await queryOne("SELECT name FROM schema_migrations WHERE name = '20260909_org_structure_fix'");
+  if (!orgFixApplied) {
+    const userUpdates = [
+      { login: 'ashurov.a', newUnits: 'Лаборатория масло', newRole: 'user' },
+      { login: 'bakoev.mh', newUnits: 'Завод РБУ Гозиен 4-5', newRole: 'user' },
+      { login: 'buzurukov.ha', newUnits: 'Мукомольный завод Ф1', newRole: 'user' },
+      { login: 'vohidov.mm', newUnits: '0201 Отдел оптовых продаж Худжанд', newRole: 'user' },
+      { login: 'gafurov.hk', newUnits: 'Цех розлива и фасовки 1', newRole: 'user' },
+      { login: 'kenchaev.ea', newUnits: 'Комбикормовый завод К1', newRole: 'user' },
+      { login: 'machidov.n', newUnits: 'Отдел оптовых продаж масла', newRole: 'user' },
+      { login: 'nasulloev.n', newUnits: 'Завод металлоконструкций и СП', newRole: 'user' },
+      { login: 'homidov.m', newUnits: 'Завод металлоконструкций и СП', newRole: 'user' },
+      { login: 'rahmonzoda.m', newUnits: 'Отдел оценки и вознограждения персонала', newRole: 'user' },
+      { login: 'hakimov.mn2', newUnits: 'Департамент продаж мясной продукции', newRole: 'user' },
+      { login: 'shermatov.i', newUnits: 'Убойный комплекс', newRole: 'user' },
+      { login: 'holova.n', newUnits: 'Правление', newRole: 'user' },
+      { login: 'ahmedov.dg', newUnits: 'Казначейство; Отдел банковских операций; Отдел кассовых операций', newRole: 'head' },
+      { login: 'bahodurova.sa', newUnits: 'Академия Фаровон', newRole: 'head' },
+      { login: 'ikromchon.k', newUnits: 'Отдел аналитики', newRole: 'head' },
+      { login: 'mahmadov.ss', newUnits: 'Отдел монтажа; Отдел сварочных работ; Отдел строительства', newRole: 'head' },
+      { login: 'samadova.f', newUnits: 'Отдел оценки и вознограждения персонала', newRole: 'head' },
+      { login: 'kosimov.ug', newUnits: 'Отдел финансовой отчетности и анализа', newRole: 'head' },
+      { login: 'rahmatov.mm', newUnits: 'Проектно-конструкторский отдел', newRole: 'head' },
+      { login: 'obidov.fm', newUnits: 'Управление элеваторами и складами готовой продукции; Отдел складов готовой продукции; Склад ГП К1 Фаровон; Склад ГП К2 ТМК; Склад ГП МЗ T1; Склад ГП МЗ T2; Склад ГП МЗ Анхор; Склад ГП МЗ Переработка 1; Склад ГП МЗ Ф1; Склад ГП Раст.масла; Элеваторная Анхор; Элеваторная ТМК', newRole: 'head' },
+      { login: 'churaev.ra', newUnits: 'Департамент производства комбикормов; Комбикормовый завод К1; Производственный цех К1; Цех упаковки К1; Элеваторная К1; Комбикормовый завод К2; Производственный цех К2; Цех упаковки К2; Элеваторная К2; Отдел лаборатории К', newRole: 'dir_head' },
+      { login: 'saydulloev.br', newUnits: 'Отдел оценки и вознограждения персонала; Академия Фаровон; Отдел аналитики; Отдел развитии систем; Процессный офис', newRole: 'head' },
+      { login: 'hudoydotov.r', newUnits: 'Отдел кадрового делопроизводства', newRole: 'head' },
+      { login: 'mutribahon.s', newUnits: '', newRole: 'user' },
+      { login: 'samandarov.z', newUnits: '', newRole: 'user' }
+    ];
+    for (const u of userUpdates) {
+      await run('UPDATE users SET units = ?, role = ? WHERE login = ?', [u.newUnits, u.newRole, u.login]);
+    }
+    await run(
+      "UPDATE divisions SET head = 'Худойдотов Рустам', resp = 'Худойдотов Рустам, Каримов Дилшодчон Зафарчонович' WHERE unit = 'Отдел кадрового делопроизводства'"
+    );
+    await run("INSERT INTO schema_migrations (name) VALUES ('20260909_org_structure_fix')");
+    console.log('🔧 Миграция: оргструктура и привязка пользователей синхронизированы с 1С');
+  }
+
   console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
 }
 
