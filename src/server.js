@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -11,7 +12,16 @@ BigInt.prototype.toJSON = function() {
 };
 
 const config = require('./config');
-const { version: APP_VERSION } = require('../package.json');
+
+function getAppVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+    return pkg.version || '2.5.0';
+  } catch (e) {
+    return '2.5.0';
+  }
+}
+const APP_VERSION = getAppVersion();
 const { queryOne } = require('./db/database');
 const { migrate } = require('./db/migrate');
 const apiRoutes = require('./routes/api');
@@ -159,6 +169,45 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
+function renderIndexHtml() {
+  const indexPath = path.join(__dirname, '../client/index.html');
+  if (!fs.existsSync(indexPath)) return '<h1>File not found</h1>';
+  let html = fs.readFileSync(indexPath, 'utf8');
+  const ver = getAppVersion();
+  // Кэш-бастинг query-параметров на всех ссылках и скриптах
+  html = html.replace(/\?v=[a-zA-Z0-9._-]+/g, `?v=${ver}`);
+  // Глобальная переменная window.APP_VERSION в теге head
+  const verClean = 'v' + ver.replace(/^v/, '');
+  const injectScript = `<script>window.APP_VERSION = '${verClean}';</script>\n</head>`;
+  if (html.includes('</head>') && !html.includes('window.APP_VERSION')) {
+    html = html.replace('</head>', injectScript);
+  }
+  return html;
+}
+
+// Динамический Service Worker со свежим именем кэша
+app.get('/sw.js', (req, res) => {
+  const swPath = path.join(__dirname, '../client/sw.js');
+  if (!fs.existsSync(swPath)) return res.status(404).end();
+  let content = fs.readFileSync(swPath, 'utf8');
+  const safeVer = getAppVersion().replace(/[^a-zA-Z0-9]/g, '-');
+  content = content.replace(/const CACHE_NAME = ['"]farovon-market-v[^'"]+['"];/, `const CACHE_NAME = 'farovon-market-v${safeVer}';`);
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.send(content);
+});
+
+// Главная страница с динамической версией и защитой от кэширования
+app.get(['/', '/index.html'], (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.send(renderIndexHtml());
+});
+
 // Статические файлы SPA фронтенда (с контролем кэша для мгновенного обновления версий)
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/' || req.path.endsWith('.js') || req.path.endsWith('.css')) {
@@ -200,7 +249,7 @@ app.get('/health', async (req, res) => {
     ok: db === 'ok' && migrationStatus !== 'error',
     db,
     schema: migrationStatus,
-    version: APP_VERSION,
+    version: getAppVersion(),
     timestamp: new Date().toISOString(),
     env: config.nodeEnv,
     lastUptimeRobotPing
@@ -209,7 +258,11 @@ app.get('/health', async (req, res) => {
 
 // SPA fallback для роутинга
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.send(renderIndexHtml());
 });
 
 // Обработчик ошибок
@@ -227,5 +280,7 @@ if (require.main === module) {
     console.log(`🌐 Окружение: ${config.nodeEnv}\n`);
   });
 }
+
+app.getAppVersion = getAppVersion;
 
 module.exports = app;

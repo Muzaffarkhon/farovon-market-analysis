@@ -366,7 +366,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.0')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.1')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -401,7 +401,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.0')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.1')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -459,7 +459,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.0')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.1')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -489,7 +489,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.0')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.1')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -954,6 +954,11 @@ function startTour(){
 
 function onLoaded(data){
   S.data = data;
+  if(data && data.appVersion){
+    var vStr = 'v' + String(data.appVersion).replace(/^v/, '');
+    window.APP_VERSION = vStr;
+    if(typeof APP_VERSION !== 'undefined') APP_VERSION = vStr;
+  }
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
 
@@ -3590,36 +3595,39 @@ function skDash(){
 // АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
 // ═══════════════════════════════════════════════════════════
 function openDashboard(initialTab){
-  if(initialTab){
-    S.dashTab = initialTab;
-  }
+  var curTab = initialTab || S.dashTab || 'overview';
+  S.dashTab = curTab;
   var dashTitles = {
-    overview: { title: 'Дашборд: Обзор', icon: 'dashboard' },
+    overview: { title: 'Обзор', icon: 'dashboard' },
     salaries: { title: 'Зарплатные вилки', icon: 'wallet' },
     regions: { title: 'По регионам', icon: 'units' },
     registry: { title: 'Реестр данных', icon: 'table' },
     progress: { title: 'Прогресс по HR BP', icon: 'target' },
     benefits: { title: 'Льготы и Бонусы', icon: 'medal' }
   };
-  var tabKey = initialTab ? ('dashboard:' + initialTab) : 'dashboard';
-  var tabTitle = (initialTab && dashTitles[initialTab]) ? dashTitles[initialTab].title : 'Дашборд';
-  var tabIcon = (initialTab && dashTitles[initialTab]) ? dashTitles[initialTab].icon : 'dashboard';
+  var tInfo = dashTitles[curTab] || { title: 'Зарплатные вилки', icon: 'wallet' };
+  var tabKey = 'dashboard:' + curTab;
+  var tabTitle = tInfo.title;
+  var tabIcon = tInfo.icon;
 
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
     WorkspaceTabs.openTab({
       key: tabKey,
       title: tabTitle,
       icon: tabIcon,
-      state: { appView: 'dashboard', dashTab: S.dashTab, unit: null },
-      run: function(){ openDashboard(initialTab); }
+      state: { appView: 'dashboard', dashTab: curTab, unit: null },
+      run: function(){ openDashboard(curTab); }
     });
     return;
+  }
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(tabTitle, tabIcon, tabKey);
   }
   S.appView = 'dashboard';
   S.unit = null;
   saveNavState();
   renderTopNav();
-  setTop('Аналитический Дашборд', userLabel(), false, 'dashboard');
+  setTop(tabTitle, userLabel(), false, tabIcon);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   fetchDashboard(false);
@@ -3787,7 +3795,7 @@ function renderDashboard(){
   if(!canSeeBenchmarks()){
     tabs = tabs.filter(function(t){ return t.id !== 'benchmarks'; });
   }
-  var h = '<div class="sub-tabs sub-tabs--sticky dash-tabbar">'+
+  var h = '<div class="sub-tabs sub-tabs--sticky dash-tabbar" style="display:none">'+
     '<div class="dash-tab-strip">'+
       tabs.map(function(t){
         var on = S.dashTab === t.id ? ' on' : '';
@@ -10537,30 +10545,33 @@ function openBenchmarks(initialTab){
     mapping: { title: 'Сопоставление должностей', icon: 'link' },
     datasets: { title: 'Источники и датасеты', icon: 'archive' }
   };
-  var tInfo = bmTitles[curTab] || { title: 'Бенчмаркинг', icon: 'chart' };
+  var tInfo = bmTitles[curTab] || { title: 'Сравнение по должности', icon: 'chart' };
+  var tabKey = 'benchmarks:' + curTab;
+  var tabTitle = tInfo.title;
 
   if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
-    var tabKey = initialTab ? ('benchmarks:' + initialTab) : 'benchmarks';
-    var tabTitle = initialTab ? tInfo.title : 'Бенчмаркинг';
     WorkspaceTabs.openTab({
       key: tabKey,
       title: tabTitle,
       icon: tInfo.icon,
       state: { appView: 'benchmarks', bmTab: curTab, unit: null },
-      run: function(){ openBenchmarks(initialTab); }
+      run: function(){ openBenchmarks(curTab); }
     });
     return;
+  }
+  if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
+    WorkspaceTabs.updateActiveTitle(tabTitle, tInfo.icon, tabKey);
   }
   S.appView = 'benchmarks';
   S.unit = null;
   saveNavState();
   renderTopNav();
-  setTop('Мультиисточниковый бенчмаркинг', userLabel(), false, 'chart');
+  setTop(tabTitle, userLabel(), false, tInfo.icon);
   $('bar').classList.add('hidden');
   $('body').onclick = null;
 
   var body = $('body');
-  body.innerHTML = '<div class="sub-tabs sub-tabs--sticky dash-tabbar bm-tabbar">' +
+  body.innerHTML = '<div class="sub-tabs sub-tabs--sticky dash-tabbar bm-tabbar" style="display:none">' +
       '<div class="dash-tab-strip">' +
         '<button class="sub-tab ' + (BM_STATE.tab === 'compare' ? 'on' : '') + '" onclick="switchBmTab(\'compare\')">' + ic('chart', 14) + 'Сравнение по должности</button>' +
         '<button class="sub-tab ' + (BM_STATE.tab === 'mapping' ? 'on' : '') + '" onclick="switchBmTab(\'mapping\')">' + ic('link', 14) + 'Сопоставление должностей</button>' +

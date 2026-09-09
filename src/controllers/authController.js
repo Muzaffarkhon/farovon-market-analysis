@@ -1,7 +1,18 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
+
+function getAppVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf8'));
+    return pkg.version || '2.5.0';
+  } catch (e) {
+    return '2.5.0';
+  }
+}
 const { queryAll, queryOne, run } = require('../db/database');
 const { cached, invalidate } = require('../services/refCache');
 const { getActivePeriod } = require('../services/periodService');
@@ -377,6 +388,7 @@ async function getUserPayload(user) {
       units: unitsList,
       capabilities
     },
+    appVersion: getAppVersion(),
     period,
     myPeriodGrants: myPeriodGrantsRaw,
     mustChangePassword: !!user.must_change_password,

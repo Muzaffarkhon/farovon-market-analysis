@@ -710,7 +710,8 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = 'v2.5.0';
+var APP_VERSION = window.APP_VERSION || 'v2.5.1';
+window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
  *  Неразрывные пробелы, чтобы инициалы не переносились. */
@@ -1367,11 +1368,12 @@ var WorkspaceTabs = {
     if(m && m.parentNode) m.parentNode.removeChild(m);
   },
 
-  updateActiveTitle: function(title, icon){
+  updateActiveTitle: function(title, icon, newKey){
     var cur = this.getTab(this.activeId);
     if(!cur) return;
     if(title) cur.title = title;
     if(icon) cur.icon = icon;
+    if(newKey) cur.key = newKey;
     this.renderBar();
   },
 

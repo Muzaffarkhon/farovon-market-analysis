@@ -35,7 +35,20 @@
     polling = true;
     fetchJson('/api/live-signature', { token: S.token }).then(function(data){
       polling = false;
-      if(!data || data.ok === false || typeof data.sig !== 'string') return;
+      if(data.version){
+        var srvVer = 'v' + String(data.version).replace(/^v/, '');
+        if(window.APP_VERSION && window.APP_VERSION !== srvVer){
+          window.APP_VERSION = srvVer;
+          if(typeof APP_VERSION !== 'undefined') APP_VERSION = srvVer;
+          document.querySelectorAll('.sheet-ver-badge').forEach(function(b){ b.textContent = srvVer; });
+          var pv = document.querySelector('.profile-ver');
+          if(pv) pv.textContent = 'Обзор рынка вознаграждений · Фаровон · ' + srvVer;
+          var rr = document.getElementById('railRole');
+          if(rr && rr.textContent && rr.title){
+            rr.title = rr.textContent + ' · ' + srvVer;
+          }
+        }
+      }
       if(lastSig === null){
         // Первый удачный опрос принимаем за базу — не перерисовываем, иначе
         // каждый вход выглядел бы как изменение.

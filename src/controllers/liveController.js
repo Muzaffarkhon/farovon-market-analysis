@@ -1,7 +1,18 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const { queryOne } = require('../db/database');
 const { hasCapability } = require('../middleware/auth');
+
+function getAppVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf8'));
+    return pkg.version || '2.5.0';
+  } catch (e) {
+    return '2.5.0';
+  }
+}
 
 /**
  * Живое обновление разделов (дашборд, админка: периоды/гранты/пользователи)
@@ -63,7 +74,7 @@ async function signatureFor(user) {
 exports.signature = async (req, res) => {
   try {
     const sig = await signatureFor(req.user);
-    res.json({ ok: true, sig });
+    res.json({ ok: true, sig, version: getAppVersion() });
   } catch (err) {
     res.status(503).json({ ok: false, error: 'SIGNATURE_UNAVAILABLE' });
   }

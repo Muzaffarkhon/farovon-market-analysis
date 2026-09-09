@@ -1257,6 +1257,13 @@ body.has-bar .wrap {
   overflow: hidden !important;
 }
 
+/* Скрываем дублирующие внутренние горизонтальные полосы вкладок (в дашборде и бенчмаркинге), так как активны вкладки рабочей области WorkspaceTabs */
+.dash-tabbar,
+.bm-tabbar,
+.dash-tab-strip {
+  display: none !important;
+}
+
 .workspace-pane {
   flex: 1;
   width: 100%;

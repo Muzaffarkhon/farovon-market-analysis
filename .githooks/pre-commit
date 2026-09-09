@@ -1,0 +1,4 @@
+#!/bin/sh
+# Farovon Market Analysis: Auto-bump version on git commit
+# При каждом коммите автоматически инкрементирует patch-версию и добавляет файлы версии в коммит
+node scripts/bumpVersion.js --hook
