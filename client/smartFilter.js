@@ -88,17 +88,23 @@
       });
     }
 
-    // Для таблицы пользователей (.u-tbl) добавляем поле «Направление»
+    // Для таблицы пользователей (.u-tbl) добавляем поля «Направление» и «Подразделение»
     if(table.classList.contains('u-tbl')){
       var dirSet = {};
+      var unitSet = {};
       if(window.S && window.S.adminDivs){
-        window.S.adminDivs.forEach(function(d){ if(d.dir) dirSet[d.dir] = true; });
+        window.S.adminDivs.forEach(function(d){
+          if(d.dir) dirSet[d.dir] = true;
+          if(d.unit) unitSet[d.unit] = true;
+        });
       }
       rows.forEach(function(r){
         var ds = (r.dataset.dirs || '').split(',');
         ds.forEach(function(d){ d = d.trim(); if(d) dirSet[d] = true; });
+        var us = (r.dataset.units || '').split(',');
+        us.forEach(function(u){ u = u.trim(); if(u) unitSet[u] = true; });
       });
-      var dirList = Object.keys(dirSet).sort();
+      var dirList = Object.keys(dirSet).sort(function(a, b){ return a.localeCompare(b, 'ru'); });
       if(dirList.length > 0){
         cols.push({
           index: 'custom_dir',
@@ -109,6 +115,20 @@
           isDate: false,
           isSelect: true,
           options: dirList,
+          isCustomField: true
+        });
+      }
+      var unitList = Object.keys(unitSet).sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+      if(unitList.length > 0){
+        cols.push({
+          index: 'custom_unit',
+          name: 'Подразделение',
+          norm: 'подразделение',
+          isAction: false,
+          isNum: false,
+          isDate: false,
+          isSelect: true,
+          options: unitList,
           isCustomField: true
         });
       }
@@ -133,6 +153,9 @@
       }
       if(/использован/i.test(c.norm)){
         presets.push({ id: 'used', name: 'С привязками (>0)', criteria: { [c.index]: { op: 'gt', val: '0' } } });
+      }
+      if(/^подразделен/i.test(c.norm) && c.index !== 'custom_unit'){
+        presets.push({ id: 'no_units', name: 'Без подразделений (0)', criteria: { [c.index]: { op: 'equals', val: '0' } } });
       }
     });
     var hasGroups = rows.some(function(r){ return r.classList.contains('tr--group') || /смежн/i.test(r.textContent); });
@@ -257,6 +280,14 @@
       return rDirs.some(function(d){ return d.indexOf(dirVal) >= 0; });
     }
 
+    // Специальное поле «Подразделение»
+    if(colMeta && colMeta.index === 'custom_unit'){
+      var unitVal = (typeof crit === 'string' ? crit : (crit.val || '')).trim().toLowerCase();
+      if(!unitVal) return true;
+      var rUnits = (row.dataset.units || '').split(',').map(function(x){ return x.trim().toLowerCase(); });
+      return rUnits.some(function(u){ return u.indexOf(unitVal) >= 0; });
+    }
+
     var cell = row.cells[+colMeta.index];
     if(!cell) return true;
     var cellText = cell.textContent;
@@ -332,9 +363,14 @@
       if(matchAll && qGlobal){
         matchAll = [].some.call(r.cells, function(c){
           return _tfNorm(c.textContent).indexOf(qGlobal) >= 0;
-        }) || (r.dataset.dirs && r.dataset.dirs.toLowerCase().indexOf(qGlobal) >= 0);
+        }) || (r.dataset.dirs && r.dataset.dirs.toLowerCase().indexOf(qGlobal) >= 0)
+           || (r.dataset.units && r.dataset.units.toLowerCase().indexOf(qGlobal) >= 0);
       }
       r.hidden = !matchAll;
+      if(r.dataset && r.dataset.login){
+        var card = document.getElementById('ucard_' + r.dataset.login);
+        if(card) card.hidden = !matchAll;
+      }
       lastMainRowVisible = matchAll;
       if(matchAll) visibleCount++;
     });

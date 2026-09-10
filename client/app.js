@@ -444,7 +444,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -479,7 +479,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -537,7 +537,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -567,7 +567,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.5')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.6')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5572,7 +5572,12 @@ function renderAdminUsers(){
   }
 
   var filtered = users.filter(function(u){
-    var matchSearch = !search || (u.fio && u.fio.toLowerCase().indexOf(search) >= 0) || (u.login && u.login.toLowerCase().indexOf(search) >= 0);
+    var uUnitsStr = (u.units || []).join(' ');
+    var matchSearch = !search ||
+      (u.fio && u.fio.toLowerCase().indexOf(search) >= 0) ||
+      (u.login && u.login.toLowerCase().indexOf(search) >= 0) ||
+      (u.phone && u.phone.toLowerCase().indexOf(search) >= 0) ||
+      (uUnitsStr && uUnitsStr.toLowerCase().indexOf(search) >= 0);
     var matchRole = !roleFilter || u.role === roleFilter;
     var matchDept = true;
     if(deptFilter){
@@ -5602,10 +5607,10 @@ function renderAdminUsers(){
     return matchSearch && matchRole && matchDept;
   });
 
-  // Поиск, счётчик и кнопка — одной строкой. Фильтры по ролям и направлениям доступны в смарт-фильтре таблицы
+  // Поиск, счётчик и кнопка — одной строкой. Фильтры по ролям, направлениям и подразделениям доступны в смарт-фильтре таблицы
   var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
-      '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(rawSearch)+'"></div>'+
+      '<input id="uSearch" placeholder="Поиск по ФИО, логину или подразделению…" value="'+esc(rawSearch)+'"></div>'+
     tblCount(filtered.length, users.length, ['пользователь', 'пользователя', 'пользователей'])+
     '<button id="btnAddUser" class="btn-primary toolbar-act">+ Добавить пользователя</button>'+
   '</div>';
@@ -5636,7 +5641,7 @@ function renderAdminUsers(){
     }
     var dirsStr = uDirs.join(', ');
 
-    rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
+    rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" data-units="'+esc((u.units||[]).join(', '))+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<td class="u-t-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</td>'+
       '<td class="u-t-login">'+esc(u.login)+
         (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
@@ -5649,7 +5654,7 @@ function renderAdminUsers(){
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
 
-    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
+    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" data-units="'+esc((u.units||[]).join(', '))+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<div class="u-hd">'+
         '<div class="u-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</div>'+
         '<div>'+
