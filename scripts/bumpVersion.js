@@ -140,11 +140,12 @@ function main() {
   // 2. client/index.html
   if (fs.existsSync(HTML_PATH)) {
     let html = fs.readFileSync(HTML_PATH, 'utf8');
-    // Заменяем ?v=... на всех скриптах и стилях
-    const updatedHtml = html.replace(/\?v=[a-zA-Z0-9._-]+/g, `?v=${nextVer}`);
+    // Заменяем ?v=... на всех скриптах и стилях, а также текст в бейджах версий
+    let updatedHtml = html.replace(/\?v=[a-zA-Z0-9._-]+/g, `?v=${nextVer}`);
+    updatedHtml = updatedHtml.replace(/(<span class="sheet-ver-badge"[^>]*>)[^<]*(<\/span>)/g, `$1v${nextVer}$2`);
     if (updatedHtml !== html) {
       fs.writeFileSync(HTML_PATH, updatedHtml, 'utf8');
-      console.log(`  ✓ client/index.html (?v=${nextVer})`);
+      console.log(`  ✓ client/index.html (?v=${nextVer}, бейдж: v${nextVer})`);
     }
   }
 

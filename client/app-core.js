@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.2';
+var APP_VERSION = window.APP_VERSION || 'v2.5.5';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -847,6 +847,63 @@ var WorkspaceTabs = {
     if(!this.activeId) return null;
     var t = this.getTab(this.activeId);
     return t ? t.paneEl : null;
+  },
+
+  ensureHomeTab: function(){
+    var home = this.getTabByKey('home');
+    if(!home){
+      var bodyContainer = document.getElementById('body');
+      if(!bodyContainer) return null;
+      bodyContainer.classList.add('has-workspace-tabs');
+
+      var id = 'tab_home';
+      var pane = document.getElementById('pane_' + id);
+      if(!pane){
+        pane = document.createElement('div');
+        pane.className = 'workspace-pane hidden';
+        pane.id = 'pane_' + id;
+        pane.dataset.tabId = id;
+        bodyContainer.appendChild(pane);
+      }
+
+      var self = this;
+      var runner = function(){
+        if(typeof self.resolveTabRunner === 'function'){
+          var customRunner = self.resolveTabRunner({ key: 'home', state: { appView: 'home', unit: null } });
+          if(customRunner) return customRunner();
+        }
+        if(typeof renderHome === 'function') renderHome();
+      };
+
+      home = {
+        id: id,
+        key: 'home',
+        title: 'Главная',
+        icon: 'home',
+        run: runner,
+        state: { appView: 'home', unit: null },
+        paneEl: pane,
+        scroll: 0,
+        pinned: true,
+        needsRefresh: false
+      };
+      this.tabs.unshift(home);
+      this.renderBar();
+    } else {
+      home.title = 'Главная';
+      home.icon = 'home';
+      home.pinned = true;
+      var hIdx = this.tabs.indexOf(home);
+      if(hIdx > 0){
+        this.tabs.splice(hIdx, 1);
+        this.tabs.unshift(home);
+      }
+      for(var i = 1; i < this.tabs.length; i++){
+        this.tabs[i].pinned = false;
+      }
+      this.renderBar();
+    }
+    return home;
   },
 
   init: function(){
@@ -990,6 +1047,7 @@ var WorkspaceTabs = {
 
         self.tabs.splice(insertAt, 0, draggedItem);
         self.renderBar();
+        self.saveSessionTabs();
       }
       self.cleanupDrag();
     };
@@ -1021,12 +1079,27 @@ var WorkspaceTabs = {
 
   openTab: function(opts){
     if(!opts || !opts.key) return null;
+    this.ensureHomeTab();
+    if(opts.key === 'home'){
+      var homeTab = this.getTabByKey('home');
+      if(homeTab){
+        homeTab.title = 'Главная';
+        homeTab.icon = 'home';
+        homeTab.pinned = true;
+        if(opts.run) homeTab.run = opts.run;
+        if(opts.state){
+          for(var k in opts.state){ homeTab.state[k] = opts.state[k]; }
+        }
+        this.activateTab(homeTab.id);
+        return homeTab;
+      }
+    }
     if(!opts.forceNew){
       var existing = this.getTabByKey(opts.key);
       if(existing){
         if(opts.title) existing.title = opts.title;
         if(opts.icon) existing.icon = opts.icon;
-        if(opts.pinned !== undefined) existing.pinned = !!opts.pinned;
+        existing.pinned = (opts.key === 'home');
         if(opts.state){
           for(var k in opts.state){ existing.state[k] = opts.state[k]; }
         }
@@ -1055,7 +1128,7 @@ var WorkspaceTabs = {
       state: opts.state || {},
       paneEl: pane,
       scroll: 0,
-      pinned: !!opts.pinned,
+      pinned: (opts.key === 'home'),
       needsRefresh: false
     };
 
@@ -1176,11 +1249,13 @@ var WorkspaceTabs = {
 
     if(typeof renderNav === 'function') renderNav();
     if(typeof updateTopPeriodBadge === 'function') updateTopPeriodBadge();
+    this.saveSessionTabs();
   },
 
   closeTab: function(id, force){
     var tab = this.getTab(id);
     if(!tab) return;
+    if(tab.key === 'home' && !force) return;
     if(tab.pinned && !force) return;
     var self = this;
     var isDirty = (this.activeId === id && S.dirty) || (tab.state && tab.state.dirty);
@@ -1192,21 +1267,21 @@ var WorkspaceTabs = {
       self.tabs = self.tabs.filter(function(t){ return t.id !== id; });
       self.history = self.history.filter(function(hid){ return hid !== id; });
 
+      // «Главная» всегда остаётся закреплённой в списке вкладок
+      var homeTab = self.getTabByKey('home') || self.ensureHomeTab();
+
       if(self.activeId === id){
         if(self.history.length){
           var prevId = self.history[self.history.length - 1];
           self.activateTab(prevId);
+        } else if(homeTab){
+          self.activateTab(homeTab.id);
         } else if(self.tabs.length){
           self.activateTab(self.tabs[self.tabs.length - 1].id);
-        } else {
-          self.activeId = null;
-          var bodyContainer = document.getElementById('body');
-          if(bodyContainer) bodyContainer.classList.remove('has-workspace-tabs');
-          self.renderBar();
-          if(typeof switchView === 'function') switchView('home');
         }
       } else {
         self.renderBar();
+        self.saveSessionTabs();
       }
     }
 
@@ -1329,6 +1404,11 @@ var WorkspaceTabs = {
         danger: true,
         run: function(){ self.closeTab(id); }
       });
+    }
+
+    var unpinnedOtherCount = self.tabs.filter(function(t){ return t.id !== id && !t.pinned; }).length;
+    if(unpinnedOtherCount > 0){
+      if(!items.some(function(it){ return it.sep; })) items.push({ sep: true });
       items.push({
         label: 'Закрыть другие вкладки',
         run: function(){ self.closeOtherTabs(id); }
@@ -1376,10 +1456,13 @@ var WorkspaceTabs = {
   updateActiveTitle: function(title, icon, newKey){
     var cur = this.getTab(this.activeId);
     if(!cur) return;
+    // Закреплённая вкладка «Главная» неприкосновенна: её нельзя переименовать или подменить ключ
+    if(cur.key === 'home' || cur.id === 'tab_home' || cur.pinned) return;
     if(title) cur.title = title;
     if(icon) cur.icon = icon;
     if(newKey) cur.key = newKey;
     this.renderBar();
+    this.saveSessionTabs();
   },
 
   renderBar: function(){
@@ -1417,6 +1500,101 @@ var WorkspaceTabs = {
     var activeEl = bar.querySelector('.ws-tab.active');
     if(activeEl && typeof activeEl.scrollIntoView === 'function'){
       try { activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); } catch(e){}
+    }
+  },
+
+  saveSessionTabs: function(){
+    try {
+      if(!this.tabs || !this.tabs.length) return;
+      var activeTab = this.getTab(this.activeId);
+      var data = {
+        activeKey: activeTab ? activeTab.key : 'home',
+        tabs: this.tabs.map(function(t){
+          var isHome = (t.key === 'home' || t.id === 'tab_home');
+          return {
+            key: isHome ? 'home' : t.key,
+            title: isHome ? 'Главная' : t.title,
+            icon: isHome ? 'home' : t.icon,
+            pinned: isHome,
+            state: t.state || {}
+          };
+        })
+      };
+      sessionStorage.setItem('farovon_ws_tabs', JSON.stringify(data));
+    } catch(e){}
+  },
+
+  restoreSessionTabs: function(){
+    try {
+      var raw = sessionStorage.getItem('farovon_ws_tabs');
+      if(!raw) return false;
+      var data = JSON.parse(raw);
+      if(!data || !Array.isArray(data.tabs) || !data.tabs.length) return false;
+
+      var self = this;
+      var cleanTabs = [];
+      var seenKeys = {};
+      var hasRealHome = false;
+
+      data.tabs.forEach(function(tData){
+        if(!tData || !tData.key) return;
+        if(tData.key === 'home'){
+          hasRealHome = true;
+          cleanTabs.push({
+            key: 'home',
+            title: 'Главная',
+            icon: 'home',
+            pinned: true,
+            state: { appView: 'home', unit: null }
+          });
+          seenKeys['home'] = true;
+        } else {
+          if(!seenKeys[tData.key]){
+            seenKeys[tData.key] = true;
+            cleanTabs.push({
+              key: tData.key,
+              title: tData.title,
+              icon: tData.icon,
+              pinned: false,
+              state: tData.state || {}
+            });
+          }
+        }
+      });
+
+      if(!hasRealHome){
+        cleanTabs.unshift({
+          key: 'home',
+          title: 'Главная',
+          icon: 'home',
+          pinned: true,
+          state: { appView: 'home', unit: null }
+        });
+      }
+
+      cleanTabs.forEach(function(tData){
+        var isHome = (tData.key === 'home');
+        var runner = null;
+        if(typeof self.resolveTabRunner === 'function'){
+          runner = self.resolveTabRunner(tData);
+        }
+        self.openTab({
+          key: tData.key,
+          title: isHome ? 'Главная' : tData.title,
+          icon: isHome ? 'home' : tData.icon,
+          pinned: isHome,
+          state: tData.state,
+          run: runner
+        });
+      });
+
+      var targetTab = (data.activeKey && self.getTabByKey(data.activeKey)) || self.getTabByKey('home');
+      if(targetTab){
+        self.activateTab(targetTab.id);
+      }
+      return true;
+    } catch(e){
+      return false;
     }
   }
 };

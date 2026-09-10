@@ -60,6 +60,7 @@ function doLogout(){
     // Гасим httpOnly-куку на сервере, затем локальные следы.
     call('apiLogout').catch(function(){}).then(function(){
       store.del(LS_TOKEN);
+      try { sessionStorage.removeItem('farovon_ws_tabs'); } catch(e){}
       location.reload();
     });
   };
@@ -192,7 +193,7 @@ function navModel(){
     ];
     primary.push({ key:'dashboard', label:'Дашборд', icon:'dashboard',
       active:mkActive('dashboard'), inTabs:true, subsections:dashSubs, submenu:dashSubs,
-      run:function(){ switchView('dashboard'); } });
+      run:function(){ openDashboard('overview'); } });
   }
   if(canSeeBenchmarks()){
     var bmSubs = [
@@ -300,7 +301,7 @@ function navModel(){
     t.run = (function(tObj){
       return function(){
         if(tObj.atab === 'users'){
-          openAdminPanel(S.adminTab === 'archive' ? 'archive' : 'users');
+          openAdminPanel('users');
         } else if(tObj.atab === 'dict'){
           openAdminPanel('dict', S.dictKind || 'companies');
         } else {
@@ -443,7 +444,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.2')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -478,7 +479,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.2')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -496,7 +497,7 @@ function renderTopNav(){ renderNav(); }
 function switchView(v){
   if(v === 'home') renderHome();
   else if(v === 'units') renderUnits();
-  else if(v === 'dashboard') openDashboard();
+  else if(v === 'dashboard') openDashboard('overview');
   else if(v === 'benchmarks'){
     if(!canSeeBenchmarks()){
       toast('У вас нет доступа к разделу бенчмаркинга', 'warn');
@@ -536,7 +537,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.2')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.5')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -566,7 +567,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.2')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.5')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1050,23 +1051,67 @@ function onLoaded(data){
   // Вошёл по временному паролю — форсируем смену, остальное не показываем.
   if(data.mustChangePassword){ openPassword(true); return; }
 
-  // По умолчанию закреплена вкладка «Главная»
-  if(window.WorkspaceTabs && WorkspaceTabs.openTab){
-    if(!WorkspaceTabs.getTabByKey('home')){
-      WorkspaceTabs.openTab({
-        key: 'home',
-        title: 'Главная',
-        icon: 'home',
-        pinned: true,
-        state: { appView: 'home', unit: null },
-        run: function(){ renderHome(); }
-      });
-    }
+  if(window.WorkspaceTabs){
+    WorkspaceTabs.resolveTabRunner = function(tab){
+      var key = (tab && tab.key) || '';
+      var state = (tab && tab.state) || {};
+      var baseKey = key.split('#')[0];
+
+      if(baseKey === 'home') return function(){ renderHome(); };
+      if(baseKey.indexOf('dashboard') === 0){
+        var sub = state.dashTab || (baseKey.indexOf(':') > -1 ? baseKey.split(':')[1] : 'summary');
+        return function(){ openDashboard(sub); };
+      }
+      if(baseKey.indexOf('benchmarks') === 0){
+        var bsub = state.bmTab || (baseKey.indexOf(':') > -1 ? baseKey.split(':')[1] : 'compare');
+        return function(){ openBenchmarks(bsub); };
+      }
+      if(baseKey.indexOf('unit:') === 0){
+        var u = state.unit || baseKey.slice(5);
+        var st = state.tab || 'step1';
+        return function(){ openUnit(u, st); };
+      }
+      if(baseKey.indexOf('admin:') === 0){
+        var atab = state.adminTab || baseKey.slice(6) || 'users';
+        return function(){ openAdminPanel(atab); };
+      }
+      if(baseKey.indexOf('dict:') === 0){
+        var dkind = state.dictKind || baseKey.slice(5) || 'companies';
+        return function(){ openAdminPanel('dict', dkind); };
+      }
+      if(baseKey === 'orgstructure') return function(){ openOrgStructure(); };
+      if(baseKey === 'methodology') return function(){ openMethodology(); };
+      if(baseKey === 'dept_assign') return function(){ openDeptAssign(); };
+      if(baseKey === 'users_assign') return function(){ openUsersAssign(); };
+      if(baseKey === 'password') return function(){ openPassword(); };
+      return function(){ renderCurrentView(); };
+    };
   }
 
-  if(data.needsUnitPick) renderUnitPicker();
-  else if(data.needsAssignment) renderNeedsAssignment();
-  else renderCurrentView();
+  var restoredTabs = false;
+  if(window.WorkspaceTabs && WorkspaceTabs.restoreSessionTabs){
+    restoredTabs = WorkspaceTabs.restoreSessionTabs();
+  }
+  if(window.WorkspaceTabs && WorkspaceTabs.ensureHomeTab){
+    WorkspaceTabs.ensureHomeTab();
+  }
+  if(!restoredTabs){
+    if(window.WorkspaceTabs && WorkspaceTabs.openTab){
+      if(!WorkspaceTabs.getTabByKey('home')){
+        WorkspaceTabs.openTab({
+          key: 'home',
+          title: 'Главная',
+          icon: 'home',
+          pinned: true,
+          state: { appView: 'home', unit: null },
+          run: function(){ renderHome(); }
+        });
+      }
+    }
+    if(data.needsUnitPick) renderUnitPicker();
+    else if(data.needsAssignment) renderNeedsAssignment();
+    else renderCurrentView();
+  }
 
   // Первый снимок в history — иначе первый «назад» сразу выходит из приложения.
   pushNavHistory(true);
@@ -1647,6 +1692,27 @@ function crumbTrail(title){
     ];
   }
   if(S.appView === 'admin'){
+    var dictList = (typeof DICT_KINDS !== 'undefined' ? DICT_KINDS : []);
+    var isDict = S.adminTab === 'dict' || (title && dictList.some(function(k){ return k.label === title; }));
+    if(isDict){
+      var curMeta = dictList.filter(function(k){ return k.id === S.dictKind || k.label === title; })[0];
+      var subName = (curMeta && curMeta.label) || (title && title !== 'Справочники' ? title : null);
+      if(subName){
+        return [
+          { label:'Администрирование' },
+          { label:'Справочники', go:function(){ openAdminPanel('dict', 'companies'); } },
+          { label: subName }
+        ];
+      }
+      return [ { label:'Администрирование' }, { label:'Справочники' } ];
+    }
+    if(S.adminTab === 'archive'){
+      return [
+        { label:'Администрирование' },
+        { label:'Пользователи', go:function(){ openAdminPanel('users'); } },
+        { label: title || 'Архив' }
+      ];
+    }
     return [ { label:'Администрирование' }, { label: title || 'Раздел' } ];
   }
   return [ { label: title } ];
@@ -3672,7 +3738,7 @@ function skDash(){
 // АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
 // ═══════════════════════════════════════════════════════════
 function openDashboard(initialTab){
-  var curTab = initialTab || S.dashTab || 'overview';
+  var curTab = initialTab || 'overview';
   S.dashTab = curTab;
   var dashTitles = {
     overview: { title: 'Обзор', icon: 'dashboard' },
@@ -3682,7 +3748,7 @@ function openDashboard(initialTab){
     progress: { title: 'Прогресс по HR BP', icon: 'target' },
     benefits: { title: 'Льготы и Бонусы', icon: 'medal' }
   };
-  var tInfo = dashTitles[curTab] || { title: 'Зарплатные вилки', icon: 'wallet' };
+  var tInfo = dashTitles[curTab] || { title: 'Обзор', icon: 'dashboard' };
   var tabKey = 'dashboard:' + curTab;
   var tabTitle = tInfo.title;
   var tabIcon = tInfo.icon;
@@ -5319,9 +5385,10 @@ function renderAdminPanel(){
     WorkspaceTabs.updateActiveTitle(pageTitle, pageIcon, pageKey);
   }
 
-  var adminEl = $('adminContent');
-  if(!adminEl){
-    $('body').innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>';
+  var bodyEl = $('body');
+  var adminEl = bodyEl ? bodyEl.querySelector('#adminContent') : null;
+  if(!adminEl && bodyEl){
+    bodyEl.innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>';
   } else {
     // Сохраняем текущие значения полей фильтров перед обновлением
     if($('uSearch')) S.adminUsersSearch = $('uSearch').value;
@@ -5346,8 +5413,14 @@ function loadAdminUsers(){
   if($('uRole')) S.adminUsersRole = $('uRole').value;
   if($('uDept')) S.adminUsersDept = $('uDept').value;
 
-  if(!S.adminUsers || !S.adminUsers.length){
-    $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка пользователей...</div>';
+  var aContent = $('adminContent');
+  if(!aContent){
+    var b = $('body');
+    if(b){ b.innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>'; }
+    aContent = $('adminContent');
+  }
+  if((!S.adminUsers || !S.adminUsers.length) && aContent){
+    aContent.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка пользователей...</div>';
   }
   // список ролей нужен для выпадашки в карточке пользователя — тянем в фоне
   if(!S.rolesList){
@@ -5529,29 +5602,10 @@ function renderAdminUsers(){
     return matchSearch && matchRole && matchDept;
   });
 
-  // Поиск, фильтр роли, фильтр департамента, счётчик и кнопка — одной строкой
-  var h = '<div class="sub-tabs sub-tabs--inner">'+
-    '<button class="sub-tab on" id="btnSubUsers">Все пользователи</button>'+
-    '<button class="sub-tab" id="btnSubArchive">Архив</button>'+
-  '</div>'+
-  '<div class="toolbar">'+
+  // Поиск, счётчик и кнопка — одной строкой. Фильтры по ролям и направлениям доступны в смарт-фильтре таблицы
+  var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
       '<input id="uSearch" placeholder="Поиск по ФИО или логину…" value="'+esc(rawSearch)+'"></div>'+
-    '<select id="uRole" class="toolbar-select">'+
-      '<option value="">Все роли ('+users.length+')</option>'+
-      '<option value="admin"'+(roleFilter==='admin'?' selected':'')+'>Администраторы (admin)</option>'+
-      '<option value="cb"'+(roleFilter==='cb'?' selected':'')+'>C&B Аналитики (cb)</option>'+
-      '<option value="hrbp"'+(roleFilter==='hrbp'?' selected':'')+'>HR BP (hrbp)</option>'+
-      '<option value="dir_head"'+(roleFilter==='dir_head'?' selected':'')+'>Руководители направлений</option>'+
-      '<option value="head"'+(roleFilter==='head'?' selected':'')+'>Руководители отделов</option>'+
-      '<option value="user"'+(roleFilter==='user'?' selected':'')+'>Сотрудники (user)</option>'+
-    '</select>'+
-    '<select id="uDept" class="toolbar-select" style="max-width:240px">'+
-      '<option value="">Все департаменты ('+dirs.length+')</option>'+
-      dirs.map(function(dirName){
-        return '<option value="'+esc(dirName)+'"'+(deptFilter===dirName?' selected':'')+'>'+esc(dirName)+'</option>';
-      }).join('')+
-    '</select>'+
     tblCount(filtered.length, users.length, ['пользователь', 'пользователя', 'пользователей'])+
     '<button id="btnAddUser" class="btn-primary toolbar-act">+ Добавить пользователя</button>'+
   '</div>';
@@ -5564,7 +5618,25 @@ function renderAdminUsers(){
     else if(u.role === 'hrbp') rBadge = 'b-hrbp';
     else if(u.role === 'dir_head' || u.role === 'head') rBadge = 'b-head';
 
-    rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
+    var uDirs = [];
+    if(u.units && S.adminDivs){
+      u.units.forEach(function(un){
+        S.adminDivs.forEach(function(d){
+          if(d.unit === un && d.dir && uDirs.indexOf(d.dir) < 0) uDirs.push(d.dir);
+        });
+      });
+    }
+    if(u.fio && S.adminDivs){
+      var fioT = u.fio.trim();
+      S.adminDivs.forEach(function(d){
+        if(((d.head && d.head.indexOf(fioT) >= 0) || (d.resp && d.resp.indexOf(fioT) >= 0) || (d.hrbp && d.hrbp.indexOf(fioT) >= 0)) && d.dir && uDirs.indexOf(d.dir) < 0){
+          uDirs.push(d.dir);
+        }
+      });
+    }
+    var dirsStr = uDirs.join(', ');
+
+    rows += '<tr id="urow_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<td class="u-t-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</td>'+
       '<td class="u-t-login">'+esc(u.login)+
         (u.hasTelegram ? ' <span class="badge b-tg">TG</span>' : '')+
@@ -5572,12 +5644,12 @@ function renderAdminUsers(){
       '<td class="u-t-dim">'+esc(u.phone || '—')+'</td>'+
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
-      '<td class="u-t-dim" title="'+esc((u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</td>'+
+      '<td class="u-t-dim" data-dirs="'+esc(dirsStr)+'" title="'+esc(dirsStr ? 'Направления: ' + dirsStr + '\nПодразделения: ' + (u.units||[]).join('\n') : (u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</td>'+
       '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
 
-    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
+    cards += '<div class="u-card" id="ucard_'+esc(u.login)+'" data-login="'+esc(u.login)+'" data-dirs="'+esc(dirsStr)+'" style="cursor:pointer" title="Двойной клик для редактирования">'+
       '<div class="u-hd">'+
         '<div class="u-fio" title="'+esc(u.fio)+'">'+esc(u.fio)+'</div>'+
         '<div>'+
@@ -5608,11 +5680,6 @@ function renderAdminUsers(){
 
   $('adminContent').innerHTML = h;
 
-  var bSubArch = $('btnSubArchive');
-  if(bSubArch){
-    bSubArch.onclick = function(){ openAdminPanel('archive'); };
-  }
-
   // Двойной клик — редактирование, правый клик — меню действий ровно под курсором
   $('adminContent').querySelectorAll('tr[data-login], .u-card[data-login]').forEach(function(el){
     el.ondblclick = function(e){
@@ -5638,18 +5705,28 @@ function renderAdminUsers(){
     var again = $('uSearch');
     if(again){ again.focus(); try{ again.setSelectionRange(pos, pos); }catch(e){} }
   };
-  $('uRole').onchange = function(){
-    S.adminUsersRole = this.value;
-    saveNavState();
-    renderAdminUsers();
-  };
-  $('uDept').onchange = function(){
-    S.adminUsersDept = this.value;
-    saveNavState();
-    renderAdminUsers();
-  };
+  var uRoleEl = $('uRole');
+  if(uRoleEl){
+    uRoleEl.onchange = function(){
+      S.adminUsersRole = this.value;
+      saveNavState();
+      renderAdminUsers();
+    };
+  }
+  var uDeptEl = $('uDept');
+  if(uDeptEl){
+    uDeptEl.onchange = function(){
+      S.adminUsersDept = this.value;
+      saveNavState();
+      renderAdminUsers();
+    };
+  }
   $('btnAddUser').onclick = function(){ openUserModal(null); };
   try { restoreViewScroll('admin:users'); } catch(e){}
+  if(window.SmartTableFilter && typeof window.SmartTableFilter.attach === 'function'){
+    var uTbl = $('adminContent') ? $('adminContent').querySelector('table.co-tbl') : null;
+    if(uTbl) window.SmartTableFilter.attach(uTbl);
+  }
 }
 
 function openUserModal(login){
@@ -5897,9 +5974,18 @@ function adminRestoreUser(login){
 
 // ─── Вкладка: Архив ───
 function loadAdminArchive(){
+  var aContent = $('adminContent');
+  if(!aContent){
+    var b = $('body');
+    if(b){ b.innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>'; }
+    aContent = $('adminContent');
+  }
+  if(aContent) aContent.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка архива...</div>';
+
   call('apiAdminGetArchive', S.token).then(function(r){
     if(!r || !r.ok){
-      $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки архива')+'</div>';
+      var el = $('adminContent');
+      if(el) el.innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки архива')+'</div>';
       return;
     }
     S.adminArchive = r.users || [];
@@ -5917,18 +6003,13 @@ function renderAdminArchive(){
   }
   setTop('Архив', userLabel(), false, 'archive');
 
-  var h = '<div class="sub-tabs sub-tabs--inner">'+
-    '<button class="sub-tab" id="btnSubUsers">Все пользователи</button>'+
-    '<button class="sub-tab on" id="btnSubArchive">Архив</button>'+
-  '</div>'+
-  '<div class="sec-title" style="margin-top:12px">В архиве</div>'+
+  var h = '<div class="sec-title">В архиве</div>'+
     tblCount(users.length, null, ['учётная запись', 'учётные записи', 'учётных записей']);
 
   if(!users.length){
     h += '<div class="empty">Архив пуст</div>';
-    $('adminContent').innerHTML = h;
-    var bSubU0 = $('btnSubUsers');
-    if(bSubU0) bSubU0.onclick = function(){ openAdminPanel('users'); };
+    var aEl0 = $('adminContent');
+    if(aEl0) aEl0.innerHTML = h;
     return;
   }
 
@@ -5965,9 +6046,12 @@ function renderAdminArchive(){
   h += '<div class="u-cards fx-stagger">'+cards+'</div>';
 
   $('adminContent').innerHTML = h;
-  var bSubU = $('btnSubUsers');
-  if(bSubU) bSubU.onclick = function(){ openAdminPanel('users'); };
+
   try { restoreViewScroll('admin:archive'); } catch(e){}
+  if(window.SmartTableFilter && typeof window.SmartTableFilter.attach === 'function'){
+    var aTbl = $('adminContent') ? $('adminContent').querySelector('table.co-tbl') : null;
+    if(aTbl) window.SmartTableFilter.attach(aTbl);
+  }
 }
 
 // ─── Вкладка: Оргструктура ───
@@ -6283,22 +6367,18 @@ function renderAdminDivisions(){
   var curView = S.adminDivsView || 'tree';
 
   // Единый кластер кнопок управления оргструктурой — один и тот же порядок и
-  // вид в обоих режимах: Схема · Таблица · Смежные группы · Добавить
-  // подразделение (· Отменить). Раньше кнопки были раскиданы — в «Таблице»
-  // не было «Смежных групп», отступы и порядок различались между видами.
+  // вид в обоих режимах: Схема · Смежные группы · Таблица · Добавить
+  // подразделение (· Отменить).
   function orgToolbarBtns(view){
     var adjN = new Set((S.adminDivs || []).map(function(x){ return String(x.group_key || '').trim(); }).filter(Boolean)).size;
     return '<div class="org-toolbar-btns">'+
-      '<div class="seg">'+
-        '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
-        '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
-      '</div>'+
+      '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
       '<button class="btn-line" id="btnAdjGroups" style="gap:5px" title="Смежные группы площадок">'+
         ic('link', 13) + ' Смежные группы' + (adjN ? ' ('+adjN+')' : '')+
       '</button>'+
+      '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
       (hasCap('divisions:edit') ?
-        '<button class="btn-line" id="btnAddDivision" style="gap:5px;color:var(--accent);border-color:var(--accent)" title="Создать новое подразделение">'+
-          ic('plus', 13) + ' Добавить подразделение</button>'
+        '<button class="btn-primary toolbar-act" id="btnAddDivision" title="Создать новое подразделение">+ Добавить подразделение</button>'
         : '')+
       ((S.myUndoStack && S.myUndoStack.length) ?
         '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
@@ -9301,27 +9381,9 @@ function renderAdminDict(){
   }
   setTop(dictTitle, userLabel(), false, 'book');
 
-  var h = '<div class="sub-tabs sub-tabs--inner">'+ DICT_KINDS.map(function(k){
-    return '<button class="sub-tab'+(S.dictKind === k.id ? ' on' : '')+'" data-dk="'+k.id+'">'+
-      esc(k.label)+'</button>';
-  }).join('') +'</div>'+
-  '<div id="dictBox" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">' + skTable(6) + '</div>';
+  var h = '<div id="dictBox" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">' + skTable(6) + '</div>';
 
   $('adminContent').innerHTML = h;
-  $('adminContent').querySelectorAll('button[data-dk]').forEach(function(b){
-    b.onclick = function(){
-      S.dictKind = this.dataset.dk;
-      S.dictQ = '';
-      var m = DICT_KINDS.filter(function(k){ return k.id === S.dictKind; })[0];
-      var newTitle = m ? m.label : 'Справочники';
-      if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
-        WorkspaceTabs.updateActiveTitle(newTitle, 'book', 'dict:' + S.dictKind);
-      }
-      setTop(newTitle, userLabel(), false, 'book');
-      renderAdminDict();
-    };
-  });
-
   loadDict();
 }
 
@@ -9423,6 +9485,10 @@ function drawDict(){
     b.onclick = function(e){ openDictActions(e, this.dataset.dictAct); };
   });
   try { restoreViewScroll('admin:dict'); } catch(e){}
+  if(window.SmartTableFilter && typeof window.SmartTableFilter.attach === 'function'){
+    var t = $('dictBox').querySelector('table.co-tbl');
+    if(t) window.SmartTableFilter.attach(t);
+  }
 }
 
 function bindDictBar(){
