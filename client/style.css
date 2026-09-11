@@ -10577,14 +10577,22 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 
 .gr-factor {
-  padding: 14px 0;
+  padding: 14px 0 14px 12px;
   border-top: 1px solid var(--line);
+  /* Полоса слева отделяет блок вопроса от предыдущего — быстрее отличать
+     где кончился один вопрос и начался следующий при беглом взгляде. */
+  border-left: 3px solid var(--accent, #2563eb);
 }
 .gr-factor-hd {
   display: flex;
   align-items: baseline;
   gap: 8px;
   margin-bottom: 4px;
+}
+/* Текст самого вопроса — акцентным цветом, варианты ответа ниже остаются
+   обычным текстом: так вопрос и ответы не путаются друг с другом. */
+.gr-factor-hd b {
+  color: var(--accent, #2563eb);
 }
 .gr-help {
   font-size: 12px;
