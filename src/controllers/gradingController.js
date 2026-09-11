@@ -78,10 +78,13 @@ function handleError(res, err, where) {
  */
 async function getFactors(req, res) {
   try {
-    const texts = await factorsService.getFactors();
+    const dir = readText(req.query.dir, 300);
+    const texts = await factorsService.getFactors(dir);
     return res.json({
       ok: true,
       source: texts.source,
+      dir: texts.dir || '',
+      overrideDirs: await factorsService.listOverrideDirs(),
       groups: GROUP_KEYS.map(key => ({
         key,
         label: GROUPS[key].label,
@@ -104,6 +107,7 @@ async function saveFactor(req, res) {
     const saved = await factorsService.saveFactor({
       scope: body.scope,
       idx: body.idx,
+      dir: body.dir,
       title: body.title,
       help: body.help,
       options: body.options,
@@ -113,7 +117,7 @@ async function saveFactor(req, res) {
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'правка анкеты оценки',
-      `${saved.scope} №${saved.idx}: «${saved.title}»`
+      `${saved.scope} №${saved.idx}${saved.dir ? ' (' + saved.dir + ')' : ' (общая)'}: «${saved.title}»`
     ]);
 
     return res.json({ ok: true, message: 'Формулировка сохранена' });
@@ -127,16 +131,21 @@ async function resetFactor(req, res) {
   try {
     const body = req.body || {};
     const saved = await factorsService.resetFactor(
-      String(body.scope || ''), parseInt(body.idx, 10), req.user.fio || req.user.login
+      String(body.scope || ''), parseInt(body.idx, 10), body.dir, req.user.fio || req.user.login
     );
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
-      'возврат анкеты оценки к исходной',
-      `${saved.scope} №${saved.idx}`
+      saved.dir ? 'удаление формулировки направления' : 'возврат анкеты оценки к исходной',
+      `${saved.scope} №${saved.idx}${saved.dir ? ' (' + saved.dir + ')' : ''}`
     ]);
 
-    return res.json({ ok: true, message: 'Восстановлена исходная формулировка' });
+    return res.json({
+      ok: true,
+      message: saved.dir
+        ? 'Формулировка направления удалена — снова действует общая'
+        : 'Восстановлена исходная формулировка'
+    });
   } catch (err) {
     return handleError(res, err, 'resetFactor');
   }

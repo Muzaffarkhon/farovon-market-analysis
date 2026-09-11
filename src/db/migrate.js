@@ -24,17 +24,57 @@ async function ensureColumn(table, column, definition) {
   return true;
 }
 
-/** Первичная заливка формулировок анкеты из кода в таблицу grading_factors. */
+/**
+ * Первичная заливка формулировок анкеты из кода в таблицу grading_factors.
+ * dir = '' — общая формулировка, действует для всех направлений холдинга;
+ * строки с конкретным направлением заводит C&B в админке поверх неё.
+ */
 async function seedFactors(scope, list) {
   for (let i = 0; i < list.length; i++) {
     const f = list[i];
     await run(
       `INSERT OR IGNORE INTO grading_factors
-         (scope, idx, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'исходная форма')`,
+         (scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by)
+       VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 'исходная форма')`,
       [scope, i + 1, f.code, f.title, f.help || '', ...f.options]
     );
   }
+}
+
+/**
+ * Переход на формулировки по направлениям: у таблицы было UNIQUE(scope, idx),
+ * из-за чего второй вариант того же вопроса «под мукомолов» вставить нельзя.
+ * SQLite не умеет менять ограничение на месте — пересобираем таблицу и
+ * переносим строки (их немного: 13 вопросов грейдирования и 4 про риски).
+ */
+async function upgradeGradingFactorsToDirs() {
+  const cols = await queryAll('PRAGMA table_info(grading_factors)');
+  if (!cols.length || cols.some(c => c.name === 'dir')) return;
+
+  await run(`CREATE TABLE grading_factors_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL,
+    idx INTEGER NOT NULL,
+    dir TEXT NOT NULL DEFAULT '',
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    help TEXT,
+    option_1 TEXT NOT NULL,
+    option_2 TEXT NOT NULL,
+    option_3 TEXT NOT NULL,
+    option_4 TEXT NOT NULL,
+    option_5 TEXT NOT NULL,
+    updated_by TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(scope, idx, dir)
+  )`);
+  await run(`INSERT INTO grading_factors_new
+      (id, scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by, updated_at)
+    SELECT id, scope, idx, '', code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by, updated_at
+      FROM grading_factors`);
+  await run('DROP TABLE grading_factors');
+  await run('ALTER TABLE grading_factors_new RENAME TO grading_factors');
+  console.log('🔧 Миграция: формулировки анкет переведены на разрез по направлениям');
 }
 
 async function migrate() {
@@ -390,6 +430,7 @@ async function migrate() {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     scope TEXT NOT NULL,
     idx INTEGER NOT NULL,
+    dir TEXT NOT NULL DEFAULT '',
     code TEXT NOT NULL,
     title TEXT NOT NULL,
     help TEXT,
@@ -400,8 +441,11 @@ async function migrate() {
     option_5 TEXT NOT NULL,
     updated_by TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(scope, idx)
+    UNIQUE(scope, idx, dir)
   )`);
+  // Базы, созданные до появления разреза по направлениям, доводим до нового
+  // вида: колонка dir и уникальность по тройке (анкета, вопрос, направление).
+  await upgradeGradingFactorsToDirs();
   for (const [scope, list] of Object.entries(GROUP_FACTORS)) {
     await seedFactors(scope, list);
   }

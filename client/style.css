@@ -10519,3 +10519,7 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   .gf-acts { flex-direction: column; }
   .gf-card .gf-by { display: none; }
 }
+.gf-note {
+  padding: 4px 2px 12px;
+  line-height: 1.45;
+}

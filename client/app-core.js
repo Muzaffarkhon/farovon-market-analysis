@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.11';
+var APP_VERSION = window.APP_VERSION || 'v2.5.12';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1759,7 +1759,7 @@ var API_ROUTES = {
   apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },
   apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   // Анкеты оценки: чтение формулировок (раздел оценки) и их правка (админка).
-  apiGradingFactors: function(args){ return fetchJson('/api/grading/factors', { method:'GET', token:args[0] }); },
+  apiGradingFactors: function(args){ return fetchJson('/api/grading/factors' + (args[1] ? '?dir=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiGradingFactorSave: function(args){ return fetchJson('/api/admin/grading-factors', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingFactorReset: function(args){ return fetchJson('/api/admin/grading-factors/reset', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGetRoleCapabilities: function(args){ return fetchJson('/api/admin/role-capabilities', { method:'GET', token:args[0] }); },

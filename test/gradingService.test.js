@@ -150,3 +150,28 @@ test('правка анкеты: чужая анкета и номер вне д
     /номер вопроса/
   );
 });
+
+test('формулировка направления перекрывает общую, остальные направления её не видят', () => {
+  const row = (scope, idx, dir, title) => ({
+    scope, idx, dir, code: 'П' + idx, title, help: '',
+    option_1: 'а', option_2: 'б', option_3: 'в', option_4: 'г', option_5: 'д'
+  });
+  const rows = [
+    row('production', 1, '', 'Общий вопрос 1'),
+    row('production', 1, 'Мука', 'Про мельницу'),
+    row('production', 2, '', 'Общий вопрос 2')
+  ];
+
+  const мука = factorsService.pickForDir(rows, 'Мука');
+  assert.equal(мука.production[0].title, 'Про мельницу');
+  assert.equal(мука.production[0].dir, 'Мука');
+  // Второй вопрос своей формулировки не имеет — берётся общая.
+  assert.equal(мука.production[1].title, 'Общий вопрос 2');
+  assert.equal(мука.production[1].dir, '');
+
+  const масло = factorsService.pickForDir(rows, 'Масло');
+  assert.equal(масло.production[0].title, 'Общий вопрос 1');
+
+  const общая = factorsService.pickForDir(rows, '');
+  assert.equal(общая.production[0].title, 'Общий вопрос 1');
+});

@@ -453,7 +453,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -488,7 +488,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -546,7 +546,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -576,7 +576,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.11')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.12')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5599,7 +5599,7 @@ var GRADING_SCOPES = [
 function renderAdminGradingFactors(){
   $('adminContent').innerHTML = '<div id="gfBox">' + skTable() + '</div>';
 
-  call('apiGradingFactors', S.token).then(function(r){
+  call('apiGradingFactors', S.token, S.gradingDir || '').then(function(r){
     if(!r || !r.ok){
       $('gfBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить анкеты')+'</div>';
       return;
@@ -5629,14 +5629,28 @@ function drawGradingFactors(){
   var cur = S.gradingScope || GRADING_SCOPES[0].key;
   S.gradingScope = cur;
 
+  var curDir = S.gradingDir || '';
+  var overrideDirs = (S.gradingFactors && S.gradingFactors.overrideDirs) || [];
+
   var h = '<div class="toolbar">'+
     '<select id="gfScope" class="toolbar-select">'+
       GRADING_SCOPES.map(function(s){
         return '<option value="'+esc(s.key)+'"'+(s.key === cur ? ' selected' : '')+'>'+esc(s.label)+'</option>';
       }).join('')+
     '</select>'+
-    '<span class="muted" style="margin-left:10px">Меняются только тексты вопросов и расшифровка баллов. '+
-      'Веса факторов и пороги грейдов остаются в расчёте.</span>'+
+    '<select id="gfDir" class="toolbar-select">'+
+      '<option value="">Общая формулировка (для всех направлений)</option>'+
+      allDirsList().map(function(d){
+        var mark = overrideDirs.indexOf(d) >= 0 ? ' •' : '';
+        return '<option value="'+esc(d)+'"'+(d === curDir ? ' selected' : '')+'>'+esc(d)+esc(mark)+'</option>';
+      }).join('')+
+    '</select>'+
+  '</div>'+
+  '<div class="muted gf-note">'+
+    (curDir
+      ? 'Правите формулировки для направления «'+esc(curDir)+'». Вопросы без своей формулировки берут общий текст. '
+      : 'Правите общие формулировки — их видят все направления, у которых нет своей. ')+
+    'Веса факторов и пороги грейдов одинаковы для всего холдинга, из интерфейса не меняются: иначе уровни перестанут быть сравнимыми между заводами.'+
   '</div>';
 
   var factors = gradingFactorsOf(cur);
@@ -5654,8 +5668,14 @@ function drawGradingFactors(){
     var weightNote = weights && weights[i] != null
       ? ' <span class="badge">вес ' + Math.round(weights[i] * 100) + '%</span>'
       : '';
-    h += '<div class="card gf-card" data-idx="'+(i + 1)+'">'+
-      '<div class="gf-head"><b>'+esc(f.code || ('Фактор ' + (i + 1)))+'</b>'+weightNote+
+    // Чей текст показан: свой у направления или унаследованный общий.
+    var own = curDir && f.dir === curDir;
+    var srcNote = curDir
+      ? (own ? ' <span class="badge b-active">своя формулировка</span>'
+             : ' <span class="badge">берётся общая</span>')
+      : '';
+    h += '<div class="card gf-card" data-idx="'+(i + 1)+'" data-own="'+(own ? '1' : '')+'">'+
+      '<div class="gf-head"><b>'+esc(f.code || ('Фактор ' + (i + 1)))+'</b>'+weightNote+srcNote+
         (f.updatedBy ? '<span class="muted gf-by">правил: '+esc(f.updatedBy)+'</span>' : '')+
       '</div>'+
       '<label class="lbl">Вопрос</label>'+
@@ -5668,8 +5688,10 @@ function drawGradingFactors(){
           '<input class="gf-option" data-score="'+(oi + 1)+'" value="'+esc(o || '')+'" maxlength="1000"></div>';
       }).join('')+
       '<div class="gf-acts">'+
-        '<button class="btn gf-save">Сохранить</button>'+
-        '<button class="btn-line gf-reset">Вернуть исходную</button>'+
+        '<button class="btn gf-save">'+(curDir ? 'Сохранить для направления' : 'Сохранить')+'</button>'+
+        (curDir
+          ? (own ? '<button class="btn-line gf-reset">Удалить формулировку направления</button>' : '')
+          : '<button class="btn-line gf-reset">Вернуть исходную</button>')+
       '</div>'+
     '</div>';
   });
@@ -5688,11 +5710,36 @@ function drawGradingFactors(){
 
 function bindGradingScopeSelect(){
   var sel = $('gfScope');
-  if(!sel) return;
-  sel.onchange = function(){
-    S.gradingScope = sel.value;
-    drawGradingFactors();
-  };
+  if(sel){
+    sel.onchange = function(){
+      S.gradingScope = sel.value;
+      drawGradingFactors();
+    };
+  }
+  var dirSel = $('gfDir');
+  if(dirSel){
+    // Смена направления требует новых текстов с сервера: подстановка
+    // «своя формулировка → общая» считается на нём.
+    dirSel.onchange = function(){
+      S.gradingDir = dirSel.value;
+      renderAdminGradingFactors();
+    };
+  }
+}
+
+/** Все направления оргструктуры — для выбора, чью формулировку правим. */
+function allDirsList(){
+  var units = (S.data && S.data.allUnits) || [];
+  var seen = {};
+  var out = [];
+  units.forEach(function(u){
+    var d = String((u && u.dir) || '').trim();
+    if(!d || seen[d]) return;
+    seen[d] = true;
+    out.push(d);
+  });
+  out.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+  return out;
 }
 
 function saveGradingFactor(card){
@@ -5700,6 +5747,7 @@ function saveGradingFactor(card){
   var body = {
     scope: S.gradingScope,
     idx: parseInt(card.getAttribute('data-idx'), 10),
+    dir: S.gradingDir || '',
     title: card.querySelector('.gf-title').value,
     help: card.querySelector('.gf-help').value,
     options: [].map.call(card.querySelectorAll('.gf-option'), function(inp){ return inp.value; })
@@ -5717,7 +5765,11 @@ function saveGradingFactor(card){
 
 function resetGradingFactor(card){
   if(!card) return;
-  var body = { scope: S.gradingScope, idx: parseInt(card.getAttribute('data-idx'), 10) };
+  var body = {
+    scope: S.gradingScope,
+    idx: parseInt(card.getAttribute('data-idx'), 10),
+    dir: S.gradingDir || ''
+  };
 
   call('apiGradingFactorReset', S.token, body).then(function(r){
     if(!r || !r.ok){
