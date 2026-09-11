@@ -259,7 +259,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
   // Годовой архив: без явного filters.period дашборд показывает активный
   // период — periodsList уходит на фронт для выпадающего списка.
-  const periodsList = await queryAll('SELECT id, name, updated_at AS "updatedAt", is_active AS "isActive" FROM periods ORDER BY id DESC');
+  const periodsList = await queryAll('SELECT id, name, from_date AS "fromDate", to_date AS "toDate", updated_at AS "updatedAt", is_active AS "isActive" FROM periods ORDER BY id DESC');
   const currentPeriodId = (periodsList.find(p => p.isActive) || periodsList[0] || {}).id ?? null;
   const viewingPeriodId = resolveDashboardPeriodId(filters.period, currentPeriodId);
 
@@ -604,6 +604,19 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     return g;
   }).sort((a, b) => b.pct - a.pct);
 
+  // Карта направления -> HR BP для каскадной фильтрации на клиенте
+  const dirHrbp = {};
+  Object.keys(unitMap).forEach(un => {
+    const u = unitMap[un];
+    const dName = u.dir || 'Без направления';
+    const hName = u.hrbp || 'Не назначен';
+    if (!dirHrbp[dName]) dirHrbp[dName] = [];
+    if (hName !== 'Не назначен' && !dirHrbp[dName].includes(hName)) {
+      dirHrbp[dName].push(hName);
+    }
+  });
+  Object.keys(dirHrbp).forEach(d => { dirHrbp[d].sort((a, b) => a.localeCompare(b, 'ru')); });
+
   // Список регионов для фильтра дашборда — из оргструктуры (не из наблюдений),
   // чтобы набор опций был стабильным и уже суженным по видимости пользователя.
   const regions = [...new Set(
@@ -661,6 +674,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     },
     hrbpProgress,
     dirProgress,
+    dirHrbp,
     regions,
     regionStats,
     positions: positionsList,
@@ -677,7 +691,13 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       by: periodRow.updated_by || '',
       at: periodRow.updated_at || ''
     },
-    periodsList: periodsList.map(p => ({ id: p.id, name: p.name, at: p.updatedAt || '' })),
+    periodsList: periodsList.map(p => ({
+      id: p.id,
+      name: p.name,
+      fromDate: p.fromDate || '',
+      toDate: p.toDate || '',
+      at: p.updatedAt || ''
+    })),
     viewingPeriodId
   };
 }

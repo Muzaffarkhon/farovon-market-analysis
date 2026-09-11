@@ -1482,6 +1482,15 @@ input[type="radio"] {
   box-shadow: none;
 }
 
+input[type="date"] {
+  color-scheme: light;
+}
+[data-theme="dark"] input[type="date"],
+html.dark input[type="date"],
+body.dark input[type="date"] {
+  color-scheme: dark;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -9309,6 +9318,29 @@ html.compact {
   min-height: 34px;
   font-size: 13.5px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dash-filter-reset.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.dash-period-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
 }
 .dash-filter-export {
   min-height: 34px;
@@ -9317,6 +9349,38 @@ html.compact {
   white-space: nowrap;
   width: auto;
   margin-left: auto;
+}
+
+/* Быстрые фильтры-чипы (сводка, анкеты) */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-chips button {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 5px 11px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--t);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.2;
+}
+.filter-chips button:hover {
+  border-color: var(--accent);
+}
+.filter-chips button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
 }
 
 /* Заголовок карточки дашборда (title + hint) — заменяет инлайновый cardHd */
@@ -9507,62 +9571,53 @@ html.compact {
   font-weight: 700;
 }
 
-/* ── Фаза 2: админка — «Сервисные утилиты» (карточки инструментов) ── */
-.tool-sec-t {
-  margin-top: 16px;
-}
-.tool-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.tool-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
-  box-shadow: var(--sh-1);
-}
-.tool-card.is-accent {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-  grid-column: 1 / -1;
-}
-.tool-card-t {
-  font-weight: 650;
-  font-size: 16px;
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.tool-card.is-accent .tool-card-t {
-  color: var(--accent);
-}
-.tool-card-d {
-  font-size: 13.5px;
-  color: var(--muted);
-  line-height: 1.45;
-  margin-top: 5px;
-}
-.tool-card-acts {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.tool-card-acts button {
-  min-height: 34px;
-  font-size: 13.5px;
-  padding: 0 14px;
-  white-space: nowrap;
-}
-.tool-card:not(.is-accent) .tool-card-acts button {
+/* ── Сервисные утилиты: компактный Enterprise B2B вид ── */
+.tools-scroll-wrap {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
+  min-height: 0;
+}
+.tools-panel-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+.tools-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.tools-tbl tbody tr {
+  border-bottom: 1px solid var(--line-subtle);
+  transition: background var(--trans-fast);
+}
+.tools-tbl tbody tr:last-child {
+  border-bottom: none;
+}
+.tools-tbl tbody tr:hover {
+  background: var(--hover);
+}
+.tools-tbl td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+.tools-tbl th {
+  padding: 10px 16px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--card-2);
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 800px) {
+  .tools-tbl {
+    table-layout: auto;
+  }
 }
 
 /* ── Фаза 2: насыщенное пустое состояние (иконка + заголовок + подсказка) ── */
@@ -10022,7 +10077,7 @@ html.compact {
    список ограничен по высоте — иначе деталь уходит далеко за экран. */
 .bm-compare-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 300px) 1fr;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 840px);
   gap: 16px;
   align-items: start;
 }
@@ -10397,4 +10452,13 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .co-tbl tr.tbl-filt td {
   overflow: visible;
+}
+
+/* Фиксация шапки таблицы зарплатных вилок */
+.sal-tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--card-2);
+  box-shadow: 0 1px 0 var(--line);
 }

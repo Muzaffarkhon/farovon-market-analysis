@@ -19,17 +19,27 @@
     'user': 'Сотрудники (user)'
   };
 
+  function getHeaderRow(thead){
+    if(!thead || !thead.rows.length) return null;
+    for(var i = 0; i < thead.rows.length; i++){
+      var r = thead.rows[i];
+      if(!r.classList.contains('tbl-filt')) return r;
+    }
+    return thead.rows[0];
+  }
+
   function getSig(table){
     var thead = table.tHead;
     if(!thead || !thead.rows.length) return 'tbl';
-    return _tfSig(thead.rows[thead.rows.length - 1]);
+    var hrow = getHeaderRow(thead);
+    return hrow ? _tfSig(hrow) : 'tbl';
   }
 
   function parseDateValue(str){
     if(!str) return null;
     str = String(str).trim();
     // DD.MM.YYYY [HH:mm[:ss]]
-    var m = str.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+    var m = str.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:[,\s]+(\d{2}):(\d{2}))?/);
     if(m){
       var d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
       var h = m[4] ? parseInt(m[4], 10) : 0, min = m[5] ? parseInt(m[5], 10) : 0;
@@ -47,7 +57,8 @@
   function getColumns(table){
     var thead = table.tHead;
     if(!thead || !thead.rows.length) return [];
-    var hrow = thead.rows[thead.rows.length - 1];
+    var hrow = getHeaderRow(thead);
+    if(!hrow) return [];
     var cols = [];
     var tbody = table.tBodies[0];
     var rows = tbody ? [].filter.call(tbody.rows, function(r){
@@ -795,6 +806,10 @@
     closeFilterModal();
     var state = tableStates.get(table);
     if(!state) return;
+    var freshCols = getColumns(table);
+    if(freshCols && freshCols.length >= 2){
+      state.cols = freshCols;
+    }
     var sig = getSig(table);
     var defPresets = getDefaultPresets(state.cols, [].slice.call((table.tBodies[0]||{}).rows || []));
     var savedPresets = getStoredPresets(sig);
@@ -995,7 +1010,7 @@
     btn.className = 'sf-trigger-btn';
     btn.dataset.forSf = sfId;
     btn.title = 'Смарт-фильтр таблицы';
-    btn.innerHTML = icBare('tune', 14) + ' <span>Фильтр</span><span class="sf-badge" style="display:none">0</span>';
+    btn.innerHTML = (typeof ic === 'function' ? ic('filter', 13) : (typeof icBare === 'function' ? icBare('filter', 13) : '')) + '<span>Фильтр</span><span class="sf-badge" style="display:none">0</span>';
     btn.onclick = function(){ openFilterModal(table); };
     state.triggerBtn = btn;
 
@@ -1035,6 +1050,12 @@
     }
 
     if(toolbar){
+      var existingInToolbar = toolbar.querySelector('.sf-trigger-btn');
+      if(existingInToolbar){
+        state.triggerBtn = existingInToolbar;
+        existingInToolbar.onclick = function(){ openFilterModal(table); };
+        return;
+      }
       var searchWrap = toolbar.querySelector('.search-wrap, .dash-sec-search, .org-tree-search-wrap');
       if(searchWrap && searchWrap.nextSibling){
         searchWrap.parentNode.insertBefore(btn, searchWrap.nextSibling);
@@ -1062,6 +1083,8 @@
 
   function attach(table){
     if(!table || !table.classList.contains('co-tbl')) return;
+    // Никогда не вешаем фильтр на сервисные таблицы и вложенные подтаблицы
+    if(table.hasAttribute('data-no-smart-filter') || table.closest('[data-no-smart-filter], tr, td, .sal-detail, .sub-tab-body, .rcards')) return;
     var cols = getColumns(table);
     if(cols.length < 2) return;
 
@@ -1086,6 +1109,19 @@
 
   function attachAll(){
     if(!window.SmartTableFilter || !window.SmartTableFilter.attach) return;
+    // Очистка старых кнопок фильтра, чьи таблицы были удалены из DOM
+    document.querySelectorAll('.sf-trigger-btn').forEach(function(b){
+      var forId = b.dataset.forSf;
+      if(!forId || !document.querySelector('table[data-sf-id="' + forId + '"]')){
+        b.remove();
+      }
+    });
+    document.querySelectorAll('.sf-active-bar').forEach(function(ab){
+      var forId = ab.dataset.forSf;
+      if(!forId || !document.querySelector('table[data-sf-id="' + forId + '"]')){
+        ab.remove();
+      }
+    });
     var tables = document.querySelectorAll('table.co-tbl');
     for(var i = 0; i < tables.length; i++){
       window.SmartTableFilter.attach(tables[i]);

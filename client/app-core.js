@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.6';
+var APP_VERSION = window.APP_VERSION || 'v2.5.7';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1206,8 +1206,16 @@ var WorkspaceTabs = {
         cur.state.dashTab = S.dashTab;
         cur.state.bmTab = (typeof BM_STATE !== 'undefined' ? BM_STATE.tab : null);
         cur.state.dirty = S.dirty;
+
+        var bEl = document.getElementById('bar');
+        cur.hasBar = bEl && !bEl.classList.contains('hidden');
       }
     }
+
+    // При любом переключении вкладок гарантированно скрываем общую нижнюю плавающую панель
+    var globalBar = document.getElementById('bar');
+    if(globalBar) globalBar.classList.add('hidden');
+    document.body.classList.remove('has-bar');
 
     this.activeId = id;
     this.history = this.history.filter(function(hid){ return hid !== id; });
@@ -1227,7 +1235,8 @@ var WorkspaceTabs = {
       target.paneEl.classList.remove('hidden');
     }
 
-    var shouldRun = isNew || (target.paneEl && !target.paneEl.childNodes.length) || (target.needsRefresh && !target.state.dirty);
+    var isPaneEmpty = !target.paneEl || !target.paneEl.childNodes.length || !target.paneEl.textContent.trim();
+    var shouldRun = isNew || isPaneEmpty || (target.needsRefresh && !target.state.dirty);
 
     if(shouldRun){
       target.needsRefresh = false;
@@ -1238,6 +1247,22 @@ var WorkspaceTabs = {
         } finally {
           this.isInsideTabRun = false;
         }
+      }
+    } else {
+      // Восстанавливаем заголовок вкладки в верхней шапке системы
+      if(typeof setTop === 'function'){
+        var isUnit = (target.state && target.state.appView === 'unit');
+        var topT = target.topTitle !== undefined ? target.topTitle : (isUnit ? (target.state.unit || target.title) : target.title);
+        var topS = target.topSub !== undefined ? target.topSub : (isUnit ? '' : (typeof userLabel === 'function' ? userLabel() : ''));
+        var topB = target.topBack !== undefined ? target.topBack : isUnit;
+        var topI = target.topIcon !== undefined ? target.topIcon : (isUnit ? 'units' : target.icon);
+        setTop(topT, topS, topB, topI);
+      }
+
+      // Восстанавливаем нижнюю панель анкеты, только если это анкета подразделения и панель была активна
+      if(globalBar && target.state && target.state.appView === 'unit' && target.hasBar){
+        globalBar.classList.remove('hidden');
+        document.body.classList.add('has-bar');
       }
     }
 
@@ -1665,6 +1690,24 @@ function fmtDate_(d){
   } catch(e){
     return d.toLocaleDateString('ru-RU') + ' ' +
            d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+  }
+}
+
+/** Приведение даты к виду «25.08.2026» по времени Душанбе. Принимает Date или строку/число. */
+function fmtDateOnly(s){
+  if(!s) return '';
+  if(typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.trim())){
+    var parts = s.trim().split('-');
+    return parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+  var d = (s instanceof Date) ? s : new Date(s);
+  if(isNaN(d.getTime())) return String(s);
+  try {
+    return d.toLocaleDateString('ru-RU', {
+      timeZone: TZ, day:'2-digit', month:'2-digit', year:'numeric'
+    });
+  } catch(e){
+    return d.toLocaleDateString('ru-RU');
   }
 }
 

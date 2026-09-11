@@ -1042,7 +1042,7 @@ exports.setPeriod = async (req, res) => {
   const by = req.user.fio || req.user.login;
   const { from, to } = req.body;
 
-  if (action === 'new' && from && to && String(from).trim() && String(to).trim()) {
+  if ((action === 'new' || action === 'edit') && from && to && String(from).trim() && String(to).trim()) {
     const dFrom = new Date(from);
     const dTo = new Date(to);
     if (!isNaN(dFrom.getTime()) && !isNaN(dTo.getTime()) && dFrom > dTo) {
@@ -1083,6 +1083,20 @@ exports.setPeriod = async (req, res) => {
       // остаются за своим периодом по surveys.period_id.
       await run("UPDATE competitors SET actual = 'уточнить'");
       auditDetail = `Период «${name}»: открыт новый (актуальность конкурентов сброшена)`;
+
+    } else if (action === 'edit') {
+      const newName = name || active.name;
+      const newFrom = from !== undefined ? (from || null) : (active.from_date || null);
+      const newTo = to !== undefined ? (to || null) : (active.to_date || null);
+      const rawState = req.body.state ? String(req.body.state).trim().toLowerCase() : null;
+      const newState = (rawState && ['открыт', 'закрыт'].includes(rawState)) ? rawState : active.state;
+      await run(
+        `UPDATE periods
+         SET name = ?, from_date = ?, to_date = ?, state = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE is_active = 1`,
+        [newName, newFrom, newTo, newState, by]
+      );
+      auditDetail = `Период «${newName}»: изменены параметры (статус: ${newState})`;
 
     } else { // activate
       const target = await queryOne('SELECT id, name, is_active FROM periods WHERE id = ?', [id]);
@@ -1204,6 +1218,7 @@ exports.listPeriodGrants = async (req, res) => {
       // грантов отдельно отфильтровывает активный (на него грант не нужен).
       queryAll(`
         SELECT p.id, p.name, p.state, p.is_active AS "isActive",
+               p.from_date AS "fromDate", p.to_date AS "toDate",
                p.updated_at AS "updatedAt", p.updated_by AS "updatedBy",
                (SELECT COUNT(*) FROM surveys s WHERE s.period_id = p.id AND s.state != 'удалена') AS "surveysCount"
         FROM periods p

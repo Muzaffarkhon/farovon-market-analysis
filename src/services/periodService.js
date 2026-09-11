@@ -34,6 +34,7 @@ async function getActivePeriod() {
  *   new      — открыть новый период (новая строка становится активной)
  *   activate — вернуть активным ранее созданный период по id
  *              (undo случайного «Открыть новый»; поднять архивный год)
+ *   edit     — обновить название и/или даты активного периода
  *
  * Явный body.action имеет приоритет. Иначе — обратная совместимость со
  * старым контрактом { state, name }: state='закрыт' → close; state='открыт'
@@ -42,7 +43,7 @@ async function getActivePeriod() {
  * только из новой кнопки.)
  *
  * @param {{action?:string, state?:string, name?:string, id?:number|string, periodId?:number|string}} body
- * @returns {{action:'close'|'reopen'|'new'|'activate', name:string|null, id:number|null} | {error:string}}
+ * @returns {{action:'close'|'reopen'|'new'|'activate'|'edit', name:string|null, id:number|null} | {error:string}}
  */
 function resolvePeriodAction(body = {}) {
   const name = (body.name && String(body.name).trim()) ? String(body.name).trim() : null;
@@ -57,7 +58,7 @@ function resolvePeriodAction(body = {}) {
     else action = name ? 'new' : 'reopen';
   }
 
-  if (!['close', 'reopen', 'new', 'activate'].includes(action)) {
+  if (!['close', 'reopen', 'new', 'activate', 'edit'].includes(action)) {
     return { error: 'Неизвестное действие с периодом' };
   }
   if (action === 'new' && !name) {

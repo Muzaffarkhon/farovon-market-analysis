@@ -378,7 +378,16 @@ function navModel(){
 /** Активировать пункт навигации с проверкой несохранённого черновика. */
 function navGo(item){
   if(!item) return;
-  if(item.active && item.active()) return;
+  if(item.active && item.active()){
+    if(window.WorkspaceTabs && WorkspaceTabs.getActivePane){
+      var curPane = WorkspaceTabs.getActivePane();
+      if(!curPane || !curPane.childNodes.length || !curPane.textContent.trim()){
+        if(typeof item.run === 'function') item.run();
+        return;
+      }
+    }
+    return;
+  }
   if(S.dirty && (!window.WorkspaceTabs || !WorkspaceTabs.openTab)){
     askDirty('Переключить раздел').then(function(yes){
       if(yes){ S.dirty = false; item.run(); }
@@ -444,7 +453,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.7')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -479,7 +488,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.7')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -537,7 +546,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.6')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.7')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -567,7 +576,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.6')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.7')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -777,10 +786,10 @@ function confirmUnlinkTelegram(){
 
 /** Подпись пользователя. Если ФИО в таблице не заполнено — показываем логин. */
 function userLabel(){
-  if(!S.data) return '';
+  if(!S.data || !S.data.user) return '';
   var f = String(S.data.user.fio || '').trim();
   if(f.length > 1 && !/^\d+$/.test(f)) return f;
-  return S.data.user.login;
+  return S.data.user.login || '';
 }
 
 $('btnHelp').onclick = function(){ openHelp(); };
@@ -1673,9 +1682,15 @@ function updateTopPeriodBadge(){
   var p = (S.data && S.data.period) || {};
   var name = p.name || 'Обзор рынка — август 2026 г.';
   var closed = p.state === 'закрыт';
+  var dt = '';
+  if(p.from && p.to){
+    dt = ' (' + fmtDateOnly(p.from) + ' – ' + fmtDateOnly(p.to) + ')';
+  } else if(p.to){
+    dt = ' · до ' + fmtDateOnly(p.to);
+  }
   el.innerHTML = '<span class="top-period-pill ' + (closed ? 'is-closed' : '') + '">' +
     '<i class="top-period-dot"></i>' +
-    '<span>' + esc(name) + (p.to ? ' · до ' + esc(p.to) : '') + '</span>' +
+    '<span>' + esc(name) + esc(dt) + '</span>' +
     '</span>';
 }
 
@@ -1726,6 +1741,15 @@ function navBack(fn){
 }
 
 function setTop(title, sub, back, icon){
+  if(window.WorkspaceTabs && WorkspaceTabs.activeId && typeof WorkspaceTabs.getTab === 'function'){
+    var curTab = WorkspaceTabs.getTab(WorkspaceTabs.activeId);
+    if(curTab){
+      curTab.topTitle = title;
+      curTab.topSub = sub;
+      curTab.topBack = back;
+      curTab.topIcon = icon;
+    }
+  }
   var trail = crumbTrail(title);
   if(trail.length >= 2){
     $('ttl').innerHTML = trail.map(function(c, i){
@@ -2047,8 +2071,9 @@ function renderTabComp(){
 
   // Отложенные на уточнение показываем отдельно — иначе они теряются в общем списке
   if(c.ask){
-    h += '<div class="note" style="margin-bottom:10px">Требует уточнения: <b>'+c.ask+'</b>. '+
-      'Эти компании не считаются проверенными — вернитесь к ним, когда выясните.</div>';
+    h += '<div class="note" id="noteAskClick" style="margin-bottom:10px;cursor:pointer" title="Нажмите, чтобы показать только компании на уточнении">'+
+      ic('warn', 14)+' Требует уточнения: <b>'+c.ask+'</b>. '+
+      'Эти компании не считаются проверенными — нажмите, чтобы показать только их.</div>';
   }
 
   // Смежная группа
@@ -2075,6 +2100,31 @@ function renderTabComp(){
   h += '<b>Компании подразделения</b>';
   h += '<span>Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</span>';
   h += '</div>';
+
+  var countAllComp = S.rows.length;
+  var countAct = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'актуально'; }).length;
+  var countAsk = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'уточнить'; }).length;
+  var countNotAct = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'не актуально'; }).length;
+  var countUnchecked = Math.max(0, countAllComp - countAct - countAsk - countNotAct);
+
+  S.compFilterActual = S.compFilterActual || 'all';
+
+  var compChips = [
+    { id:'all', label:'Все (' + countAllComp + ')' },
+    { id:'актуально', label:'Актуально (' + countAct + ')' },
+    (countAsk ? { id:'уточнить', label:'На уточнении (' + countAsk + ')' } : null),
+    { id:'не проверено', label:'Не проверено (' + countUnchecked + ')' },
+    (countNotAct ? { id:'не актуально', label:'Не актуально (' + countNotAct + ')' } : null)
+  ].filter(Boolean);
+
+  if(countAllComp > 3){
+    h += '<div class="filter-chips" id="compStatusChips" style="padding:10px 16px 4px">'+
+      compChips.map(function(ch){
+        var on = (S.compFilterActual === ch.id) ? ' on' : '';
+        return '<button type="button" class="'+on+'" data-cact="'+ch.id+'">'+esc(ch.label)+'</button>';
+      }).join('')+
+    '</div>';
+  }
 
   h += '<div class="co-list-scroll">';
   h += '<div id="rows" class="batch-list" style="margin:4px 0">';
@@ -2139,17 +2189,45 @@ function renderTabComp(){
     };
   });
 
-  if($('compSearch')){
-    $('compSearch').oninput = function(){
-      var q = norm(this.value);
-      $('rows').querySelectorAll('.batch-card').forEach(function(node){
-        var r = S.rows[+node.dataset.i] || {};
-        var hit = !q || norm(r.company).indexOf(q) >= 0 ||
-                  norm(r.seg).indexOf(q) >= 0 || norm(r.region).indexOf(q) >= 0;
-        node.classList.toggle('hidden', !hit);
-      });
+  function applyCompFilter(){
+    var q = norm($('compSearch') ? $('compSearch').value : '');
+    var filterSt = S.compFilterActual || 'all';
+    $('rows').querySelectorAll('.batch-card').forEach(function(node){
+      var r = S.rows[+node.dataset.i] || {};
+      var act = (r.actual || 'не проверено').toLowerCase();
+      var matchSt = (filterSt === 'all') ||
+                    (filterSt === act) ||
+                    (filterSt === 'не проверено' && act !== 'актуально' && act !== 'не актуально' && act !== 'уточнить');
+      var hit = matchSt && (!q || norm(r.company).indexOf(q) >= 0 ||
+                norm(r.seg).indexOf(q) >= 0 || norm(r.region).indexOf(q) >= 0);
+      node.classList.toggle('hidden', !hit);
+    });
+  }
+
+  if($('compStatusChips')){
+    $('compStatusChips').querySelectorAll('button[data-cact]').forEach(function(btn){
+      btn.onclick = function(){
+        S.compFilterActual = this.dataset.cact;
+        $('compStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b === btn); });
+        applyCompFilter();
+      };
+    });
+  }
+
+  if($('noteAskClick')){
+    $('noteAskClick').onclick = function(){
+      S.compFilterActual = 'уточнить';
+      if($('compStatusChips')){
+        $('compStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.cact === 'уточнить'); });
+      }
+      applyCompFilter();
     };
   }
+
+  if($('compSearch')){
+    $('compSearch').oninput = applyCompFilter;
+  }
+  applyCompFilter();
 }
 
 /**
@@ -2494,6 +2572,40 @@ function renderTabSurvey(){
            '(они различаются только регионом).</p>';
     }
 
+    var posTotalCount = G.groups.length;
+    var posDoneCount = 0, posPartCount = 0, posNoneCount = 0;
+    G.groups.forEach(function(g){
+      var pInfo = mc.posMap[norm(g.pos)];
+      var filled = pInfo ? pInfo.filled : g.items.length;
+      var total = pInfo ? pInfo.total : mc.totalCos;
+      var isAll = total > 0 && filled >= total;
+      var isPart = filled > 0 && !isAll;
+      if(isAll) posDoneCount++;
+      else if(isPart) posPartCount++;
+      else posNoneCount++;
+    });
+
+    S.survFilterStatus = S.survFilterStatus || 'all';
+    var survChips = [
+      { id:'all', label:'Все (' + posTotalCount + ')' },
+      { id:'none', label:'Не заполнено (' + posNoneCount + ')' },
+      (posPartCount ? { id:'part', label:'Частично (' + posPartCount + ')' } : null),
+      (posDoneCount ? { id:'done', label:'Заполнено (' + posDoneCount + ')' } : null)
+    ].filter(Boolean);
+
+    if(posTotalCount > 3){
+      h += '<div class="toolbar" style="margin:0 0 12px;gap:8px;align-items:center;flex-wrap:wrap">'+
+        '<div class="search-wrap" style="flex:1 1 200px;max-width:280px;margin:0">'+icBare('search', 14)+
+          '<input id="survPosSearch" placeholder="Найти должность…" autocomplete="off"></div>'+
+        '<div class="filter-chips" id="survStatusChips">'+
+          survChips.map(function(sc){
+            var on = (S.survFilterStatus === sc.id) ? ' on' : '';
+            return '<button type="button" class="'+on+'" data-sst="'+sc.id+'">'+esc(sc.label)+'</button>';
+          }).join('')+
+        '</div>'+
+      '</div>';
+    }
+
     h += '<div class="pos-grid fx-stagger">' + G.groups.map(function(g, gi){
       var pInfo = mc.posMap[norm(g.pos)];
       var filled = pInfo ? pInfo.filled : g.items.length;
@@ -2502,11 +2614,12 @@ function renderTabSurvey(){
       var isPart = filled > 0 && !isAll;
       var bClass = isAll ? 'pos-badge-ok' : (isPart ? 'pos-badge-part' : 'pos-badge-none');
       var bText = total > 0 ? (filled + ' / ' + total + ' компаний') : (filled + ' записей');
+      var stCode = isAll ? 'done' : (isPart ? 'part' : 'none');
 
       var cos = g.items.map(function(i){ return S.surveys[i].company; }).filter(String);
       var cls = 'pos' + (isAll ? ' pos-done' : '');
 
-      var x = '<div class="'+cls+'">';
+      var x = '<div class="'+cls+'" data-pos-name="'+esc(g.pos)+'" data-pos-st="'+stCode+'">';
       x += '<div class="pos-head" data-open-pos="'+esc(g.pos)+'">';
       x += '<div class="pos-body"><div class="pos-name">'+esc(g.pos)+
            (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
@@ -2527,6 +2640,30 @@ function renderTabSurvey(){
          '+ Должность, которой нет в списке</button>';
   }
   $('tabBody').innerHTML = h;
+
+  function applySurvFilter(){
+    var q = norm($('survPosSearch') ? $('survPosSearch').value : '');
+    var fSt = S.survFilterStatus || 'all';
+    $('tabBody').querySelectorAll('.pos-grid > .pos').forEach(function(node){
+      var pName = norm(node.dataset.posName || '');
+      var pSt = node.dataset.posSt || 'none';
+      var matchSt = (fSt === 'all') || (fSt === pSt);
+      var matchQ = !q || pName.indexOf(q) >= 0;
+      node.classList.toggle('hidden', !(matchSt && matchQ));
+    });
+  }
+
+  if($('survPosSearch')) $('survPosSearch').oninput = applySurvFilter;
+  if($('survStatusChips')){
+    $('survStatusChips').querySelectorAll('button[data-sst]').forEach(function(btn){
+      btn.onclick = function(){
+        S.survFilterStatus = this.dataset.sst;
+        $('survStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b === btn); });
+        applySurvFilter();
+      };
+    });
+  }
+  applySurvFilter();
 
   $('tabBody').onclick = function(e){
     var trigger = e.target.closest('[data-open-pos]');
@@ -3953,20 +4090,50 @@ function renderDashboard(){
   var allHrbps = (d.hrbpProgress || []).map(function(x){ return x.hrbp; }).filter(function(x){ return x && x !== 'Не назначен'; });
   var allRegions = (d.regions || []);
 
+  // Каскадная доступность HR BP при выбранном направлении
+  var availableHrbps = allHrbps;
+  if(S.dashFilters.dir && d.dirHrbp && d.dirHrbp[S.dashFilters.dir]){
+    availableHrbps = d.dirHrbp[S.dashFilters.dir];
+    if(S.dashFilters.hrbp && availableHrbps.indexOf(S.dashFilters.hrbp) === -1){
+      S.dashFilters.hrbp = '';
+    }
+  }
+
   // Общий фильтр — направление, HR BP, регион (поиск у «Вилок» и «Реестра»
   // свой). На «Прогрессе» фильтр не применяется — там панель скрыта.
   var filterHidden = (S.dashTab === 'progress' || S.dashTab === 'benchmarks');
   var periodsList = d.periodsList || [];
+
+  function fmtPeriodOptLabel(p){
+    if(!p) return '';
+    var dt = '';
+    if(p.fromDate && p.toDate){
+      dt = ' (' + fmtDateOnly(p.fromDate) + ' – ' + fmtDateOnly(p.toDate) + ')';
+    } else if(p.fromDate){
+      dt = ' (с ' + fmtDateOnly(p.fromDate) + ')';
+    } else if(p.at){
+      dt = ' — ' + fmtDateTime(p.at);
+    }
+    return p.name + dt;
+  }
+
+  var activeCount = 0;
+  if(S.dashFilters.dir) activeCount++;
+  if(S.dashFilters.hrbp) activeCount++;
+  if(S.dashFilters.region) activeCount++;
+
   h += '<div id="dashFilterBar" class="toolbar dash-filters"'+(filterHidden ? ' style="display:none"' : '')+'>'+
-    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:260,
-      items: periodsList.map(function(p){ return { v:String(p.id), label: p.name + (p.at ? ' — ' + fmtDateTime(p.at) : '') }; }) }) : '')+
+    (periodsList.length > 1 ? niceSelect({ id:'dashPeriod', value:S.dashFilters.period || String(d.viewingPeriodId || ''), width:280,
+      items: periodsList.map(function(p){ return { v:String(p.id), label: fmtPeriodOptLabel(p) }; }) }) : '')+
     niceSelect({ id:'dashDir', value:S.dashFilters.dir, width:190,
       items:[{ v:'', label:'Все направления' }].concat(allDirs.map(function(dir){ return { v:dir, label:dir }; })) })+
     niceSelect({ id:'dashHrbp', value:S.dashFilters.hrbp, width:180,
-      items:[{ v:'', label:'Все HR BP' }].concat(allHrbps.map(function(x){ return { v:x, label:x }; })) })+
+      items:[{ v:'', label:'Все HR BP' }].concat(availableHrbps.map(function(x){ return { v:x, label:x }; })) })+
     (allRegions.length ? niceSelect({ id:'dashRegion', value:S.dashFilters.region, width:170,
       items:[{ v:'', label:'Все регионы' }].concat(allRegions.map(function(x){ return { v:x, label:x }; })) }) : '')+
-    '<button id="btnDashReset" class="btn-ghost dash-filter-reset">Сбросить</button>'+
+    '<button id="btnDashReset" class="'+(activeCount ? 'btn-line dash-filter-reset on' : 'btn-ghost dash-filter-reset')+'"'+
+      (activeCount ? '' : ' style="opacity:0.6"')+'>'+
+      ic('close', 12) + (activeCount ? 'Сбросить (' + activeCount + ')' : 'Сбросить') + '</button>'+
     '<button id="btnDashExport" class="btn-line dash-filter-export">'+ic('download', 14)+'<span class="dash-exp-txt">Экспорт в CSV</span></button>'+
   '</div>';
 
@@ -4011,17 +4178,21 @@ function renderDashboard(){
     };
   });
 
-  wireNiceSelect('dashPeriod', function(v){ S.dashFilters.period = v; fetchDashboard(true); });
-  wireNiceSelect('dashDir', function(v){ S.dashFilters.dir = v; fetchDashboard(true); });
+  wireNiceSelect('dashPeriod', function(v){ S.dashFilters.period = v; fetchDashboard(false); });
+  wireNiceSelect('dashDir', function(v){
+    S.dashFilters.dir = v;
+    if(v && d.dirHrbp && d.dirHrbp[v] && S.dashFilters.hrbp && d.dirHrbp[v].indexOf(S.dashFilters.hrbp) === -1){
+      S.dashFilters.hrbp = '';
+    }
+    fetchDashboard(false);
+  });
   wireNiceSelect('dashHrbp', function(v){ S.dashFilters.hrbp = v; fetchDashboard(true); });
   wireNiceSelect('dashRegion', function(v){ S.dashFilters.region = v; fetchDashboard(true); });
 
   $('btnDashReset').onclick = function(){
+    if(!activeCount) return;
     S.dashFilters = { dir:'', hrbp:'', region:'', search:'', period:S.dashFilters.period };
-    setNiceSelect('dashDir', '');
-    setNiceSelect('dashHrbp', '');
-    setNiceSelect('dashRegion', '');
-    fetchDashboard(true);
+    fetchDashboard(false);
   };
 
   $('btnDashExport').onclick = exportDashboardCSV;
@@ -4486,7 +4657,7 @@ function renderSalariesTab(positions){
 
   function arrow(k){ return sort.key === k ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''; }
 
-  h += '<div class="tblwrap rtbl"><table class="co-tbl co-tbl--pin sal-tbl"><thead><tr>'+
+  h += '<div class="tblwrap tblwrap--page rtbl" style="max-height:calc(100vh - 230px);overflow-y:auto"><table class="co-tbl co-tbl--pin sal-tbl"><thead><tr>'+
       '<th data-sort="pos">Должность'+arrow('pos')+'</th>'+
       '<th class="num" data-sort="count">N'+arrow('count')+'</th>'+
       '<th class="num" data-sort="p25">P25'+arrow('p25')+'</th>'+
@@ -5349,8 +5520,10 @@ function renderAdminPanel(){
     { id:'audit', icon:'clipboard', label:'Журнал действий', cap:'service:view' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
+  var u = (S.data && S.data.user) || {};
+  var role = u.role || '';
   var tabs = allTabs.filter(function(t){
-    return t.adminOnly ? S.data.user.role === 'admin' : hasCap(t.cap);
+    return t.adminOnly ? role === 'admin' : hasCap(t.cap);
   });
 
   if(!tabs.length){
@@ -7041,12 +7214,15 @@ function renderAdminDivisions(){
     var collapsedRows = collapseDivisionsForOrg(filtered);
     h += '<div class="org-tree-wrapper">'+
       '<div class="org-tree-toolbar">'+
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
-          '<div class="search-wrap">'+icBare('search')+
-            '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'"></div>'+
-          orgToolbarBtns('table')+
+        '<div class="org-tree-header-left">'+
+          '<div class="org-top-pill-title">' + ic('units', 16) + '<span>Структура компании</span></div>'+
+          '<div class="org-tree-search-wrap">'+
+            icBare('search', 14)+
+            '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'">'+
+          '</div>'+
+          '<div style="font-size:13px;color:var(--muted);margin-left:6px">'+tblCount(collapsedRows.length, (S.adminDivs || []).length, ['позиция', 'позиции', 'позиций'])+'</div>'+
         '</div>'+
-        '<div>'+tblCount(collapsedRows.length, (S.adminDivs || []).length, ['позиция', 'позиции', 'позиций'])+'</div>'+
+        orgToolbarBtns('table')+
       '</div>'+
       '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
         '<thead><tr><th>Направление / Отдел</th><th>Руководитель / Ответственный</th><th>HR BP</th><th>Действия</th></tr></thead><tbody>'+
@@ -9105,14 +9281,15 @@ function renderAdminPeriod(){
     '<div class="period-card-name">'+esc(p.name || 'Обзор рынка')+'</div>'+
     '<div class="period-card-meta">'+
       'Статус: <b class="'+(closed?'is-no':'is-ok')+'">'+esc(p.state || 'открыт')+'</b>'+
-      (p.from ? ' · с '+esc(p.from) : '') + (p.to ? ' · по '+esc(p.to) : '') +
+      (p.from ? ' · с '+esc(fmtDateOnly(p.from)) : '') + (p.to ? ' · по '+esc(fmtDateOnly(p.to)) : '') +
       (p.by ? '<br>Изменил: <b>'+esc(p.by)+'</b>'+(p.at?' ('+esc(fmtDateTime(p.at))+')':'') : '') +
     '</div>'+
     (canEdit
       ? (closed
-          ? '<button id="btnAdminPeriodReopen" class="btn-line period-card-act is-open">Открыть закрытый обратно</button>'+
+          ? '<button id="btnAdminPeriodReopen" class="btn-line period-card-act is-open">Открыть закрытый обратно</button>'+ 
             '<button id="btnAdminPeriodOpen" class="btn-line period-card-act">Открыть новый период</button>'
-          : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')
+          : '<button id="btnAdminPeriodClose" class="btn-line btn-danger period-card-act">Закрыть период сбора</button>')+ 
+        '<button id="btnAdminPeriodEdit" class="btn-line period-card-act">Изменить даты</button>'
       : '')+
   '</div>'+
   (canEdit ? '<div class="card period-grants-card" style="margin-top:14px">'+
@@ -9132,17 +9309,43 @@ function renderAdminPeriod(){
 
   if($('btnAdminPeriodOpen')){
     $('btnAdminPeriodOpen').onclick = function(){
-      askText({
+      askPeriodDates({
         title: 'Открыть новый период сбора',
-        html: 'Все сотрудники получат доступ к редактированию и внесению данных.',
+        html: 'Все сотрудники получат доступ к редактированию и внесению данных в рамках указанных дат.',
         value: 'Обзор рынка — ' + new Date().toLocaleDateString('ru-RU', {month:'long', year:'numeric'}),
         ok: 'Открыть период'
-      }).then(function(name){
-        if(!name) return;
-        call('apiSetPeriod', S.token, { action:'new', name:name }).then(function(res){
+      }).then(function(data){
+        if(!data) return;
+        call('apiSetPeriod', S.token, { action:'new', name:data.name, from:data.from, to:data.to }).then(function(res){
           if(res && res.ok){
             S.data.period = res.period;
             toast('Новый период открыт');
+            renderAdminPeriod();
+          } else {
+            toast((res&&res.error)||'Ошибка');
+          }
+        });
+      });
+    };
+  }
+
+  if($('btnAdminPeriodEdit')){
+    $('btnAdminPeriodEdit').onclick = function(){
+      askPeriodDates({
+        title: 'Изменить даты периода',
+        html: 'Обновить название, даты или статус текущего периода сбора.',
+        value: p.name || '',
+        from: p.from || '',
+        to: p.to || '',
+        state: p.state || 'открыт',
+        showState: true,
+        ok: 'Сохранить'
+      }).then(function(data){
+        if(!data) return;
+        call('apiSetPeriod', S.token, { action:'edit', name:data.name, from:data.from, to:data.to, state:data.state }).then(function(res){
+          if(res && res.ok){
+            S.data.period = res.period;
+            toast('Даты периода обновлены');
             renderAdminPeriod();
           } else {
             toast((res&&res.error)||'Ошибка');
@@ -9264,6 +9467,11 @@ function renderPeriodsManageList(periods){
       var active = !!p.isActive;
       var closed = p.state === 'закрыт';
       var meta = [];
+      if(p.fromDate || p.toDate) {
+        var dateStr = (p.fromDate ? 'с ' + esc(fmtDateOnly(p.fromDate)) : '') +
+                      (p.toDate ? (p.fromDate ? ' ' : '') + 'по ' + esc(fmtDateOnly(p.toDate)) : '');
+        if(dateStr) meta.push(dateStr);
+      }
       if(p.updatedAt) meta.push(esc(fmtDateTime(p.updatedAt)));
       if(p.updatedBy) meta.push('изменил ' + esc(p.updatedBy));
       var statusCell = active
@@ -9707,62 +9915,123 @@ function removeDictItem(name){
   }).catch(function(){ toast('Нет связи с сервером', 'no'); });
 }
 
-// ─── Вкладка: Сервисные утилиты ───
+// ─── Вкладка: Сервисные утилиты (Компактный Enterprise B2B вид) ───
 function renderAdminTools(){
-  function toolCard(o){
-    return '<div class="tool-card'+(o.accent ? ' is-accent' : '')+'">'+
-      '<div class="tool-card-body">'+
-        '<div class="tool-card-t">'+ic(o.icon, 16)+esc(o.title)+'</div>'+
-        '<div class="tool-card-d">'+o.desc+'</div>'+
+  var toolsList = [
+    {
+      id: 'import_survey',
+      icon: 'download',
+      accent: true,
+      title: 'Загрузить опрос зарплат из файла',
+      desc: 'Импорт CSV листа «Ответы». Проверка колонок, привязка ID_Бизнес к отделу и транзакционная заливка после подтверждения.',
+      acts: '<button class="btn-primary" onclick="importSurveyFile()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('download', 13)+'<span>Выбрать файл…</span></button>'
+    },
+    {
+      id: 'import_staffing',
+      icon: 'units',
+      title: 'Загрузить штатное расписание',
+      desc: 'Заводит базовые должности по подразделениям из штатного расписания (1 340 пар по 285 отделам).',
+      acts: '<button class="btn-line" onclick="runMaintenanceTool(\'import_staffing\', \'Загрузка штатного расписания\')" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('download', 13)+'<span>Загрузить штатку</span></button>'
+    },
+    {
+      id: 'unlock_records',
+      icon: 'unlock',
+      accent: true,
+      title: 'Снятие блокировок записей',
+      desc: 'Снимает авторские блокировки со строк рынка и анкет, каскадно открывая доступ ответственным лицам.',
+      acts: '<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">'+
+        '<button class="btn-line" onclick="openLocksModal()" style="min-height:32px;font-size:13px;padding:0 10px;white-space:nowrap">'+ic('users', 13)+'<span>По ролям…</span></button>'+
+        '<button class="btn-line btn-danger" onclick="adminUnlockQuick(\'all\')" style="min-height:32px;font-size:13px;padding:0 10px;white-space:nowrap">'+ic('unlock', 13)+'<span>Снять со всех</span></button>'+
+      '</div>'
+    },
+    {
+      id: 'clean_segments',
+      icon: 'broom',
+      title: 'Нормализация справочника компаний',
+      desc: 'Убирает скрытые пробелы в названиях, проставляет сегмент и регион из справочника в пустые строки участников рынка.',
+      acts: '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника компаний\')" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('wrench', 13)+'<span>Нормализовать</span></button>'
+    },
+    {
+      id: 'fix_links',
+      icon: 'link',
+      title: 'Проверка привязки к оргструктуре',
+      desc: 'Сверяет ID_Бизнес и названия подразделений с актуальной структурой, обновляет направление, руководителя и HR BP.',
+      acts: '<button class="btn-line" onclick="runMaintenanceTool(\'fix_links\', \'Проверка привязки к оргструктуре\')" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('search', 13)+'<span>Проверить привязки</span></button>'
+    },
+    {
+      id: 'import_company_dirs',
+      icon: 'book',
+      title: 'Сверить компании с рынком',
+      desc: 'Проставляет компаниям направления и ID по фактическому использованию в данных рынка без затирания ручных полей.',
+      acts: '<button class="btn-line" onclick="runMaintenanceTool(\'import_company_dirs\', \'Сверка компаний с рынком\')" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('refresh', 13)+'<span>Сверить компании</span></button>'
+    },
+    {
+      id: 'distribute_companies',
+      icon: 'target',
+      title: 'Раздать компании по направлениям',
+      desc: 'Выдаёт базовый пул компаний тем отделам направления, где ещё нет ни одной строки участников рынка.',
+      acts: '<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">'+
+        '<button class="btn-line" onclick="runBulkTool(\'distribute_companies\', \'Раздать компании по направлениям\')" style="min-height:32px;font-size:13px;padding:0 10px;white-space:nowrap">'+ic('check', 13)+'<span>Раздать</span></button>'+
+        '<button class="btn-line btn-danger" onclick="runBulkTool(\'undo_distribute\', \'Отменить раздачу компаний\')" style="min-height:32px;font-size:13px;padding:0 10px;white-space:nowrap">'+ic('block', 13)+'<span>Отменить</span></button>'+
+      '</div>'
+    }
+  ];
+
+  var h = '<div class="dash-tab-scroll tools-scroll-wrap" style="padding:16px 20px 36px">'+
+    '<div style="width:100%">'+
+      '<div id="dataStatus"><div class="sp"><i></i> Считаем состояние данных…</div></div>'+
+
+      '<div style="margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between">'+
+        '<div style="font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.01em">Сервисные утилиты обслуживания системы</div>'+
+        '<span style="font-size:12.5px;color:var(--muted)">7 утилит</span>'+
       '</div>'+
-      '<div class="tool-card-acts">'+ o.actions.map(function(a){
-        return '<button class="'+(a.cls || 'btn-primary')+'" onclick="'+a.onclick+'">'+ic(a.icon, 14)+esc(a.label)+'</button>';
-      }).join('') +'</div>'+
-    '</div>';
-  }
 
-  var h = '<div class="dash-tab-scroll">'+
-    '<div class="sec-title">Состояние данных</div>'+
-    '<div id="dataStatus"><div class="sp"><i></i> Считаем…</div></div>'+
-
-    '<div class="sec-title tool-sec-t">Загрузка данных</div>'+
-    '<div class="tool-grid fx-stagger">'+
-      toolCard({ icon:'download', accent:true, title:'Загрузить опрос зарплат из файла',
-        desc:'CSV-выгрузка листа «Ответы». Сначала проверка: разбор колонок, привязка ID_Бизнес к подразделению, сверка каждой ячейки. Затем отчёт — и только потом заливка (от имени админа, транзакцией). Ничего не пишется, пока вы не подтвердите.',
-        actions:[{ label:'Выбрать файл…', icon:'download', onclick:'importSurveyFile()' }] })+
+      '<div class="tools-panel-card" data-no-smart-filter="true">'+
+        '<table class="tools-tbl" data-no-smart-filter="true">'+
+          '<colgroup>'+
+            '<col style="width:340px">'+
+            '<col style="width:auto">'+
+            '<col style="width:280px">'+
+          '</colgroup>'+
+          '<thead>'+
+            '<tr>'+
+              '<th>Инструмент</th>'+
+              '<th>Назначение</th>'+
+              '<th style="text-align:right">Действие</th>'+
+            '</tr>'+
+          '</thead>'+
+          '<tbody>'+
+            toolsList.map(function(t){
+              return '<tr style="background:'+(t.accent?'rgba(14,165,233,0.02)':'transparent')+'">'+
+                '<td>'+
+                  '<div style="display:flex;align-items:center;gap:10px">'+
+                    '<div style="width:32px;height:32px;border-radius:8px;background:'+(t.accent?'var(--accent-soft)':'var(--card-2)')+';border:1px solid '+(t.accent?'var(--accent-border)':'var(--line)')+';display:flex;align-items:center;justify-content:center;color:'+(t.accent?'var(--accent)':'var(--text-dim)')+';flex:none">'+ic(t.icon, 15)+'</div>'+
+                    '<div style="font-size:13.5px;font-weight:650;color:var(--text);line-height:1.25">'+esc(t.title)+'</div>'+
+                  '</div>'+
+                '</td>'+
+                '<td style="font-size:12.5px;color:var(--muted);line-height:1.45;padding-right:12px">'+
+                  esc(t.desc)+
+                '</td>'+
+                '<td style="text-align:right">'+
+                  t.acts+
+                '</td>'+
+              '</tr>';
+            }).join('')+
+          '</tbody>'+
+        '</table>'+
+      '</div>'+
       '<input type="file" id="importSurveyInput" accept=".csv,text/csv" style="display:none">'+
-    '</div>'+
-
-    '<div class="sec-title tool-sec-t">Сервисные утилиты обслуживания</div>'+
-    '<div class="tool-grid">'+
-      toolCard({ icon:'unlock', accent:true, title:'Снятие блокировок записей (каскадно)',
-        desc:'Снимает авторские блокировки («Администратор C&amp;B» и др.) со строк рынка и анкет. Каскадно открывает возможность редактирования ответственным по всем подразделениям.',
-        actions:[
-          { label:'Выборочно по ролям / авторам…', icon:'users', onclick:'openLocksModal()' },
-          { label:'Снять со всех (1 клик)', icon:'unlock', cls:'btn-danger', onclick:"adminUnlockQuick('all')" }
-        ] })+
-      toolCard({ icon:'broom', title:'Нормализация справочника компаний',
-        desc:'Убирает скрытые пробелы в названиях, подтягивает сегмент и регион из справочника в строки, где они пустые, и дописывает недостающие компании.',
-        actions:[{ label:'Запустить нормализацию', icon:'wrench', onclick:"runMaintenanceTool('clean_segments', 'Нормализация справочника')" }] })+
-      toolCard({ icon:'link', title:'Проверка привязки к оргструктуре',
-        desc:'Обновляет направление, ответственного и HR BP по оргструктуре и выявляет подразделения с несовпадающими названиями.',
-        actions:[{ label:'Проверить привязки', icon:'search', onclick:"runMaintenanceTool('fix_links', 'Проверка привязки')" }] })+
-      toolCard({ icon:'units', title:'Загрузить штатное расписание',
-        desc:'Заводит должности по каждому подразделению из штатного расписания (1340 пар по 285 отделам) и проставляет коды. Безопасно для повторного запуска.',
-        actions:[{ label:'Загрузить штатку', icon:'download', onclick:"runMaintenanceTool('import_staffing', 'Загрузка штатного расписания')" }] })+
-      toolCard({ icon:'book', title:'Сверить компании с рынком',
-        desc:'Проставляет компаниям направления и ID по фактическому использованию в данных, добавляет недостающие без перезаписи ручных полей.',
-        actions:[{ label:'Сверить компании', icon:'refresh', onclick:"runMaintenanceTool('import_company_dirs', 'Сверка компаний')" }] })+
-      toolCard({ icon:'link', title:'Раздать компании по направлениям',
-        desc:'Выдаёт базовый набор компаний тем отделам направления, где ещё нет ни одной строки. Не затрагивает отделы с ручным заполнением.',
-        actions:[
-          { label:'Раздать', icon:'check', onclick:"runBulkTool('distribute_companies', 'Раздать компании по направлениям')" },
-          { label:'Отменить', icon:'block', cls:'btn-danger', onclick:"runBulkTool('undo_distribute', 'Отменить раздачу')" }
-        ] })+
     '</div>'+
   '</div>';
 
-  $('adminContent').innerHTML = h;
+  var b = $('body');
+  var aContent = b ? b.querySelector('#adminContent') : $('adminContent');
+  if(!aContent && b){
+    b.innerHTML = '<div id="adminContent" class="admin-content"></div>';
+    aContent = b.querySelector('#adminContent') || b;
+  }
+  if(aContent) aContent.innerHTML = h;
+  else if(b) b.innerHTML = h;
   loadDataStatus();
 }
 
@@ -9892,41 +10161,54 @@ function loadDataStatus(){
   call('apiAdminDataStatus', S.token).then(function(r){
     if(!r || !r.ok || !$('dataStatus')){
       if($('dataStatus')) $('dataStatus').innerHTML =
-        '<div class="err">'+esc((r && r.error) || 'Не удалось получить состояние')+'</div>';
+        '<div class="err">'+esc((r && r.error) || 'Не удалось получить состояние данных')+'</div>';
       return;
     }
     var s = r.status;
-    var n = function(v){ return v == null ? '—' : v; };
+    var n = function(v){ return v == null ? '—' : Number(v).toLocaleString('ru-RU'); };
     var loaded = s.staffPairs > 0;
 
     $('dataStatus').innerHTML =
-      // Базовый .note — янтарный, это стиль предупреждения. Успешное состояние
-      // им же выглядело тревогой: текст говорил «загружено», а плашка кричала.
-      '<div class="note '+(loaded ? 'note--ok' : 'note--warn')+'">'+
-        (loaded
-          ? icBare('check', 15) + ' Штатное расписание загружено: ' + n(s.staffPairs) +
-            ' пар по ' + n(s.staffUnits) + ' подразделениям.'
-          : '<b>Штатное расписание ещё не загружено.</b> Нажмите «Загрузить штатку» ниже — '+
-            'без этого на шаге 2 у подразделений не будет списка должностей.')+
-      '</div>'+
-      '<div class="kpi-grid">'+
-        stCard('Штатка', n(s.staffPairs), 'пар «должность × отдел» по '+n(s.staffUnits)+' отделам') +
-        stCard('Должности', n(s.positions), 'в справочнике') +
-        stCard('Подразделения', n(s.divisions), n(s.divisionsWithCode)+' с кодом') +
-        stCard('Компании', n(s.companies), n(s.companiesWithDirs)+' с направлением, '+n(s.companiesWithCode)+' с ID') +
-        stCard('Участники рынка', n(s.competitors), 'строк по '+n(s.competitorUnits)+' подразделениям') +
-        stCard('Анкеты', n(s.surveys), 'записей по должностям') +
+      '<div class="card" style="padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-xs)">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<span class="badge '+(loaded ? 'b-ok' : 'b-user')+'" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 8px">'+
+              (loaded ? icBare('check', 12) + ' Штатка в норме' : icBare('info', 12) + ' Штатка не загружена')+
+            '</span>'+
+            '<span style="font-size:13px;color:var(--muted)">'+
+              (loaded
+                ? ('Загружено ' + n(s.staffPairs) + ' пар «должность × отдел» по ' + n(s.staffUnits) + ' подразделениям')
+                : 'Штатное расписание ещё не заведено в базу — нажмите «Загрузить штатку» ниже')+
+            '</span>'+
+          '</div>'+
+          '<button class="btn-ghost" onclick="loadDataStatus()" style="font-size:12px;color:var(--muted);padding:2px 8px" title="Пересчитать">'+
+            ic('refresh', 12)+'Обновить'+
+          '</button>'+
+        '</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">'+
+          stCardMini('Штатка', n(s.staffPairs), 'пар по ' + n(s.staffUnits) + ' отд.')+
+          stCardMini('Должности', n(s.positions), 'в справочнике')+
+          stCardMini('Подразделения', n(s.divisions), n(s.divisionsWithCode) + ' с кодом')+
+          stCardMini('Компании', n(s.companies), n(s.companiesWithDirs) + ' с напр.')+
+          stCardMini('Участники рынка', n(s.competitors), 'строк по ' + n(s.competitorUnits) + ' отд.')+
+          stCardMini('Анкеты', n(s.surveys), 'записей')+
+        '</div>'+
       '</div>';
   }).catch(function(){
     if($('dataStatus')) $('dataStatus').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
 }
 
+function stCardMini(title, value, sub){
+  return '<div style="background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:0">'+
+    '<div style="font-size:10.5px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">'+esc(title)+'</div>'+
+    '<div style="font-family:var(--font-mono);font-size:17px;font-weight:700;color:var(--text);margin:2px 0;line-height:1.2">'+esc(String(value))+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(sub)+'">'+esc(sub)+'</div>'+
+  '</div>';
+}
+
 function stCard(title, value, sub){
-  return '<div class="card st-card">'+
-    '<div class="st-k">'+esc(title)+'</div>'+
-    '<div class="st-v">'+esc(String(value))+'</div>'+
-    '<div class="st-s">'+esc(sub)+'</div></div>';
+  return stCardMini(title, value, sub);
 }
 
 /**
@@ -10495,7 +10777,7 @@ function openProgress(){
         '<div class="page-head-v">'+esc(p.name || 'без названия')+
           ' <b style="font-size:14px;font-weight:700;color:'+(closed?'var(--no)':'var(--ok)')+'">'+esc(p.state || 'открыт')+'</b></div>'+
         '<div class="page-head-s">'+
-          (p.from ? 'с '+esc(p.from)+' ' : '') + (p.to ? 'по '+esc(p.to) : '') +
+          (p.from ? 'с '+esc(fmtDateOnly(p.from))+' ' : '') + (p.to ? 'по '+esc(fmtDateOnly(p.to)) : '') +
           (p.by ? (p.from||p.to ? ' · ' : '')+'изменил: '+esc(p.by)+
                   (p.at ? ' · '+esc(fmtDateTime(p.at)) : '') : '') +
         '</div>'+
@@ -10506,10 +10788,13 @@ function openProgress(){
         '<div class="phs"><b>'+svTotal+'</b><span>записей по должностям</span></div>'+
         (askTotal ? '<div class="phs"><b>'+askTotal+'</b><span>'+declOfNum(askTotal, ['компания','компании','компаний'])+' на уточнении</span></div>' : '')+
       '</div>'+
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<button id="btnPeriodEdit" class="btn-line page-head-act">Изменить даты</button>'+
       (closed
         ? '<button id="btnPeriodReopen" class="btn-line page-head-act" style="color:var(--ok);border-color:var(--ok)">Открыть закрытый обратно</button>'+
           '<button id="btnPeriod" class="btn-line page-head-act">Открыть новый период</button>'
         : '<button id="btnPeriod" class="btn-line btn-danger page-head-act">Закрыть период</button>')+
+      '</div>'+
       '</div>';
 
     // Группировка готовности по направлениям
@@ -10528,6 +10813,37 @@ function openProgress(){
     }).sort(function(a, b){ return a.pct - b.pct; });
 
     S.dashSumTab = S.dashSumTab || 'units';
+    S.dashSumFilters = S.dashSumFilters || { status: 'all', dir: '', hrbp: '' };
+
+    // Списки и счетчики для фильтров сводки
+    var sumDirs = [];
+    var sumHrbps = [];
+    var dirSet = {}, hrbpSet = {};
+    var countAll = r.rows.length;
+    var countAsk = 0;
+    var countNotStarted = 0;
+    var countDone = 0;
+
+    r.rows.forEach(function(x){
+      if(x.dir && !dirSet[x.dir]){ dirSet[x.dir] = true; sumDirs.push(x.dir); }
+      if(x.hrbp && !hrbpSet[x.hrbp]){ hrbpSet[x.hrbp] = true; sumHrbps.push(x.hrbp); }
+      if((x.ask || 0) > 0) countAsk++;
+      var isNone = (!x.done || x.done === 0) && (!x.surveys || x.surveys === 0);
+      var isFinished = x.total > 0 && x.done >= x.total && (!x.posTotal || (x.posFilled || 0) >= x.posTotal);
+      if(isNone) countNotStarted++;
+      else if(isFinished) countDone++;
+    });
+    var countInProgress = Math.max(0, countAll - countNotStarted - countDone);
+    sumDirs.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+    sumHrbps.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+
+    var statusChips = [
+      { id: 'all', label: 'Все (' + countAll + ')' },
+      (countAsk ? { id: 'ask', label: 'На уточнении (' + countAsk + ')' } : null),
+      { id: 'not_started', label: 'Не начато (' + countNotStarted + ')' },
+      { id: 'in_progress', label: 'В работе (' + countInProgress + ')' },
+      { id: 'done', label: 'Готово (' + countDone + ')' }
+    ].filter(Boolean);
 
     // Вкладки разделов
     var sumTabs = [
@@ -10549,6 +10865,19 @@ function openProgress(){
       '<div id="dashSumCount" style="font-size:13px;color:var(--muted);'+(S.dashSumTab==='dirs'?'display:none;':'')+'"></div>'+
     '</div>';
 
+    h += '<div id="dashSumFiltersRow" class="toolbar" style="margin-bottom:8px;display:'+(S.dashSumTab==='dirs'?'none':'flex')+';align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<div class="filter-chips" id="dashSumStatusChips">'+
+        statusChips.map(function(sc){
+          var on = (S.dashSumFilters.status === sc.id) ? ' on' : '';
+          return '<button type="button" class="'+on+'" data-st="'+sc.id+'">'+esc(sc.label)+'</button>';
+        }).join('')+
+      '</div>'+
+      (sumDirs.length > 1 ? niceSelect({ id:'dashSumDir', value:S.dashSumFilters.dir, width:180,
+        items:[{ v:'', label:'Все направления' }].concat(sumDirs.map(function(d){ return { v:d, label:d }; })) }) : '')+
+      (sumHrbps.length > 1 ? niceSelect({ id:'dashSumHrbp', value:S.dashSumFilters.hrbp, width:170,
+        items:[{ v:'', label:'Все HR BP' }].concat(sumHrbps.map(function(x){ return { v:x, label:x }; })) }) : '')+
+    '</div>';
+
     h += '<div id="dashSumTabBody"></div>';
     $('body').innerHTML = h;
 
@@ -10556,6 +10885,18 @@ function openProgress(){
     if(sInput){
       sInput.oninput = function(){ drawTable(); };
     }
+
+    if($('dashSumStatusChips')){
+      $('dashSumStatusChips').querySelectorAll('button[data-st]').forEach(function(btn){
+        btn.onclick = function(){
+          S.dashSumFilters.status = this.dataset.st;
+          $('dashSumStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b === btn); });
+          drawTable();
+        };
+      });
+    }
+    wireNiceSelect('dashSumDir', function(v){ S.dashSumFilters.dir = v; drawTable(); });
+    wireNiceSelect('dashSumHrbp', function(v){ S.dashSumFilters.hrbp = v; drawTable(); });
 
     $('body').querySelectorAll('button[data-sumtab]').forEach(function(btn){
       btn.onclick = function(){
@@ -10565,6 +10906,7 @@ function openProgress(){
         var isUnits = S.dashSumTab === 'units';
         if($('dashSumSearchBox')) $('dashSumSearchBox').style.display = isUnits ? '' : 'none';
         if($('dashSumCount')) $('dashSumCount').style.display = isUnits ? '' : 'none';
+        if($('dashSumFiltersRow')) $('dashSumFiltersRow').style.display = isUnits ? 'flex' : 'none';
         renderSumTab();
       };
     });
@@ -10602,6 +10944,7 @@ function openProgress(){
             });
             if($('dashSumSearchBox')) $('dashSumSearchBox').style.display = '';
             if($('dashSumCount')) $('dashSumCount').style.display = '';
+            if($('dashSumFiltersRow')) $('dashSumFiltersRow').style.display = 'flex';
             renderSumTab();
             var sin = $('dashSumSearch');
             if(sin){ sin.value = dName === '(без направления)' ? '' : dName; drawTable(); }
@@ -10615,7 +10958,22 @@ function openProgress(){
 
     function drawTable(){
       var q = ($('dashSumSearch') ? $('dashSumSearch').value : '').trim().toLowerCase();
-      var rows = !q ? r.rows : r.rows.filter(function(x){
+      var st = S.dashSumFilters.status || 'all';
+      var fDir = S.dashSumFilters.dir || '';
+      var fHrbp = S.dashSumFilters.hrbp || '';
+
+      var rows = r.rows.filter(function(x){
+        if(fDir && (x.dir || '') !== fDir) return false;
+        if(fHrbp && (x.hrbp || '') !== fHrbp) return false;
+        if(st === 'ask' && !((x.ask || 0) > 0)) return false;
+        if(st === 'not_started' && !((!x.done || x.done === 0) && (!x.surveys || x.surveys === 0))) return false;
+        if(st === 'done' && !(x.total > 0 && x.done >= x.total && (!x.posTotal || (x.posFilled || 0) >= x.posTotal))) return false;
+        if(st === 'in_progress'){
+          var isNone = (!x.done || x.done === 0) && (!x.surveys || x.surveys === 0);
+          var isFinished = x.total > 0 && x.done >= x.total && (!x.posTotal || (x.posFilled || 0) >= x.posTotal);
+          if(isNone || isFinished) return false;
+        }
+        if(!q) return true;
         return (x.unit||'').toLowerCase().indexOf(q) >= 0 ||
                (x.resp||'').toLowerCase().indexOf(q) >= 0 ||
                (x.hrbp||'').toLowerCase().indexOf(q) >= 0 ||
@@ -10658,20 +11016,39 @@ function openProgress(){
 
     renderSumTab();
 
+    if($('btnPeriodEdit')){
+      $('btnPeriodEdit').onclick = function(){
+        askPeriodDates({
+          title: 'Изменить даты периода',
+          html: 'Обновить название, даты или статус периода.',
+          value: p.name || '',
+          from: p.from || '',
+          to: p.to || '',
+          state: p.state || 'открыт',
+          showState: true,
+          ok: 'Сохранить'
+        }).then(function(data){
+          if(!data) return;
+          call('apiSetPeriod', S.token, { action:'edit', name:data.name, from:data.from, to:data.to, state:data.state })
+            .then(afterPeriod).catch(periodFail);
+        });
+      };
+    }
+
     $('btnPeriod').onclick = function(){
       var btn = this;
       if(closed){
-        askText({
+        askPeriodDates({
           title: 'Открыть новый период',
           html: 'Начнётся новый год сбора с чистого листа. Данные закрытого периода останутся в архиве.',
           value: 'Обзор рынка — ' +
             new Date().toLocaleDateString('ru-RU', {month:'long', year:'numeric'}),
           placeholder: 'Название периода',
           ok: 'Открыть период'
-        }).then(function(name){
-          if(name === null) return;
+        }).then(function(data){
+          if(!data) return;
           btn.disabled = true; btn.textContent = 'Открываем…';
-          call('apiSetPeriod', S.token, { action:'new', name:name })
+          call('apiSetPeriod', S.token, { action:'new', name:data.name, from:data.from, to:data.to })
             .then(afterPeriod).catch(periodFail);
         });
       } else {
@@ -10891,12 +11268,12 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
     }
   }
 
-  return '<div style="margin:14px 0 4px;padding:12px 14px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">' +
-      '<span style="font-size:12px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
+  return '<div style="margin:8px 0 2px;padding:8px 12px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">' +
+      '<span style="font-size:11px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
       statusBadge +
     '</div>' +
-    '<div style="position:relative;height:38px;margin:22px 24px 18px">' +
+    '<div style="position:relative;height:26px;margin:14px 18px 12px">' +
       '<div style="position:absolute;left:0;right:0;top:15px;height:6px;background:var(--color-ash);border-radius:3px"></div>' +
       (p25 && p75 ?
         '<div style="position:absolute;left:' + p25Pct + '%;width:' + Math.max(3, p75Pct - p25Pct) + '%;top:13px;height:10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:4px" title="Рыночный коридор P25–P75: ' + p25.toLocaleString('ru-RU') + ' – ' + p75.toLocaleString('ru-RU') + '">' +
@@ -10988,7 +11365,7 @@ function renderBmCompare(){
       '</div>' +
       '<div id="bmPosMeta" style="margin-top:10px;font-size:13px;color:var(--color-charcoal);line-height:1.45;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 10px;border-radius:var(--radius-buttons);font-feature-settings:\'tnum\' 1">Загрузка данных…</div>' +
     '</div>' +
-    '<div id="bmCompareDetail" style="min-width:0">Загрузка сравнения…</div>' +
+    '<div id="bmCompareDetail" style="min-width:0;max-width:840px">Загрузка сравнения…</div>' +
   '</div>';
 
   $('bmPosSearch').oninput = function(){

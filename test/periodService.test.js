@@ -36,6 +36,17 @@ test('resolvePeriodAction: activate требует числовой id', () => {
   assert.ok(resolvePeriodAction({ action: 'activate', id: 'abc' }).error);
 });
 
+test('resolvePeriodAction: явный edit', () => {
+  assert.deepEqual(
+    resolvePeriodAction({ action: 'edit', name: 'Обзор 2026-осень' }),
+    { action: 'edit', name: 'Обзор 2026-осень', id: null }
+  );
+  assert.deepEqual(
+    resolvePeriodAction({ action: 'edit' }),
+    { action: 'edit', name: null, id: null }
+  );
+});
+
 test('resolvePeriodAction: неизвестное действие → ошибка', () => {
   assert.ok(resolvePeriodAction({ action: 'destroy' }).error);
 });
