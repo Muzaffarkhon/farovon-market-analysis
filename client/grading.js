@@ -151,24 +151,100 @@ function renderGradeAssess(){
   if(!GR.unit) GR.unit = units[0].unit;
 
   var h = '<div class="toolbar">'+
-    '<select id="grUnit" class="toolbar-select">'+
-      units.map(function(u){
-        return '<option value="'+esc(u.unit)+'"'+(u.unit === GR.unit ? ' selected' : '')+'>'+esc(u.unit)+'</option>';
-      }).join('')+
-    '</select>'+
+    grUnitPickerHtml('grUnit', GR.unit)+
     '<span class="muted gr-dir">Направление: '+esc(grDirOf(GR.unit) || '—')+'</span>'+
   '</div>'+
   '<div id="grList">'+skTable()+'</div>'+
   '<div id="grForm"></div>';
 
   $('grContent').innerHTML = h;
-  $('grUnit').onchange = function(){
-    GR.unit = $('grUnit').value;
+  grBindUnitPicker('grUnit', function(unit){
+    GR.unit = unit;
     GR.form = null;
     renderGradeAssess();
-  };
+  });
 
   loadGradePositions();
+}
+
+// ─── Выбор подразделения с поиском ───
+// У admin и C&B в списке все 326 подразделений — обычный выпадающий список
+// там бесполезен. Это не то же самое, что кнопка «Фильтр» над таблицей:
+// фильтр отбирает строки уже загруженной таблицы, а здесь выбирается,
+// данные какого подразделения вообще запрашивать у сервера.
+
+var GR_PICK_LIMIT = 60;
+
+function grUnitPickerHtml(id, current){
+  return '<div class="gr-unitpick" id="'+id+'Box">'+
+    '<div class="search-wrap gr-unitpick-in">'+icBare('search')+
+      '<input id="'+id+'Input" value="'+esc(current || '')+'" '+
+        'placeholder="Подразделение — начните вводить" autocomplete="off"></div>'+
+    '<div class="gr-unitlist" id="'+id+'List" hidden></div>'+
+  '</div>';
+}
+
+function grBindUnitPicker(id, onPick){
+  var input = $(id + 'Input');
+  var list = $(id + 'List');
+  if(!input || !list) return;
+
+  var units = grUnits();
+  var chosen = input.value;
+
+  function matches(u, q){
+    return u.unit.toLowerCase().indexOf(q) >= 0 || String(u.dir || '').toLowerCase().indexOf(q) >= 0;
+  }
+
+  function draw(){
+    var q = (input.value || '').toLowerCase().trim();
+    // Пока ничего не введено, показываем начало списка — иначе при первом
+    // клике пусто и непонятно, что тут вообще есть.
+    var found = q ? units.filter(function(u){ return matches(u, q); }) : units.slice();
+
+    // Русские окончания: «мука» не находит «Цех упаковки муки». Если по
+    // точному вхождению пусто, отрезаем до двух последних букв запроса —
+    // этого хватает на падежи и не требует словаря словоформ.
+    for(var cut = 1; !found.length && cut <= 2 && q.length - cut >= 3; cut++){
+      var stem = q.slice(0, q.length - cut);
+      found = units.filter(function(u){ return matches(u, stem); });
+    }
+    var shown = found.slice(0, GR_PICK_LIMIT);
+
+    list.innerHTML = shown.map(function(u){
+      return '<button class="gr-unitrow'+(u.unit === chosen ? ' on' : '')+'" data-u="'+esc(u.unit)+'">'+
+        '<span>'+esc(u.unit)+'</span><small>'+esc(u.dir || '')+'</small></button>';
+    }).join('') || '<div class="gr-unitempty">Ничего не найдено</div>';
+
+    if(found.length > shown.length){
+      list.innerHTML += '<div class="gr-unitempty">…и ещё '+(found.length - shown.length)+' — уточните запрос</div>';
+    }
+    list.hidden = false;
+  }
+
+  function hide(){
+    list.hidden = true;
+    // Ушли, ничего не выбрав — возвращаем прежнее подразделение, чтобы в поле
+    // не осталась оборванная строка поиска.
+    input.value = chosen;
+  }
+
+  input.onfocus = function(){ input.select(); draw(); };
+  input.oninput = draw;
+  input.onkeydown = function(e){
+    if(e.key === 'Escape'){ hide(); input.blur(); }
+  };
+  input.onblur = function(){ setTimeout(hide, 150); };
+
+  list.onmousedown = function(e){
+    var btn = e.target.closest('.gr-unitrow');
+    if(!btn) return;
+    e.preventDefault();
+    chosen = btn.getAttribute('data-u');
+    input.value = chosen;
+    list.hidden = true;
+    onPick(chosen);
+  };
 }
 
 function loadGradePositions(){
@@ -550,11 +626,7 @@ function drawRiskForm(){
   var h = '<div class="card gr-form">'+
     '<div class="gr-form-hd"><b>Анкета незаменимости</b><button class="btn-line kr-close">Закрыть</button></div>'+
     '<label class="lbl">Подразделение</label>'+
-    '<select id="krUnit">'+
-      grUnits().map(function(u){
-        return '<option value="'+esc(u.unit)+'"'+(u.unit === f.unit ? ' selected' : '')+'>'+esc(u.unit)+'</option>';
-      }).join('')+
-    '</select>'+
+    grUnitPickerHtml('krUnit', f.unit)+
     '<label class="lbl">ФИО сотрудника</label>'+
     '<input id="krFio" value="'+esc(f.fio)+'" maxlength="300" placeholder="Например: Каримов Дилшод">'+
     '<label class="lbl">Должность</label>'+
@@ -595,15 +667,23 @@ function drawRiskForm(){
 
   box.innerHTML = h;
 
+  // Подразделение хранится в f.unit: поле поиска по ходу набора показывает
+  // запрос, а не выбранное значение, поэтому отсюда его не читаем.
   function pull(){
-    f.unit = $('krUnit').value;
     f.fio = $('krFio').value;
     f.jobTitle = $('krJob').value;
     f.plan = $('krPlan').value;
   }
 
   box.querySelector('.kr-close').onclick = function(){ GR.riskForm = null; box.innerHTML = ''; };
-  $('krUnit').onchange = function(){ pull(); drawRiskForm(); };
+  grBindUnitPicker('krUnit', function(unit){
+    pull();
+    f.unit = unit;
+    // Должности подставляются из штатки выбранного подразделения — прежняя
+    // могла к нему не относиться.
+    f.jobTitle = '';
+    drawRiskForm();
+  });
   [].forEach.call(box.querySelectorAll('.gr-opt'), function(btn){
     btn.onclick = function(){
       pull();

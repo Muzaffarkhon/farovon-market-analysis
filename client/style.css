@@ -10676,3 +10676,46 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   .gr-result b { font-size: 18px; }
   .kr-plan { display: none; }
 }
+
+/* Выбор подразделения с поиском (экраны оценки). */
+.gr-unitpick {
+  position: relative;
+  flex: 1 1 320px;
+  max-width: 480px;
+}
+.gr-unitpick-in input {
+  width: 100%;
+}
+.gr-unitlist {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 10px);
+  box-shadow: var(--shadow-lg, 0 12px 28px rgba(15, 23, 42, .16));
+}
+.gr-unitrow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+.gr-unitrow small { color: var(--muted); font-size: 11px; }
+.gr-unitrow:hover { background: var(--card-2); }
+.gr-unitrow.on { font-weight: 600; }
+.gr-unitempty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
