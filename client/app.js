@@ -453,7 +453,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.10')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -488,7 +488,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.10')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -546,7 +546,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.10')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.11')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -576,7 +576,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.10')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.11')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5518,6 +5518,9 @@ function renderAdminPanel(){
     { id:'period', icon:'clock', label:'Период сбора', cap:'period:view' },
     { id:'tools', icon:'wrench', label:'Сервисные утилиты', cap:'service:view' },
     { id:'audit', icon:'clipboard', label:'Журнал действий', cap:'service:view' },
+    // Формулировки вопросов анкет грейдирования и рисков — их правит C&B сам,
+    // без разработчика (тексты лежат в таблице grading_factors).
+    { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -5576,7 +5579,154 @@ function renderAdminPanel(){
   else if(S.adminTab === 'period') renderAdminPeriod();
   else if(S.adminTab === 'tools') renderAdminTools();
   else if(S.adminTab === 'audit') renderAdminAudit();
+  else if(S.adminTab === 'gradingFactors') renderAdminGradingFactors();
   else if(S.adminTab === 'roles') loadAdminRoles();
+}
+
+// ─── Вкладка: Анкеты оценки (формулировки вопросов) ───
+
+// Подписи анкет. Ключи совпадают с scope в таблице grading_factors и с
+// группами в src/services/gradingService.js — менять их нельзя, от них
+// зависит расчёт балла.
+var GRADING_SCOPES = [
+  { key:'production', label:'Производственный персонал', hint:'4 фактора: заводы, цеха, производственные линии' },
+  { key:'auxiliary', label:'Вспомогательный персонал', hint:'3 фактора: автопарк, склады, АХО, столовые, охрана' },
+  { key:'sales', label:'Торговый персонал', hint:'3 фактора: Торговый Дом, филиалы, опт и розница' },
+  { key:'aup', label:'АУП', hint:'3 фактора: Правление, бухгалтерия, финансы, HR, IT, юристы' },
+  { key:'risk', label:'Анкета рисков незаменимости', hint:'4 вопроса о ключевых сотрудниках' }
+];
+
+function renderAdminGradingFactors(){
+  $('adminContent').innerHTML = '<div id="gfBox">' + skTable() + '</div>';
+
+  call('apiGradingFactors', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('gfBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить анкеты')+'</div>';
+      return;
+    }
+    S.gradingFactors = r;
+    drawGradingFactors();
+  }).catch(function(){
+    $('gfBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+/** Список вопросов одной анкеты: scope → массив факторов. */
+function gradingFactorsOf(scope){
+  var data = S.gradingFactors || {};
+  if(scope === 'risk') return data.riskFactors || [];
+  var g = (data.groups || []).filter(function(x){ return x.key === scope; })[0];
+  return (g && g.factors) || [];
+}
+
+function gradingWeightsOf(scope){
+  if(scope === 'risk') return null;
+  var g = ((S.gradingFactors || {}).groups || []).filter(function(x){ return x.key === scope; })[0];
+  return (g && g.weights) || null;
+}
+
+function drawGradingFactors(){
+  var cur = S.gradingScope || GRADING_SCOPES[0].key;
+  S.gradingScope = cur;
+
+  var h = '<div class="toolbar">'+
+    '<select id="gfScope" class="toolbar-select">'+
+      GRADING_SCOPES.map(function(s){
+        return '<option value="'+esc(s.key)+'"'+(s.key === cur ? ' selected' : '')+'>'+esc(s.label)+'</option>';
+      }).join('')+
+    '</select>'+
+    '<span class="muted" style="margin-left:10px">Меняются только тексты вопросов и расшифровка баллов. '+
+      'Веса факторов и пороги грейдов остаются в расчёте.</span>'+
+  '</div>';
+
+  var factors = gradingFactorsOf(cur);
+  var weights = gradingWeightsOf(cur);
+
+  if(!factors.length){
+    h += '<div class="empty">Вопросы этой анкеты не найдены</div>';
+    $('gfBox').innerHTML = h;
+    bindGradingScopeSelect();
+    return;
+  }
+
+  h += '<div class="gf-list">';
+  factors.forEach(function(f, i){
+    var weightNote = weights && weights[i] != null
+      ? ' <span class="badge">вес ' + Math.round(weights[i] * 100) + '%</span>'
+      : '';
+    h += '<div class="card gf-card" data-idx="'+(i + 1)+'">'+
+      '<div class="gf-head"><b>'+esc(f.code || ('Фактор ' + (i + 1)))+'</b>'+weightNote+
+        (f.updatedBy ? '<span class="muted gf-by">правил: '+esc(f.updatedBy)+'</span>' : '')+
+      '</div>'+
+      '<label class="lbl">Вопрос</label>'+
+      '<input class="gf-title" value="'+esc(f.title || '')+'" maxlength="300">'+
+      '<label class="lbl">Пояснение под вопросом (необязательно)</label>'+
+      '<input class="gf-help" value="'+esc(f.help || '')+'" maxlength="1000">'+
+      '<label class="lbl">Варианты ответа</label>'+
+      (f.options || []).map(function(o, oi){
+        return '<div class="gf-opt"><span class="gf-score">'+(oi + 1)+'</span>'+
+          '<input class="gf-option" data-score="'+(oi + 1)+'" value="'+esc(o || '')+'" maxlength="1000"></div>';
+      }).join('')+
+      '<div class="gf-acts">'+
+        '<button class="btn gf-save">Сохранить</button>'+
+        '<button class="btn-line gf-reset">Вернуть исходную</button>'+
+      '</div>'+
+    '</div>';
+  });
+  h += '</div>';
+
+  $('gfBox').innerHTML = h;
+  bindGradingScopeSelect();
+
+  [].forEach.call(document.querySelectorAll('#gfBox .gf-save'), function(btn){
+    btn.onclick = function(){ saveGradingFactor(btn.closest('.gf-card')); };
+  });
+  [].forEach.call(document.querySelectorAll('#gfBox .gf-reset'), function(btn){
+    btn.onclick = function(){ resetGradingFactor(btn.closest('.gf-card')); };
+  });
+}
+
+function bindGradingScopeSelect(){
+  var sel = $('gfScope');
+  if(!sel) return;
+  sel.onchange = function(){
+    S.gradingScope = sel.value;
+    drawGradingFactors();
+  };
+}
+
+function saveGradingFactor(card){
+  if(!card) return;
+  var body = {
+    scope: S.gradingScope,
+    idx: parseInt(card.getAttribute('data-idx'), 10),
+    title: card.querySelector('.gf-title').value,
+    help: card.querySelector('.gf-help').value,
+    options: [].map.call(card.querySelectorAll('.gf-option'), function(inp){ return inp.value; })
+  };
+
+  call('apiGradingFactorSave', S.token, body).then(function(r){
+    if(!r || !r.ok){
+      toast((r && r.error) || 'Не удалось сохранить', 'error');
+      return;
+    }
+    toast(r.message || 'Сохранено', 'success');
+    renderAdminGradingFactors();
+  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+}
+
+function resetGradingFactor(card){
+  if(!card) return;
+  var body = { scope: S.gradingScope, idx: parseInt(card.getAttribute('data-idx'), 10) };
+
+  call('apiGradingFactorReset', S.token, body).then(function(r){
+    if(!r || !r.ok){
+      toast((r && r.error) || 'Не удалось восстановить', 'error');
+      return;
+    }
+    toast(r.message || 'Восстановлено', 'success');
+    renderAdminGradingFactors();
+  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
 }
 
 // ─── Вкладка: Пользователи ───

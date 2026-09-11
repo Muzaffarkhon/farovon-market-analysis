@@ -119,3 +119,34 @@ test('вопросы анкеты рисков совпадают с колон�
   assert.deepEqual(RISK_FACTORS.map(f => f.field), RISK_FACTOR_FIELDS);
   RISK_FACTORS.forEach(f => assert.equal(f.options.length, 5, f.code));
 });
+
+// ─── Правка формулировок анкет ───
+
+const factorsService = require('../src/services/gradingFactorsService');
+
+test('правка анкеты: пустой вопрос и неполные варианты не проходят', async () => {
+  await assert.rejects(
+    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: '', options: ['а', 'б', 'в', 'г', 'д'] }),
+    /пустой/i
+  );
+  await assert.rejects(
+    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в'] }),
+    /5 вариантов/
+  );
+  await assert.rejects(
+    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', '  '] }),
+    /5 вариантов/
+  );
+});
+
+test('правка анкеты: чужая анкета и номер вне диапазона не проходят', async () => {
+  await assert.rejects(
+    () => factorsService.saveFactor({ scope: 'директора', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
+    /Неизвестная анкета/
+  );
+  // У АУП три фактора — четвёртого вопроса не существует.
+  await assert.rejects(
+    () => factorsService.saveFactor({ scope: 'aup', idx: 4, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
+    /номер вопроса/
+  );
+});

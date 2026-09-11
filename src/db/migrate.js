@@ -1,5 +1,6 @@
 const { queryAll, queryOne, run } = require('./database');
 const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
+const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
 
 /**
  * Идемпотентные миграции живой базы.
@@ -21,6 +22,19 @@ async function ensureColumn(table, column, definition) {
   await run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   console.log(`🔧 Миграция: ${table}.${column} добавлена`);
   return true;
+}
+
+/** Первичная заливка формулировок анкеты из кода в таблицу grading_factors. */
+async function seedFactors(scope, list) {
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i];
+    await run(
+      `INSERT OR IGNORE INTO grading_factors
+         (scope, idx, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'исходная форма')`,
+      [scope, i + 1, f.code, f.title, f.help || '', ...f.options]
+    );
+  }
 }
 
 async function migrate() {
@@ -367,6 +381,31 @@ async function migrate() {
   // Повторная оценка той же должности в том же подразделении перезаписывает
   // прошлую, а не плодит две строки с разными грейдами.
   await run('CREATE UNIQUE INDEX IF NOT EXISTS idx_job_eval_unit_title ON job_evaluations(unit, job_title)');
+
+  // Тексты анкет: формулировки факторов и расшифровка баллов 1–5. Живут в
+  // базе, а не только в коде, чтобы C&B правил вопросы сам через админку.
+  // Значения из src/config/gradingFactors.js остаются эталоном и заливаются
+  // сюда один раз (INSERT OR IGNORE) — правки админа они не перетирают.
+  await run(`CREATE TABLE IF NOT EXISTS grading_factors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL,
+    idx INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    help TEXT,
+    option_1 TEXT NOT NULL,
+    option_2 TEXT NOT NULL,
+    option_3 TEXT NOT NULL,
+    option_4 TEXT NOT NULL,
+    option_5 TEXT NOT NULL,
+    updated_by TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(scope, idx)
+  )`);
+  for (const [scope, list] of Object.entries(GROUP_FACTORS)) {
+    await seedFactors(scope, list);
+  }
+  await seedFactors('risk', RISK_FACTORS);
 
   // Риски незаменимости ключевого персонала. Здесь, в отличие от
   // грейдирования, оценивается конкретный сотрудник (ФИО), поэтому строки

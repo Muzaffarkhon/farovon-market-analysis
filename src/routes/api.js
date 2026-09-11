@@ -150,7 +150,11 @@ router.get('/benchmarks/summary-widgets', requireCapability('benchmarks:view'), 
 // admin и cb видят холдинг целиком, остальные роли только свои подразделения.
 // Справочник формулировок анкет (факторы, расшифровка баллов) — нужен обоим
 // разделам, поэтому пускаем по любому из четырёх прав.
-router.get('/grading/factors', requireCapability('grading:view', 'grading:edit', 'keyrisk:view', 'keyrisk:edit'), gradingController.getFactors);
+router.get('/grading/factors', requireCapability('grading:view', 'grading:edit', 'keyrisk:view', 'keyrisk:edit', 'grading:factors'), gradingController.getFactors);
+// Правка самих вопросов анкеты — отдельное право: заполнять анкету и менять
+// её формулировки для всего холдинга должны разные люди.
+router.post('/admin/grading-factors', requireCapability('grading:factors'), gradingController.saveFactor);
+router.post('/admin/grading-factors/reset', requireCapability('grading:factors'), gradingController.resetFactor);
 router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
 router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);

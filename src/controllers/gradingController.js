@@ -3,7 +3,7 @@ const {
   GROUPS, GROUP_KEYS, GRADE_THRESHOLDS, RISK_FACTOR_FIELDS, RISK_LEVELS,
   GradingError, normalizeGroup, evaluatePosition, evaluateRisk
 } = require('../services/gradingService');
-const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
+const factorsService = require('../services/gradingFactorsService');
 
 /**
  * Грейдирование должностей и матрица рисков незаменимости персонала.
@@ -73,20 +73,73 @@ function handleError(res, err, where) {
  * Тексты анкет: формулировки факторов, веса и расшифровка баллов 1–5.
  * Отдельным запросом, а не внутри каждой выдачи должностей, — справочник
  * статичный, клиент забирает его один раз при открытии раздела.
+ * Формулировки берутся из базы (их правит C&B в админке), веса и пороги —
+ * из кода: от них зависит расчёт балла.
  */
 async function getFactors(req, res) {
-  return res.json({
-    ok: true,
-    groups: GROUP_KEYS.map(key => ({
-      key,
-      label: GROUPS[key].label,
-      weights: GROUPS[key].weights,
-      factors: GROUP_FACTORS[key]
-    })),
-    grades: GRADE_THRESHOLDS,
-    riskFactors: RISK_FACTORS,
-    riskLevels: RISK_LEVELS.map(l => ({ status: l.status, label: l.label, max: l.max, recommendation: l.recommendation }))
-  });
+  try {
+    const texts = await factorsService.getFactors();
+    return res.json({
+      ok: true,
+      source: texts.source,
+      groups: GROUP_KEYS.map(key => ({
+        key,
+        label: GROUPS[key].label,
+        weights: GROUPS[key].weights,
+        factors: texts.groups[key]
+      })),
+      grades: GRADE_THRESHOLDS,
+      riskFactors: texts.risk,
+      riskLevels: RISK_LEVELS.map(l => ({ status: l.status, label: l.label, max: l.max, recommendation: l.recommendation }))
+    });
+  } catch (err) {
+    return handleError(res, err, 'getFactors');
+  }
+}
+
+/** Правка формулировки вопроса анкеты (админка → «Анкеты оценки»). */
+async function saveFactor(req, res) {
+  try {
+    const body = req.body || {};
+    const saved = await factorsService.saveFactor({
+      scope: body.scope,
+      idx: body.idx,
+      title: body.title,
+      help: body.help,
+      options: body.options,
+      updatedBy: req.user.fio || req.user.login
+    });
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'правка анкеты оценки',
+      `${saved.scope} №${saved.idx}: «${saved.title}»`
+    ]);
+
+    return res.json({ ok: true, message: 'Формулировка сохранена' });
+  } catch (err) {
+    return handleError(res, err, 'saveFactor');
+  }
+}
+
+/** Возврат вопроса к исходной формулировке из Google-формы. */
+async function resetFactor(req, res) {
+  try {
+    const body = req.body || {};
+    const saved = await factorsService.resetFactor(
+      String(body.scope || ''), parseInt(body.idx, 10), req.user.fio || req.user.login
+    );
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'возврат анкеты оценки к исходной',
+      `${saved.scope} №${saved.idx}`
+    ]);
+
+    return res.json({ ok: true, message: 'Восстановлена исходная формулировка' });
+  } catch (err) {
+    return handleError(res, err, 'resetFactor');
+  }
 }
 
 // ─── Грейдирование должностей ───
@@ -350,6 +403,8 @@ async function getHeatmap(req, res) {
 
 module.exports = {
   getFactors,
+  saveFactor,
+  resetFactor,
   getPositions,
   evaluate,
   getStats,
