@@ -199,11 +199,14 @@ function renderGradeAssess(){
 
 var GR_PICK_LIMIT = 60;
 
+var GR_PICK_PLACEHOLDER = 'Подразделение — начните вводить';
+
 function grUnitPickerHtml(id, current){
   return '<div class="gr-unitpick" id="'+id+'Box">'+
     '<div class="search-wrap gr-unitpick-in">'+icBare('search')+
       '<input id="'+id+'Input" value="'+esc(current || '')+'" '+
-        'placeholder="Подразделение — начните вводить" autocomplete="off"></div>'+
+        'placeholder="'+esc(GR_PICK_PLACEHOLDER)+'" autocomplete="off">'+
+      '<span class="gr-unitpick-caret">'+icBare('chevron', 14)+'</span></div>'+
     '<div class="gr-unitlist" id="'+id+'List" hidden></div>'+
   '</div>';
 }
@@ -255,23 +258,53 @@ function grBindUnitPicker(id, onPick){
     // Ушли, ничего не выбрав — возвращаем прежнее подразделение, чтобы в поле
     // не осталась оборванная строка поиска.
     input.value = chosen;
+    input.placeholder = GR_PICK_PLACEHOLDER;
   }
 
-  input.onfocus = function(){ input.select(); draw(); };
+  /**
+   * Клик по полю ведёт себя как обычный выпадающий список: открывается весь
+   * перечень, поле очищается под поиск, а выбранное подразделение уходит в
+   * подсказку. Раньше в поле оставалось название, список фильтровался по нему
+   * и показывал единственную строку — чтобы выбрать другое, приходилось
+   * сначала стирать текст.
+   */
+  function open(){
+    input.placeholder = chosen || GR_PICK_PLACEHOLDER;
+    input.value = '';
+    draw();
+  }
+
+  input.onfocus = open;
+  input.onmousedown = function(){
+    // Повторный клик по уже открытому списку закрывает его, как у select.
+    if(document.activeElement === input && !list.hidden){
+      setTimeout(function(){ hide(); input.blur(); }, 0);
+    }
+  };
   input.oninput = draw;
   input.onkeydown = function(e){
-    if(e.key === 'Escape'){ hide(); input.blur(); }
+    if(e.key === 'Escape'){ hide(); input.blur(); return; }
+    // Enter выбирает первое совпадение — не нужно тянуться к мыши.
+    if(e.key === 'Enter'){
+      var first = list.querySelector('.gr-unitrow');
+      if(first){ e.preventDefault(); pick(first.getAttribute('data-u')); input.blur(); }
+    }
   };
   input.onblur = function(){ setTimeout(hide, 150); };
+
+  function pick(unit){
+    chosen = unit;
+    input.value = unit;
+    input.placeholder = GR_PICK_PLACEHOLDER;
+    list.hidden = true;
+    onPick(unit);
+  }
 
   list.onmousedown = function(e){
     var btn = e.target.closest('.gr-unitrow');
     if(!btn) return;
     e.preventDefault();
-    chosen = btn.getAttribute('data-u');
-    input.value = chosen;
-    list.hidden = true;
-    onPick(chosen);
+    pick(btn.getAttribute('data-u'));
   };
 }
 

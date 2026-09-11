@@ -10803,3 +10803,18 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-tblwrap--compact {
   max-height: 34vh;
 }
+
+/* Поле выбора подразделения ведёт себя как выпадающий список — стрелка
+   подсказывает, что по клику откроется перечень. */
+.gr-unitpick-in { position: relative; }
+.gr-unitpick-in input { padding-right: 30px; }
+.gr-unitpick-caret {
+  /* Шеврон в наборе смотрит вправо — для выпадающего списка разворачиваем вниз. */
+  transform: translateY(-50%) rotate(90deg);
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+}
