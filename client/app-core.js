@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.17';
+var APP_VERSION = window.APP_VERSION || 'v2.5.18';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -806,6 +806,10 @@ var ICONS = {
   shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 019 0v3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
   unlock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 018.8-.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  // Воронка для кнопки «Фильтр» (client/smartFilter.js). Её вызов ic('filter')
+  // висел вхолостую: имени в наборе не было, и вместо иконки рисовался пустой
+  // svg — до этого по той же причине не работал icBare('tune').
+  filter: '<path d="M3.5 5h17l-6.6 7.8v5.4l-3.8 2.3v-7.7L3.5 5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   // Грейдирование — ступени уровней. Намеренно не столбики (это dashboard и
   // chart) и не планшет (clipboard у отчёта и журнала): в боковом меню
   // разделы должны различаться с одного взгляда.
