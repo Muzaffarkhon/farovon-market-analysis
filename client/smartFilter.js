@@ -1062,6 +1062,11 @@
 
   function attach(table){
     if(!table || !table.classList.contains('co-tbl')) return;
+    // Пропускаем вложенные подтаблицы (например, детализацию по компаниям
+    // внутри .sal-detail зарплатных вилок) — у них есть предок <table>,
+    // и смарт-фильтр им не нужен: иначе на каждую свернутую строку
+    // навешивается своя кнопка «Фильтр» (сотни лишних кнопок).
+    if(table.parentElement && table.parentElement.closest('table')) return;
     var cols = getColumns(table);
     if(cols.length < 2) return;
 
