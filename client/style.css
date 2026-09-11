@@ -10731,7 +10731,9 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
    полоса в пол-экрана. */
 .gr-tblwrap {
   width: 100%;
-  max-height: 46vh;
+  /* Высота по содержимому: короткая таблица не оставляет пустой экран,
+     длинная прокручивается вместе со страницей. Ограничение включается
+     только при открытой анкете — .gr-tblwrap--compact. */
   overflow: auto;
   background: var(--card);
   border: 1px solid var(--line);
@@ -10797,3 +10799,7 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-opt { justify-content: flex-start; text-align: left; min-height: 0; border-radius: var(--r-md, 10px); }
 .gr-opt > span:last-child { flex: 1; }
 .gr-group { align-items: flex-start; justify-content: center; text-align: left; min-height: 0; }
+
+.gr-tblwrap--compact {
+  max-height: 34vh;
+}

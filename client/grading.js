@@ -309,7 +309,10 @@ function drawGradePositions(){
 
   var done = GR.rows.filter(function(r){ return r.grade_level; }).length;
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей</div>'+
-    '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
+    // Пока анкета не открыта, список растёт по содержимому — под ним не
+    // должно оставаться пустого экрана. Когда анкету открыли, список
+    // ужимается, чтобы вопросы были видны без долгой прокрутки.
+    '<div class="tblwrap gr-tblwrap'+(GR.form ? ' gr-tblwrap--compact' : '')+'"><table class="co-tbl gr-tbl">'+
     '<thead><tr><th>Должность</th><th>Штат</th><th>Группа</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
