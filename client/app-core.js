@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.12';
+var APP_VERSION = window.APP_VERSION || 'v2.5.13';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1759,6 +1759,12 @@ var API_ROUTES = {
   apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },
   apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   // Анкеты оценки: чтение формулировок (раздел оценки) и их правка (админка).
+  apiGradingPositions: function(args){ return fetchJson('/api/grading/positions' + (args[1] ? '?unit=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
+  apiGradingEvaluate: function(args){ return fetchJson('/api/grading/evaluate', { method:'POST', token:args[0], body:args[1] }); },
+  apiGradingStats: function(args){ return fetchJson('/api/grading/stats', { method:'GET', token:args[0] }); },
+  apiKeyRiskList: function(args){ return fetchJson('/api/key-personnel/list' + (args[1] ? '?unit=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
+  apiKeyRiskEvaluate: function(args){ return fetchJson('/api/key-personnel/evaluate', { method:'POST', token:args[0], body:args[1] }); },
+  apiKeyRiskHeatmap: function(args){ return fetchJson('/api/key-personnel/heatmap', { method:'GET', token:args[0] }); },
   apiGradingFactors: function(args){ return fetchJson('/api/grading/factors' + (args[1] ? '?dir=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiGradingFactorSave: function(args){ return fetchJson('/api/admin/grading-factors', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingFactorReset: function(args){ return fetchJson('/api/admin/grading-factors/reset', { method:'POST', token:args[0], body:args[1] }); },
@@ -1865,7 +1871,7 @@ var MUTATING_API_ACTIONS = [
   'apiAdminCreateDivision', 'apiAdminBatchAssignDivision',
   'apiAdminApplyAdjacentGroup', 'apiAdminClearAdjacentGroup',
   'apiAdminMoveDivision', 'apiAdminSaveRoleCapabilities',
-  'apiGradingFactorSave', 'apiGradingFactorReset',
+  'apiGradingFactorSave', 'apiGradingFactorReset', 'apiGradingEvaluate', 'apiKeyRiskEvaluate',
   'apiAdminCreateRole', 'apiAdminRenameRole', 'apiAdminDeleteRole',
   'apiSetPeriod', 'apiPeriodGrantCreate', 'apiPeriodGrantRevoke'
 ];

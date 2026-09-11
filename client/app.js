@@ -205,6 +205,26 @@ function navModel(){
       active:mkActive('benchmarks'), inTabs:true, subsections:bmSubs, submenu:bmSubs,
       run:function(){ switchView('benchmarks'); } });
   }
+  // Оценка должностей и рисков персонала — два самостоятельных раздела
+  // (см. client/grading.js). Видимость по правам конструктора ролей.
+  if(typeof canSeeGrading === 'function' && canSeeGrading()){
+    var grSubs = [
+      { key:'grading:assess', label:'Оценка должностей', icon:'clipboard', run:function(){ openGrading('assess'); } },
+      { key:'grading:stats', label:'Сводка по грейдам', icon:'chart', run:function(){ openGrading('stats'); } }
+    ];
+    primary.push({ key:'grading', label:'Грейдирование должностей', icon:'clipboard',
+      active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
+      run:function(){ switchView('grading'); } });
+  }
+  if(typeof canSeeKeyRisks === 'function' && canSeeKeyRisks()){
+    var krSubs = [
+      { key:'keyrisk:list', label:'Ключевые сотрудники', icon:'shield', run:function(){ openKeyRisks('list'); } },
+      { key:'keyrisk:heat', label:'Тепловая карта рисков', icon:'target', run:function(){ openKeyRisks('heat'); } }
+    ];
+    primary.push({ key:'keyrisk', label:'Риски ключевого персонала', icon:'shield',
+      active:mkActive('keyrisk'), inTabs:true, subsections:krSubs, submenu:krSubs,
+      run:function(){ switchView('keyrisk'); } });
+  }
   if(role === 'hrbp'){
     primary.push({ key:'hrbp_summary', label:'Сводка по HR BP', icon:'clipboard',
       active:mkActive('progress'), inTabs:false, run:function(){ openProgress(); } });
@@ -411,7 +431,7 @@ function openNavMenu(){
   var mainItems = [];
   var analyticsItems = [];
   m.primary.forEach(function(it){
-    if(it.key === 'dashboard' || it.key === 'benchmarks'){
+    if(it.key === 'dashboard' || it.key === 'benchmarks' || it.key === 'grading' || it.key === 'keyrisk'){
       analyticsItems.push(it);
     } else {
       mainItems.push(it);
@@ -453,7 +473,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.13')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -488,7 +508,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.13')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -514,6 +534,8 @@ function switchView(v){
     }
     openBenchmarks();
   }
+  else if(v === 'grading') openGrading();
+  else if(v === 'keyrisk') openKeyRisks();
   else if(v === 'admin') openAdminPanel();
   else if(v === 'progress') openProgress();
   else if(v === 'dept_assign') openDeptAssign();
@@ -546,7 +568,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.12')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.13')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -576,7 +598,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.12')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.13')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1075,6 +1097,16 @@ function onLoaded(data){
         var bsub = state.bmTab || (baseKey.indexOf(':') > -1 ? baseKey.split(':')[1] : 'compare');
         return function(){ openBenchmarks(bsub); };
       }
+      // Разделы оценки (client/grading.js) — восстанавливаются с той же
+      // подвкладкой, на которой вкладку закрыли.
+      if(baseKey.indexOf('grading') === 0){
+        var gsub = state.grTab || (baseKey.indexOf(':') > -1 ? baseKey.split(':')[1] : 'assess');
+        return function(){ openGrading(gsub); };
+      }
+      if(baseKey.indexOf('keyrisk') === 0){
+        var ksub = state.krTab || (baseKey.indexOf(':') > -1 ? baseKey.split(':')[1] : 'list');
+        return function(){ openKeyRisks(ksub); };
+      }
       if(baseKey.indexOf('unit:') === 0){
         var u = state.unit || baseKey.slice(5);
         var st = state.tab || 'step1';
@@ -1141,6 +1173,14 @@ function renderCurrentView(){
       return;
     }
     openBenchmarks();
+  }
+  else if(S.appView === 'grading'){
+    if(!canSeeGrading()){ renderHome(); return; }
+    openGrading();
+  }
+  else if(S.appView === 'keyrisk'){
+    if(!canSeeKeyRisks()){ renderHome(); return; }
+    openKeyRisks();
   }
   else if(S.appView === 'progress') openProgress();
   else if(S.appView === 'dept_assign') openDeptAssign();

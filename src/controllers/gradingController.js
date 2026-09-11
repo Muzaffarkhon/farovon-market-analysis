@@ -89,6 +89,9 @@ async function getFactors(req, res) {
         key,
         label: GROUPS[key].label,
         weights: GROUPS[key].weights,
+        // Самый низкий уровень шкалы группы — нужен экрану оценки, чтобы
+        // считать грейд на лету теми же правилами, что и сервер.
+        maxGrade: GROUPS[key].maxGrade,
         factors: texts.groups[key]
       })),
       grades: GRADE_THRESHOLDS,
