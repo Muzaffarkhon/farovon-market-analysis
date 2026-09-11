@@ -98,3 +98,24 @@ test('пользователь без подразделений не получ
   assert.equal(scope.sql, ' AND 1 = 0');
   assert.deepEqual(scope.args, []);
 });
+
+// ─── Тексты анкет ───
+
+const { GROUP_FACTORS, RISK_FACTORS } = require('../src/config/gradingFactors');
+const { GROUPS, RISK_FACTOR_FIELDS } = require('../src/services/gradingService');
+
+test('у каждой группы столько факторов, сколько весов, и по 5 вариантов ответа', () => {
+  Object.keys(GROUPS).forEach(key => {
+    const factors = GROUP_FACTORS[key];
+    assert.equal(factors.length, GROUPS[key].weights.length, 'группа ' + key);
+    factors.forEach(f => {
+      assert.equal(f.options.length, 5, f.code);
+      assert.ok(f.title.length > 0, f.code);
+    });
+  });
+});
+
+test('вопросы анкеты рисков совпадают с колонками базы по порядку', () => {
+  assert.deepEqual(RISK_FACTORS.map(f => f.field), RISK_FACTOR_FIELDS);
+  RISK_FACTORS.forEach(f => assert.equal(f.options.length, 5, f.code));
+});

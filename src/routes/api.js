@@ -148,6 +148,9 @@ router.get('/benchmarks/summary-widgets', requireCapability('benchmarks:view'), 
 // ─── Грейдирование должностей и риски незаменимости ключевого персонала ───
 // Границы видимости (кто чьи подразделения видит) — внутри контроллера:
 // admin и cb видят холдинг целиком, остальные роли только свои подразделения.
+// Справочник формулировок анкет (факторы, расшифровка баллов) — нужен обоим
+// разделам, поэтому пускаем по любому из четырёх прав.
+router.get('/grading/factors', requireCapability('grading:view', 'grading:edit', 'keyrisk:view', 'keyrisk:edit'), gradingController.getFactors);
 router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
 router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);

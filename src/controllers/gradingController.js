@@ -1,8 +1,9 @@
 const { queryAll, queryOne, run } = require('../db/database');
 const {
-  GROUPS, GROUP_KEYS, RISK_FACTOR_FIELDS, RISK_LEVELS,
+  GROUPS, GROUP_KEYS, GRADE_THRESHOLDS, RISK_FACTOR_FIELDS, RISK_LEVELS,
   GradingError, normalizeGroup, evaluatePosition, evaluateRisk
 } = require('../services/gradingService');
+const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
 
 /**
  * Грейдирование должностей и матрица рисков незаменимости персонала.
@@ -66,6 +67,26 @@ function handleError(res, err, where) {
   if (err instanceof GradingError) return fail(res, err.message);
   console.error(`${where} error:`, err.message);
   return fail(res, 'Не удалось выполнить операцию, попробуйте ещё раз', 500);
+}
+
+/**
+ * Тексты анкет: формулировки факторов, веса и расшифровка баллов 1–5.
+ * Отдельным запросом, а не внутри каждой выдачи должностей, — справочник
+ * статичный, клиент забирает его один раз при открытии раздела.
+ */
+async function getFactors(req, res) {
+  return res.json({
+    ok: true,
+    groups: GROUP_KEYS.map(key => ({
+      key,
+      label: GROUPS[key].label,
+      weights: GROUPS[key].weights,
+      factors: GROUP_FACTORS[key]
+    })),
+    grades: GRADE_THRESHOLDS,
+    riskFactors: RISK_FACTORS,
+    riskLevels: RISK_LEVELS.map(l => ({ status: l.status, label: l.label, max: l.max, recommendation: l.recommendation }))
+  });
 }
 
 // ─── Грейдирование должностей ───
@@ -328,6 +349,7 @@ async function getHeatmap(req, res) {
 }
 
 module.exports = {
+  getFactors,
   getPositions,
   evaluate,
   getStats,
