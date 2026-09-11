@@ -2864,8 +2864,8 @@ function openBatchSurveySheet(posName){
       // Липкий низ: кнопка сохранения всегда на виду, а над ней — подсказка
       // «ниже ещё N», когда список компаний не помещается на экран (важнее
       // всего в альбомной ориентации, где высота маленькая).
+      '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
       '<div class="batch-foot">'+
-        '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
         '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
       '</div>'+
     '</div>';
@@ -2904,14 +2904,17 @@ function openBatchSurveySheet(posName){
     var cue = el.querySelector('.batch-foot-cue');
     if(!sc || !cue) return;
     var foot = el.querySelector('.batch-foot');
-    var footTop = foot ? foot.offsetTop : sc.scrollHeight;
-    var viewBottom = sc.scrollTop + sc.clientHeight;
-    var remain = footTop - viewBottom;
-    if(remain <= 24){ cue.hidden = true; return; }
+    var scRect = sc.getBoundingClientRect();
+    // Сколько ещё прокрутки осталось до кнопки «Сохранить».
+    var remain = foot
+      ? (foot.getBoundingClientRect().top - scRect.bottom)
+      : (sc.scrollHeight - sc.scrollTop - sc.clientHeight);
+    if(remain <= 8){ cue.hidden = true; return; }
+    // Карточки, чей верхний край ушёл ниже видимой области — ещё не на экране.
     var cards = el.querySelectorAll('.batch-card');
     var below = 0;
     for(var i = 0; i < cards.length; i++){
-      if(cards[i].offsetTop + cards[i].offsetHeight - 8 > viewBottom) below++;
+      if(cards[i].getBoundingClientRect().top >= scRect.bottom - 16) below++;
     }
     cue.querySelector('span').textContent = below
       ? 'ниже ещё ' + below + ' ' + declOfNum(below, ['компания', 'компании', 'компаний'])
