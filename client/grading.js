@@ -285,11 +285,12 @@ function drawGradePositions(){
 
   var done = GR.rows.filter(function(r){ return r.grade_level; }).length;
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей</div>'+
-    '<div class="tblwrap tblwrap--page"><table class="co-tbl gr-tbl">'+
+    '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
     '<thead><tr><th>Должность</th><th>Штат</th><th>Группа</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
-      return '<tr>'+
+      var open = GR.form && GR.form.jobTitle === r.job_title;
+      return '<tr'+(open ? ' class="gr-row-open"' : '')+'>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         '<td>'+esc(g ? g.label : '—')+'</td>'+
@@ -321,6 +322,7 @@ function openGradeForm(rowIndex){
     answers: [row.factor_1, row.factor_2, row.factor_3, row.factor_4].map(function(v){ return v || 0; }),
     notes: row.notes || ''
   };
+  drawGradePositions();
   drawGradeForm();
   var el = $('grForm');
   if(el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -343,10 +345,16 @@ function drawGradeForm(){
   var answered = grAnswered(f.answers, factors.length);
   var ready = answered === factors.length;
 
+  // Шапка липкая: в анкете производственной группы четыре блока вопросов,
+  // и на середине прокрутки уже не видно, какую должность оцениваешь.
+  // Там же держим текущий балл — иначе за ним пришлось бы листать вниз.
   var h = '<div class="card gr-form">'+
     '<div class="gr-form-hd">'+
       '<b>'+esc(f.jobTitle)+'</b>'+
       '<span class="muted">'+esc(GR.unit)+'</span>'+
+      '<span class="gr-hd-score">'+(ready
+        ? 'Балл <b>'+score.toFixed(2)+'</b> · Уровень <b>'+grade+'</b>'
+        : 'Отвечено '+answered+' из '+factors.length)+'</span>'+
       '<button class="btn-line gr-close">Закрыть</button>'+
     '</div>'+
     '<label class="lbl">Функциональная группа</label>'+
@@ -389,7 +397,7 @@ function drawGradeForm(){
 
   box.innerHTML = h;
 
-  box.querySelector('.gr-close').onclick = function(){ GR.form = null; box.innerHTML = ''; };
+  box.querySelector('.gr-close').onclick = function(){ GR.form = null; box.innerHTML = ''; drawGradePositions(); };
   [].forEach.call(box.querySelectorAll('.gr-group'), function(btn){
     btn.onclick = function(){
       var key = btn.getAttribute('data-g');
@@ -461,7 +469,7 @@ function loadGradingStats(){
     });
 
     var h = '<div class="gr-progress">Всего оценено должностей: <b>'+r.total+'</b></div>'+
-      '<div class="tblwrap tblwrap--page"><table class="co-tbl gr-tbl">'+
+      '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
       '<thead><tr><th>Группа</th>'+levels.map(function(l){ return '<th>Уровень '+l+'</th>'; }).join('')+'<th>Итого</th></tr></thead><tbody>'+
       Object.keys(byGroup).map(function(key){
         var g = grGroup(key);
@@ -572,7 +580,7 @@ function drawRiskList(){
   if(!GR.risks.length){
     h += '<div class="empty">Оценённых сотрудников пока нет</div>';
   } else {
-    h += '<div class="tblwrap tblwrap--page"><table class="co-tbl gr-tbl">'+
+    h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
       '<thead><tr><th>Сотрудник</th><th>Должность</th><th>Подразделение</th><th>Баллы</th><th>Статус</th><th>Что делаем</th></tr></thead><tbody>'+
       GR.risks.map(function(r){
         return '<tr>'+
@@ -746,7 +754,7 @@ function loadRiskHeatmap(){
     // где «горит».
     rows.sort(function(a, b){ return (b.critical - a.critical) || (b.total - a.total); });
 
-    var h = '<div class="tblwrap tblwrap--page"><table class="co-tbl gr-tbl kr-heat">'+
+    var h = '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl kr-heat">'+
       '<thead><tr><th>Направление</th><th>Штатные</th><th>Зона внимания</th><th>Критический риск</th><th>Всего</th></tr></thead><tbody>'+
       rows.map(function(x){
         return '<tr>'+

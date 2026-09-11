@@ -10725,3 +10725,75 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Таблицы разделов оценки: высота по содержимому, а не на весь экран.
+   С .tblwrap--page между последней строкой и анкетой оставалась пустая
+   полоса в пол-экрана. */
+.gr-tblwrap {
+  width: 100%;
+  max-height: 46vh;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+}
+.gr-tblwrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--card-2);
+  box-shadow: 0 1px 0 var(--line);
+}
+/* Строка должности, которую оценивают прямо сейчас. */
+.gr-tbl tr.gr-row-open td {
+  background: var(--card-2);
+  box-shadow: inset 3px 0 0 var(--accent, #2563eb);
+}
+
+/* Шапка анкеты остаётся на виду при прокрутке вопросов. */
+.gr-form-hd {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: -14px -16px 10px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.gr-hd-score {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.gr-hd-score b { font-size: 15px; color: var(--text); }
+.gr-form-hd .btn-line { margin-left: 12px; }
+
+/* Плотнее: это рабочий экран на 13 вопросов, а не посадочная страница. */
+.gr-content { padding: 8px 0 20px; }
+.gr-form { margin-top: 12px; padding: 14px 16px; }
+.gr-form-hd b { font-size: 15px; }
+.gr-groups { gap: 6px; margin-bottom: 12px; }
+.gr-group { padding: 7px 10px; font-size: 12.5px; }
+.gr-group small { font-size: 10.5px; }
+.gr-factor { padding: 10px 0; }
+.gr-factor-hd b { font-size: 13.5px; }
+.gr-opts { gap: 4px; }
+.gr-opt { padding: 6px 9px; font-size: 12.5px; }
+.gr-opt .gr-score { flex-basis: 21px; height: 21px; font-size: 11px; }
+.gr-result { gap: 18px; margin: 12px 0 2px; padding: 10px 14px; }
+.gr-result b { font-size: 19px; }
+.gr-progress { padding: 6px 2px 8px; }
+
+@media (max-width: 640px) {
+  .gr-hd-score { display: none; }
+  .gr-tblwrap { max-height: 52vh; }
+}
+
+/* Глобальное правило для button центрирует содержимое — в анкете варианты
+   ответа и карточки групп должны читаться от левого края, как список. */
+.gr-opt { justify-content: flex-start; text-align: left; min-height: 0; border-radius: var(--r-md, 10px); }
+.gr-opt > span:last-child { flex: 1; }
+.gr-group { align-items: flex-start; justify-content: center; text-align: left; min-height: 0; }
