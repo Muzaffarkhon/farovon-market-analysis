@@ -10702,14 +10702,20 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-unitrow {
   display: flex;
   flex-direction: column;
+  /* Глобальное правило для button центрирует содержимое — в списке строки
+     должны читаться слева направо, как обычный список. */
+  align-items: flex-start;
+  justify-content: center;
   gap: 1px;
   width: 100%;
   padding: 8px 12px;
   border: 0;
+  border-radius: 0;
   background: none;
   text-align: left;
   cursor: pointer;
   font-size: 13px;
+  min-height: 0;
 }
 .gr-unitrow small { color: var(--muted); font-size: 11px; }
 .gr-unitrow:hover { background: var(--card-2); }

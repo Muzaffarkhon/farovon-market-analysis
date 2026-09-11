@@ -212,8 +212,12 @@ function grBindUnitPicker(id, onPick){
     var shown = found.slice(0, GR_PICK_LIMIT);
 
     list.innerHTML = shown.map(function(u){
+      // У верхнеуровневых подразделений название совпадает с направлением
+      // («Правление» / «Правление») — вторую строку в таком случае не рисуем.
+      var dir = String(u.dir || '');
+      var sub = (dir && dir !== u.unit) ? '<small>'+esc(dir)+'</small>' : '';
       return '<button class="gr-unitrow'+(u.unit === chosen ? ' on' : '')+'" data-u="'+esc(u.unit)+'">'+
-        '<span>'+esc(u.unit)+'</span><small>'+esc(u.dir || '')+'</small></button>';
+        '<span>'+esc(u.unit)+'</span>'+sub+'</button>';
     }).join('') || '<div class="gr-unitempty">Ничего не найдено</div>';
 
     if(found.length > shown.length){
