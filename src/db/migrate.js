@@ -342,6 +342,58 @@ async function migrate() {
              WHERE id = (SELECT id FROM periods ORDER BY id DESC LIMIT 1)
                AND NOT EXISTS (SELECT 1 FROM periods WHERE is_active = 1)`);
 
+  // Грейдирование должностей (PLAN_GRADING_AND_KEY_PERSONNEL.md, раздел 2).
+  // Оценивается требование к функции, а не человек: подразделение + должность +
+  // группа факторов. factor_4 заполняется только у производственной группы —
+  // у остальных трёх факторов три, поэтому колонка допускает NULL.
+  await run(`CREATE TABLE IF NOT EXISTS job_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    group_type TEXT NOT NULL,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER CHECK(factor_4 IS NULL OR factor_4 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    grade_level INTEGER NOT NULL,
+    evaluated_by TEXT NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_unit ON job_evaluations(unit)');
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_title ON job_evaluations(job_title)');
+  // Повторная оценка той же должности в том же подразделении перезаписывает
+  // прошлую, а не плодит две строки с разными грейдами.
+  await run('CREATE UNIQUE INDEX IF NOT EXISTS idx_job_eval_unit_title ON job_evaluations(unit, job_title)');
+
+  // Риски незаменимости ключевого персонала. Здесь, в отличие от
+  // грейдирования, оценивается конкретный сотрудник (ФИО), поэтому строки
+  // отдаются только своему подразделению, C&B и администратору.
+  await run(`CREATE TABLE IF NOT EXISTS key_personnel_risks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    employee_fio TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    bus_factor INTEGER NOT NULL CHECK(bus_factor BETWEEN 1 AND 5),
+    replacement_time INTEGER NOT NULL CHECK(replacement_time BETWEEN 1 AND 5),
+    knowledge_monopoly INTEGER NOT NULL CHECK(knowledge_monopoly BETWEEN 1 AND 5),
+    financial_risk INTEGER NOT NULL CHECK(financial_risk BETWEEN 1 AND 5),
+    total_risk_score INTEGER NOT NULL,
+    risk_status TEXT NOT NULL,
+    action_plan TEXT NOT NULL,
+    evaluator_user_id INTEGER,
+    evaluator_fio TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_key_personnel_unit ON key_personnel_risks(unit)');
+  await run('CREATE INDEX IF NOT EXISTS idx_key_personnel_status ON key_personnel_risks(risk_status)');
+  // Один сотрудник на одной должности в подразделении — одна актуальная
+  // анкета риска; повторная отправка обновляет её.
+  await run('CREATE UNIQUE INDEX IF NOT EXISTS idx_key_personnel_person ON key_personnel_risks(unit, employee_fio, job_title)');
+
   // Синхронизация пользователей с оргструктурой и штатным расписанием 1С (2026-09-09).
   // Обычные сотрудники сняты с общедепартаментских «шапок» и привязаны к конкретным
   // заводам/цехам/отделам; руководители отделов переведены в роль head; актуализированы

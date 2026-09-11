@@ -32,7 +32,11 @@ const CAPABILITIES = [
   { id: 'benchmarks:view', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр сравнений' },
   { id: 'benchmarks:view_licensed', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр лицензированных обзоров (B1, Antal)' },
   { id: 'benchmarks:import', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Загрузка и импорт датасетов' },
-  { id: 'benchmarks:map', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Сопоставление должностей' }
+  { id: 'benchmarks:map', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Сопоставление должностей' },
+  { id: 'grading:view', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Просмотр грейдов и сводки' },
+  { id: 'grading:edit', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Оценка должностей' },
+  { id: 'keyrisk:view', resource: 'keyrisk', resourceLabel: 'Риски ключевого персонала', label: 'Просмотр матрицы рисков' },
+  { id: 'keyrisk:edit', resource: 'keyrisk', resourceLabel: 'Риски ключевого персонала', label: 'Заполнение анкет риска' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];
@@ -49,14 +53,22 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // hrbp: видел дашборд, оргструктуру и справочники (requireRoles(...,'hrbp')
   // на GET-маршрутах), и мог менять период — тот же набор ролей стоял и на
   // /admin/period.
-  hrbp: ['dashboard:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit'],
+  // hrbp + новые модули: HR BP смотрит грейды и матрицу рисков по своим
+  // направлениям, но анкеты заполняют комиссия (грейды) и руководители (риски).
+  hrbp: ['dashboard:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
+    'grading:view', 'keyrisk:view'],
   // dir_head: с PR #25 видит и правит divisions (только свои отделы — это
   // ограничение уже в adminController.saveDivision, не здесь) и читает
   // список пользователей для пикера «кого назначить».
-  dir_head: ['divisions:view', 'divisions:edit', 'users:view'],
+  // dir_head и head заполняют анкеты рисков по своим подразделениям — именно
+  // они знают, кто в цехе уникальный носитель знаний. Видимость ограничена
+  // закреплёнными подразделениями в самом контроллере (gradingController).
+  dir_head: ['divisions:view', 'divisions:edit', 'users:view',
+    'grading:view', 'keyrisk:view', 'keyrisk:edit'],
   // head: видит и может назначать ответственных в подразделениях своей ветки
   // оргструктуры (подотделах), а также просматривать список пользователей.
-  head: ['divisions:view', 'divisions:edit', 'users:view'],
+  head: ['divisions:view', 'divisions:edit', 'users:view',
+    'grading:view', 'keyrisk:view', 'keyrisk:edit'],
   user: []
 };
 

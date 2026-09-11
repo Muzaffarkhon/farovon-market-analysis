@@ -12,6 +12,7 @@ const dictionaryController = require('../controllers/dictionaryController');
 const telegramController = require('../controllers/telegramController');
 const benchmarkController = require('../controllers/benchmarkController');
 const liveController = require('../controllers/liveController');
+const gradingController = require('../controllers/gradingController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -143,5 +144,16 @@ router.post('/benchmarks/import/commit', requireCapability('benchmarks:import'),
 router.get('/benchmarks/compare', requireCapability('benchmarks:view'), benchmarkController.compare);
 router.get('/benchmarks/export', requireCapability('benchmarks:view'), benchmarkController.exportMatrix);
 router.get('/benchmarks/summary-widgets', requireCapability('benchmarks:view'), benchmarkController.getSummaryWidgets);
+
+// ─── Грейдирование должностей и риски незаменимости ключевого персонала ───
+// Границы видимости (кто чьи подразделения видит) — внутри контроллера:
+// admin и cb видят холдинг целиком, остальные роли только свои подразделения.
+router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
+router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
+router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);
+
+router.get('/key-personnel/list', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.listRisks);
+router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradingController.evaluateRiskCard);
+router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 
 module.exports = router;
