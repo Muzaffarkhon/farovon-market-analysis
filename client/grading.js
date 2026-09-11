@@ -104,7 +104,7 @@ function openGrading(initialTab){
   if(initialTab) GR.tab = initialTab;
   var curTab = GR.tab || 'assess';
   var titles = {
-    assess: { title: 'Оценка должностей', icon: 'clipboard' },
+    assess: { title: 'Оценка должностей', icon: 'grades' },
     stats: { title: 'Сводка по грейдам', icon: 'chart' }
   };
   var tInfo = titles[curTab] || titles.assess;
@@ -132,7 +132,7 @@ function openGrading(initialTab){
 
   $('body').innerHTML =
     '<div class="sub-tabs sub-tabs--sticky dash-tabbar"><div class="dash-tab-strip">'+
-      '<button class="sub-tab '+(curTab === 'assess' ? 'on' : '')+'" onclick="openGrading(\'assess\')">'+ic('clipboard', 14)+'Оценка должностей</button>'+
+      '<button class="sub-tab '+(curTab === 'assess' ? 'on' : '')+'" onclick="openGrading(\'assess\')">'+ic('grades', 14)+'Оценка должностей</button>'+
       '<button class="sub-tab '+(curTab === 'stats' ? 'on' : '')+'" onclick="openGrading(\'stats\')">'+ic('chart', 14)+'Сводка по грейдам</button>'+
     '</div></div>'+
     '<div id="grContent" class="gr-content">Загрузка…</div>';
@@ -415,7 +415,7 @@ function openKeyRisks(initialTab){
   if(initialTab) GR.riskTab = initialTab;
   var curTab = GR.riskTab || 'list';
   var titles = {
-    list: { title: 'Ключевые сотрудники', icon: 'shield' },
+    list: { title: 'Ключевые сотрудники', icon: 'risk' },
     heat: { title: 'Тепловая карта рисков', icon: 'target' }
   };
   var tInfo = titles[curTab] || titles.list;
@@ -443,7 +443,7 @@ function openKeyRisks(initialTab){
 
   $('body').innerHTML =
     '<div class="sub-tabs sub-tabs--sticky dash-tabbar"><div class="dash-tab-strip">'+
-      '<button class="sub-tab '+(curTab === 'list' ? 'on' : '')+'" onclick="openKeyRisks(\'list\')">'+ic('shield', 14)+'Ключевые сотрудники</button>'+
+      '<button class="sub-tab '+(curTab === 'list' ? 'on' : '')+'" onclick="openKeyRisks(\'list\')">'+ic('risk', 14)+'Ключевые сотрудники</button>'+
       '<button class="sub-tab '+(curTab === 'heat' ? 'on' : '')+'" onclick="openKeyRisks(\'heat\')">'+ic('target', 14)+'Тепловая карта</button>'+
     '</div></div>'+
     '<div id="krContent" class="gr-content">Загрузка…</div>';

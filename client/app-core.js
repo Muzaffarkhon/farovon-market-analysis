@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.13';
+var APP_VERSION = window.APP_VERSION || 'v2.5.14';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -805,7 +805,15 @@ var ICONS = {
   trash: '<path d="M4 7h16M10 4h4M9 7v12M15 7v12M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 019 0v3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
-  unlock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 018.8-.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
+  unlock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.9"/><path d="M7.5 10.5V7a4.5 4.5 0 018.8-.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  // Грейдирование — ступени уровней. Намеренно не столбики (это dashboard и
+  // chart) и не планшет (clipboard у отчёта и журнала): в боковом меню
+  // разделы должны различаться с одного взгляда.
+  grades: '<path d="M3.5 20.5h5.5V15H3.5v5.5zM9 20.5h6V9.5H9v11zM15 20.5h5.5V4H15v16.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  // Риски незаменимости — человек с восклицательным знаком: оценивается
+  // конкретный носитель знаний, а не абстрактная опасность (щит занят
+  // «Ролями и доступами», треугольник — предупреждениями).
+  risk: '<circle cx="9.5" cy="8" r="3.3" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19.5c.6-3.3 3-5.2 6-5.2 1 0 2 .2 2.8.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 10.5v5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="18" cy="19" r="1.05" fill="currentColor"/>'
 };
 /** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
 function ic(name, size){
