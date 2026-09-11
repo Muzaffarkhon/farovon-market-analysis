@@ -141,6 +141,25 @@ function openGrading(initialTab){
   else renderGradeAssess();
 }
 
+// Последнее выбранное подразделение переживает перезагрузку страницы: иначе
+// после F5 подставлялось первое по списку («Обзор рынка — не распределено»),
+// и работа начиналась с чужого подразделения.
+var LS_GR_UNIT = 'фаровон_оценка_подразделение';
+
+/**
+ * Какое подразделение показывать при открытии экрана:
+ * прошлый выбор → единственное доступное → ничего (просим выбрать).
+ * Автоподстановка первого из сотен подразделений админу только мешает.
+ */
+function grInitialUnit(units){
+  if(GR.unit && units.some(function(u){ return u.unit === GR.unit; })) return GR.unit;
+
+  var saved = store.get(LS_GR_UNIT);
+  if(saved && units.some(function(u){ return u.unit === saved; })) return saved;
+
+  return units.length === 1 ? units[0].unit : '';
+}
+
 /** Экран «Оценка должностей»: выбор подразделения → список должностей. */
 function renderGradeAssess(){
   var units = grUnits();
@@ -148,22 +167,27 @@ function renderGradeAssess(){
     $('grContent').innerHTML = '<div class="empty">Вам не назначено ни одного подразделения</div>';
     return;
   }
-  if(!GR.unit) GR.unit = units[0].unit;
+  GR.unit = grInitialUnit(units);
 
   var h = '<div class="toolbar">'+
     grUnitPickerHtml('grUnit', GR.unit)+
-    '<span class="muted gr-dir">Направление: '+esc(grDirOf(GR.unit) || '—')+'</span>'+
+    (GR.unit ? '<span class="muted gr-dir">Направление: '+esc(grDirOf(GR.unit) || '—')+'</span>' : '')+
   '</div>'+
-  '<div id="grList">'+skTable()+'</div>'+
+  '<div id="grList">'+(GR.unit ? skTable() : '')+'</div>'+
   '<div id="grForm"></div>';
 
   $('grContent').innerHTML = h;
   grBindUnitPicker('grUnit', function(unit){
     GR.unit = unit;
+    store.set(LS_GR_UNIT, unit);
     GR.form = null;
     renderGradeAssess();
   });
 
+  if(!GR.unit){
+    $('grList').innerHTML = '<div class="empty">Выберите подразделение — покажем его штатные должности и грейды</div>';
+    return;
+  }
   loadGradePositions();
 }
 
@@ -606,7 +630,9 @@ function openRiskForm(){
     return;
   }
   GR.riskForm = {
-    unit: GR.unit || units[0].unit,
+    // То же правило, что и на экране оценки: подставляем прошлый выбор, а не
+    // первое подразделение из списка.
+    unit: grInitialUnit(units),
     fio: '',
     jobTitle: '',
     answers: [0, 0, 0, 0],
@@ -691,6 +717,7 @@ function drawRiskForm(){
   grBindUnitPicker('krUnit', function(unit){
     pull();
     f.unit = unit;
+    store.set(LS_GR_UNIT, unit);
     // Должности подставляются из штатки выбранного подразделения — прежняя
     // могла к нему не относиться.
     f.jobTitle = '';
@@ -710,6 +737,10 @@ function drawRiskForm(){
 function saveRiskForm(){
   var f = GR.riskForm;
   if(!f) return;
+  if(!f.unit){
+    toast('Выберите подразделение', 'warn');
+    return;
+  }
   if(!f.fio.trim() || !f.jobTitle.trim()){
     toast('Укажите ФИО сотрудника и должность', 'warn');
     return;
