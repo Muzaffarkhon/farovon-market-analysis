@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.44';
+var APP_VERSION = window.APP_VERSION || 'v2.5.45';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -3037,24 +3037,11 @@ function renderNav(){
 
     var rh = m.primary.map(function(it){ return navRenderBtn(it, 'rail-item'); }).join('');
     if(m.admin.length){
-      // «Анкеты оценки» и «Блоки грейдирования» — настройки грейдинга, а не
-      // общая админка (пользователи, оргструктура и т.п.); раньше их просто
-      // дописали в конец общего списка. Выделяем подписью отдельно, где бы
-      // они ни стояли в admin — порядок в navModel() не завязан на это.
-      var RAIL_GRADING_ADMIN_KEYS = { gradingFactors:1, gradingBlocks:1 };
+      // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
+      // «Грейдинг» (см. navModel() в app.js) — здесь остаётся только сама
+      // админка, без нужды выделять из неё подгруппу вручную.
       rh += '<div class="rail-sec-label">Администрирование</div>';
-      var inGradingGroup = false;
-      m.admin.forEach(function(it){
-        var isGrading = !!RAIL_GRADING_ADMIN_KEYS[it.key];
-        if(isGrading && !inGradingGroup){
-          rh += '<div class="rail-sec-label">Грейдинг</div>';
-          inGradingGroup = true;
-        } else if(!isGrading && inGradingGroup){
-          rh += '<div class="rail-sec-label">Администрирование</div>';
-          inGradingGroup = false;
-        }
-        rh += navRenderBtn(it, 'rail-item');
-      });
+      m.admin.forEach(function(it){ rh += navRenderBtn(it, 'rail-item'); });
     }
     $('railNav').innerHTML = rh;
     $('railNav').onclick = navHandleClick;

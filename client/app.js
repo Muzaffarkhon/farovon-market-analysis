@@ -207,18 +207,27 @@ function navModel(){
   }
   // Оценка должностей и рисков персонала — два самостоятельных раздела
   // (см. client/grading.js). Видимость по правам конструктора ролей.
-  if(typeof canSeeGrading === 'function' && canSeeGrading()){
-    var grSubs = [
-      { key:'grading:assess', label:'Оценка должностей', icon:'grades', run:function(){ openGrading('assess'); } },
-      { key:'grading:stats', label:'Сводка по грейдам', icon:'chart', run:function(){ openGrading('stats'); } }
-    ];
+  var canSeeGradingMain = typeof canSeeGrading === 'function' && canSeeGrading();
+  var grSubs = [];
+  if(canSeeGradingMain){
+    grSubs.push({ key:'grading:assess', label:'Оценка должностей', icon:'grades', run:function(){ openGrading('assess'); } });
+    grSubs.push({ key:'grading:stats', label:'Сводка по грейдам', icon:'chart', run:function(){ openGrading('stats'); } });
+  }
+  // Настройка формулировок и блоков грейдирования — тоже про грейдинг, а не
+  // общая админка; раньше жили в «Администрировании» с отдельной подписью
+  // поверх списка (см. коммит 99cdee2), теперь настоящий подраздел «Грейдинга».
+  // Проверяем права отдельно от canSeeGrading() — на случай роли, которая
+  // настраивает формулировки/блоки, но сама оценку не проводит.
+  if(hasCap('grading:factors')) grSubs.push({ key:'gradingFactors', label:'Анкеты оценки', icon:'book', run:function(){ openAdminPanel('gradingFactors'); } });
+  if(hasCap('grading:blocks')) grSubs.push({ key:'gradingBlocks', label:'Блоки грейдирования', icon:'units', run:function(){ openAdminPanel('gradingBlocks'); } });
+  if(grSubs.length){
     // Короче, чем «Грейдирование должностей» — с плашкой «New» рядом длинная
     // подпись в рельсе обрезалась ещё сильнее, чем без неё. «Грейдирование»
     // тоже задевало плашку буквально на 8px — «Грейдинг» помещается целиком.
     primary.push({ key:'grading', label:'Грейдинг', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
       badgeNew:true,
-      run:function(){ switchView('grading'); } });
+      run:canSeeGradingMain ? function(){ switchView('grading'); } : grSubs[0].run });
   }
   if(typeof canSeeKeyRisks === 'function' && canSeeKeyRisks()){
     var krSubs = [
@@ -312,11 +321,9 @@ function navModel(){
     { key:'period', atab:'period', label:'Период сбора', icon:'clock', cap:'period:view' },
     { key:'tools', atab:'tools', label:'Сервисные утилиты', icon:'wrench', cap:'service:view' },
     { key:'audit', atab:'audit', label:'Журнал действий', icon:'clipboard', cap:'service:view' },
-    // Забыты при добавлении этих вкладок в renderAdminPanel() — сама вкладка
-    // существовала, но зайти в неё было неоткуда: сюда, в это меню, попасть
-    // не через что.
-    { key:'gradingFactors', atab:'gradingFactors', label:'Анкеты оценки', icon:'book', cap:'grading:factors' },
-    { key:'gradingBlocks', atab:'gradingBlocks', label:'Блоки грейдирования', icon:'units', cap:'grading:blocks' },
+    // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
+    // «Грейдинг» (см. grSubs выше) — это настройки грейдинга, а не общая
+    // админка, держать их тут отдельной подписью было костылём.
     { key:'support', atab:'support', label:'Чат поддержки', icon:'chat', cap:'support:manage' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
@@ -487,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.44')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -522,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.44')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -582,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.44')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -612,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.44')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.45')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1783,6 +1790,10 @@ function crumbTrail(title){
         { label:'Пользователи', go:function(){ openAdminPanel('users'); } },
         { label: title || 'Архив' }
       ];
+    }
+    // Переехали в подраздел «Грейдинга» в навигации — крошка должна вести туда же.
+    if(S.adminTab === 'gradingFactors' || S.adminTab === 'gradingBlocks'){
+      return [ { label:'Грейдинг' }, { label: title || 'Раздел' } ];
     }
     return [ { label:'Администрирование' }, { label: title || 'Раздел' } ];
   }
