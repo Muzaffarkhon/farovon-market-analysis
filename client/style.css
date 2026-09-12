@@ -10784,10 +10784,21 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   background: var(--card-2);
   box-shadow: 0 1px 0 var(--line);
 }
-/* Строка должности, которую оценивают прямо сейчас. */
+/* Полная вертикальная линия между столбцами — вместо частичной подсветки
+   слева, которая выглядела как обрывок, а не как разделитель. */
+.gr-tbl th,
+.gr-tbl td {
+  border-right: 1px solid var(--line);
+}
+.gr-tbl th:last-child,
+.gr-tbl td:last-child {
+  border-right: none;
+}
+
+/* Строка должности, которую оценивают прямо сейчас — подсветка фоном, без
+   цветной полосы слева (та плохо смотрелась рядом с новыми линиями). */
 .gr-tbl tr.gr-row-open td {
-  background: var(--card-2);
-  box-shadow: inset 3px 0 0 var(--accent, #2563eb);
+  background: var(--accent-soft);
 }
 
 /* Шапка анкеты остаётся на виду при прокрутке вопросов. */
