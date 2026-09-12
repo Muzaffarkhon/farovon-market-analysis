@@ -239,7 +239,7 @@ async function handleStart(chatId, token) {
 
   await sendTelegramMessage(chatId,
     'Здравствуйте! Чтобы привязать аккаунт, нажмите кнопку ниже и поделитесь номером телефона — ' +
-    'найдём вас по номеру, указанному в приложении «Обзор рынка» (спросите HR BP или администратора, ' +
+    'найдём вас по номеру, указанному в приложении «Обзор рынка» (спросите администратора, ' +
     'если номер ещё не занесён).',
     CONTACT_KEYBOARD);
 }
@@ -268,10 +268,20 @@ async function handleContact(chatId, fromId, contact) {
   const match = users.find(u => normalizePhone(u.phone) === norm);
 
   if (!match) {
+    // Не просто советуем написать в поддержку, а сразу открываем тред с этим
+    // номером внутри — иначе номер, который человек только что ввёл, нигде
+    // не сохраняется, и C&B нечем воспользоваться, чтобы поправить карточку.
+    const { id: threadId, opened } = await supportChat.getOrCreateThread(chatId, contact.phone_number);
+    await supportChat.saveIncomingMessage(threadId, `Указал номер ${contact.phone_number}, сотрудника с таким номером в системе нет.`);
     await sendTelegramMessage(chatId,
-      'Не нашли сотрудника с таким номером в приложении «Обзор рынка». Проверьте номер в профиле ' +
-      '(Админка → Пользователи) или напишите администратору прямо здесь.',
-      SUPPORT_KEYBOARD);
+      'Не нашли сотрудника с таким номером в приложении «Обзор рынка». Мы передали ваш номер администратору — ' +
+      'он поправит карточку, и вы сможете войти.',
+      REMOVE_KEYBOARD);
+    if (opened) {
+      await notifySupportTeam(
+        `📵 <b>Не найден сотрудник по номеру</b>\n${escHtml(contact.phone_number)}\nchat ${chatId}\nОткройте «Чат поддержки», чтобы привязать номер к сотруднику.`
+      );
+    }
     return;
   }
 
@@ -351,26 +361,37 @@ async function handleStaleCallback(cb) {
   await answerCallbackQuery(cb.id);
 }
 
-/** Нажатие «Написать администратору» — открывает (или переоткрывает) тред. */
+/** Нажатие «Написать администратору» — открывает (или переоткрывает) тред.
+ *  Уведомляем C&B ровно в момент открытия/переоткрытия, а не на каждое
+ *  сообщение — иначе при активной переписке бот сыпал бы уведомлениями. */
 async function handleSupportStart(cb) {
   const chatId = (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id);
   await answerCallbackQuery(cb.id);
   if (!chatId) return;
-  await supportChat.getOrCreateThread(chatId);
+  const { opened } = await supportChat.getOrCreateThread(chatId);
   await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.');
+  if (opened) {
+    await notifySupportTeam(
+      `💬 <b>Новое обращение в чат поддержки</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`
+    );
+  }
 }
 
 /**
  * Обычное (не команда) сообщение от чата, у которого уже есть тред
- * поддержки — сохраняем и, если это первое сообщение с момента открытия
- * или последнего ответа C&B, уведомляем admin/cb в Telegram.
+ * поддержки. Уведомляем admin/cb только если тред был закрыт и это
+ * сообщение его переоткрывает — иначе просто сохраняем, без уведомления.
  */
 async function handleSupportMessage(chatId, thread, text) {
-  const threadId = thread.status === 'closed'
-    ? await supportChat.getOrCreateThread(chatId)
-    : thread.id;
-  const { shouldNotify } = await supportChat.saveIncomingMessage(threadId, text);
-  if (shouldNotify) {
+  let threadId = thread.id;
+  let opened = false;
+  if (thread.status === 'closed') {
+    const res = await supportChat.getOrCreateThread(chatId);
+    threadId = res.id;
+    opened = res.opened;
+  }
+  await supportChat.saveIncomingMessage(threadId, text);
+  if (opened) {
     const who = thread.phone ? `номер ${thread.phone}` : `chat ${chatId}`;
     await notifySupportTeam(
       `💬 <b>Новое сообщение в чате поддержки</b>\n${escHtml(who)}\nОткройте раздел «Чат поддержки» в системе.`

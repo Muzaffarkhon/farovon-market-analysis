@@ -184,5 +184,6 @@ router.get('/admin/support/threads/:id', requireCapability('support:manage'), su
 router.post('/admin/support/reply', requireCapability('support:manage'), supportController.reply);
 router.post('/admin/support/close', requireCapability('support:manage'), supportController.close);
 router.get('/admin/support/unread-count', requireCapability('support:manage'), supportController.unreadCount);
+router.post('/admin/support/link-employee', requireCapability('support:manage'), supportController.linkEmployee);
 
 module.exports = router;

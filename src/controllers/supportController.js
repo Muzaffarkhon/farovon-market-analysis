@@ -92,4 +92,32 @@ async function unreadCount(req, res) {
   }
 }
 
-module.exports = { listThreads, getThread, reply, close, unreadCount };
+/** Привязка гостя чата к карточке сотрудника — см. supportChatService.linkEmployee. */
+async function linkEmployee(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.thread_id, 10);
+    const userId = parseInt(req.body && req.body.user_id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректный тред');
+    if (!Number.isInteger(userId)) return fail(res, 'Выберите сотрудника');
+
+    const thread = await supportChat.getThread(id);
+    if (!thread) return fail(res, 'Тред не найден', 404);
+
+    const user = await supportChat.linkEmployee(id, userId, thread.phone);
+
+    await sendTelegramMessage(
+      thread.telegram_chat_id,
+      `Готово, ${escHtml(user.fio)}! Telegram привязан администратором. Наберите /login, чтобы получить логин и пароль.`
+    );
+    await supportChat.saveOutgoingMessage(id, `Привязано к сотруднику: ${user.fio}`, req.user.login);
+
+    return res.json({ ok: true, message: `Привязано к ${user.fio}` });
+  } catch (err) {
+    if (err.message === 'Тред не найден' || err.message === 'Сотрудник не найден или неактивен') {
+      return fail(res, err.message);
+    }
+    return handleError(res, err, 'supportLinkEmployee');
+  }
+}
+
+module.exports = { listThreads, getThread, reply, close, unreadCount, linkEmployee };

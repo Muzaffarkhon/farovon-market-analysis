@@ -487,7 +487,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.43')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -522,7 +522,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.43')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -582,7 +582,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.43')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -612,7 +612,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.42')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.43')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6266,7 +6266,12 @@ function drawAdminSupportThread(){
       '<b>Гость #'+thread.id+'</b>'+
       (thread.phone ? '<span class="muted">'+esc(thread.phone)+'</span>' : '')+
       (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
-      '<button class="btn-line btn-danger sup-close" style="margin-left:auto">Закрыть диалог</button>'+
+      '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>'+
+      '<button class="btn-line btn-danger sup-close">Закрыть диалог</button>'+
+    '</div>'+
+    '<div class="sup-link-panel" id="supLinkPanel" hidden>'+
+      '<input id="supLinkSearch" placeholder="Поиск сотрудника по ФИО…" maxlength="80">'+
+      '<div class="sup-link-results" id="supLinkResults"></div>'+
     '</div>'+
     '<div class="sup-msgs">'+
       (messages.length ? messages.map(function(m){
@@ -6304,6 +6309,13 @@ function drawAdminSupportThread(){
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
     });
   };
+  box.querySelector('.sup-link-toggle').onclick = function(){
+    var panel = $('supLinkPanel');
+    panel.hidden = !panel.hidden;
+    if(!panel.hidden){ $('supLinkSearch').value = ''; $('supLinkSearch').focus(); renderSupLinkResults(thread, ''); }
+  };
+  $('supLinkSearch').oninput = function(){ renderSupLinkResults(thread, this.value); };
+
   var msgsEl = box.querySelector('.sup-msgs');
   if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
 
@@ -6324,6 +6336,52 @@ function drawAdminSupportThread(){
   $('supReplyText').onkeydown = function(e){
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendReply(); }
   };
+}
+
+/** Список сотрудников для панели «Привязать к сотруднику» — грузится один раз
+ *  и переиспользуется, список меняется редко, а тред могут открывать часто. */
+function loadSupUsersCache(cb){
+  if(S.supUsersCache){ cb(S.supUsersCache); return; }
+  call('apiAdminGetUsers', S.token).then(function(r){
+    S.supUsersCache = (r && r.ok) ? r.users : [];
+    cb(S.supUsersCache);
+  }).catch(function(){ cb([]); });
+}
+
+function renderSupLinkResults(thread, q){
+  var box = $('supLinkResults');
+  if(!box) return;
+  box.innerHTML = '<div class="muted" style="padding:6px 8px">Загрузка…</div>';
+  loadSupUsersCache(function(users){
+    var needle = (q || '').trim().toLowerCase();
+    var list = users.filter(function(u){ return u.active && (!needle || (u.fio || '').toLowerCase().indexOf(needle) !== -1); }).slice(0, 30);
+    if(!list.length){ box.innerHTML = '<div class="muted" style="padding:6px 8px">Никого не найдено</div>'; return; }
+    box.innerHTML = list.map(function(u, i){
+      return '<button type="button" class="sup-link-row" data-i="'+i+'">'+
+        '<span>'+esc(u.fio)+'</span>'+
+        '<span class="muted">'+(u.phone ? esc(u.phone) : 'номер не указан')+(u.hasTelegram ? ' · Telegram уже привязан' : '')+'</span>'+
+      '</button>';
+    }).join('');
+    [].forEach.call(box.querySelectorAll('.sup-link-row'), function(btn){
+      btn.onclick = function(){
+        var u = list[+btn.getAttribute('data-i')];
+        ask({
+          title: 'Привязать к сотруднику?',
+          html: 'Чат будет привязан к «'+esc(u.fio)+'»'+(thread.phone ? ', номер в карточке обновится на '+esc(thread.phone) : '')+
+            (u.hasTelegram ? '.<br><b>У сотрудника уже привязан другой Telegram — он будет отвязан.</b>' : '.'),
+          ok: 'Привязать', cancel: 'Отмена'
+        }).then(function(yes){
+          if(!yes) return;
+          call('apiAdminSupportLinkEmployee', S.token, { thread_id: thread.id, user_id: u.id }).then(function(r){
+            if(!r || !r.ok){ toast((r && r.error) || 'Не удалось привязать', 'error'); return; }
+            toast(r.message || 'Привязано', 'success');
+            S.supUsersCache = null;
+            loadAdminSupportThread(thread.id);
+          }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+        });
+      };
+    });
+  });
 }
 
 // ─── Вкладка: Пользователи ───
