@@ -703,13 +703,19 @@ async function seedGradingBlocks() {
     { key: 'production', label: 'Производство', sort: 10 },
     { key: 'construction', label: 'Стройка', sort: 20 },
     { key: 'trade', label: 'Торговля', sort: 30 },
-    { key: 'office', label: 'Офис-АУП', sort: 40 }
+    // Раньше «Офис-АУП» — путали с функциональной группой «АУП» (это разные
+    // вещи: блок про физическое место работы, группа про анкету оценки).
+    { key: 'office', label: 'Офис', sort: 40 }
   ];
   for (const b of BLOCKS) {
     await run(
       'INSERT OR IGNORE INTO grading_blocks (key, label, sort, created_by) VALUES (?, ?, ?, ?)',
       [b.key, b.label, b.sort, 'исходная раскладка']
     );
+    // Название блока — не «состав», его можно поправить и после первой
+    // заливки (в отличие от block_assignments, которые IGNORE не трогает
+    // специально, чтобы не затирать ручные правки админа).
+    await run('UPDATE grading_blocks SET label = ? WHERE key = ?', [b.label, b.key]);
   }
 
   const DIR_BLOCK = {

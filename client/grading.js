@@ -394,6 +394,14 @@ function loadGradePositions(){
 }
 
 function drawGradePositions(){
+  // Пока открыта анкета, список должностей и панель блоков только мешают —
+  // прячем их целиком, а не просто ужимаем: анкета получает весь экран,
+  // «Закрыть» в её шапке возвращает список.
+  var blockBar = $('grBlockBar');
+  if(blockBar) blockBar.classList.toggle('hidden', !!GR.form);
+  $('grList').classList.toggle('hidden', !!GR.form);
+  if(GR.form) return;
+
   if(!GR.rows.length){
     $('grList').innerHTML = '<div class="empty">В этом блоке пока нет ни одной должности</div>';
     return;
@@ -404,19 +412,18 @@ function drawGradePositions(){
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей'+
     (hasCommittee ? ' <span class="muted">· комиссия '+GR.committeeSize+' чел.'+(GR.isCommitteeMember ? '' : ', вы не в её составе')+'</span>' : '')+
     '</div>'+
-    // Пока анкета не открыта, список растёт по содержимому — под ним не
-    // должно оставаться пустого экрана. Когда анкету открыли, список
-    // ужимается, чтобы вопросы были видны без долгой прокрутки.
-    '<div class="tblwrap gr-tblwrap'+(GR.form ? ' gr-tblwrap--compact' : '')+'"><table class="co-tbl gr-tbl">'+
+    // Список растёт по содержимому — под ним не должно оставаться пустого
+    // экрана. Пока анкета открыта, этот блок вообще скрыт (см. выше), так
+    // что ужимать под неё больше не нужно.
+    '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
     '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Подсказка</th>'+
       (hasCommittee ? '<th>Комиссия</th>' : '')+
       '<th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
-      var open = GR.form && GR.form.jobTitle === r.job_title;
       var mySubmitted = !!r.my_submission;
       var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
-      return '<tr'+(open ? ' class="gr-row-open"' : '')+'>'+
+      return '<tr>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
         '<td>'+(r.unit_count || 0)+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+

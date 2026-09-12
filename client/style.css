@@ -10799,8 +10799,9 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-tblwrap {
   width: 100%;
   /* Высота по содержимому: короткая таблица не оставляет пустой экран,
-     длинная прокручивается вместе со страницей. Ограничение включается
-     только при открытой анкете — .gr-tblwrap--compact. */
+     длинная прокручивается вместе со страницей. Список целиком скрывается,
+     пока открыта анкета (см. drawGradePositions в grading.js), поэтому
+     ужимать высоту под анкету больше не нужно. */
   overflow: auto;
   background: var(--card);
   border: 1px solid var(--line);
@@ -10813,11 +10814,6 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   z-index: 5;
   background: var(--card-2);
   box-shadow: 0 1px 0 var(--line);
-}
-/* Строка должности, которую оценивают прямо сейчас — подсветка фоном, без
-   цветной полосы слева (та плохо смотрелась рядом с новыми линиями). */
-.gr-tbl tr.gr-row-open td {
-  background: var(--accent-soft);
 }
 
 /* Шапка анкеты остаётся на виду при прокрутке вопросов. */
@@ -10866,10 +10862,6 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-opt { justify-content: flex-start; text-align: left; min-height: 0; border-radius: var(--r-md, 10px); }
 .gr-opt > span:last-child { flex: 1; }
 .gr-group { align-items: flex-start; justify-content: center; text-align: left; min-height: 0; }
-
-.gr-tblwrap--compact {
-  max-height: 34vh;
-}
 
 /* Поле выбора подразделения ведёт себя как выпадающий список — стрелка
    подсказывает, что по клику откроется перечень. */
