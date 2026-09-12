@@ -59,14 +59,26 @@ async function saveIncomingMessage(threadId, body) {
   await run('UPDATE support_threads SET last_message_at = CURRENT_TIMESTAMP, status = \'open\' WHERE id = ?', [threadId]);
 }
 
+// Тред не хранит «кто это» отдельным полем — вместо этого смотрим, кому
+// СЕЙЧАС принадлежит этот telegram_chat_id среди активных пользователей.
+// Так работает не только сразу после «Привязать к сотруднику», но и если
+// человека узнали раньше через /start или по номеру в самом боте — тред
+// всё равно покажет реальное имя, а не «Гость #N».
+const LINKED_FIO_JOIN = `
+  LEFT JOIN users lu ON lu.telegram_chat_id = t.telegram_chat_id
+    AND lu.archived_at IS NULL AND lu.active = 1
+`;
+
 /** Список тредов для админки — сначала с непрочитанным, затем по свежести. */
 async function listThreads() {
   return queryAll(`
     SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.last_message_at, t.created_at,
+      lu.fio AS linked_fio,
       (SELECT body FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
       (SELECT direction FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_direction,
       (SELECT COUNT(*) FROM support_messages m WHERE m.thread_id = t.id AND m.direction = 'in' AND m.read_at IS NULL) AS unread_count
     FROM support_threads t
+    ${LINKED_FIO_JOIN}
     ORDER BY (unread_count > 0) DESC, t.last_message_at DESC
   `);
 }
@@ -79,7 +91,12 @@ async function countUnreadThreads() {
 }
 
 async function getThread(threadId) {
-  return queryOne('SELECT * FROM support_threads WHERE id = ?', [threadId]);
+  return queryOne(`
+    SELECT t.*, lu.fio AS linked_fio
+    FROM support_threads t
+    ${LINKED_FIO_JOIN}
+    WHERE t.id = ?
+  `, [threadId]);
 }
 
 async function getMessages(threadId) {
@@ -129,7 +146,7 @@ async function linkEmployee(threadId, userId, phone) {
   if (!thread) throw new Error('Тред не найден');
 
   const user = await queryOne(
-    'SELECT id, fio FROM users WHERE id = ? AND archived_at IS NULL AND active = 1',
+    'SELECT id, login, fio FROM users WHERE id = ? AND archived_at IS NULL AND active = 1',
     [userId]
   );
   if (!user) throw new Error('Сотрудник не найден или неактивен');
@@ -154,11 +171,34 @@ async function linkEmployee(threadId, userId, phone) {
     );
   }
 
+  user.telegram_chat_id = chatId;
   return user;
+}
+
+/** Готовые фразы для кнопок над полем ответа — редактируются из самой
+ *  админки (не хардкод), поэтому список, а не константы в коде. */
+async function listQuickReplies() {
+  return queryAll('SELECT id, text FROM support_quick_replies ORDER BY sort_order ASC, id ASC');
+}
+
+/** id есть — правим текст существующей фразы, нет — добавляем новую в конец. */
+async function saveQuickReply(id, text) {
+  if (id) {
+    await run('UPDATE support_quick_replies SET text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [text, id]);
+    return { id };
+  }
+  const row = await queryOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM support_quick_replies');
+  const res = await run('INSERT INTO support_quick_replies (text, sort_order) VALUES (?, ?)', [text, row.next]);
+  return { id: Number(res.lastInsertRowid || res.insertId || 0) };
+}
+
+async function deleteQuickReply(id) {
+  await run('DELETE FROM support_quick_replies WHERE id = ?', [id]);
 }
 
 module.exports = {
   getOrCreateThread, findThreadByChatId, saveIncomingMessage,
   listThreads, countUnreadThreads, getThread, getMessages,
-  saveOutgoingMessage, closeThread, linkEmployee, markThreadRead
+  saveOutgoingMessage, closeThread, linkEmployee, markThreadRead,
+  listQuickReplies, saveQuickReply, deleteQuickReply
 };

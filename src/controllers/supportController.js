@@ -9,6 +9,7 @@
 
 const { sendTelegramMessage } = require('../services/telegramService');
 const supportChat = require('../services/supportChatService');
+const { resetAndSendCredentials } = require('./telegramController');
 
 function escHtml(s) {
   return String(s == null ? '' : s)
@@ -110,10 +111,18 @@ async function linkEmployee(req, res) {
 
     const user = await supportChat.linkEmployee(id, userId, thread.phone);
 
-    await sendTelegramMessage(
-      thread.telegram_chat_id,
-      `Готово, ${escHtml(user.fio)}! Telegram привязан администратором. Наберите /login, чтобы получить логин и пароль.`
-    );
+    // Та же форма, что и у команды /login — не заставляем человека делать
+    // лишний шаг: сразу шлём логин/временный пароль, а не «наберите /login».
+    const sent = await resetAndSendCredentials(user, 'admin');
+    if (!sent.ok) {
+      // system_admin (пароль системного admin через бота не сбрасывается) и
+      // send_failed (бот не смог написать, например заблокирован) — резервный
+      // текст, чтобы человек хотя бы знал, что делать дальше.
+      await sendTelegramMessage(
+        thread.telegram_chat_id,
+        `Готово, ${escHtml(user.fio)}! Telegram привязан администратором. Наберите /login, чтобы получить логин и пароль.`
+      );
+    }
     await supportChat.saveOutgoingMessage(id, `Привязано к сотруднику: ${user.fio}`, req.user.login);
 
     return res.json({ ok: true, message: `Привязано к ${user.fio}` });
@@ -125,4 +134,43 @@ async function linkEmployee(req, res) {
   }
 }
 
-module.exports = { listThreads, getThread, reply, close, unreadCount, linkEmployee };
+/** Список готовых фраз для панели над полем ответа. */
+async function listQuickReplies(req, res) {
+  try {
+    const rows = await supportChat.listQuickReplies();
+    return res.json({ ok: true, rows });
+  } catch (err) {
+    return handleError(res, err, 'supportListQuickReplies');
+  }
+}
+
+/** id в теле — правим существующую фразу, без id — добавляем новую. */
+async function saveQuickReply(req, res) {
+  try {
+    const id = req.body && req.body.id ? parseInt(req.body.id, 10) : null;
+    const text = String((req.body && req.body.text) || '').trim();
+    if (!text) return fail(res, 'Введите текст фразы');
+    if (text.length > 500) return fail(res, 'Слишком длинная фраза');
+
+    const row = await supportChat.saveQuickReply(id, text);
+    return res.json({ ok: true, id: row.id });
+  } catch (err) {
+    return handleError(res, err, 'supportSaveQuickReply');
+  }
+}
+
+async function deleteQuickReply(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректная фраза');
+    await supportChat.deleteQuickReply(id);
+    return res.json({ ok: true });
+  } catch (err) {
+    return handleError(res, err, 'supportDeleteQuickReply');
+  }
+}
+
+module.exports = {
+  listThreads, getThread, reply, close, unreadCount, linkEmployee,
+  listQuickReplies, saveQuickReply, deleteQuickReply
+};

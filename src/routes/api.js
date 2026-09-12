@@ -185,5 +185,8 @@ router.post('/admin/support/reply', requireCapability('support:manage'), support
 router.post('/admin/support/close', requireCapability('support:manage'), supportController.close);
 router.get('/admin/support/unread-count', requireCapability('support:manage'), supportController.unreadCount);
 router.post('/admin/support/link-employee', requireCapability('support:manage'), supportController.linkEmployee);
+router.get('/admin/support/quick-replies', requireCapability('support:manage'), supportController.listQuickReplies);
+router.post('/admin/support/quick-replies', requireCapability('support:manage'), supportController.saveQuickReply);
+router.post('/admin/support/quick-replies/delete', requireCapability('support:manage'), supportController.deleteQuickReply);
 
 module.exports = router;

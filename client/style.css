@@ -10825,6 +10825,61 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   border-top: 1px solid var(--line);
 }
 .sup-reply input { flex: 1 1 auto; }
+.sup-quick { padding-top: 8px; }
+.sup-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.sup-quick-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sup-quick-chip:hover { background: var(--accent-soft); border-color: var(--accent-border); }
+.sup-quick-edit-toggle {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.sup-quick-edit-toggle:hover { background: var(--card-2); color: var(--text); }
+.sup-quick-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.sup-quick-edit-row { display: flex; gap: 6px; align-items: center; }
+.sup-quick-edit-row input { flex: 1 1 auto; }
+.sup-quick-del {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger, #dc2626);
+  border-radius: var(--r-sm);
+}
+.sup-quick-del:hover { background: var(--danger-soft, #fee2e2); }
 .sup-link-panel {
   padding: 10px;
   margin-bottom: 10px;

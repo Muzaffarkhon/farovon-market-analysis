@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.48')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.48')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.48')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.48')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.49')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6273,7 +6273,7 @@ function drawAdminSupport(){
       var preview = esc(t.last_body || '').slice(0, 80);
       var fromUs = t.last_direction === 'out';
       return '<tr class="'+(t.unread_count ? 'sup-row-unread' : '')+'">'+
-        '<td><b>#'+t.id+'</b></td>'+
+        '<td><b>'+(t.linked_fio ? esc(t.linked_fio) : ('Гость #'+t.id))+'</b></td>'+
         '<td>'+esc(t.phone || '—')+'</td>'+
         '<td>'+(fromUs ? '<span class="muted">Вы: </span>' : '')+preview+(t.last_body && t.last_body.length > 80 ? '…' : '')+'</td>'+
         '<td class="muted">'+esc(fmtDateTime(t.last_message_at))+'</td>'+
@@ -6326,7 +6326,7 @@ function drawAdminSupportThread(){
 
   var h = '<div class="sup-thread-hd">'+
       '<button class="btn-ghost sup-back">'+icBare('chevron', 16)+'Все треды</button>'+
-      '<b>Гость #'+thread.id+'</b>'+
+      '<b>'+(thread.linked_fio ? esc(thread.linked_fio) : ('Гость #'+thread.id))+'</b>'+
       (thread.phone ? '<span class="muted">'+esc(thread.phone)+'</span>' : '')+
       (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
       '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>'+
@@ -6345,6 +6345,7 @@ function drawAdminSupportThread(){
         '</div>';
       }).join('') : '<div class="muted" style="padding:10px 2px">Сообщений пока нет</div>')+
     '</div>'+
+    '<div class="sup-quick" id="supQuick"></div>'+
     '<div class="sup-reply">'+
       '<input id="supReplyText" placeholder="Ответ гостю…" maxlength="2000">'+
       '<button class="btn" id="supReplyBtn">Отправить</button>'+
@@ -6378,6 +6379,7 @@ function drawAdminSupportThread(){
     if(!panel.hidden){ $('supLinkSearch').value = ''; $('supLinkSearch').focus(); renderSupLinkResults(thread, ''); }
   };
   $('supLinkSearch').oninput = function(){ renderSupLinkResults(thread, this.value); };
+  renderSupQuickReplies();
 
   var msgsEl = box.querySelector('.sup-msgs');
   if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
@@ -6399,6 +6401,99 @@ function drawAdminSupportThread(){
   $('supReplyText').onkeydown = function(e){
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendReply(); }
   };
+}
+
+/**
+ * Готовые фразы над полем ответа — вставляются в поле по клику (не
+ * отправляются сразу, C&B может поправить), список редактируется тут же по
+ * кнопке-карандашу, а не хардкодом в коде.
+ */
+function loadSupQuickCache(cb){
+  if(S.supQuickReplies){ cb(S.supQuickReplies); return; }
+  call('apiAdminSupportQuickReplies', S.token).then(function(r){
+    S.supQuickReplies = (r && r.ok) ? (r.rows || []) : [];
+    cb(S.supQuickReplies);
+  }).catch(function(){ cb([]); });
+}
+
+function renderSupQuickReplies(){
+  var box = $('supQuick');
+  if(!box) return;
+  loadSupQuickCache(function(rows){
+    var editing = !!S.supQuickEditing;
+    var chips = rows.map(function(r){
+      var short = r.text.length > 40 ? r.text.slice(0, 40) + '…' : r.text;
+      return '<button type="button" class="sup-quick-chip" data-id="'+r.id+'" title="'+esc(r.text)+'">'+esc(short)+'</button>';
+    }).join('');
+
+    box.innerHTML =
+      '<div class="sup-quick-row">'+chips+
+        '<button type="button" class="sup-quick-edit-toggle" title="Изменить фразы">'+icBare('pencil', 14)+'</button>'+
+      '</div>'+
+      (editing ? (
+        '<div class="sup-quick-edit">'+
+          rows.map(function(r){
+            return '<div class="sup-quick-edit-row" data-id="'+r.id+'">'+
+              '<input value="'+esc(r.text)+'" maxlength="500">'+
+              '<button type="button" class="btn-icon sup-quick-del" aria-label="Удалить">'+icBare('trash', 14)+'</button>'+
+            '</div>';
+          }).join('')+
+          '<div class="sup-quick-edit-row sup-quick-add">'+
+            '<input placeholder="Новая фраза…" maxlength="500">'+
+            '<button type="button" class="btn-line">Добавить</button>'+
+          '</div>'+
+        '</div>'
+      ) : '');
+
+    [].forEach.call(box.querySelectorAll('.sup-quick-chip'), function(btn){
+      btn.onclick = function(){
+        var row = rows.filter(function(r){ return r.id === +btn.getAttribute('data-id'); })[0];
+        var input = $('supReplyText');
+        if(row && input){ input.value = row.text; input.focus(); }
+      };
+    });
+
+    var toggleBtn = box.querySelector('.sup-quick-edit-toggle');
+    if(toggleBtn) toggleBtn.onclick = function(){ S.supQuickEditing = !editing; renderSupQuickReplies(); };
+    if(!editing) return;
+
+    [].forEach.call(box.querySelectorAll('.sup-quick-edit-row[data-id]'), function(rowEl){
+      var id = +rowEl.getAttribute('data-id');
+      var input = rowEl.querySelector('input');
+      input.onchange = function(){
+        var text = input.value.trim();
+        if(!text) return;
+        call('apiAdminSupportSaveQuickReply', S.token, { id: id, text: text }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось сохранить', 'error'); return; }
+          S.supQuickReplies = null;
+          renderSupQuickReplies();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+      rowEl.querySelector('.sup-quick-del').onclick = function(){
+        call('apiAdminSupportDeleteQuickReply', S.token, { id: id }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось удалить', 'error'); return; }
+          S.supQuickReplies = null;
+          renderSupQuickReplies();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+    });
+
+    var addRow = box.querySelector('.sup-quick-add');
+    if(addRow){
+      var addInput = addRow.querySelector('input');
+      var doAdd = function(){
+        var text = (addInput.value || '').trim();
+        if(!text) return;
+        call('apiAdminSupportSaveQuickReply', S.token, { text: text }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
+          S.supQuickReplies = null;
+          renderSupQuickReplies();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+      addRow.querySelector('.btn-line').onclick = doAdd;
+      addInput.onkeydown = function(e){ if(e.key === 'Enter'){ e.preventDefault(); doAdd(); } };
+    }
+  });
 }
 
 /** Список сотрудников для панели «Привязать к сотруднику» — грузится один раз
