@@ -473,7 +473,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.26')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.27')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -508,7 +508,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.26')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.27')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -568,7 +568,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.26')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.27')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -598,7 +598,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.26')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.27')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5561,6 +5561,7 @@ function renderAdminPanel(){
     // Формулировки вопросов анкет грейдирования и рисков — их правит C&B сам,
     // без разработчика (тексты лежат в таблице grading_factors).
     { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
+    { id:'gradingBlocks', icon:'units', label:'Блоки грейдирования', cap:'grading:blocks' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -5620,6 +5621,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'tools') renderAdminTools();
   else if(S.adminTab === 'audit') renderAdminAudit();
   else if(S.adminTab === 'gradingFactors') renderAdminGradingFactors();
+  else if(S.adminTab === 'gradingBlocks') renderAdminGradingBlocks();
   else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
@@ -5819,6 +5821,134 @@ function resetGradingFactor(card){
     toast(r.message || 'Восстановлено', 'success');
     renderAdminGradingFactors();
   }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+}
+
+// ─── Вкладка: Блоки грейдирования ───
+// Автоматическая раскладка (~1385 пар «подразделение+должность» по 4 блокам)
+// верна почти везде, но не может учесть штучные исключения — здесь их
+// находят и точечно переносят в другой блок, не трогая остальное.
+
+function renderAdminGradingBlocks(){
+  $('adminContent').innerHTML = '<div id="gbBox">' + skTable() + '</div>';
+  loadAdminGradingBlocks();
+}
+
+function loadAdminGradingBlocks(){
+  call('apiAdminGradingBlocks', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('gbBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить блоки')+'</div>';
+      return;
+    }
+    S.gbBlocks = r.rows || [];
+    if(!S.gbBlock || !S.gbBlocks.some(function(b){ return b.key === S.gbBlock; })){
+      S.gbBlock = (S.gbBlocks[0] || {}).key || '';
+    }
+    drawAdminGradingBlocks();
+  }).catch(function(){
+    $('gbBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawAdminGradingBlocks(){
+  var box = $('gbBox');
+  if(!box) return;
+
+  var h = '<div class="gr-groups">'+
+    (S.gbBlocks || []).map(function(b){
+      return '<button class="gr-group'+(b.key === S.gbBlock ? ' on' : '')+'" data-b="'+esc(b.key)+'">'+
+        esc(b.label)+'<small>'+(b.pair_count || 0)+' пар</small></button>';
+    }).join('')+
+  '</div>'+
+  '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="gbSearch" value="'+esc(S.gbSearch || '')+'" placeholder="Подразделение или должность">'+
+    '</div>'+
+  '</div>'+
+  '<div id="gbList">'+skTable()+'</div>';
+
+  box.innerHTML = h;
+
+  [].forEach.call(box.querySelectorAll('[data-b]'), function(btn){
+    btn.onclick = function(){
+      var key = btn.getAttribute('data-b');
+      if(key === S.gbBlock) return;
+      S.gbBlock = key;
+      drawAdminGradingBlocks();
+      loadAdminGradingBlockPositions();
+    };
+  });
+
+  var search = $('gbSearch');
+  if(search){
+    var t = null;
+    search.oninput = function(){
+      S.gbSearch = search.value;
+      clearTimeout(t);
+      t = setTimeout(loadAdminGradingBlockPositions, 250);
+    };
+  }
+
+  loadAdminGradingBlockPositions();
+}
+
+function loadAdminGradingBlockPositions(){
+  if(!S.gbBlock) return;
+  call('apiAdminGradingBlockPositions', S.token, S.gbBlock, S.gbSearch || '').then(function(r){
+    if(!r || !r.ok){
+      $('gbList').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить список')+'</div>';
+      return;
+    }
+    drawAdminGradingBlockPositions(r.rows || [], r.total || 0);
+  }).catch(function(){
+    $('gbList').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawAdminGradingBlockPositions(rows, total){
+  var list = $('gbList');
+  if(!list) return;
+
+  if(!rows.length){
+    list.innerHTML = '<div class="empty">'+(S.gbSearch ? 'Ничего не найдено' : 'В этом блоке пока нет должностей')+'</div>';
+    return;
+  }
+
+  var otherBlocks = (S.gbBlocks || []).filter(function(b){ return b.key !== S.gbBlock && b.key !== 'unassigned'; });
+
+  var h = (S.gbSearch ? '<div class="muted gb-count">Найдено '+rows.length+' из '+total+'</div>' : '')+
+    '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
+    '<thead><tr><th>Подразделение</th><th>Должность</th><th>Штат</th><th></th></tr></thead><tbody>'+
+    rows.map(function(r, i){
+      return '<tr>'+
+        '<td>'+esc(r.unit)+'</td>'+
+        '<td><b>'+esc(r.position)+'</b></td>'+
+        '<td>'+(r.staff_count || 0)+'</td>'+
+        '<td><select class="gb-move" data-i="'+i+'">'+
+          '<option value="">Перенести в…</option>'+
+          otherBlocks.map(function(b){ return '<option value="'+esc(b.key)+'">'+esc(b.label)+'</option>'; }).join('')+
+        '</select></td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
+  list.innerHTML = h;
+  [].forEach.call(list.querySelectorAll('.gb-move'), function(sel){
+    sel.onchange = function(){
+      var i = parseInt(sel.getAttribute('data-i'), 10);
+      var row = rows[i];
+      var block = sel.value;
+      if(!row || !block) return;
+      call('apiAdminGradingBlockReassign', S.token, { unit: row.unit, position: row.position, block: block }).then(function(r){
+        if(!r || !r.ok){
+          toast((r && r.error) || 'Не удалось перенести', 'error');
+          sel.value = '';
+          return;
+        }
+        toast('Перенесено в «'+esc((otherBlocks.filter(function(b){ return b.key === block; })[0] || {}).label || block)+'»', 'success');
+        loadAdminGradingBlocks();
+      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+    };
+  });
 }
 
 // ─── Вкладка: Пользователи ───

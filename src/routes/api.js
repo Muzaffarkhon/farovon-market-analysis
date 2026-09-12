@@ -156,6 +156,11 @@ router.get('/grading/factors', requireCapability('grading:view', 'grading:edit',
 router.post('/admin/grading-factors', requireCapability('grading:factors'), gradingController.saveFactor);
 router.post('/admin/grading-factors/reset', requireCapability('grading:factors'), gradingController.resetFactor);
 router.get('/grading/blocks', requireCapability('grading:view', 'grading:edit'), gradingController.getBlocks);
+// Админка: управление составом индустриальных блоков — отдельное право,
+// заполнять анкету и перекраивать блоки должны разные люди.
+router.get('/admin/grading-blocks', requireCapability('grading:blocks'), gradingController.getAdminBlocks);
+router.get('/admin/grading-blocks/positions', requireCapability('grading:blocks'), gradingController.getAdminBlockPositions);
+router.post('/admin/grading-blocks/reassign', requireCapability('grading:blocks'), gradingController.reassignBlockPosition);
 router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
 router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);

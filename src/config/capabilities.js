@@ -37,7 +37,8 @@ const CAPABILITIES = [
   { id: 'grading:edit', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Оценка должностей' },
   { id: 'keyrisk:view', resource: 'keyrisk', resourceLabel: 'Риски ключевого персонала', label: 'Просмотр матрицы рисков' },
   { id: 'keyrisk:edit', resource: 'keyrisk', resourceLabel: 'Риски ключевого персонала', label: 'Заполнение анкет риска' },
-  { id: 'grading:factors', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Правка вопросов анкет (формулировки и баллы)' }
+  { id: 'grading:factors', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Правка вопросов анкет (формулировки и баллы)' },
+  { id: 'grading:blocks', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Управление индустриальными блоками и распределением должностей' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];

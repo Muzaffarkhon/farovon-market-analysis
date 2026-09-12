@@ -299,6 +299,107 @@ async function getStats(req, res) {
   }
 }
 
+// ─── Админка: управление индустриальными блоками ───
+// Автоматическая раскладка (см. migrate.js, seedGradingBlocks) верна почти
+// везде, но не может учесть штучные исключения, которые C&B видит только
+// разбирая штатку глазами. Здесь — точечная правка: посмотреть состав блока,
+// найти ошибку, перекинуть одну пару «подразделение+должность» в другой блок.
+
+const UNASSIGNED_KEY = 'unassigned';
+
+/** Блоки + псевдо-блок «Не распределено» (штатные позиции без пары в раскладке). */
+async function getAdminBlocks(req, res) {
+  try {
+    const rows = await queryAll(`
+      SELECT b.key, b.label, b.sort, COUNT(ga.id) AS pair_count
+      FROM grading_blocks b
+      LEFT JOIN grading_block_assignments ga ON ga.block_key = b.key
+      GROUP BY b.key
+      ORDER BY b.sort ASC
+    `);
+    const unassigned = await queryOne(`
+      SELECT COUNT(*) AS n
+      FROM unit_positions up
+      LEFT JOIN grading_block_assignments ga ON ga.unit = up.unit AND ga.position = up.position
+      WHERE ga.id IS NULL
+    `);
+    if (unassigned && unassigned.n) {
+      rows.push({ key: UNASSIGNED_KEY, label: 'Не распределено', sort: 999, pair_count: unassigned.n });
+    }
+    return res.json({ ok: true, rows });
+  } catch (err) {
+    return handleError(res, err, 'getAdminBlocks');
+  }
+}
+
+/** Состав блока: пары «подразделение+должность» с поиском по подстроке. */
+async function getAdminBlockPositions(req, res) {
+  try {
+    const block = readText(req.query.block, 100);
+    const q = readText(req.query.q, 200).toLowerCase();
+    if (!block) return fail(res, 'Укажите блок');
+
+    let rows;
+    if (block === UNASSIGNED_KEY) {
+      rows = await queryAll(`
+        SELECT up.unit, up.position, up.staff_count
+        FROM unit_positions up
+        LEFT JOIN grading_block_assignments ga ON ga.unit = up.unit AND ga.position = up.position
+        WHERE ga.id IS NULL
+        ORDER BY up.unit ASC, up.position ASC
+      `);
+    } else {
+      const blockRow = await queryOne('SELECT key FROM grading_blocks WHERE key = ?', [block]);
+      if (!blockRow) return fail(res, 'Неизвестный блок');
+      rows = await queryAll(`
+        SELECT ga.unit, ga.position, COALESCE(up.staff_count, 0) AS staff_count
+        FROM grading_block_assignments ga
+        LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
+        WHERE ga.block_key = ?
+        ORDER BY ga.unit ASC, ga.position ASC
+      `, [block]);
+    }
+
+    const filtered = q
+      ? rows.filter(r => r.unit.toLowerCase().includes(q) || r.position.toLowerCase().includes(q))
+      : rows;
+
+    return res.json({ ok: true, rows: filtered, total: rows.length });
+  } catch (err) {
+    return handleError(res, err, 'getAdminBlockPositions');
+  }
+}
+
+/** Перенос одной пары «подразделение+должность» в другой блок. */
+async function reassignBlockPosition(req, res) {
+  try {
+    const body = req.body || {};
+    const unit = readText(body.unit, 300);
+    const position = readText(body.position, 300);
+    const block = readText(body.block, 100);
+
+    if (!unit || !position || !block) return fail(res, 'Укажите подразделение, должность и блок');
+    const blockRow = await queryOne('SELECT key FROM grading_blocks WHERE key = ?', [block]);
+    if (!blockRow) return fail(res, 'Неизвестный блок');
+
+    await run(`
+      INSERT INTO grading_block_assignments (block_key, unit, position)
+      VALUES (?, ?, ?)
+      ON CONFLICT(unit, position) DO UPDATE SET block_key = excluded.block_key
+    `, [block, unit, position]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'перенос должности между блоками грейдирования',
+      `${unit} / ${position} → ${block}`
+    ]);
+
+    return res.json({ ok: true, message: 'Перенесено' });
+  } catch (err) {
+    return handleError(res, err, 'reassignBlockPosition');
+  }
+}
+
 // ─── Риски незаменимости ключевого персонала ───
 
 async function listRisks(req, res) {
@@ -447,6 +548,9 @@ module.exports = {
   getPositions,
   evaluate,
   getStats,
+  getAdminBlocks,
+  getAdminBlockPositions,
+  reassignBlockPosition,
   listRisks,
   evaluateRiskCard,
   getHeatmap,
