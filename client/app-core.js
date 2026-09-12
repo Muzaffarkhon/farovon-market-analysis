@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.31';
+var APP_VERSION = window.APP_VERSION || 'v2.5.32';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -2824,6 +2824,10 @@ function navRenderBtn(it, cls){
   var subs = it.subsections || it.submenu;
   var hasSub = subs && subs.length >= 2;
 
+  // Плашка «New» у пункта меню — временная, пока раздел не обжился (снять
+  // флаг badgeNew в navModel(), когда обкатают и привыкнут).
+  var badgeNew = it.badgeNew ? '<span class="nav-badge-new">New</span>' : '';
+
   if(cls === 'rail-item'){
     var caret = hasSub
       ? '<span class="rail-sub-caret" data-rail-caret="'+it.key+'" aria-label="Подразделы: ' + esc(it.label) + '">'+
@@ -2832,7 +2836,7 @@ function navRenderBtn(it, cls){
       : '';
     var btnTitle = (window.S && S.railCollapsed) ? (' title="' + esc(it.label) + '"') : '';
     return '<button class="'+cls+danger+on+(hasSub ? ' has-sub' : '')+'" data-nav="'+it.key+'"'+btnTitle+'>'+
-      icon+'<span>'+lbl+'</span>'+caret+'</button>';
+      icon+'<span>'+lbl+'</span>'+badgeNew+caret+'</button>';
   }
 
   // На нижней полосе телефона кнопка-категория (есть submenu) помечается
@@ -2843,7 +2847,7 @@ function navRenderBtn(it, cls){
     : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+caretPhone+'</span></button>';
+    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+'</button>';
 }
 
 var activeRailDropdown = null;

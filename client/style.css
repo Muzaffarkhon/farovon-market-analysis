@@ -712,6 +712,29 @@ body.has-bar .wrap {
     height: 16px;
   }
 
+  /* Плашка «New» у пункта меню — привлекает внимание к недавно добавленному
+     разделу, мигает, пока пользователь на неё не нажмёт хоть раз. */
+  .nav-badge-new {
+    flex: none;
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    animation: nav-badge-blink 1.2s ease-in-out infinite;
+  }
+  @keyframes nav-badge-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-badge-new { animation: none; }
+  }
+
   .rail-item:hover {
     background: var(--color-paper-mist);
     color: var(--color-midnight-ink);
@@ -4601,6 +4624,16 @@ label.lbl {
   border-bottom: 1px solid var(--line);
   color: var(--text);
   vertical-align: middle;
+}
+
+/* Полная вертикальная линия между столбцами — во всех таблицах приложения. */
+.co-tbl th,
+.co-tbl td {
+  border-right: 1px solid var(--line);
+}
+.co-tbl th:last-child,
+.co-tbl td:last-child {
+  border-right: none;
 }
 
 .co-tbl .badge,
@@ -10784,17 +10817,6 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   background: var(--card-2);
   box-shadow: 0 1px 0 var(--line);
 }
-/* Полная вертикальная линия между столбцами — вместо частичной подсветки
-   слева, которая выглядела как обрывок, а не как разделитель. */
-.gr-tbl th,
-.gr-tbl td {
-  border-right: 1px solid var(--line);
-}
-.gr-tbl th:last-child,
-.gr-tbl td:last-child {
-  border-right: none;
-}
-
 /* Строка должности, которую оценивают прямо сейчас — подсветка фоном, без
    цветной полосы слева (та плохо смотрелась рядом с новыми линиями). */
 .gr-tbl tr.gr-row-open td {
