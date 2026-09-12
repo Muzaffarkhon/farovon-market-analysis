@@ -89,17 +89,24 @@ async function getMessages(threadId) {
   );
 }
 
+/** Пометить входящие сообщения треда прочитанными — и при ответе C&B, и
+ *  просто при открытии треда в админке (см. markThreadRead ниже): счётчик
+ *  непрочитанного не должен требовать обязательного ответа, чтобы уйти. */
+async function markThreadRead(threadId) {
+  await run(
+    `UPDATE support_messages SET read_at = CURRENT_TIMESTAMP
+     WHERE thread_id = ? AND direction = 'in' AND read_at IS NULL`,
+    [threadId]
+  );
+}
+
 /** Ответ C&B — отправка в Telegram делает вызывающий контроллер, здесь только запись. */
 async function saveOutgoingMessage(threadId, body, authorLogin) {
   await run(
     'INSERT INTO support_messages (thread_id, direction, body, author_login) VALUES (?, \'out\', ?, ?)',
     [threadId, body, authorLogin]
   );
-  await run(
-    `UPDATE support_messages SET read_at = CURRENT_TIMESTAMP
-     WHERE thread_id = ? AND direction = 'in' AND read_at IS NULL`,
-    [threadId]
-  );
+  await markThreadRead(threadId);
   await run('UPDATE support_threads SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?', [threadId]);
 }
 
@@ -153,5 +160,5 @@ async function linkEmployee(threadId, userId, phone) {
 module.exports = {
   getOrCreateThread, findThreadByChatId, saveIncomingMessage,
   listThreads, countUnreadThreads, getThread, getMessages,
-  saveOutgoingMessage, closeThread, linkEmployee
+  saveOutgoingMessage, closeThread, linkEmployee, markThreadRead
 };

@@ -41,6 +41,11 @@ async function getThread(req, res) {
     const thread = await supportChat.getThread(id);
     if (!thread) return fail(res, 'Тред не найден', 404);
 
+    // Открыл тред — уже прочитал. Раньше это происходило только при ответе,
+    // и счётчик непрочитанного висел, даже если C&B всё видел, просто нечего
+    // было ответить (например, сообщение было чисто информационным).
+    await supportChat.markThreadRead(id);
+
     const messages = await supportChat.getMessages(id);
     return res.json({ ok: true, thread, messages });
   } catch (err) {
