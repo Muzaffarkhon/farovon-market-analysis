@@ -1,4 +1,4 @@
-const { queryAll, queryOne, run } = require('./database');
+const { queryAll, queryOne, run, batch } = require('./database');
 const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
 const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
 const { POSITION_HINTS } = require('../config/gradingPositionHints');
@@ -622,13 +622,12 @@ async function seedGradingPositionHints() {
     level_conflict INTEGER NOT NULL DEFAULT 0
   )`);
 
-  for (const h of POSITION_HINTS) {
-    await run(`
-      INSERT OR IGNORE INTO grading_position_hints
+  await batch(POSITION_HINTS.map(h => ({
+    sql: `INSERT OR IGNORE INTO grading_position_hints
         (position, suggested_group, suggested_level, sample_count, group_conflict, level_conflict)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [h.position, h.group, h.level, h.sampleCount, h.groupConflict ? 1 : 0, h.levelConflict ? 1 : 0]);
-  }
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [h.position, h.group, h.level, h.sampleCount, h.groupConflict ? 1 : 0, h.levelConflict ? 1 : 0]
+  })));
   console.log(`🔧 Миграция: подсказки по должностям из прежнего анализа загружены (${POSITION_HINTS.length})`);
 }
 
@@ -782,15 +781,24 @@ async function seedGradingBlocks() {
     FROM unit_positions up
     JOIN divisions d ON d.unit = up.unit
   `);
-  let inserted = 0;
+  // Раньше вставляли по одной паре — ~1400 отдельных запросов к удалённой
+  // Turso занимали минуты на каждой сборке Vercel. batch() отправляет то же
+  // самое одной сетевой поездкой (пачками, чтобы не отправить один
+  // гигантский запрос) — те же минуты превращаются в секунды.
+  const stmts = [];
   for (const r of rows) {
     const block = classify(r.dir, r.unit, r.position);
     if (!block) continue;
-    const res = await run(
-      'INSERT OR IGNORE INTO grading_block_assignments (block_key, unit, position) VALUES (?, ?, ?)',
-      [block, r.unit, r.position]
-    );
-    if (res && res.rowsAffected) inserted += res.rowsAffected;
+    stmts.push({
+      sql: 'INSERT OR IGNORE INTO grading_block_assignments (block_key, unit, position) VALUES (?, ?, ?)',
+      args: [block, r.unit, r.position]
+    });
+  }
+  let inserted = 0;
+  const CHUNK = 200;
+  for (let i = 0; i < stmts.length; i += CHUNK) {
+    const results = await batch(stmts.slice(i, i + CHUNK));
+    results.forEach(res => { if (res && res.rowsAffected) inserted += res.rowsAffected; });
   }
   if (inserted) {
     console.log(`🔧 Миграция: раскладка по индустриальным блокам — добавлено ${inserted} пар «подразделение+должность»`);
