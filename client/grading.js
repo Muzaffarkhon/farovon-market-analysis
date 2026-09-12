@@ -384,6 +384,8 @@ function loadGradePositions(){
       GR.factorsDir = '';
     }
     GR.rows = pos.rows || [];
+    GR.committeeSize = pos.committeeSize || 0;
+    GR.isCommitteeMember = !!pos.isCommitteeMember;
     drawGradePositions();
     if(GR.form) drawGradeForm();
   }).catch(function(){
@@ -398,24 +400,32 @@ function drawGradePositions(){
   }
 
   var done = GR.rows.filter(function(r){ return r.grade_level; }).length;
-  var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей</div>'+
+  var hasCommittee = GR.committeeSize > 0;
+  var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей'+
+    (hasCommittee ? ' <span class="muted">· комиссия '+GR.committeeSize+' чел.'+(GR.isCommitteeMember ? '' : ', вы не в её составе')+'</span>' : '')+
+    '</div>'+
     // Пока анкета не открыта, список растёт по содержимому — под ним не
     // должно оставаться пустого экрана. Когда анкету открыли, список
     // ужимается, чтобы вопросы были видны без долгой прокрутки.
     '<div class="tblwrap gr-tblwrap'+(GR.form ? ' gr-tblwrap--compact' : '')+'"><table class="co-tbl gr-tbl">'+
-    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Подсказка</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Подсказка</th>'+
+      (hasCommittee ? '<th>Комиссия</th>' : '')+
+      '<th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
       var open = GR.form && GR.form.jobTitle === r.job_title;
+      var mySubmitted = !!r.my_submission;
+      var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
       return '<tr'+(open ? ' class="gr-row-open"' : '')+'>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
         '<td>'+(r.unit_count || 0)+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         '<td>'+esc(g ? g.label : '—')+'</td>'+
         '<td>'+grHintCell(r)+'</td>'+
+        (hasCommittee ? '<td>'+(r.grade_level ? '<span class="muted">завершено</span>' : (r.submitted_count || 0)+' из '+GR.committeeSize+(mySubmitted ? ' '+icBare('check', 12) : ''))+'</td>' : '')+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">Уровень '+r.grade_level+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
-        '<td><button class="btn-line gr-open" data-i="'+i+'">'+(r.grade_level ? 'Изменить' : 'Оценить')+'</button></td>'+
+        '<td><button class="btn-line gr-open" data-i="'+i+'">'+btnLabel+'</button></td>'+
       '</tr>';
     }).join('')+
     '</tbody></table></div>';
@@ -434,15 +444,24 @@ function openGradeForm(rowIndex){
     toast('У вас нет права оценивать должности', 'warn');
     return;
   }
+  if(GR.committeeSize > 0 && !GR.isCommitteeMember){
+    toast('Вы не входите в комиссию этого блока — оценивают только назначенные эксперты', 'warn');
+    return;
+  }
 
-  // Группа по умолчанию: своя прошлая оценка → подсказка из прежнего анализа
-  // (только выбор анкеты/весов, ответы на вопросы подсказка не знает) →
-  // производственная как самая частая.
+  // Пока итог не подведён, показываем СВОЙ прошлый слепой ответ (если уже
+  // отвечали) — не чужие и не итоговое среднее. После завершения (grade_level
+  // проставлен) строка row уже содержит официальный итог, его и показываем.
+  var mine = !row.grade_level ? row.my_submission : null;
+  var source = mine || row;
+  // Группа по умолчанию: свой ответ/прошлая оценка → подсказка из прежнего
+  // анализа (только выбор анкеты/весов, ответы на вопросы подсказка не
+  // знает) → производственная как самая частая.
   GR.form = {
     jobTitle: row.job_title,
-    group: row.group_type || row.suggested_group || 'production',
-    answers: [row.factor_1, row.factor_2, row.factor_3, row.factor_4].map(function(v){ return v || 0; }),
-    notes: row.notes || ''
+    group: source.group_type || row.suggested_group || 'production',
+    answers: [source.factor_1, source.factor_2, source.factor_3, source.factor_4].map(function(v){ return v || 0; }),
+    notes: source.notes || ''
   };
   drawGradePositions();
   drawGradeForm();
@@ -562,7 +581,9 @@ function saveGradeForm(){
       toast((r && r.error) || 'Не удалось сохранить оценку', 'error');
       return;
     }
-    toast('Уровень ' + r.gradeLevel + ' (балл ' + r.weightedScore + ')', 'success');
+    toast(r.pending
+      ? (r.message || 'Ваша оценка принята')
+      : 'Уровень ' + r.gradeLevel + ' (балл ' + r.weightedScore + ')', 'success');
     GR.form = null;
     $('grForm').innerHTML = '';
     loadGradePositions();

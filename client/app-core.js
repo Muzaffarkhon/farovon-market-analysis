@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.28';
+var APP_VERSION = window.APP_VERSION || 'v2.5.29';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1778,6 +1778,11 @@ var API_ROUTES = {
     return fetchJson('/api/admin/grading-blocks/positions' + qs, { method:'GET', token:args[0] });
   },
   apiAdminGradingBlockReassign: function(args){ return fetchJson('/api/admin/grading-blocks/reassign', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGradingCommittee: function(args){ return fetchJson('/api/admin/grading-committee?block=' + encodeURIComponent(args[1] || ''), { method:'GET', token:args[0] }); },
+  apiAdminGradingCommitteeAdd: function(args){ return fetchJson('/api/admin/grading-committee/add', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGradingCommitteeRemove: function(args){ return fetchJson('/api/admin/grading-committee/remove', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGradingCommitteePending: function(args){ return fetchJson('/api/admin/grading-committee/pending?block=' + encodeURIComponent(args[1] || ''), { method:'GET', token:args[0] }); },
+  apiAdminGradingCommitteeFinalize: function(args){ return fetchJson('/api/admin/grading-committee/finalize', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingPositions: function(args){ return fetchJson('/api/grading/positions' + (args[1] ? '?block=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiGradingEvaluate: function(args){ return fetchJson('/api/grading/evaluate', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingStats: function(args){ return fetchJson('/api/grading/stats', { method:'GET', token:args[0] }); },
@@ -1891,7 +1896,8 @@ var MUTATING_API_ACTIONS = [
   'apiAdminApplyAdjacentGroup', 'apiAdminClearAdjacentGroup',
   'apiAdminMoveDivision', 'apiAdminSaveRoleCapabilities',
   'apiGradingFactorSave', 'apiGradingFactorReset', 'apiGradingEvaluate', 'apiKeyRiskEvaluate',
-  'apiAdminGradingBlockReassign',
+  'apiAdminGradingBlockReassign', 'apiAdminGradingCommitteeAdd', 'apiAdminGradingCommitteeRemove',
+  'apiAdminGradingCommitteeFinalize',
   'apiAdminCreateRole', 'apiAdminRenameRole', 'apiAdminDeleteRole',
   'apiSetPeriod', 'apiPeriodGrantCreate', 'apiPeriodGrantRevoke'
 ];

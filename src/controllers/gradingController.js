@@ -1,7 +1,7 @@
 const { queryAll, queryOne, run } = require('../db/database');
 const {
   GROUPS, GROUP_KEYS, GRADE_THRESHOLDS, RISK_FACTOR_FIELDS, RISK_LEVELS,
-  GradingError, normalizeGroup, evaluatePosition, evaluateRisk
+  GradingError, normalizeGroup, evaluatePosition, evaluateRisk, calcGrade
 } = require('../services/gradingService');
 const factorsService = require('../services/gradingFactorsService');
 
@@ -195,6 +195,16 @@ async function getPositions(req, res) {
     const blockRow = await queryOne('SELECT key, label FROM grading_blocks WHERE key = ?', [block]);
     if (!blockRow) return fail(res, 'Неизвестный блок');
 
+    const committeeSize = await queryOne(
+      'SELECT COUNT(*) AS n FROM grading_committee_members WHERE block_key = ?', [block]
+    );
+    const isMember = committeeSize.n
+      ? await queryOne(
+          'SELECT 1 AS ok FROM grading_committee_members WHERE block_key = ? AND user_login = ?',
+          [block, req.user.login]
+        )
+      : null;
+
     const rows = await queryAll(`
       SELECT ga.position AS job_title,
              COUNT(DISTINCT ga.unit) AS unit_count,
@@ -202,20 +212,43 @@ async function getPositions(req, res) {
              e.id AS evaluation_id, e.group_type, e.factor_1, e.factor_2, e.factor_3, e.factor_4,
              e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at,
              h.suggested_group, h.suggested_level, h.sample_count AS hint_sample_count,
-             h.group_conflict AS hint_group_conflict, h.level_conflict AS hint_level_conflict
+             h.group_conflict AS hint_group_conflict, h.level_conflict AS hint_level_conflict,
+             COALESCE(cs.submitted_count, 0) AS submitted_count
       FROM grading_block_assignments ga
       LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
       LEFT JOIN job_evaluations e ON e.block_key = ga.block_key AND e.job_title = ga.position
       LEFT JOIN grading_position_hints h ON h.position = ga.position
+      LEFT JOIN (
+        SELECT job_title, COUNT(DISTINCT evaluator_login) AS submitted_count
+        FROM grading_committee_evaluations WHERE block_key = ?
+        GROUP BY job_title
+      ) cs ON cs.job_title = ga.position
       WHERE ga.block_key = ?
       GROUP BY ga.position
       ORDER BY ga.position ASC
       LIMIT ? OFFSET ?
-    `, [block, limit, offset]);
+    `, [block, block, limit, offset]);
+
+    // Своя (слепая) заявка эксперта — можно вернуть себе для правки, чужие
+    // ответы сюда никогда не попадают.
+    if (committeeSize.n) {
+      const own = await queryAll(
+        'SELECT job_title, group_type, factor_1, factor_2, factor_3, factor_4, notes FROM grading_committee_evaluations WHERE block_key = ? AND evaluator_login = ?',
+        [block, req.user.login]
+      );
+      const ownByTitle = new Map(own.map(o => [o.job_title, o]));
+      rows.forEach(r => {
+        const mine = ownByTitle.get(r.job_title);
+        r.committee_size = committeeSize.n;
+        r.my_submission = mine || null;
+      });
+    }
 
     return res.json({
       ok: true,
       block: blockRow,
+      committeeSize: committeeSize.n || 0,
+      isCommitteeMember: !!isMember,
       groups: GROUP_KEYS.map(key => ({ key, label: GROUPS[key].label, factors: GROUPS[key].weights.length })),
       rows,
       limit,
@@ -226,7 +259,14 @@ async function getPositions(req, res) {
   }
 }
 
-/** Сохранение оценки комиссии по должности (повторная — перезапись прошлой). */
+/**
+ * Сохранение оценки должности. Если у блока настроена комиссия
+ * (grading_committee_members) — это слепая индивидуальная заявка эксперта
+ * (grading_committee_evaluations), итог считается только когда сдали все;
+ * до этого момента чужие ответы никому не показываются. Если комиссия для
+ * блока не настроена — старый однократный режим: пишем прямо в
+ * job_evaluations (повторная отправка перезаписывает прошлую).
+ */
 async function evaluate(req, res) {
   try {
     const block = readText(req.body && req.body.block, 100);
@@ -251,6 +291,14 @@ async function evaluate(req, res) {
     // У трёхфакторных групп четвёртой оценки нет — в базе это NULL, а не 0.
     const [f1, f2, f3] = result.factors;
     const f4 = result.factors.length > 3 ? result.factors[3] : null;
+
+    const committeeSize = await queryOne(
+      'SELECT COUNT(*) AS n FROM grading_committee_members WHERE block_key = ?', [block]
+    );
+
+    if (committeeSize.n > 0) {
+      return await evaluateAsCommittee(req, res, { block, jobTitle, unit: assigned.unit, result, f1, f2, f3, f4, notes, committeeSize: committeeSize.n });
+    }
 
     await run(`
       INSERT INTO job_evaluations
@@ -282,6 +330,152 @@ async function evaluate(req, res) {
     return res.json({ ok: true, ...result, message: 'Оценка сохранена' });
   } catch (err) {
     return handleError(res, err, 'evaluate');
+  }
+}
+
+/** Слепая заявка одного члена комиссии; при последней — подводит итог. */
+async function evaluateAsCommittee(req, res, ctx) {
+  const { block, jobTitle, unit, result, f1, f2, f3, f4, notes, committeeSize } = ctx;
+
+  const member = await queryOne(
+    'SELECT 1 AS ok FROM grading_committee_members WHERE block_key = ? AND user_login = ?',
+    [block, req.user.login]
+  );
+  if (!member) return fail(res, 'Вы не входите в комиссию этого блока', 403);
+
+  await run(`
+    INSERT INTO grading_committee_evaluations
+      (block_key, job_title, evaluator_login, group_type, factor_1, factor_2, factor_3, factor_4, weighted_score, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(block_key, job_title, evaluator_login) DO UPDATE SET
+      group_type = excluded.group_type,
+      factor_1 = excluded.factor_1,
+      factor_2 = excluded.factor_2,
+      factor_3 = excluded.factor_3,
+      factor_4 = excluded.factor_4,
+      weighted_score = excluded.weighted_score,
+      notes = excluded.notes,
+      submitted_at = CURRENT_TIMESTAMP
+  `, [block, jobTitle, req.user.login, result.groupType, f1, f2, f3, f4, result.weightedScore, notes || null]);
+
+  await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+    req.user.login,
+    'слепая оценка должности (комиссия)',
+    `${block} / ${jobTitle}`
+  ]);
+
+  const submissions = await queryAll(
+    'SELECT evaluator_login, group_type, weighted_score, factor_1, factor_2, factor_3, factor_4 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
+    [block, jobTitle]
+  );
+
+  if (submissions.length < committeeSize) {
+    return res.json({
+      ok: true, pending: true,
+      groupType: result.groupType, groupLabel: result.groupLabel,
+      weightedScore: result.weightedScore, gradeLevel: result.gradeLevel,
+      submittedCount: submissions.length, committeeSize,
+      message: `Ваша оценка принята. Сдали ${submissions.length} из ${committeeSize} — итог появится, когда ответят все`
+    });
+  }
+
+  const summary = await finalizeCommitteeResult(block, jobTitle, unit, submissions, req.user.login);
+  return res.json({
+    ok: true, finalized: true,
+    ...summary, committeeSize,
+    message: 'Комиссия завершила оценку — все ответы получены'
+  });
+}
+
+/**
+ * Считает итог по сданным заявкам комиссии и пишет его в job_evaluations —
+ * общая часть для «сдали все сами» и для принудительного подведения итога
+ * администратором (если кто-то из комиссии выбыл и достроить кворум некому).
+ */
+async function finalizeCommitteeResult(block, jobTitle, unit, submissions, actorLogin) {
+  // Средний балл по всем заявкам; уровень — по шкале той функциональной
+  // группы, которую выбрало большинство экспертов (в норме она у всех одна,
+  // т.к. это свойство самой должности).
+  const avgScore = Math.round(
+    (submissions.reduce((sum, s) => sum + s.weighted_score, 0) / submissions.length) * 100
+  ) / 100;
+  const groupCounts = {};
+  submissions.forEach(s => { groupCounts[s.group_type] = (groupCounts[s.group_type] || 0) + 1; });
+  const finalGroup = Object.entries(groupCounts).sort((a, b) => b[1] - a[1])[0][0];
+  const finalGrade = calcGrade(finalGroup, avgScore);
+
+  // Средний балл по каждому вопросу отдельно — factor_1..3 в job_evaluations
+  // NOT NULL, а единого «правильного» ответа у комиссии нет, только среднее.
+  const avgFactor = idx => {
+    const values = submissions.map(s => s[`factor_${idx}`]).filter(v => v != null);
+    if (!values.length) return null;
+    return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
+  };
+  const avgF1 = avgFactor(1);
+  const avgF2 = avgFactor(2);
+  const avgF3 = avgFactor(3);
+  const avgF4 = avgFactor(4);
+
+  const evaluators = await queryAll(
+    `SELECT fio, login FROM users WHERE login IN (${submissions.map(() => '?').join(',')})`,
+    submissions.map(s => s.evaluator_login)
+  );
+  const names = evaluators.map(e => e.fio || e.login);
+  const evaluatedBy = `Комиссия (${submissions.length}): ${names.join(', ')}`;
+
+  await run(`
+    INSERT INTO job_evaluations
+      (block_key, job_title, unit, group_type, factor_1, factor_2, factor_3, factor_4,
+       weighted_score, grade_level, evaluated_by, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    ON CONFLICT(block_key, job_title) DO UPDATE SET
+      group_type = excluded.group_type,
+      factor_1 = excluded.factor_1, factor_2 = excluded.factor_2,
+      factor_3 = excluded.factor_3, factor_4 = excluded.factor_4,
+      weighted_score = excluded.weighted_score,
+      grade_level = excluded.grade_level,
+      evaluated_by = excluded.evaluated_by,
+      notes = NULL,
+      updated_at = CURRENT_TIMESTAMP
+  `, [block, jobTitle, unit, finalGroup, avgF1, avgF2, avgF3, avgF4, avgScore, finalGrade, evaluatedBy]);
+
+  await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+    actorLogin,
+    'оценка должности завершена комиссией',
+    `${block} / ${jobTitle}: средний балл ${avgScore}, уровень ${finalGrade} (${submissions.length} экспертов)`
+  ]);
+
+  return { groupType: finalGroup, groupLabel: GROUPS[finalGroup].label, weightedScore: avgScore, gradeLevel: finalGrade, submittedCount: submissions.length };
+}
+
+/**
+ * Админ принудительно подводит итог по тем заявкам, что уже сданы — на
+ * случай если член комиссии выбыл (в отпуске, уволился) и полного кворума
+ * никогда не будет. Нужна хотя бы одна заявка.
+ */
+async function forceFinalizeCommittee(req, res) {
+  try {
+    const body = req.body || {};
+    const block = readText(body.block, 100);
+    const jobTitle = readText(body.job_title, 300);
+    if (!block || !jobTitle) return fail(res, 'Укажите блок и должность');
+
+    const assigned = await queryOne(
+      'SELECT unit FROM grading_block_assignments WHERE block_key = ? AND position = ? LIMIT 1',
+      [block, jobTitle]
+    );
+    if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
+
+    const submissions = await queryAll(
+      'SELECT evaluator_login, group_type, weighted_score, factor_1, factor_2, factor_3, factor_4 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
+      [block, jobTitle]
+    );
+    if (!submissions.length) return fail(res, 'По этой должности пока нет ни одной заявки комиссии');
+
+    const summary = await finalizeCommitteeResult(block, jobTitle, assigned.unit, submissions, req.user.login);
+    return res.json({ ok: true, ...summary, message: `Итог подведён вручную по ${submissions.length} заявкам` });
+  } catch (err) {
+    return handleError(res, err, 'forceFinalizeCommittee');
   }
 }
 
@@ -400,6 +594,95 @@ async function reassignBlockPosition(req, res) {
     return res.json({ ok: true, message: 'Перенесено' });
   } catch (err) {
     return handleError(res, err, 'reassignBlockPosition');
+  }
+}
+
+// ─── Админка: состав комиссии по блокам ───
+// Комиссия — 3-4 человека на блок, каждый оценивает независимо, вслепую (см.
+// evaluateAsCommittee выше). Здесь только состав: кто входит в комиссию
+// какого блока. Право оценивать (grading:edit) даётся отдельно, через «Роли
+// и доступы» — членство в комиссии само по себе доступ не открывает.
+
+async function getCommittee(req, res) {
+  try {
+    const block = readText(req.query.block, 100);
+    if (!block) return fail(res, 'Укажите блок');
+    const rows = await queryAll(`
+      SELECT m.user_login AS login, u.fio, u.role
+      FROM grading_committee_members m
+      LEFT JOIN users u ON u.login = m.user_login
+      WHERE m.block_key = ?
+      ORDER BY u.fio ASC
+    `, [block]);
+    return res.json({ ok: true, rows });
+  } catch (err) {
+    return handleError(res, err, 'getCommittee');
+  }
+}
+
+async function addCommitteeMember(req, res) {
+  try {
+    const body = req.body || {};
+    const block = readText(body.block, 100);
+    const login = readText(body.login, 100);
+    if (!block || !login) return fail(res, 'Укажите блок и пользователя');
+
+    const blockRow = await queryOne('SELECT key FROM grading_blocks WHERE key = ?', [block]);
+    if (!blockRow) return fail(res, 'Неизвестный блок');
+    const user = await queryOne('SELECT login, fio FROM users WHERE login = ?', [login]);
+    if (!user) return fail(res, 'Такого пользователя нет');
+
+    await run(
+      'INSERT OR IGNORE INTO grading_committee_members (block_key, user_login) VALUES (?, ?)',
+      [block, login]
+    );
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, 'добавлен в комиссию грейдирования', `${block}: ${user.fio || login}`
+    ]);
+    return res.json({ ok: true, message: 'Добавлено' });
+  } catch (err) {
+    return handleError(res, err, 'addCommitteeMember');
+  }
+}
+
+/** Должности блока, где комиссия уже начала отвечать, но кворум не набран. */
+async function getCommitteePending(req, res) {
+  try {
+    const block = readText(req.query.block, 100);
+    if (!block) return fail(res, 'Укажите блок');
+
+    const size = await queryOne('SELECT COUNT(*) AS n FROM grading_committee_members WHERE block_key = ?', [block]);
+    if (!size.n) return res.json({ ok: true, committeeSize: 0, rows: [] });
+
+    const rows = await queryAll(`
+      SELECT job_title, COUNT(DISTINCT evaluator_login) AS submitted_count
+      FROM grading_committee_evaluations
+      WHERE block_key = ?
+      GROUP BY job_title
+      HAVING submitted_count < ?
+      ORDER BY submitted_count DESC, job_title ASC
+    `, [block, size.n]);
+
+    return res.json({ ok: true, committeeSize: size.n, rows });
+  } catch (err) {
+    return handleError(res, err, 'getCommitteePending');
+  }
+}
+
+async function removeCommitteeMember(req, res) {
+  try {
+    const body = req.body || {};
+    const block = readText(body.block, 100);
+    const login = readText(body.login, 100);
+    if (!block || !login) return fail(res, 'Укажите блок и пользователя');
+
+    await run('DELETE FROM grading_committee_members WHERE block_key = ? AND user_login = ?', [block, login]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, 'исключён из комиссии грейдирования', `${block}: ${login}`
+    ]);
+    return res.json({ ok: true, message: 'Исключён' });
+  } catch (err) {
+    return handleError(res, err, 'removeCommitteeMember');
   }
 }
 
@@ -554,6 +837,11 @@ module.exports = {
   getAdminBlocks,
   getAdminBlockPositions,
   reassignBlockPosition,
+  getCommittee,
+  addCommitteeMember,
+  removeCommitteeMember,
+  getCommitteePending,
+  forceFinalizeCommittee,
   listRisks,
   evaluateRiskCard,
   getHeatmap,

@@ -579,6 +579,9 @@ async function migrate() {
     UNIQUE(block_key, job_title, evaluator_login)
   )`);
   await run('CREATE INDEX IF NOT EXISTS idx_grading_committee_eval_pair ON grading_committee_evaluations(block_key, job_title)');
+  // Забыли при первом проектировании таблицы — без своей группы для эксперта
+  // не посчитать вес факторов при подведении итога комиссии.
+  await ensureColumn('grading_committee_evaluations', 'group_type', "TEXT NOT NULL DEFAULT 'production'");
 
   // Итог по должности в блоке — среднее из сданных индивидуальных оценок;
   // пересчитывается сервисом, когда сдают все члены комиссии или админ

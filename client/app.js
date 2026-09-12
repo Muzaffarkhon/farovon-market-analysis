@@ -473,7 +473,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.28')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -508,7 +508,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.28')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -568,7 +568,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.28')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -598,7 +598,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.28')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.29')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5853,12 +5853,15 @@ function drawAdminGradingBlocks(){
   var box = $('gbBox');
   if(!box) return;
 
+  var showCommittee = hasCap('grading:committee') && S.gbBlock && S.gbBlock !== 'unassigned';
+
   var h = '<div class="gr-groups">'+
     (S.gbBlocks || []).map(function(b){
       return '<button class="gr-group'+(b.key === S.gbBlock ? ' on' : '')+'" data-b="'+esc(b.key)+'">'+
         esc(b.label)+'<small>'+(b.pair_count || 0)+' пар</small></button>';
     }).join('')+
   '</div>'+
+  (showCommittee ? '<div id="gbCommittee" class="card">'+skTable()+'</div>' : '')+
   '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
       '<input id="gbSearch" value="'+esc(S.gbSearch || '')+'" placeholder="Подразделение или должность">'+
@@ -5874,7 +5877,6 @@ function drawAdminGradingBlocks(){
       if(key === S.gbBlock) return;
       S.gbBlock = key;
       drawAdminGradingBlocks();
-      loadAdminGradingBlockPositions();
     };
   });
 
@@ -5889,6 +5891,108 @@ function drawAdminGradingBlocks(){
   }
 
   loadAdminGradingBlockPositions();
+  if(showCommittee) loadAdminGradingCommittee();
+}
+
+// ─── Комиссия блока: состав + незавершённые оценки ───
+
+function loadAdminGradingCommittee(){
+  if(!S.gbBlock) return;
+  Promise.all([
+    call('apiAdminGradingCommittee', S.token, S.gbBlock),
+    call('apiAdminGradingCommitteePending', S.token, S.gbBlock),
+    // Список пользователей нужен только для подсказки ФИО при добавлении —
+    // если прав на «Пользователи» нет, просто не покажем подсказку.
+    call('apiAdminGetUsers', S.token).catch(function(){ return null; })
+  ]).then(function(res){
+    var committee = res[0], pending = res[1], users = res[2];
+    if(!committee || !committee.ok){
+      $('gbCommittee').innerHTML = '<div class="err">'+esc((committee && committee.error) || 'Не удалось загрузить комиссию')+'</div>';
+      return;
+    }
+    S.gbCommitteeMembers = committee.rows || [];
+    S.gbCommitteePending = (pending && pending.ok) ? (pending.rows || []) : [];
+    S.gbCommitteeUsers = (users && users.ok) ? (users.users || []) : [];
+    drawAdminGradingCommittee();
+  }).catch(function(){
+    $('gbCommittee').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function drawAdminGradingCommittee(){
+  var box = $('gbCommittee');
+  if(!box) return;
+  var members = S.gbCommitteeMembers || [];
+  var pending = S.gbCommitteePending || [];
+  var users = S.gbCommitteeUsers || [];
+
+  var h = '<label class="lbl">Комиссия блока «'+esc(grBlockLabelAdmin(S.gbBlock))+'» — оценивают вслепую, независимо друг от друга</label>'+
+    (members.length
+      ? '<div class="gb-committee-list">'+members.map(function(m){
+          return '<span class="badge b-active gb-member">'+esc(m.fio || m.login)+
+            '<button class="gb-member-x" data-login="'+esc(m.login)+'" title="Исключить">'+icBare('close', 12)+'</button></span>';
+        }).join('')+'</div>'
+      : '<div class="muted">Комиссия ещё не назначена — оценка идёт в обычном однократном режиме</div>')+
+    '<div class="gb-committee-add">'+
+      '<input id="gbAddLogin" list="gbUsersList" placeholder="Логин пользователя">'+
+      '<datalist id="gbUsersList">'+
+        users.map(function(u){ return '<option value="'+esc(u.login)+'">'+esc(u.fio || '')+'</option>'; }).join('')+
+      '</datalist>'+
+      '<button class="btn-line" id="gbAddBtn">Добавить в комиссию</button>'+
+    '</div>'+
+    (pending.length
+      ? '<label class="lbl">Не набран кворум (сдали не все)</label>'+
+        '<div class="gb-pending-list">'+pending.map(function(p){
+          return '<div class="gb-pending-row"><span>'+esc(p.job_title)+'</span>'+
+            '<span class="muted">'+p.submitted_count+' из '+members.length+'</span>'+
+            '<button class="btn-line gb-force" data-job="'+esc(p.job_title)+'">Подвести итог принудительно</button></div>';
+        }).join('')+'</div>'
+      : '');
+
+  box.innerHTML = h;
+
+  [].forEach.call(box.querySelectorAll('.gb-member-x'), function(btn){
+    btn.onclick = function(){
+      call('apiAdminGradingCommitteeRemove', S.token, { block: S.gbBlock, login: btn.getAttribute('data-login') }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось исключить', 'error'); return; }
+        toast('Исключён из комиссии', 'success');
+        loadAdminGradingCommittee();
+        loadAdminGradingBlocks();
+      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+    };
+  });
+
+  var addBtn = $('gbAddBtn');
+  if(addBtn){
+    addBtn.onclick = function(){
+      var login = ($('gbAddLogin').value || '').trim();
+      if(!login) return;
+      call('apiAdminGradingCommitteeAdd', S.token, { block: S.gbBlock, login: login }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
+        toast('Добавлен в комиссию', 'success');
+        $('gbAddLogin').value = '';
+        loadAdminGradingCommittee();
+        loadAdminGradingBlocks();
+      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+    };
+  }
+
+  [].forEach.call(box.querySelectorAll('.gb-force'), function(btn){
+    btn.onclick = function(){
+      var jobTitle = btn.getAttribute('data-job');
+      if(!confirm('Подвести итог по «'+jobTitle+'» на основе уже сданных заявок? Отсутствующих экспертов учесть не получится.')) return;
+      call('apiAdminGradingCommitteeFinalize', S.token, { block: S.gbBlock, job_title: jobTitle }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось подвести итог', 'error'); return; }
+        toast('Уровень '+r.gradeLevel+' (балл '+r.weightedScore+')', 'success');
+        loadAdminGradingCommittee();
+      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+    };
+  });
+}
+
+function grBlockLabelAdmin(key){
+  var b = (S.gbBlocks || []).filter(function(x){ return x.key === key; })[0];
+  return b ? b.label : key;
 }
 
 function loadAdminGradingBlockPositions(){

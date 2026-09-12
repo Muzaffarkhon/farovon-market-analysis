@@ -161,6 +161,13 @@ router.get('/grading/blocks', requireCapability('grading:view', 'grading:edit'),
 router.get('/admin/grading-blocks', requireCapability('grading:blocks'), gradingController.getAdminBlocks);
 router.get('/admin/grading-blocks/positions', requireCapability('grading:blocks'), gradingController.getAdminBlockPositions);
 router.post('/admin/grading-blocks/reassign', requireCapability('grading:blocks'), gradingController.reassignBlockPosition);
+// Комиссия: кто входит в оценку блока вслепую, и принудительное подведение
+// итога, если кворум набрать уже некому.
+router.get('/admin/grading-committee', requireCapability('grading:committee'), gradingController.getCommittee);
+router.post('/admin/grading-committee/add', requireCapability('grading:committee'), gradingController.addCommitteeMember);
+router.post('/admin/grading-committee/remove', requireCapability('grading:committee'), gradingController.removeCommitteeMember);
+router.get('/admin/grading-committee/pending', requireCapability('grading:committee'), gradingController.getCommitteePending);
+router.post('/admin/grading-committee/finalize', requireCapability('grading:committee'), gradingController.forceFinalizeCommittee);
 router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
 router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);
