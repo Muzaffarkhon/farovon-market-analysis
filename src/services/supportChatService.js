@@ -128,12 +128,24 @@ async function linkEmployee(threadId, userId, phone) {
   if (!user) throw new Error('Сотрудник не найден или неактивен');
 
   const chatId = thread.telegram_chat_id;
+  const newPhone = phone || thread.phone || '';
   await run('UPDATE users SET telegram_chat_id = NULL WHERE telegram_chat_id = ? AND id != ?', [chatId, userId]);
-  await run(
-    `UPDATE users SET telegram_chat_id = ?, phone = ?, telegram_link_token = NULL, telegram_link_expires = NULL
-     WHERE id = ?`,
-    [chatId, phone || thread.phone || null, userId]
-  );
+  // Номер трогаем, только если он реально известен (из треда или передан явно) —
+  // если гость просто писал текстом без «Отправить номер телефона», номера
+  // может не быть вообще, и обнулять то, что уже стояло в карточке, нельзя.
+  if (newPhone) {
+    await run(
+      `UPDATE users SET telegram_chat_id = ?, phone = ?, telegram_link_token = NULL, telegram_link_expires = NULL
+       WHERE id = ?`,
+      [chatId, newPhone, userId]
+    );
+  } else {
+    await run(
+      `UPDATE users SET telegram_chat_id = ?, telegram_link_token = NULL, telegram_link_expires = NULL
+       WHERE id = ?`,
+      [chatId, userId]
+    );
+  }
 
   return user;
 }
