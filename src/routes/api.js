@@ -155,6 +155,7 @@ router.get('/grading/factors', requireCapability('grading:view', 'grading:edit',
 // её формулировки для всего холдинга должны разные люди.
 router.post('/admin/grading-factors', requireCapability('grading:factors'), gradingController.saveFactor);
 router.post('/admin/grading-factors/reset', requireCapability('grading:factors'), gradingController.resetFactor);
+router.get('/grading/blocks', requireCapability('grading:view', 'grading:edit'), gradingController.getBlocks);
 router.get('/grading/positions', requireCapability('grading:view', 'grading:edit'), gradingController.getPositions);
 router.post('/grading/evaluate', requireCapability('grading:edit'), gradingController.evaluate);
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);

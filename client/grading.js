@@ -19,8 +19,10 @@ var GR = {
   riskTab: 'list',        // list | heat
   factors: null,          // ответ /api/grading/factors под текущее направление
   factorsDir: null,       // для какого направления загружены тексты
-  unit: '',
-  rows: [],               // штатные должности выбранного подразделения
+  unit: '',               // подразделение — только для анкеты риска (GR.riskForm.unit)
+  blocks: [],             // индустриальные блоки (экран «Оценка должностей»)
+  block: '',              // выбранный блок
+  rows: [],               // уникальные должности выбранного блока
   form: null,             // открытая анкета оценки должности
   riskForm: null,         // открытая анкета риска
   risks: [],
@@ -64,6 +66,11 @@ function grDirOf(unit){
 function grGroup(key){
   var list = (GR.factors && GR.factors.groups) || [];
   return list.filter(function(g){ return g.key === key; })[0] || null;
+}
+
+function grBlockLabel(key){
+  var b = (GR.blocks || []).filter(function(x){ return x.key === key; })[0];
+  return b ? b.label : '';
 }
 
 /** Балл = сумма «оценка × вес». Повторяет gradingService.calcWeightedScore. */
@@ -160,35 +167,67 @@ function grInitialUnit(units){
   return units.length === 1 ? units[0].unit : '';
 }
 
-/** Экран «Оценка должностей»: выбор подразделения → список должностей. */
+// Последний выбранный блок переживает перезагрузку страницы — тот же приём,
+// что и LS_GR_UNIT у подразделений (см. ниже, экран анкеты риска).
+var LS_GR_BLOCK = 'фаровон_оценка_блок';
+
+function grInitialBlock(blocks){
+  if(GR.block && blocks.some(function(b){ return b.key === GR.block; })) return GR.block;
+  var saved = store.get(LS_GR_BLOCK);
+  if(saved && blocks.some(function(b){ return b.key === saved; })) return saved;
+  return blocks.length ? blocks[0].key : '';
+}
+
+/**
+ * Экран «Оценка должностей»: выбор индустриального блока → список уникальных
+ * должностей блока. Раньше выбирали подразделение и оценивали его штатные
+ * позиции заново в каждом из 326 — теперь должность оценивается один раз на
+ * блок и оценка сразу действует во всех подразделениях этого блока.
+ */
 function renderGradeAssess(){
-  var units = grUnits();
-  if(!units.length){
-    $('grContent').innerHTML = '<div class="empty">Вам не назначено ни одного подразделения</div>';
-    return;
-  }
-  GR.unit = grInitialUnit(units);
+  $('grContent').innerHTML =
+    '<div class="gr-groups" id="grBlockBar">Загрузка блоков…</div>'+
+    '<div id="grList"></div>'+
+    '<div id="grForm"></div>';
+  loadGradeBlocks();
+}
 
-  var h = '<div class="toolbar">'+
-    grUnitPickerHtml('grUnit', GR.unit)+
-    (GR.unit ? '<span class="muted gr-dir">Направление: '+esc(grDirOf(GR.unit) || '—')+'</span>' : '')+
-  '</div>'+
-  '<div id="grList">'+(GR.unit ? skTable() : '')+'</div>'+
-  '<div id="grForm"></div>';
-
-  $('grContent').innerHTML = h;
-  grBindUnitPicker('grUnit', function(unit){
-    GR.unit = unit;
-    store.set(LS_GR_UNIT, unit);
-    GR.form = null;
-    renderGradeAssess();
+function loadGradeBlocks(){
+  call('apiGradingBlocks', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('grBlockBar').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить блоки')+'</div>';
+      return;
+    }
+    GR.blocks = r.rows || [];
+    GR.block = grInitialBlock(GR.blocks);
+    drawGradeBlocks();
+    if(GR.block) loadGradePositions();
+    else $('grList').innerHTML = '<div class="empty">Индустриальные блоки ещё не настроены</div>';
+  }).catch(function(){
+    $('grBlockBar').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
+}
 
-  if(!GR.unit){
-    $('grList').innerHTML = '<div class="empty">Выберите подразделение — покажем его штатные должности и грейды</div>';
-    return;
-  }
-  loadGradePositions();
+function drawGradeBlocks(){
+  var bar = $('grBlockBar');
+  if(!bar) return;
+  bar.innerHTML = (GR.blocks || []).map(function(b){
+    return '<button class="gr-group'+(b.key === GR.block ? ' on' : '')+'" data-b="'+esc(b.key)+'">'+
+      esc(b.label)+'<small>'+(b.evaluated_count || 0)+' из '+(b.position_count || 0)+' оценено</small></button>';
+  }).join('');
+  [].forEach.call(bar.querySelectorAll('[data-b]'), function(btn){
+    btn.onclick = function(){
+      var key = btn.getAttribute('data-b');
+      if(key === GR.block) return;
+      GR.block = key;
+      store.set(LS_GR_BLOCK, key);
+      GR.form = null;
+      $('grForm').innerHTML = '';
+      $('grList').innerHTML = skTable();
+      drawGradeBlocks();
+      loadGradePositions();
+    };
+  });
 }
 
 // ─── Выбор подразделения с поиском ───
@@ -309,12 +348,14 @@ function grBindUnitPicker(id, onPick){
 }
 
 function loadGradePositions(){
-  var dir = grDirOf(GR.unit);
-  var needFactors = !GR.factors || GR.factorsDir !== dir;
+  // Формулировки вопросов пока общие для всех блоков (разрез анкеты по
+  // блоку — отдельная задача); '' — тот же общий текст, что видел раньше
+  // любой, у кого не было своего направления.
+  var needFactors = !GR.factors || GR.factorsDir !== '';
 
   Promise.all([
-    call('apiGradingPositions', S.token, GR.unit),
-    needFactors ? call('apiGradingFactors', S.token, dir) : Promise.resolve(GR.factors)
+    call('apiGradingPositions', S.token, GR.block),
+    needFactors ? call('apiGradingFactors', S.token, '') : Promise.resolve(GR.factors)
   ]).then(function(res){
     var pos = res[0];
     var factors = res[1];
@@ -324,7 +365,7 @@ function loadGradePositions(){
     }
     if(factors && factors.ok){
       GR.factors = factors;
-      GR.factorsDir = dir;
+      GR.factorsDir = '';
     }
     GR.rows = pos.rows || [];
     drawGradePositions();
@@ -336,7 +377,7 @@ function loadGradePositions(){
 
 function drawGradePositions(){
   if(!GR.rows.length){
-    $('grList').innerHTML = '<div class="empty">В штатном расписании этого подразделения нет должностей</div>';
+    $('grList').innerHTML = '<div class="empty">В этом блоке пока нет ни одной должности</div>';
     return;
   }
 
@@ -346,12 +387,13 @@ function drawGradePositions(){
     // должно оставаться пустого экрана. Когда анкету открыли, список
     // ужимается, чтобы вопросы были видны без долгой прокрутки.
     '<div class="tblwrap gr-tblwrap'+(GR.form ? ' gr-tblwrap--compact' : '')+'"><table class="co-tbl gr-tbl">'+
-    '<thead><tr><th>Должность</th><th>Штат</th><th>Группа</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
       var open = GR.form && GR.form.jobTitle === r.job_title;
       return '<tr'+(open ? ' class="gr-row-open"' : '')+'>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
+        '<td>'+(r.unit_count || 0)+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         '<td>'+esc(g ? g.label : '—')+'</td>'+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
@@ -411,7 +453,7 @@ function drawGradeForm(){
   var h = '<div class="card gr-form">'+
     '<div class="gr-form-hd">'+
       '<b>'+esc(f.jobTitle)+'</b>'+
-      '<span class="muted">'+esc(GR.unit)+'</span>'+
+      '<span class="muted">'+esc(grBlockLabel(GR.block))+'</span>'+
       '<span class="gr-hd-score">'+(ready
         ? 'Балл <b>'+score.toFixed(2)+'</b> · Уровень <b>'+grade+'</b>'
         : 'Отвечено '+answered+' из '+factors.length)+'</span>'+
@@ -488,7 +530,7 @@ function saveGradeForm(){
   if(!group) return;
 
   var body = {
-    unit: GR.unit,
+    block: GR.block,
     job_title: f.jobTitle,
     group_type: group.key,
     factors: f.answers.slice(0, group.weights.length),

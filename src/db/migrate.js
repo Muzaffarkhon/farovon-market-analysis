@@ -598,6 +598,65 @@ async function migrate() {
   console.log('🔧 Миграция: схема грейдирования по индустриальным блокам и комиссии создана');
 
   await seedGradingBlocks();
+  await upgradeJobEvaluationsToBlocks();
+}
+
+/**
+ * Оценка должности переходит с ключа «подразделение+должность» на
+ * «блок+должность» (экран «Оценка должностей» → пользователь просил
+ * список должностей по блоку вместо повторной оценки в каждом
+ * подразделении). Таблица маленькая (несколько тестовых строк на момент
+ * этой миграции) — пересобираем как grading_factors в своё время.
+ */
+async function upgradeJobEvaluationsToBlocks() {
+  const cols = await queryAll('PRAGMA table_info(job_evaluations)');
+  if (!cols.length || cols.some(c => c.name === 'block_key')) return;
+
+  await run(`CREATE TABLE job_evaluations_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL REFERENCES grading_blocks(key),
+    job_title TEXT NOT NULL,
+    unit TEXT,
+    group_type TEXT NOT NULL,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER CHECK(factor_4 IS NULL OR factor_4 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    grade_level INTEGER NOT NULL,
+    evaluated_by TEXT NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title)
+  )`);
+
+  const old = await queryAll('SELECT * FROM job_evaluations');
+  let migrated = 0;
+  let dropped = 0;
+  for (const row of old) {
+    const match = await queryOne(
+      'SELECT block_key FROM grading_block_assignments WHERE unit = ? AND position = ?',
+      [row.unit, row.job_title]
+    );
+    if (!match) { dropped++; continue; }
+    await run(`INSERT INTO job_evaluations_new
+        (block_key, job_title, unit, group_type, factor_1, factor_2, factor_3, factor_4,
+         weighted_score, grade_level, evaluated_by, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [match.block_key, row.job_title, row.unit, row.group_type,
+       row.factor_1, row.factor_2, row.factor_3, row.factor_4,
+       row.weighted_score, row.grade_level, row.evaluated_by, row.notes,
+       row.created_at, row.updated_at]
+    );
+    migrated++;
+  }
+
+  await run('DROP TABLE job_evaluations');
+  await run('ALTER TABLE job_evaluations_new RENAME TO job_evaluations');
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_block ON job_evaluations(block_key)');
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_title ON job_evaluations(job_title)');
+  console.log(`🔧 Миграция: оценки должностей переведены с подразделения на блок (перенесено ${migrated}, без пары в раскладке — ${dropped})`);
 }
 
 /**

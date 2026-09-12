@@ -157,43 +157,62 @@ async function resetFactor(req, res) {
 // ─── Грейдирование должностей ───
 
 /**
- * Реестр должностей подразделения: штатные позиции (unit_positions) вместе с
- * уже проставленным грейдом. Должности без оценки тоже отдаём — иначе
- * непонятно, что ещё предстоит оценить.
+ * Индустриальные блоки — точка входа экрана оценки вместо списка
+ * подразделений: пользователь выбирает блок («Производство» и т.д.), а не
+ * подразделение, потому что одна и та же должность в разных подразделениях
+ * блока оценивается один раз, а не заново в каждом.
+ */
+async function getBlocks(req, res) {
+  try {
+    const rows = await queryAll(`
+      SELECT b.key, b.label, b.sort,
+             COUNT(DISTINCT ga.position) AS position_count,
+             COUNT(DISTINCT e.job_title) AS evaluated_count
+      FROM grading_blocks b
+      LEFT JOIN grading_block_assignments ga ON ga.block_key = b.key
+      LEFT JOIN job_evaluations e ON e.block_key = b.key AND e.job_title = ga.position
+      GROUP BY b.key
+      ORDER BY b.sort ASC
+    `);
+    return res.json({ ok: true, rows });
+  } catch (err) {
+    return handleError(res, err, 'getBlocks');
+  }
+}
+
+/**
+ * Уникальные должности блока (не подразделения!) вместе с уже проставленным
+ * грейдом. Одна и та же «Техничка» в 20 подразделениях блока — одна строка
+ * здесь, а не 20: оценивается требование к функции внутри блока один раз.
  */
 async function getPositions(req, res) {
   try {
-    const unit = readText(req.query.unit, 300);
+    const block = readText(req.query.block, 100);
     const limit = readLimit(req.query.limit);
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
 
-    if (unit && !canUseUnit(req.user, unit)) {
-      return fail(res, 'Это подразделение вам не назначено', 403);
-    }
-
-    const scope = unitScopeSql(req.user, 'p.unit');
-    const args = [];
-    let where = 'WHERE 1 = 1';
-    if (unit) {
-      where += ' AND p.unit = ?';
-      args.push(unit);
-    }
-    where += scope.sql;
-    args.push(...scope.args);
+    if (!block) return fail(res, 'Укажите блок');
+    const blockRow = await queryOne('SELECT key, label FROM grading_blocks WHERE key = ?', [block]);
+    if (!blockRow) return fail(res, 'Неизвестный блок');
 
     const rows = await queryAll(`
-      SELECT p.unit, p.position AS job_title, p.staff_count,
+      SELECT ga.position AS job_title,
+             COUNT(DISTINCT ga.unit) AS unit_count,
+             COALESCE(SUM(up.staff_count), 0) AS staff_count,
              e.id AS evaluation_id, e.group_type, e.factor_1, e.factor_2, e.factor_3, e.factor_4,
              e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at
-      FROM unit_positions p
-      LEFT JOIN job_evaluations e ON e.unit = p.unit AND e.job_title = p.position
-      ${where}
-      ORDER BY p.unit ASC, p.position ASC
+      FROM grading_block_assignments ga
+      LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
+      LEFT JOIN job_evaluations e ON e.block_key = ga.block_key AND e.job_title = ga.position
+      WHERE ga.block_key = ?
+      GROUP BY ga.position
+      ORDER BY ga.position ASC
       LIMIT ? OFFSET ?
-    `, [...args, limit, offset]);
+    `, [block, limit, offset]);
 
     return res.json({
       ok: true,
+      block: blockRow,
       groups: GROUP_KEYS.map(key => ({ key, label: GROUPS[key].label, factors: GROUPS[key].weights.length })),
       rows,
       limit,
@@ -207,14 +226,23 @@ async function getPositions(req, res) {
 /** Сохранение оценки комиссии по должности (повторная — перезапись прошлой). */
 async function evaluate(req, res) {
   try {
-    const unit = readText(req.body && req.body.unit, 300);
+    const block = readText(req.body && req.body.block, 100);
     const jobTitle = readText(req.body && req.body.job_title, 300);
     const groupType = normalizeGroup(req.body && req.body.group_type);
     const notes = readText(req.body && req.body.notes);
     const factors = (req.body && req.body.factors) || [];
 
-    if (!unit || !jobTitle) return fail(res, 'Укажите подразделение и должность');
-    if (!canUseUnit(req.user, unit)) return fail(res, 'Это подразделение вам не назначено', 403);
+    if (!block || !jobTitle) return fail(res, 'Укажите блок и должность');
+    const blockRow = await queryOne('SELECT key FROM grading_blocks WHERE key = ?', [block]);
+    if (!blockRow) return fail(res, 'Неизвестный блок');
+
+    // Должность обязана реально относиться к блоку — иначе комиссия могла бы
+    // оценить произвольную строку, не привязанную ни к одному подразделению.
+    const assigned = await queryOne(
+      'SELECT unit FROM grading_block_assignments WHERE block_key = ? AND position = ? LIMIT 1',
+      [block, jobTitle]
+    );
+    if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
 
     const result = evaluatePosition(groupType, factors);
     // У трёхфакторных групп четвёртой оценки нет — в базе это NULL, а не 0.
@@ -223,10 +251,10 @@ async function evaluate(req, res) {
 
     await run(`
       INSERT INTO job_evaluations
-        (unit, job_title, group_type, factor_1, factor_2, factor_3, factor_4,
+        (block_key, job_title, unit, group_type, factor_1, factor_2, factor_3, factor_4,
          weighted_score, grade_level, evaluated_by, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(unit, job_title) DO UPDATE SET
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(block_key, job_title) DO UPDATE SET
         group_type = excluded.group_type,
         factor_1 = excluded.factor_1,
         factor_2 = excluded.factor_2,
@@ -238,14 +266,14 @@ async function evaluate(req, res) {
         notes = excluded.notes,
         updated_at = CURRENT_TIMESTAMP
     `, [
-      unit, jobTitle, result.groupType, f1, f2, f3, f4,
+      block, jobTitle, assigned.unit, result.groupType, f1, f2, f3, f4,
       result.weightedScore, result.gradeLevel, req.user.fio || req.user.login, notes || null
     ]);
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,
       'грейдирование должности',
-      `${unit} / ${jobTitle}: балл ${result.weightedScore}, уровень ${result.gradeLevel}`
+      `${block} / ${jobTitle}: балл ${result.weightedScore}, уровень ${result.gradeLevel}`
     ]);
 
     return res.json({ ok: true, ...result, message: 'Оценка сохранена' });
@@ -254,17 +282,15 @@ async function evaluate(req, res) {
   }
 }
 
-/** Сводка: сколько должностей на каждом уровне, в разрезе групп. */
+/** Сводка: сколько должностей на каждом уровне, в разрезе групп и блоков. */
 async function getStats(req, res) {
   try {
-    const scope = unitScopeSql(req.user, 'unit');
     const rows = await queryAll(`
-      SELECT group_type, grade_level, COUNT(*) AS n
+      SELECT block_key, group_type, grade_level, COUNT(*) AS n
       FROM job_evaluations
-      WHERE 1 = 1${scope.sql}
-      GROUP BY group_type, grade_level
-      ORDER BY group_type ASC, grade_level ASC
-    `, scope.args);
+      GROUP BY block_key, group_type, grade_level
+      ORDER BY block_key ASC, group_type ASC, grade_level ASC
+    `);
 
     const total = rows.reduce((sum, r) => sum + Number(r.n || 0), 0);
     return res.json({ ok: true, total, rows });
@@ -417,6 +443,7 @@ module.exports = {
   getFactors,
   saveFactor,
   resetFactor,
+  getBlocks,
   getPositions,
   evaluate,
   getStats,
