@@ -83,12 +83,21 @@ function normalizePhone(raw) {
   return String(raw || '').replace(/\D/g, '').slice(-9);
 }
 
+// Текст второй кнопки на CONTACT_KEYBOARD — reply-кнопка (не инлайн) шлёт
+// этот текст обычным сообщением при нажатии, ловим его в processTelegramUpdate
+// той же обработкой, что и инлайн-«support:start» (см. openSupportThreadForGuest).
+const SUPPORT_TEXT_LABEL = '💬 Написать администратору';
+
 /** Клавиатура «поделиться номером» — request_contact сам просит у Telegram
  *  разрешение и подставляет ровно тот номер, что привязан к аккаунту
- *  пользователя, руками вводить/подделать нельзя. */
+ *  пользователя, руками вводить/подделать нельзя. Вторая кнопка — сразу уйти
+ *  в чат поддержки, не дожидаясь неудачной попытки распознать номер. */
 const CONTACT_KEYBOARD = {
   reply_markup: {
-    keyboard: [[{ text: '📱 Отправить номер телефона', request_contact: true }]],
+    keyboard: [
+      [{ text: '📱 Отправить номер телефона', request_contact: true }],
+      [{ text: SUPPORT_TEXT_LABEL }]
+    ],
     resize_keyboard: true,
     one_time_keyboard: true
   }
@@ -104,7 +113,7 @@ const REMOVE_KEYBOARD = { reply_markup: { remove_keyboard: true } };
  */
 const SUPPORT_KEYBOARD = {
   reply_markup: {
-    inline_keyboard: [[{ text: '💬 Написать администратору', callback_data: 'support:start' }]]
+    inline_keyboard: [[{ text: SUPPORT_TEXT_LABEL, callback_data: 'support:start' }]]
   }
 };
 
@@ -361,12 +370,16 @@ async function handleStaleCallback(cb) {
   await answerCallbackQuery(cb.id);
 }
 
-/** Нажатие «Написать администратору» — открывает (или переоткрывает) тред.
- *  Уведомляем C&B ровно в момент открытия/переоткрытия, а не на каждое
- *  сообщение — иначе при активной переписке бот сыпал бы уведомлениями. */
-async function handleSupportStart(cb) {
-  const chatId = (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id);
-  await answerCallbackQuery(cb.id);
+/**
+ * Открывает (или переоткрывает) тред поддержки для этого чата — общая
+ * логика для двух точек входа: инлайн-кнопки под сообщением
+ * («support:start», см. handleSupportStart) и текстовой кнопки на
+ * reply-клавиатуре («💬 Написать администратору», см. SUPPORT_TEXT_LABEL
+ * ниже и её обработку в processTelegramUpdate). Уведомляем C&B ровно в
+ * момент открытия/переоткрытия, а не на каждое сообщение — иначе при
+ * активной переписке бот сыпал бы уведомлениями.
+ */
+async function openSupportThreadForGuest(chatId) {
   if (!chatId) return;
   const { opened } = await supportChat.getOrCreateThread(chatId);
 
@@ -388,6 +401,13 @@ async function handleSupportStart(cb) {
       `💬 <b>Новое обращение в чат поддержки</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`
     );
   }
+}
+
+/** Нажатие инлайн-кнопки «Написать администратору» под сообщением бота. */
+async function handleSupportStart(cb) {
+  const chatId = (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id);
+  await answerCallbackQuery(cb.id);
+  await openSupportThreadForGuest(chatId);
 }
 
 /**
@@ -475,6 +495,11 @@ async function processTelegramUpdate(body) {
   if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
   if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
   if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
+
+  // Та же кнопка «Написать администратору», но текстовая (на CONTACT_KEYBOARD,
+  // видна ещё до попытки распознать номер) — не текст в переписку, а
+  // открытие/переоткрытие треда, как и её инлайн-версия (support:start).
+  if (text === SUPPORT_TEXT_LABEL) { await openSupportThreadForGuest(chatId); return; }
 
   // Команды разбираются и при открытом треде поддержки (вдруг человек
   // вспомнил код от HR) — только обычный текст без «/» уходит в переписку.
