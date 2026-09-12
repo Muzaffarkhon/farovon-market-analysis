@@ -134,25 +134,33 @@ async function linkEmployee(req, res) {
   }
 }
 
-/** Список готовых фраз для панели над полем ответа. */
+function normalizeAudience(raw) {
+  return raw === 'guest' ? 'guest' : 'admin';
+}
+
+/** Список готовых фраз — ?audience=admin (для C&B, по умолчанию) или
+ *  ?audience=guest (клавиатура гостю в Telegram). */
 async function listQuickReplies(req, res) {
   try {
-    const rows = await supportChat.listQuickReplies();
+    const audience = normalizeAudience(req.query && req.query.audience);
+    const rows = await supportChat.listQuickReplies(audience);
     return res.json({ ok: true, rows });
   } catch (err) {
     return handleError(res, err, 'supportListQuickReplies');
   }
 }
 
-/** id в теле — правим существующую фразу, без id — добавляем новую. */
+/** id в теле — правим существующую фразу, без id — добавляем новую в конец
+ *  списка своей аудитории (audience учитывается только при добавлении). */
 async function saveQuickReply(req, res) {
   try {
     const id = req.body && req.body.id ? parseInt(req.body.id, 10) : null;
     const text = String((req.body && req.body.text) || '').trim();
+    const audience = normalizeAudience(req.body && req.body.audience);
     if (!text) return fail(res, 'Введите текст фразы');
     if (text.length > 500) return fail(res, 'Слишком длинная фраза');
 
-    const row = await supportChat.saveQuickReply(id, text);
+    const row = await supportChat.saveQuickReply(id, text, audience);
     return res.json({ ok: true, id: row.id });
   } catch (err) {
     return handleError(res, err, 'supportSaveQuickReply');

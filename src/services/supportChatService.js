@@ -175,20 +175,26 @@ async function linkEmployee(threadId, userId, phone) {
   return user;
 }
 
-/** Готовые фразы для кнопок над полем ответа — редактируются из самой
- *  админки (не хардкод), поэтому список, а не константы в коде. */
-async function listQuickReplies() {
-  return queryAll('SELECT id, text FROM support_quick_replies ORDER BY sort_order ASC, id ASC');
+/** Готовые фразы одной кнопкой — 'admin' (вставляются в поле ответа C&B) или
+ *  'guest' (клавиатура гостю в Telegram). Редактируются из самой админки,
+ *  не хардкод в коде. */
+async function listQuickReplies(audience) {
+  return queryAll(
+    'SELECT id, text FROM support_quick_replies WHERE audience = ? ORDER BY sort_order ASC, id ASC',
+    [audience || 'admin']
+  );
 }
 
-/** id есть — правим текст существующей фразы, нет — добавляем новую в конец. */
-async function saveQuickReply(id, text) {
+/** id есть — правим текст существующей фразы, нет — добавляем новую в конец
+ *  списка своей аудитории. */
+async function saveQuickReply(id, text, audience) {
   if (id) {
     await run('UPDATE support_quick_replies SET text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [text, id]);
     return { id };
   }
-  const row = await queryOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM support_quick_replies');
-  const res = await run('INSERT INTO support_quick_replies (text, sort_order) VALUES (?, ?)', [text, row.next]);
+  const aud = audience || 'admin';
+  const row = await queryOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM support_quick_replies WHERE audience = ?', [aud]);
+  const res = await run('INSERT INTO support_quick_replies (text, audience, sort_order) VALUES (?, ?, ?)', [text, aud, row.next]);
   return { id: Number(res.lastInsertRowid || res.insertId || 0) };
 }
 

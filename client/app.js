@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.50')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.50')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.49')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.50')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.49')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.50')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6258,11 +6258,14 @@ function drawAdminSupport(){
   }
 
   var rows = S.supThreads || [];
-  var h = '<div class="muted sup-note">Гости, которых бот не смог опознать сам, пишут сюда через кнопку «Написать администратору» — ответ уходит им обратно в тот же чат Telegram.</div>';
+  var h = '<div class="muted sup-note">Гости, которых бот не смог опознать сам, пишут сюда через кнопку «Написать администратору» — ответ уходит им обратно в тот же чат Telegram.</div>'+
+    '<div class="sup-guest-quick-hd">Вопросы гостю в Telegram (кнопки при открытии чата)</div>'+
+    '<div class="sup-quick" id="supGuestQuick"></div>';
 
   if(!rows.length){
     h += '<div class="empty">Пока никто не писал в чат поддержки</div>';
     box.innerHTML = h;
+    renderQuickReplyManager('supGuestQuick', 'guest', null);
     return;
   }
 
@@ -6288,6 +6291,7 @@ function drawAdminSupport(){
     '</tbody></table></div>';
 
   box.innerHTML = h;
+  renderQuickReplyManager('supGuestQuick', 'guest', null);
   [].forEach.call(box.querySelectorAll('.sup-open'), function(btn){
     btn.onclick = function(){
       var row = rows[parseInt(btn.getAttribute('data-i'), 10)];
@@ -6379,7 +6383,7 @@ function drawAdminSupportThread(){
     if(!panel.hidden){ $('supLinkSearch').value = ''; $('supLinkSearch').focus(); renderSupLinkResults(thread, ''); }
   };
   $('supLinkSearch').oninput = function(){ renderSupLinkResults(thread, this.value); };
-  renderSupQuickReplies();
+  renderQuickReplyManager('supQuick', 'admin', 'supReplyText');
 
   var msgsEl = box.querySelector('.sup-msgs');
   if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
@@ -6406,23 +6410,37 @@ function drawAdminSupportThread(){
 /**
  * Готовые фразы над полем ответа — вставляются в поле по клику (не
  * отправляются сразу, C&B может поправить), список редактируется тут же по
- * кнопке-карандашу, а не хардкодом в коде.
+ * кнопке-карандашу, а не хардкодом в коде. Та же панель — для двух
+ * аудиторий: 'admin' (эти ответы) и 'guest' (вопросы гостю в Telegram-боте,
+ * см. handleSupportStart в telegramController.js — там reply-клавиатура,
+ * нажатие сразу шлёт текст вопроса как сообщение).
  */
-function loadSupQuickCache(cb){
-  if(S.supQuickReplies){ cb(S.supQuickReplies); return; }
-  call('apiAdminSupportQuickReplies', S.token).then(function(r){
-    S.supQuickReplies = (r && r.ok) ? (r.rows || []) : [];
-    cb(S.supQuickReplies);
+function loadSupQuickCache(audience, cb){
+  S.supQuickCache = S.supQuickCache || {};
+  if(S.supQuickCache[audience]){ cb(S.supQuickCache[audience]); return; }
+  call('apiAdminSupportQuickReplies', S.token, audience).then(function(r){
+    S.supQuickCache[audience] = (r && r.ok) ? (r.rows || []) : [];
+    cb(S.supQuickCache[audience]);
   }).catch(function(){ cb([]); });
 }
 
-function renderSupQuickReplies(){
-  var box = $('supQuick');
+/**
+ * containerId — куда рисовать. audience — 'admin'/'guest'. insertTargetId —
+ * если задан, клик по чипу вставляет текст в это поле (режим C&B в треде);
+ * без него чипы — просто превью списка, кликабельно только редактирование
+ * (режим настройки вопросов гостя в обзоре чата поддержки).
+ */
+function renderQuickReplyManager(containerId, audience, insertTargetId){
+  var box = $(containerId);
   if(!box) return;
-  loadSupQuickCache(function(rows){
-    var editing = !!S.supQuickEditing;
+  var editKey = audience;
+  loadSupQuickCache(audience, function(rows){
+    var editing = S.supQuickEditing === editKey;
     var chips = rows.map(function(r){
-      var short = r.text.length > 40 ? r.text.slice(0, 40) + '…' : r.text;
+      // Чип переносится по словам (см. .sup-quick-chip), поэтому короткие и
+      // средние фразы показываются целиком — режем только совсем длинные,
+      // чтобы не растягивать один чип на полэкрана.
+      var short = r.text.length > 80 ? r.text.slice(0, 80) + '…' : r.text;
       return '<button type="button" class="sup-quick-chip" data-id="'+r.id+'" title="'+esc(r.text)+'">'+esc(short)+'</button>';
     }).join('');
 
@@ -6445,17 +6463,27 @@ function renderSupQuickReplies(){
         '</div>'
       ) : '');
 
-    [].forEach.call(box.querySelectorAll('.sup-quick-chip'), function(btn){
-      btn.onclick = function(){
-        var row = rows.filter(function(r){ return r.id === +btn.getAttribute('data-id'); })[0];
-        var input = $('supReplyText');
-        if(row && input){ input.value = row.text; input.focus(); }
-      };
-    });
+    if(insertTargetId){
+      [].forEach.call(box.querySelectorAll('.sup-quick-chip'), function(btn){
+        btn.onclick = function(){
+          var row = rows.filter(function(r){ return r.id === +btn.getAttribute('data-id'); })[0];
+          var input = $(insertTargetId);
+          if(row && input){ input.value = row.text; input.focus(); }
+        };
+      });
+    }
 
     var toggleBtn = box.querySelector('.sup-quick-edit-toggle');
-    if(toggleBtn) toggleBtn.onclick = function(){ S.supQuickEditing = !editing; renderSupQuickReplies(); };
+    if(toggleBtn) toggleBtn.onclick = function(){
+      S.supQuickEditing = editing ? null : editKey;
+      renderQuickReplyManager(containerId, audience, insertTargetId);
+    };
     if(!editing) return;
+
+    var reload = function(){
+      S.supQuickCache[audience] = null;
+      renderQuickReplyManager(containerId, audience, insertTargetId);
+    };
 
     [].forEach.call(box.querySelectorAll('.sup-quick-edit-row[data-id]'), function(rowEl){
       var id = +rowEl.getAttribute('data-id');
@@ -6463,17 +6491,15 @@ function renderSupQuickReplies(){
       input.onchange = function(){
         var text = input.value.trim();
         if(!text) return;
-        call('apiAdminSupportSaveQuickReply', S.token, { id: id, text: text }).then(function(r){
+        call('apiAdminSupportSaveQuickReply', S.token, { id: id, text: text, audience: audience }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось сохранить', 'error'); return; }
-          S.supQuickReplies = null;
-          renderSupQuickReplies();
+          reload();
         }).catch(function(){ toast('Нет связи с сервером', 'error'); });
       };
       rowEl.querySelector('.sup-quick-del').onclick = function(){
         call('apiAdminSupportDeleteQuickReply', S.token, { id: id }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось удалить', 'error'); return; }
-          S.supQuickReplies = null;
-          renderSupQuickReplies();
+          reload();
         }).catch(function(){ toast('Нет связи с сервером', 'error'); });
       };
     });
@@ -6484,10 +6510,9 @@ function renderSupQuickReplies(){
       var doAdd = function(){
         var text = (addInput.value || '').trim();
         if(!text) return;
-        call('apiAdminSupportSaveQuickReply', S.token, { text: text }).then(function(r){
+        call('apiAdminSupportSaveQuickReply', S.token, { text: text, audience: audience }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
-          S.supQuickReplies = null;
-          renderSupQuickReplies();
+          reload();
         }).catch(function(){ toast('Нет связи с сервером', 'error'); });
       };
       addRow.querySelector('.btn-line').onclick = doAdd;

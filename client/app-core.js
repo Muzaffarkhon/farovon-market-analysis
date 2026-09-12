@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.49';
+var APP_VERSION = window.APP_VERSION || 'v2.5.50';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1793,7 +1793,7 @@ var API_ROUTES = {
   apiAdminSupportClose: function(args){ return fetchJson('/api/admin/support/close', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminSupportUnreadCount: function(args){ return fetchJson('/api/admin/support/unread-count', { method:'GET', token:args[0] }); },
   apiAdminSupportLinkEmployee: function(args){ return fetchJson('/api/admin/support/link-employee', { method:'POST', token:args[0], body:args[1] }); },
-  apiAdminSupportQuickReplies: function(args){ return fetchJson('/api/admin/support/quick-replies', { method:'GET', token:args[0] }); },
+  apiAdminSupportQuickReplies: function(args){ return fetchJson('/api/admin/support/quick-replies?audience='+encodeURIComponent(args[1] || 'admin'), { method:'GET', token:args[0] }); },
   apiAdminSupportSaveQuickReply: function(args){ return fetchJson('/api/admin/support/quick-replies', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminSupportDeleteQuickReply: function(args){ return fetchJson('/api/admin/support/quick-replies/delete', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingPositions: function(args){ return fetchJson('/api/grading/positions' + (args[1] ? '?block=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },

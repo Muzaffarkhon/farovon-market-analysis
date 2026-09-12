@@ -369,7 +369,20 @@ async function handleSupportStart(cb) {
   await answerCallbackQuery(cb.id);
   if (!chatId) return;
   const { opened } = await supportChat.getOrCreateThread(chatId);
-  await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.');
+
+  // Готовые вопросы гостю — reply-клавиатура (не inline): нажатие сразу
+  // отправляет текст кнопки обычным сообщением, дальше идёт как любое
+  // «in»-сообщение треда, без отдельной обработки. Список редактируется в
+  // самой админке (support_quick_replies, audience='guest'), не хардкод.
+  const questions = await supportChat.listQuickReplies('guest');
+  const questionsKeyboard = questions.length ? {
+    reply_markup: {
+      keyboard: questions.map(q => [{ text: q.text }]),
+      resize_keyboard: true
+    }
+  } : undefined;
+
+  await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.', questionsKeyboard);
   if (opened) {
     await notifySupportTeam(
       `💬 <b>Новое обращение в чат поддержки</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`

@@ -638,28 +638,49 @@ async function seedSupportChat() {
   )`);
   await run('CREATE INDEX IF NOT EXISTS idx_support_messages_thread ON support_messages(thread_id, created_at)');
 
-  // Готовые фразы для ответа гостю одной кнопкой — вставляются в поле ответа
-  // (не отправляются сразу), C&B может править до отправки. Список
-  // редактируется из самой админки, тут только стартовый набор — INSERT OR
-  // IGNORE на пустую таблицу, повторный запуск миграции ничего не задублирует.
+  // Готовые фразы одной кнопкой — на две аудитории: 'admin' вставляется в
+  // поле ответа C&B (правится перед отправкой), 'guest' уходит гостю в
+  // Telegram клавиатурой поверх поля ввода (нажатие сразу отправляет текст
+  // как сообщение — так работают обычные reply-клавиатуры бота). Список
+  // редактируется из админки, тут только стартовый набор — на пустую
+  // таблицу, повторный запуск миграции ничего не задублирует.
   await run(`CREATE TABLE IF NOT EXISTS support_quick_replies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
+    audience TEXT NOT NULL DEFAULT 'admin',
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
-  const qrCount = await queryOne('SELECT COUNT(*) AS n FROM support_quick_replies');
-  if (!qrCount || !qrCount.n) {
-    const defaults = [
+  await ensureColumn('support_quick_replies', 'audience', "TEXT NOT NULL DEFAULT 'admin'");
+
+  // Сид проверяем ОТДЕЛЬНО по каждой аудитории — иначе после того, как
+  // admin-фразы уже есть (заведены раньше, до появления audience='guest'),
+  // общий счётчик «таблица не пуста» навсегда блокировал бы досев вопросов
+  // гостю при следующем добавлении новой аудитории.
+  const adminCount = await queryOne("SELECT COUNT(*) AS n FROM support_quick_replies WHERE audience = 'admin'");
+  if (!adminCount || !adminCount.n) {
+    const adminDefaults = [
       'Уточните, пожалуйста, ваше ФИО и подразделение.',
       'Проверьте номер телефона в приложении «Обзор рынка» — возможно, опечатка.',
       'Спасибо, передал ваш вопрос — ожидайте ответа.',
       'Ваш аккаунт уже привязан, наберите /login в этом чате, чтобы получить логин и пароль.',
       'По этому вопросу обратитесь, пожалуйста, к своему руководителю.'
     ];
-    for (let i = 0; i < defaults.length; i++) {
-      await run('INSERT INTO support_quick_replies (text, sort_order) VALUES (?, ?)', [defaults[i], i]);
+    for (let i = 0; i < adminDefaults.length; i++) {
+      await run('INSERT INTO support_quick_replies (text, audience, sort_order) VALUES (?, \'admin\', ?)', [adminDefaults[i], i]);
+    }
+  }
+  const guestCount = await queryOne("SELECT COUNT(*) AS n FROM support_quick_replies WHERE audience = 'guest'");
+  if (!guestCount || !guestCount.n) {
+    const guestDefaults = [
+      'Не могу найти свой номер в приложении',
+      'Забыл логин или пароль',
+      'Хочу отвязать Telegram от аккаунта',
+      'Другой вопрос'
+    ];
+    for (let i = 0; i < guestDefaults.length; i++) {
+      await run('INSERT INTO support_quick_replies (text, audience, sort_order) VALUES (?, \'guest\', ?)', [guestDefaults[i], i]);
     }
   }
 
