@@ -485,7 +485,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.40')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -520,7 +520,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.40')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -580,7 +580,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.40')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -610,7 +610,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.40')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.41')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5996,7 +5996,10 @@ function drawAdminGradingCommittee(){
   var pending = S.gbCommitteePending || [];
   var users = S.gbCommitteeUsers || [];
 
-  var h = '<label class="lbl">Комиссия блока «'+esc(grBlockLabelAdmin(S.gbBlock))+'» — оценивают вслепую, независимо друг от друга</label>'+
+  var h = '<div class="gb-committee-hd">'+
+      '<b>Комиссия грейдирования</b>'+
+      '<span class="gb-committee-hint">Одна на все блоки — оценивают вслепую, независимо друг от друга</span>'+
+    '</div>'+
     (members.length
       ? '<div class="gb-committee-list">'+members.map(function(m){
           return '<span class="badge b-active gb-member">'+esc(m.fio || m.login)+
@@ -6021,10 +6024,21 @@ function drawAdminGradingCommittee(){
 
   box.innerHTML = h;
 
+  // Комиссия одна на весь холдинг, не своя под каждый блок — добавление и
+  // исключение применяются сразу ко всем блокам, а не только к открытому
+  // сейчас. INSERT OR IGNORE / DELETE на сервере идемпотентны, поэтому
+  // параллельный вызов по всем блокам безопасен, даже если где-то запись
+  // уже была (или её не было).
+  function allBlockKeys(){
+    return (S.gbBlocks || []).filter(function(b){ return b.key !== 'unassigned'; }).map(function(b){ return b.key; });
+  }
+
   [].forEach.call(box.querySelectorAll('.gb-member-x'), function(btn){
     btn.onclick = function(){
-      call('apiAdminGradingCommitteeRemove', S.token, { block: S.gbBlock, login: btn.getAttribute('data-login') }).then(function(r){
-        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось исключить', 'error'); return; }
+      var login = btn.getAttribute('data-login');
+      Promise.all(allBlockKeys().map(function(bk){
+        return call('apiAdminGradingCommitteeRemove', S.token, { block: bk, login: login });
+      })).then(function(){
         toast('Исключён из комиссии', 'success');
         loadAdminGradingCommittee();
         loadAdminGradingBlocks();
@@ -6037,8 +6051,14 @@ function drawAdminGradingCommittee(){
     addBtn.onclick = function(){
       var login = ($('gbAddLogin').value || '').trim();
       if(!login) return;
-      call('apiAdminGradingCommitteeAdd', S.token, { block: S.gbBlock, login: login }).then(function(r){
-        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
+      Promise.all(allBlockKeys().map(function(bk){
+        return call('apiAdminGradingCommitteeAdd', S.token, { block: bk, login: login });
+      })).then(function(results){
+        var firstErr = results.filter(function(r){ return !r || !r.ok; })[0];
+        if(firstErr && results.every(function(r){ return !r || !r.ok; })){
+          toast((firstErr && firstErr.error) || 'Не удалось добавить', 'error');
+          return;
+        }
         toast('Добавлен в комиссию', 'success');
         $('gbAddLogin').value = '';
         loadAdminGradingCommittee();

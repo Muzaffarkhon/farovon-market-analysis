@@ -39,6 +39,13 @@ function canEditGrading(){
   var u = (S.data && S.data.user) || {};
   return u.role === 'admin' || hasCap('grading:edit');
 }
+// Сброс оценки удаляет и итог, и все слепые заявки комиссии по должности —
+// это не то же самое, что переоценить (кнопка «Изменить»), поэтому доступно
+// только тем, кто управляет блоками, а не всем, у кого просто grading:edit.
+function canManageGradingBlocks(){
+  var u = (S.data && S.data.user) || {};
+  return u.role === 'admin' || hasCap('grading:blocks');
+}
 function canSeeKeyRisks(){
   var u = (S.data && S.data.user) || {};
   return u.role === 'admin' || hasCap('keyrisk:view') || hasCap('keyrisk:edit');
@@ -411,6 +418,7 @@ function drawGradePositions(){
 
   var done = GR.rows.filter(function(r){ return r.grade_level; }).length;
   var hasCommittee = GR.committeeSize > 0;
+  var canReset = canManageGradingBlocks();
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей'+
     (hasCommittee ? ' <span class="muted">· комиссия '+GR.committeeSize+' чел.'+(GR.isCommitteeMember ? '' : ', вы не в её составе')+'</span>' : '')+
     '</div>'+
@@ -424,6 +432,7 @@ function drawGradePositions(){
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
       var mySubmitted = !!r.my_submission;
+      var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
       var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
       return '<tr>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
@@ -434,7 +443,10 @@ function drawGradePositions(){
         (hasCommittee ? '<td>'+(r.grade_level ? '<span class="muted">завершено</span>' : (r.submitted_count || 0)+' из '+GR.committeeSize+(mySubmitted ? ' '+icBare('check', 12) : ''))+'</td>' : '')+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">Уровень '+r.grade_level+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
-        '<td><button class="btn-line gr-open" data-i="'+i+'">'+btnLabel+'</button></td>'+
+        '<td class="gr-row-acts">'+
+          '<button class="btn-line gr-open" data-i="'+i+'">'+btnLabel+'</button>'+
+          (canReset && hasAnything ? '<button class="btn-line btn-danger gr-reset" data-i="'+i+'" title="Удалить оценку и все заявки комиссии по этой должности">Сбросить</button>' : '')+
+        '</td>'+
       '</tr>';
     }).join('')+
     '</tbody></table></div>';
@@ -442,6 +454,32 @@ function drawGradePositions(){
   $('grList').innerHTML = h;
   [].forEach.call(document.querySelectorAll('#grList .gr-open'), function(btn){
     btn.onclick = function(){ openGradeForm(parseInt(btn.getAttribute('data-i'), 10)); };
+  });
+  [].forEach.call(document.querySelectorAll('#grList .gr-reset'), function(btn){
+    btn.onclick = function(){ resetGradeEvaluation(parseInt(btn.getAttribute('data-i'), 10)); };
+  });
+}
+
+/** Полностью стирает оценку должности (и все заявки комиссии по ней) — не
+ *  переоценка, а возврат в «не оценено». См. canManageGradingBlocks(). */
+function resetGradeEvaluation(rowIndex){
+  var row = GR.rows[rowIndex];
+  if(!row) return;
+  ask({
+    title: 'Сбросить оценку?',
+    html: 'Должность «'+esc(row.job_title)+'» вернётся в состояние «не оценено». '+
+      'Итоговый грейд и все слепые заявки комиссии по ней будут удалены безвозвратно.',
+    ok: 'Сбросить', cancel: 'Отмена', danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminGradingResetEvaluation', S.token, { block: GR.block, job_title: row.job_title }).then(function(r){
+      if(!r || !r.ok){
+        toast((r && r.error) || 'Не удалось сбросить оценку', 'error');
+        return;
+      }
+      toast(r.message || 'Оценка сброшена', 'success');
+      loadGradePositions();
+    }).catch(function(){ toast('Нет связи с сервером', 'error'); });
   });
 }
 

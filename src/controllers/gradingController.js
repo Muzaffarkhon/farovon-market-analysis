@@ -479,6 +479,44 @@ async function forceFinalizeCommittee(req, res) {
   }
 }
 
+/**
+ * Полный сброс оценки должности: снимает итоговый грейд и, если блок с
+ * комиссией, удаляет вообще все слепые заявки экспертов по этой должности —
+ * не «переоценить», а вернуть строку в исходное «не оценено». Обычная правка
+ * (кнопка «Изменить») этого не делает нарочно, чтобы члены комиссии не могли
+ * случайно стереть чужие голоса — сброс доступен только тем, кто управляет
+ * блоками (grading:blocks), не всем, у кого просто grading:edit.
+ */
+async function resetEvaluation(req, res) {
+  try {
+    const body = req.body || {};
+    const block = readText(body.block, 100);
+    const jobTitle = readText(body.job_title, 300);
+    if (!block || !jobTitle) return fail(res, 'Укажите блок и должность');
+
+    const assigned = await queryOne(
+      'SELECT unit FROM grading_block_assignments WHERE block_key = ? AND position = ? LIMIT 1',
+      [block, jobTitle]
+    );
+    if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
+
+    await run('DELETE FROM job_evaluations WHERE block_key = ? AND job_title = ?', [block, jobTitle]);
+    const removed = await run(
+      'DELETE FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?', [block, jobTitle]
+    );
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'сброс оценки должности',
+      `${block} / ${jobTitle}` + (removed.rowsAffected ? ` (снята ${removed.rowsAffected} заявка(и) комиссии)` : '')
+    ]);
+
+    return res.json({ ok: true, message: 'Оценка сброшена — должность снова «не оценена»' });
+  } catch (err) {
+    return handleError(res, err, 'resetEvaluation');
+  }
+}
+
 /** Сводка: сколько должностей на каждом уровне, в разрезе групп и блоков. */
 async function getStats(req, res) {
   try {
@@ -842,6 +880,7 @@ module.exports = {
   removeCommitteeMember,
   getCommitteePending,
   forceFinalizeCommittee,
+  resetEvaluation,
   listRisks,
   evaluateRiskCard,
   getHeatmap,

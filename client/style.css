@@ -10585,6 +10585,11 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   color: var(--muted);
   font-size: 13px;
 }
+.gr-row-acts {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
 .gr-form {
   margin-top: 16px;
 }
@@ -10647,11 +10652,31 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   display: inline-flex;
   vertical-align: middle;
 }
+/* Карточка комиссии — тот же приём, что у .gf-card («Анкеты оценки»):
+   лёгкая заливка + рамка отделяют блок от белого фона страницы, иначе
+   сливается в один плоский лист (см. ui-dense-not-landing). */
+#gbCommittee.card {
+  background: var(--card-2);
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+.gb-committee-hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.gb-committee-hd b { font-size: 14.5px; letter-spacing: -0.01em; }
+.gb-committee-hint {
+  font-size: 12.5px;
+  color: var(--muted);
+}
 .gb-committee-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 6px 0 12px;
+  margin: 0 0 10px;
 }
 .gb-member {
   display: inline-flex;
@@ -10674,7 +10699,21 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   gap: 8px;
   margin-bottom: 4px;
 }
-.gb-committee-add input { flex: 1 1 220px; max-width: 320px; }
+.gb-committee-add input {
+  flex: 1 1 220px;
+  max-width: 320px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 13.5px;
+  padding: 0 12px;
+  background: var(--card);
+}
+.gb-committee-add .btn-line {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13.5px;
+}
 .gb-pending-list {
   display: flex;
   flex-direction: column;
