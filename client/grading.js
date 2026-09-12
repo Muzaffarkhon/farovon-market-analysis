@@ -364,14 +364,16 @@ function grBindUnitPicker(id, onPick){
 }
 
 function loadGradePositions(){
-  // Формулировки вопросов пока общие для всех блоков (разрез анкеты по
-  // блоку — отдельная задача); '' — тот же общий текст, что видел раньше
-  // любой, у кого не было своего направления.
-  var needFactors = !GR.factors || GR.factorsDir !== '';
+  // Формулировки вопросов подставляются под индустриальный блок (админка
+  // «Анкеты оценки» → «block:<key>»), а не под направление оргструктуры —
+  // должность оценивается один раз на весь блок, а не по-разному в каждом
+  // подразделении.
+  var wantDir = GR.block ? ('block:' + GR.block) : '';
+  var needFactors = !GR.factors || GR.factorsDir !== wantDir;
 
   Promise.all([
     call('apiGradingPositions', S.token, GR.block),
-    needFactors ? call('apiGradingFactors', S.token, '') : Promise.resolve(GR.factors)
+    needFactors ? call('apiGradingFactors', S.token, wantDir) : Promise.resolve(GR.factors)
   ]).then(function(res){
     var pos = res[0];
     var factors = res[1];
@@ -381,7 +383,7 @@ function loadGradePositions(){
     }
     if(factors && factors.ok){
       GR.factors = factors;
-      GR.factorsDir = '';
+      GR.factorsDir = wantDir;
     }
     GR.rows = pos.rows || [];
     GR.committeeSize = pos.committeeSize || 0;

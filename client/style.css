@@ -7324,7 +7324,8 @@ html.compact {
 
 #adminContent:has(> .card),
 #adminContent:has(> .svc-grid),
-#adminContent:has(> .perm-matrix) {
+#adminContent:has(> .perm-matrix),
+#adminContent:has(> #gfBox) {
   overflow-y: auto;
 }
 
@@ -10487,14 +10488,27 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gf-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   padding: 4px 0 24px;
+}
+.gf-card {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
 }
 .gf-card .gf-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin: -20px -20px 14px;
+  padding: 12px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 var(--radius) 0 0;
+}
+.gf-card .gf-head b {
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
 }
 .gf-card .gf-by {
   margin-left: auto;
@@ -10508,6 +10522,16 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .gf-card input {
   width: 100%;
+  background: var(--card);
+  border-color: var(--line-strong, #cbd5e1);
+}
+.gf-card label.lbl {
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.gf-card label.lbl:first-of-type {
+  padding-top: 0;
+  border-top: none;
 }
 .gf-opt {
   display: flex;
@@ -10524,22 +10548,29 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 600;
-  background: var(--card-2);
-  border: 1px solid var(--line);
+  font-weight: 700;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
 }
 .gf-acts {
   display: flex;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 @media (max-width: 640px) {
   .gf-acts { flex-direction: column; }
   .gf-card .gf-by { display: none; }
 }
 .gf-note {
-  padding: 4px 2px 12px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
   line-height: 1.45;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
 }
 
 /* ─── Экраны оценки: грейдирование должностей и риски персонала ─── */

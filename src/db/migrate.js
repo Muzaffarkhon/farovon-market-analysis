@@ -701,7 +701,7 @@ async function upgradeJobEvaluationsToBlocks() {
 async function seedGradingBlocks() {
   const BLOCKS = [
     { key: 'production', label: 'Производство', sort: 10 },
-    { key: 'construction', label: 'Стройка', sort: 20 },
+    { key: 'construction', label: 'Строительный блок', sort: 20 },
     { key: 'trade', label: 'Торговля', sort: 30 },
     // Раньше «Офис-АУП» — путали с функциональной группой «АУП» (это разные
     // вещи: блок про физическое место работы, группа про анкету оценки).

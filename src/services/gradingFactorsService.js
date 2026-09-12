@@ -23,6 +23,13 @@ const SCOPES = [...GROUP_KEYS, RISK_SCOPE];
 const OPTION_COUNT = 5;
 const MAX_TITLE = 300;
 const MAX_TEXT = 1000;
+// Формулировку можно переопределить и под индустриальный блок экрана «Оценка
+// должностей» (grading_blocks.key: production/construction/trade/office), не
+// только под направление оргструктуры. Оба переопределения живут в одной
+// колонке dir — блок отличаем префиксом, т.к. ключи блоков короткие
+// латинские, а направления — всегда полные кириллические названия из
+// divisions.dir, коллизий не бывает.
+const BLOCK_DIR_PREFIX = 'block:';
 
 let cache = null;
 let cachedAt = 0;
@@ -208,10 +215,20 @@ async function resetFactor(scope, idx, dirRaw, updatedBy) {
   });
 }
 
-/** Направление должно существовать в оргструктуре; '' — общая формулировка. */
+/**
+ * '' — общая формулировка. 'block:<key>' — переопределение под индустриальный
+ * блок (проверяем, что такой блок существует). Иначе — направление
+ * оргструктуры, должно существовать в divisions.
+ */
 async function checkDir(raw) {
   const dir = cleanText(raw, MAX_TITLE);
   if (!dir) return '';
+  if (dir.startsWith(BLOCK_DIR_PREFIX)) {
+    const key = dir.slice(BLOCK_DIR_PREFIX.length);
+    const row = await queryOne('SELECT 1 AS ok FROM grading_blocks WHERE key = ?', [key]);
+    if (!row) throw new GradingError('Такого блока нет: ' + key);
+    return dir;
+  }
   const row = await queryOne('SELECT 1 AS ok FROM divisions WHERE TRIM(dir) = ? LIMIT 1', [dir]);
   if (!row) throw new GradingError('Такого направления нет в оргструктуре: ' + dir);
   return dir;

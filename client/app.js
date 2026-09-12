@@ -485,7 +485,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.37')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -520,7 +520,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.37')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -580,7 +580,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.37')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -610,7 +610,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.37')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.38')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5653,10 +5653,20 @@ var GRADING_SCOPES = [
   { key:'risk', label:'Анкета рисков незаменимости', hint:'4 вопроса о ключевых сотрудниках' }
 ];
 
+function gradingBlockLabel(key){
+  var b = (S.gradingBlocksList || []).filter(function(x){ return x.key === key; })[0];
+  return b ? b.label : key;
+}
+
 function renderAdminGradingFactors(){
   $('adminContent').innerHTML = '<div id="gfBox">' + skTable() + '</div>';
 
-  call('apiGradingFactors', S.token, S.gradingDir || '').then(function(r){
+  Promise.all([
+    call('apiGradingFactors', S.token, S.gradingDir || ''),
+    S.gradingBlocksList ? Promise.resolve({ ok:true, rows:S.gradingBlocksList }) : call('apiGradingBlocks', S.token)
+  ]).then(function(res){
+    var r = res[0];
+    if(res[1] && res[1].ok) S.gradingBlocksList = res[1].rows || [];
     if(!r || !r.ok){
       $('gfBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить анкеты')+'</div>';
       return;
@@ -5688,6 +5698,13 @@ function drawGradingFactors(){
 
   var curDir = S.gradingDir || '';
   var overrideDirs = (S.gradingFactors && S.gradingFactors.overrideDirs) || [];
+  // Блоки применяются только к экрану «Оценка должностей» (production/
+  // auxiliary/sales/aup) — анкета рисков незаменимости подставляется по
+  // подразделению напрямую, блока для неё не существует.
+  var blocks = cur === 'risk' ? [] : (S.gradingBlocksList || []);
+  var curLabel = curDir.indexOf('block:') === 0
+    ? 'блока «' + esc(gradingBlockLabel(curDir.slice(6))) + '»'
+    : (curDir ? 'направления «' + esc(curDir) + '»' : '');
 
   var h = '<div class="toolbar">'+
     '<select id="gfScope" class="toolbar-select">'+
@@ -5696,17 +5713,26 @@ function drawGradingFactors(){
       }).join('')+
     '</select>'+
     '<select id="gfDir" class="toolbar-select">'+
-      '<option value="">Общая формулировка (для всех направлений)</option>'+
-      allDirsList().map(function(d){
-        var mark = overrideDirs.indexOf(d) >= 0 ? ' •' : '';
-        return '<option value="'+esc(d)+'"'+(d === curDir ? ' selected' : '')+'>'+esc(d)+esc(mark)+'</option>';
-      }).join('')+
+      '<option value="">Общая формулировка (для всех)</option>'+
+      (cur === 'risk'
+        // Анкету рисков оценивают по конкретному подразделению, блоков для неё нет.
+        ? allDirsList().map(function(d){
+            var mark = overrideDirs.indexOf(d) >= 0 ? ' •' : '';
+            return '<option value="'+esc(d)+'"'+(d === curDir ? ' selected' : '')+'>'+esc(d)+esc(mark)+'</option>';
+          }).join('')
+        // Остальные анкеты оценивают на экране «Оценка должностей» по блоку —
+        // направление оргструктуры там не участвует, поэтому не предлагаем.
+        : blocks.map(function(b){
+            var val = 'block:' + b.key;
+            var mark = overrideDirs.indexOf(val) >= 0 ? ' •' : '';
+            return '<option value="'+esc(val)+'"'+(val === curDir ? ' selected' : '')+'>'+esc(b.label)+esc(mark)+'</option>';
+          }).join(''))+
     '</select>'+
   '</div>'+
   '<div class="muted gf-note">'+
-    (curDir
-      ? 'Правите формулировки для направления «'+esc(curDir)+'». Вопросы без своей формулировки берут общий текст. '
-      : 'Правите общие формулировки — их видят все направления, у которых нет своей. ')+
+    (curLabel
+      ? 'Правите формулировки для ' + curLabel + '. Вопросы без своей формулировки берут общий текст. '
+      : 'Правите общие формулировки — их видят все, у кого нет своей. ')+
     'Веса факторов и пороги грейдов одинаковы для всего холдинга, из интерфейса не меняются: иначе уровни перестанут быть сравнимыми между заводами.'+
   '</div>';
 
@@ -5770,7 +5796,10 @@ function bindGradingScopeSelect(){
   if(sel){
     sel.onchange = function(){
       S.gradingScope = sel.value;
-      drawGradingFactors();
+      // У анкеты рисков и у остальных анкет разные списки подстановки текста
+      // (направление / блок) — старый выбор в другом списке не имеет смысла.
+      S.gradingDir = '';
+      renderAdminGradingFactors();
     };
   }
   var dirSel = $('gfDir');
