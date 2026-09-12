@@ -77,10 +77,19 @@ async function ensureWebhook() {
     console.warn('⚠️ Не удалось зарегистрировать Telegram webhook:', err.message);
   }
 
-  try {
-    await tg.setMyCommands({ commands: BOT_COMMANDS });
-  } catch (err) {
-    console.warn('⚠️ Не удалось обновить меню команд Telegram:', err.message);
+  // scope 'default' и scope 'all_private_chats' — два независимых списка на
+  // стороне Telegram, 'all_private_chats' приоритетнее и молча перекрывает
+  // 'default' в личных чатах (весь диалог с этим ботом). У старой, ещё
+  // Apps-Script версии бота был задан свой список именно под этим scope —
+  // без него обновление 'default' в личке никогда не показывалось, хотя
+  // формально проходило без ошибок. Обновляем оба, чтобы больше не зависеть
+  // от того, какой из них Telegram выберет.
+  for (const scope of [undefined, { type: 'all_private_chats' }]) {
+    try {
+      await tg.setMyCommands(scope ? { commands: BOT_COMMANDS, scope } : { commands: BOT_COMMANDS });
+    } catch (err) {
+      console.warn('⚠️ Не удалось обновить меню команд Telegram' + (scope ? ` (scope ${scope.type})` : '') + ':', err.message);
+    }
   }
 }
 
