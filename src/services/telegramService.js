@@ -69,7 +69,10 @@ async function ensureWebhook() {
   try {
     await tg.setWebhook({
       url: `${config.webappUrl}/api/telegram/webhook`,
-      secret_token: config.telegramWebhookSecret
+      secret_token: config.telegramWebhookSecret,
+      // Явно, а не по умолчанию: без callback_query нажатия кнопки «Написать
+      // администратору» (чат поддержки) вообще не доедут до вебхука.
+      allowed_updates: ['message', 'callback_query']
     });
     await getBotUsername();
     console.log(`✅ Telegram webhook зарегистрирован (@${botUsername || '?'})`);
@@ -118,6 +121,20 @@ async function answerCallbackQuery(callbackQueryId, text) {
     console.error('Failed to answer Telegram callback query:', err.message);
     return false;
   }
+}
+
+/** Уведомление о новом сообщении в чате поддержки — всем admin/cb с привязанным
+ *  Telegram, тем же способом, что и sendMassReminder ниже. */
+async function notifySupportTeam(text) {
+  const users = await queryAll(
+    "SELECT telegram_chat_id FROM users WHERE active = 1 AND role IN ('admin', 'cb') AND telegram_chat_id IS NOT NULL"
+  );
+  let sentCount = 0;
+  for (const u of users) {
+    const ok = await sendTelegramMessage(u.telegram_chat_id, text);
+    if (ok) sentCount++;
+  }
+  return sentCount;
 }
 
 async function sendMassReminder(senderFio = 'Администрация C&B') {
@@ -171,5 +188,6 @@ module.exports = {
   ensureWebhook,
   sendTelegramMessage,
   answerCallbackQuery,
-  sendMassReminder
+  sendMassReminder,
+  notifySupportTeam
 };

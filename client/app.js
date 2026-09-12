@@ -317,11 +317,13 @@ function navModel(){
     // не через что.
     { key:'gradingFactors', atab:'gradingFactors', label:'Анкеты оценки', icon:'book', cap:'grading:factors' },
     { key:'gradingBlocks', atab:'gradingBlocks', label:'Блоки грейдирования', icon:'units', cap:'grading:blocks' },
+    { key:'support', atab:'support', label:'Чат поддержки', icon:'chat', cap:'support:manage' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
     return t.adminOnly ? role === 'admin' : hasCap(t.cap);
   }).map(function(t){
+    if(t.key === 'support' && S.supportUnreadCount) t.badgeCount = S.supportUnreadCount;
     t.active = (function(item){
       return function(){
         if(item.atab === 'users') {
@@ -485,7 +487,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -520,7 +522,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -580,7 +582,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.41')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.42')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -610,7 +612,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.41')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.42')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -700,7 +702,7 @@ function openPassword(forced){
     '<div style="height:16px"></div>'+
     '<button id="pwGo" class="btn-primary">Сменить пароль</button>'+
     '<p style="font-size:14px;color:var(--muted);margin:14px 0 0;text-align:center">'+
-      'Запишите новый пароль — восстановить его нельзя,<br>только выдать новый через HR BP.</p>'+
+      'Запишите новый пароль — восстановить его нельзя,<br>забыли — получите новый командой /login в Telegram-боте.</p>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1082,6 +1084,8 @@ function onLoaded(data){
   }
   var isElevated = (data.user.role === 'admin' || data.user.role === 'cb');
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
+
+  refreshSupportUnreadBadge();
 
   restoreNavState();
 
@@ -5546,12 +5550,12 @@ function openAdminPanel(targetTab, targetSub){
     users: 'Все пользователи', archive: 'Архив', divisions: 'Оргструктура',
     dict: (dictKindNames[S.dictKind] || 'Справочники'), period: 'Период сбора', tools: 'Сервисные утилиты',
     audit: 'Журнал действий', gradingFactors: 'Анкеты оценки', gradingBlocks: 'Блоки грейдирования',
-    roles: 'Роли и доступы'
+    support: 'Чат поддержки', roles: 'Роли и доступы'
   };
   var atabIcons = {
     users: 'users', archive: 'archive', divisions: 'units',
     dict: 'book', period: 'clock', tools: 'wrench',
-    audit: 'clipboard', gradingFactors: 'book', gradingBlocks: 'units', roles: 'shield'
+    audit: 'clipboard', gradingFactors: 'book', gradingBlocks: 'units', support: 'chat', roles: 'shield'
   };
   var tabTitle = atabNames[atab] || 'Администрирование';
   var tabIcon = atabIcons[atab] || 'admin';
@@ -5603,6 +5607,7 @@ function renderAdminPanel(){
     // без разработчика (тексты лежат в таблице grading_factors).
     { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
     { id:'gradingBlocks', icon:'units', label:'Блоки грейдирования', cap:'grading:blocks' },
+    { id:'support', icon:'chat', label:'Чат поддержки', cap:'support:manage' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -5663,6 +5668,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'audit') renderAdminAudit();
   else if(S.adminTab === 'gradingFactors') renderAdminGradingFactors();
   else if(S.adminTab === 'gradingBlocks') renderAdminGradingBlocks();
+  else if(S.adminTab === 'support') renderAdminSupport();
   else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
@@ -6143,6 +6149,181 @@ function drawAdminGradingBlockPositions(rows, total){
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
     };
   });
+}
+
+// ─── Вкладка: Чат поддержки ───
+//
+// Гости, которых Telegram-бот не смог опознать (номер не найден, не
+// привязан и т.п.), теперь могут нажать «Написать администратору» — вместо
+// тупика открывается переписка. Список тредов слева по смыслу, сама
+// переписка — при открытии треда (см. telegramController.js на сервере).
+
+function renderAdminSupport(){
+  $('adminContent').innerHTML = '<div id="supBox">' + skTable() + '</div>';
+  loadAdminSupportThreads();
+}
+
+function loadAdminSupportThreads(){
+  call('apiAdminSupportThreads', S.token).then(function(r){
+    if(!r || !r.ok){
+      $('supBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить чат поддержки')+'</div>';
+      return;
+    }
+    S.supThreads = r.rows || [];
+    drawAdminSupport();
+  }).catch(function(){
+    $('supBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+/** Число непрочитанных для плашки в левом меню — отдельный лёгкий запрос,
+ *  не весь список тредов, дёргается сразу после входа и после действий. */
+function refreshSupportUnreadBadge(){
+  if(!hasCap('support:manage')) return;
+  call('apiAdminSupportUnreadCount', S.token).then(function(r){
+    if(r && r.ok){
+      S.supportUnreadCount = r.count || 0;
+      renderNav();
+    }
+  }).catch(function(){});
+}
+
+function drawAdminSupport(){
+  var box = $('supBox');
+  if(!box) return;
+
+  if(S.supOpenThread){
+    drawAdminSupportThread();
+    return;
+  }
+
+  var rows = S.supThreads || [];
+  var h = '<div class="muted sup-note">Гости, которых бот не смог опознать сам, пишут сюда через кнопку «Написать администратору» — ответ уходит им обратно в тот же чат Telegram.</div>';
+
+  if(!rows.length){
+    h += '<div class="empty">Пока никто не писал в чат поддержки</div>';
+    box.innerHTML = h;
+    return;
+  }
+
+  h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl"><thead><tr>'+
+    '<th>Гость</th><th>Телефон</th><th>Последнее сообщение</th><th>Когда</th><th>Статус</th><th></th>'+
+    '</tr></thead><tbody>'+
+    rows.map(function(t, i){
+      var preview = esc(t.last_body || '').slice(0, 80);
+      var fromUs = t.last_direction === 'out';
+      return '<tr class="'+(t.unread_count ? 'sup-row-unread' : '')+'">'+
+        '<td><b>#'+t.id+'</b></td>'+
+        '<td>'+esc(t.phone || '—')+'</td>'+
+        '<td>'+(fromUs ? '<span class="muted">Вы: </span>' : '')+preview+(t.last_body && t.last_body.length > 80 ? '…' : '')+'</td>'+
+        '<td class="muted">'+esc(fmtDateTime(t.last_message_at))+'</td>'+
+        '<td>'+(t.status === 'open'
+          ? '<span class="badge b-active">открыт</span>'
+          : '<span class="badge">закрыт</span>')+
+          (t.unread_count ? ' <span class="nav-badge-count sup-unread-cell">'+t.unread_count+'</span>' : '')+
+        '</td>'+
+        '<td><button class="btn-line sup-open" data-i="'+i+'">Открыть</button></td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
+  box.innerHTML = h;
+  [].forEach.call(box.querySelectorAll('.sup-open'), function(btn){
+    btn.onclick = function(){
+      var row = rows[parseInt(btn.getAttribute('data-i'), 10)];
+      if(!row) return;
+      S.supOpenThread = row.id;
+      loadAdminSupportThread(row.id);
+    };
+  });
+}
+
+function loadAdminSupportThread(id){
+  var box = $('supBox');
+  if(box) box.innerHTML = skTable();
+  call('apiAdminSupportThread', S.token, id).then(function(r){
+    if(!r || !r.ok){
+      toast((r && r.error) || 'Не удалось открыть переписку', 'error');
+      S.supOpenThread = null;
+      drawAdminSupport();
+      return;
+    }
+    S.supCurThread = r.thread;
+    S.supCurMessages = r.messages || [];
+    drawAdminSupportThread();
+  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+}
+
+function drawAdminSupportThread(){
+  var box = $('supBox');
+  if(!box) return;
+  var thread = S.supCurThread;
+  var messages = S.supCurMessages || [];
+  if(!thread){ drawAdminSupport(); return; }
+
+  var h = '<div class="sup-thread-hd">'+
+      '<button class="btn-ghost sup-back">'+icBare('chevron', 16)+'Все треды</button>'+
+      '<b>Гость #'+thread.id+'</b>'+
+      (thread.phone ? '<span class="muted">'+esc(thread.phone)+'</span>' : '')+
+      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
+      '<button class="btn-line btn-danger sup-close" style="margin-left:auto">Закрыть диалог</button>'+
+    '</div>'+
+    '<div class="sup-msgs">'+
+      (messages.length ? messages.map(function(m){
+        var out = m.direction === 'out';
+        return '<div class="sup-msg '+(out ? 'sup-msg-out' : 'sup-msg-in')+'">'+
+          '<div class="sup-msg-body">'+esc(m.body)+'</div>'+
+          '<div class="sup-msg-meta">'+(out && m.author_login ? esc(m.author_login)+' · ' : '')+esc(fmtDateTime(m.created_at))+'</div>'+
+        '</div>';
+      }).join('') : '<div class="muted" style="padding:10px 2px">Сообщений пока нет</div>')+
+    '</div>'+
+    '<div class="sup-reply">'+
+      '<input id="supReplyText" placeholder="Ответ гостю…" maxlength="2000">'+
+      '<button class="btn" id="supReplyBtn">Отправить</button>'+
+    '</div>';
+
+  box.innerHTML = h;
+  box.querySelector('.sup-back').onclick = function(){
+    S.supOpenThread = null;
+    S.supCurThread = null;
+    S.supCurMessages = null;
+    loadAdminSupportThreads();
+    refreshSupportUnreadBadge();
+  };
+  box.querySelector('.sup-close').onclick = function(){
+    ask({
+      title: 'Закрыть диалог?',
+      html: 'Не разрушительно — если гость напишет снова, диалог сам переоткроется.',
+      ok: 'Закрыть', cancel: 'Отмена'
+    }).then(function(yes){
+      if(!yes) return;
+      call('apiAdminSupportClose', S.token, { thread_id: thread.id }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось закрыть', 'error'); return; }
+        toast('Диалог закрыт', 'success');
+        loadAdminSupportThread(thread.id);
+      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+    });
+  };
+  var msgsEl = box.querySelector('.sup-msgs');
+  if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+
+  var sendReply = function(){
+    var input = $('supReplyText');
+    var text = (input.value || '').trim();
+    if(!text) return;
+    var btn = $('supReplyBtn');
+    btn.disabled = true;
+    call('apiAdminSupportReply', S.token, { thread_id: thread.id, text: text }).then(function(r){
+      btn.disabled = false;
+      if(!r || !r.ok){ toast((r && r.error) || 'Не удалось отправить', 'error'); return; }
+      input.value = '';
+      loadAdminSupportThread(thread.id);
+    }).catch(function(){ btn.disabled = false; toast('Нет связи с сервером', 'error'); });
+  };
+  $('supReplyBtn').onclick = sendReply;
+  $('supReplyText').onkeydown = function(e){
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendReply(); }
+  };
 }
 
 // ─── Вкладка: Пользователи ───

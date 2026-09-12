@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.41';
+var APP_VERSION = window.APP_VERSION || 'v2.5.42';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -817,7 +817,10 @@ var ICONS = {
   // Риски незаменимости — человек с восклицательным знаком: оценивается
   // конкретный носитель знаний, а не абстрактная опасность (щит занят
   // «Ролями и доступами», треугольник — предупреждениями).
-  risk: '<circle cx="9.5" cy="8" r="3.3" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19.5c.6-3.3 3-5.2 6-5.2 1 0 2 .2 2.8.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 10.5v5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="18" cy="19" r="1.05" fill="currentColor"/>'
+  risk: '<circle cx="9.5" cy="8" r="3.3" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19.5c.6-3.3 3-5.2 6-5.2 1 0 2 .2 2.8.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 10.5v5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="18" cy="19" r="1.05" fill="currentColor"/>',
+  // Чат поддержки — облако с хвостиком, отличимо от «Журнала действий»
+  // (планшет) и «Роли и доступы» (щит).
+  chat: '<path d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8A2.5 2.5 0 0117.5 16H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'
 };
 /** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
 function ic(name, size){
@@ -1784,6 +1787,11 @@ var API_ROUTES = {
   apiAdminGradingCommitteePending: function(args){ return fetchJson('/api/admin/grading-committee/pending?block=' + encodeURIComponent(args[1] || ''), { method:'GET', token:args[0] }); },
   apiAdminGradingCommitteeFinalize: function(args){ return fetchJson('/api/admin/grading-committee/finalize', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingResetEvaluation: function(args){ return fetchJson('/api/admin/grading-blocks/reset-evaluation', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminSupportThreads: function(args){ return fetchJson('/api/admin/support/threads', { method:'GET', token:args[0] }); },
+  apiAdminSupportThread: function(args){ return fetchJson('/api/admin/support/threads/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiAdminSupportReply: function(args){ return fetchJson('/api/admin/support/reply', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminSupportClose: function(args){ return fetchJson('/api/admin/support/close', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminSupportUnreadCount: function(args){ return fetchJson('/api/admin/support/unread-count', { method:'GET', token:args[0] }); },
   apiGradingPositions: function(args){ return fetchJson('/api/grading/positions' + (args[1] ? '?block=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiGradingEvaluate: function(args){ return fetchJson('/api/grading/evaluate', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingStats: function(args){ return fetchJson('/api/grading/stats', { method:'GET', token:args[0] }); },
@@ -2828,6 +2836,9 @@ function navRenderBtn(it, cls){
   // Плашка «New» у пункта меню — временная, пока раздел не обжился (снять
   // флаг badgeNew в navModel(), когда обкатают и привыкнут).
   var badgeNew = it.badgeNew ? '<span class="nav-badge-new">New</span>' : '';
+  // Счётчик непрочитанного (сейчас только «Чат поддержки») — тот же вид
+  // плашки, что и «New», просто с числом вместо текста.
+  var badgeCount = it.badgeCount ? '<span class="nav-badge-new nav-badge-count">'+(it.badgeCount > 99 ? '99+' : it.badgeCount)+'</span>' : '';
 
   if(cls === 'rail-item'){
     var caret = hasSub
@@ -2837,7 +2848,7 @@ function navRenderBtn(it, cls){
       : '';
     var btnTitle = (window.S && S.railCollapsed) ? (' title="' + esc(it.label) + '"') : '';
     return '<button class="'+cls+danger+on+(hasSub ? ' has-sub' : '')+'" data-nav="'+it.key+'"'+btnTitle+'>'+
-      icon+'<span>'+lbl+'</span>'+badgeNew+caret+'</button>';
+      icon+'<span>'+lbl+'</span>'+badgeNew+badgeCount+caret+'</button>';
   }
 
   // На нижней полосе телефона кнопка-категория (есть submenu) помечается
@@ -2848,7 +2859,7 @@ function navRenderBtn(it, cls){
     : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+'</button>';
+    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+badgeCount+'</button>';
 }
 
 var activeRailDropdown = null;

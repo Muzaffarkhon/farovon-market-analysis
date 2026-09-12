@@ -732,6 +732,25 @@ body.has-bar .wrap {
     .nav-badge-new { animation: none; }
   }
 
+  /* Счётчик непрочитанного — число, не мигает (в отличие от «New» выше),
+     обычная пилюля, чтобы не тревожить постоянным морганием. */
+  .nav-badge-count {
+    animation: none;
+    font-style: normal;
+    font-weight: 700;
+    color: #fff;
+    background: #dc2626;
+    border-radius: 999px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10.5px;
+    line-height: 1;
+  }
+
   .rail-item:hover {
     background: var(--color-paper-mist);
     color: var(--color-midnight-ink);
@@ -7325,7 +7344,8 @@ html.compact {
 #adminContent:has(> .card),
 #adminContent:has(> .svc-grid),
 #adminContent:has(> .perm-matrix),
-#adminContent:has(> #gfBox) {
+#adminContent:has(> #gfBox),
+#adminContent:has(> #supBox) {
   overflow-y: auto;
 }
 
@@ -10727,6 +10747,69 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   border-top: 1px solid var(--line);
 }
 .gb-pending-row span:first-child { flex: 1 1 auto; font-weight: 600; }
+
+/* ─── Админка → «Чат поддержки» ─── */
+.sup-note {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+  font-size: 13px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.sup-row-unread td { font-weight: 600; }
+.sup-unread-cell { margin-left: 4px; }
+.sup-thread-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sup-thread-hd b { font-size: 14.5px; }
+.sup-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px 2px 10px;
+}
+.sup-msg {
+  max-width: 72%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.sup-msg-in {
+  align-self: flex-start;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 3px;
+}
+.sup-msg-out {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-bottom-right-radius: 3px;
+}
+.sup-msg-body { white-space: pre-wrap; word-break: break-word; }
+.sup-msg-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.sup-reply {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.sup-reply input { flex: 1 1 auto; }
 .gr-opts {
   display: flex;
   flex-direction: column;

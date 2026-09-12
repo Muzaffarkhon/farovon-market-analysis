@@ -13,6 +13,7 @@ const telegramController = require('../controllers/telegramController');
 const benchmarkController = require('../controllers/benchmarkController');
 const liveController = require('../controllers/liveController');
 const gradingController = require('../controllers/gradingController');
+const supportController = require('../controllers/supportController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -176,5 +177,12 @@ router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), 
 router.get('/key-personnel/list', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.listRisks);
 router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradingController.evaluateRiskCard);
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
+
+// ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
+router.get('/admin/support/threads', requireCapability('support:manage'), supportController.listThreads);
+router.get('/admin/support/threads/:id', requireCapability('support:manage'), supportController.getThread);
+router.post('/admin/support/reply', requireCapability('support:manage'), supportController.reply);
+router.post('/admin/support/close', requireCapability('support:manage'), supportController.close);
+router.get('/admin/support/unread-count', requireCapability('support:manage'), supportController.unreadCount);
 
 module.exports = router;

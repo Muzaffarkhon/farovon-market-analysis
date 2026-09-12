@@ -39,7 +39,8 @@ const CAPABILITIES = [
   { id: 'keyrisk:edit', resource: 'keyrisk', resourceLabel: 'Риски ключевого персонала', label: 'Заполнение анкет риска' },
   { id: 'grading:factors', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Правка вопросов анкет (формулировки и баллы)' },
   { id: 'grading:blocks', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Управление индустриальными блоками и распределением должностей' },
-  { id: 'grading:committee', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Состав комиссии по блокам и принудительное подведение итога' }
+  { id: 'grading:committee', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Состав комиссии по блокам и принудительное подведение итога' },
+  { id: 'support:manage', resource: 'support', resourceLabel: 'Чат поддержки', label: 'Просмотр и ответы в чате поддержки Telegram-бота' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];

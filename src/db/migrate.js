@@ -604,6 +604,41 @@ async function migrate() {
   await seedGradingBlocks();
   await upgradeJobEvaluationsToBlocks();
   await seedGradingPositionHints();
+  await seedSupportChat();
+}
+
+/**
+ * Чат поддержки: если бот не смог опознать человека (номер не найден, код
+ * от HR неверный/просрочен и т.п.), раньше на этом всё заканчивалось —
+ * бот отвечал текстом и человек оставался без выхода. Теперь у таких
+ * сообщений есть кнопка «Написать администратору»: один тред на один
+ * Telegram-чат, переоткрывается при новом сообщении, а не плодится заново.
+ * См. docs/superpowers (перенесено из проекта «Фаровон Кафетерий», где
+ * решалась та же проблема).
+ */
+async function seedSupportChat() {
+  await run(`CREATE TABLE IF NOT EXISTS support_threads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_chat_id TEXT UNIQUE NOT NULL,
+    phone TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_support_threads_status ON support_threads(status, last_message_at)');
+
+  await run(`CREATE TABLE IF NOT EXISTS support_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id INTEGER NOT NULL REFERENCES support_threads(id),
+    direction TEXT NOT NULL,
+    body TEXT NOT NULL,
+    author_login TEXT,
+    read_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_support_messages_thread ON support_messages(thread_id, created_at)');
+
+  console.log('🔧 Миграция: схема чата поддержки Telegram-бота создана');
 }
 
 /**

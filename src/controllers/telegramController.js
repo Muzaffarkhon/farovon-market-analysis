@@ -2,8 +2,9 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryOne, queryAll, run } = require('../db/database');
-const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('../services/telegramService');
+const { getBotUsername, sendTelegramMessage, answerCallbackQuery, notifySupportTeam } = require('../services/telegramService');
 const { getActivePeriod } = require('../services/periodService');
+const supportChat = require('../services/supportChatService');
 
 const LINK_TTL_MINUTES = 10;
 
@@ -93,6 +94,19 @@ const CONTACT_KEYBOARD = {
   }
 };
 const REMOVE_KEYBOARD = { reply_markup: { remove_keyboard: true } };
+
+/**
+ * Раньше на сообщениях о неудачной идентификации (номер не найден, нет
+ * привязки и т.п.) всё заканчивалось — бот просто советовал обратиться в
+ * HR, без способа сразу спросить, что не так. Кнопка открывает чат
+ * поддержки: дальше человек пишет прямо сюда, C&B отвечает из админки
+ * («Чат поддержки»), ответ приходит в этот же чат.
+ */
+const SUPPORT_KEYBOARD = {
+  reply_markup: {
+    inline_keyboard: [[{ text: '💬 Написать администратору', callback_data: 'support:start' }]]
+  }
+};
 
 /**
  * Диплинк с токеном не всегда доезжает как готовое сообщение — часть клиентов
@@ -186,7 +200,7 @@ async function handleLogin(chatId) {
     [String(chatId)]
   );
   if (!user) {
-    await sendTelegramMessage(chatId, NOT_LINKED_MSG, REMOVE_KEYBOARD);
+    await sendTelegramMessage(chatId, NOT_LINKED_MSG, SUPPORT_KEYBOARD);
     return;
   }
 
@@ -256,8 +270,8 @@ async function handleContact(chatId, fromId, contact) {
   if (!match) {
     await sendTelegramMessage(chatId,
       'Не нашли сотрудника с таким номером в приложении «Обзор рынка». Проверьте номер в профиле ' +
-      '(Админка → Пользователи) или привяжите аккаунт по ссылке из приложения.',
-      REMOVE_KEYBOARD);
+      '(Админка → Пользователи) или напишите администратору прямо здесь.',
+      SUPPORT_KEYBOARD);
     return;
   }
 
@@ -274,7 +288,7 @@ async function handleContact(chatId, fromId, contact) {
  *  но коротким текстом: не тянем сюда весь getUserPayload, только счётчики. */
 async function handleStatus(chatId) {
   const user = await findByChatId(chatId);
-  if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG); return; }
+  if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG, SUPPORT_KEYBOARD); return; }
 
   const unitsList = (user.units || '').split(';').map(s => s.trim()).filter(Boolean);
   if (!unitsList.length) {
@@ -319,7 +333,7 @@ async function handleStatus(chatId) {
  */
 async function handleUnlink(chatId) {
   const user = await findByChatId(chatId);
-  if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG); return; }
+  if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG, SUPPORT_KEYBOARD); return; }
 
   await run('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id]);
   await sendTelegramMessage(chatId, `Telegram отвязан от аккаунта ${escHtml(user.fio)}. Привязать заново — командой /link.`);
@@ -335,6 +349,33 @@ async function handleStaleCallback(cb) {
     'Эта кнопка устарела. Наберите /unlink ещё раз.'
   );
   await answerCallbackQuery(cb.id);
+}
+
+/** Нажатие «Написать администратору» — открывает (или переоткрывает) тред. */
+async function handleSupportStart(cb) {
+  const chatId = (cb.message && cb.message.chat && cb.message.chat.id) || (cb.from && cb.from.id);
+  await answerCallbackQuery(cb.id);
+  if (!chatId) return;
+  await supportChat.getOrCreateThread(chatId);
+  await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.');
+}
+
+/**
+ * Обычное (не команда) сообщение от чата, у которого уже есть тред
+ * поддержки — сохраняем и, если это первое сообщение с момента открытия
+ * или последнего ответа C&B, уведомляем admin/cb в Telegram.
+ */
+async function handleSupportMessage(chatId, thread, text) {
+  const threadId = thread.status === 'closed'
+    ? await supportChat.getOrCreateThread(chatId)
+    : thread.id;
+  const { shouldNotify } = await supportChat.saveIncomingMessage(threadId, text);
+  if (shouldNotify) {
+    const who = thread.phone ? `номер ${thread.phone}` : `chat ${chatId}`;
+    await notifySupportTeam(
+      `💬 <b>Новое сообщение в чате поддержки</b>\n${escHtml(who)}\nОткройте раздел «Чат поддержки» в системе.`
+    );
+  }
 }
 
 /** Публичный эндпоинт — сюда Telegram шлёт входящие сообщения после setWebHook.
@@ -371,7 +412,11 @@ exports.webhook = async (req, res) => {
 
 async function processTelegramUpdate(body) {
   const cb = body && body.callback_query;
-  if (cb) { await handleStaleCallback(cb); return; }
+  if (cb) {
+    if (cb.data === 'support:start') { await handleSupportStart(cb); return; }
+    await handleStaleCallback(cb);
+    return;
+  }
 
   const msg = body && body.message;
   if (!msg || !msg.chat) return;
@@ -396,6 +441,13 @@ async function processTelegramUpdate(body) {
   if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
   if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
   if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
+
+  // Команды разбираются и при открытом треде поддержки (вдруг человек
+  // вспомнил код от HR) — только обычный текст без «/» уходит в переписку.
+  if (!text.startsWith('/')) {
+    const thread = await supportChat.findThreadByChatId(chatId);
+    if (thread) { await handleSupportMessage(chatId, thread, text); return; }
+  }
 
   await sendTelegramMessage(chatId, 'Не понял команду.\n\n' + HELP_TEXT);
 }
