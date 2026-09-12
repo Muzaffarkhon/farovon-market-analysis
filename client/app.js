@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.46')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.46')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.45')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.46')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.45')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.46')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6172,6 +6172,55 @@ function drawAdminGradingBlockPositions(rows, total){
 function renderAdminSupport(){
   $('adminContent').innerHTML = '<div id="supBox">' + skTable() + '</div>';
   loadAdminSupportThreads();
+  startSupPoll();
+}
+
+/**
+ * Автообновление чата поддержки, пока открыт раздел — раньше новое сообщение
+ * гостя появлялось только после ручной перезагрузки страницы. Один общий
+ * таймер и на список тредов, и на открытую переписку (что из них дёргать —
+ * решает сам тик); останавливается сам, как только уходим из раздела, а не
+ * ждёт явного вызова «на выходе» — так не нужно ловить все места, откуда
+ * можно покинуть админку.
+ */
+var supPollTimer = null;
+function startSupPoll(){
+  if(supPollTimer) return;
+  supPollTimer = setInterval(supPollTick, 8000);
+}
+function stopSupPoll(){
+  if(supPollTimer){ clearInterval(supPollTimer); supPollTimer = null; }
+}
+function supPollTick(){
+  if(document.visibilityState !== 'visible' || !S.token || S.appView !== 'admin' || S.adminTab !== 'support'){
+    stopSupPoll();
+    return;
+  }
+  if(S.supOpenThread){
+    var openId = S.supOpenThread;
+    call('apiAdminSupportThread', S.token, openId).then(function(r){
+      if(!r || !r.ok) return;
+      if(S.supOpenThread !== openId) return; // уже открыли другой тред/ушли, пока грузилось
+      var prevLen = (S.supCurMessages || []).length;
+      S.supCurThread = r.thread;
+      S.supCurMessages = r.messages || [];
+      if((r.messages || []).length !== prevLen){
+        var input = $('supReplyText');
+        var draft = input ? input.value : '';
+        drawAdminSupportThread();
+        var input2 = $('supReplyText');
+        if(draft && input2) input2.value = draft;
+      }
+    }).catch(function(){});
+  } else {
+    call('apiAdminSupportThreads', S.token).then(function(r){
+      if(!r || !r.ok) return;
+      if(S.supOpenThread) return; // успели открыть тред, пока грузился список
+      S.supThreads = r.rows || [];
+      drawAdminSupport();
+    }).catch(function(){});
+  }
+  refreshSupportUnreadBadge();
 }
 
 function loadAdminSupportThreads(){
