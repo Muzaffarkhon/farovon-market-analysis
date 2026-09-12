@@ -1083,8 +1083,12 @@
 
   function attach(table){
     if(!table || !table.classList.contains('co-tbl')) return;
-    // Никогда не вешаем фильтр на сервисные таблицы и вложенные подтаблицы
+    // Никогда не вешаем фильтр на сервисные таблицы и вложенные подтаблицы.
+    // Отдельная проверка на «есть предок <table>» — общий случай (детализация
+    // внутри зарплатных вилок и любые другие будущие вложенные таблицы),
+    // не только перечисленные классы.
     if(table.hasAttribute('data-no-smart-filter') || table.closest('[data-no-smart-filter], tr, td, .sal-detail, .sub-tab-body, .rcards')) return;
+    if(table.parentElement && table.parentElement.closest('table')) return;
     var cols = getColumns(table);
     if(cols.length < 2) return;
 

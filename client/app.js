@@ -473,7 +473,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.30')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -508,7 +508,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.30')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -568,7 +568,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.29')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.30')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -598,7 +598,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.29')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.30')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -3041,8 +3041,8 @@ function openBatchSurveySheet(posName){
       // Липкий низ: кнопка сохранения всегда на виду, а над ней — подсказка
       // «ниже ещё N», когда список компаний не помещается на экран (важнее
       // всего в альбомной ориентации, где высота маленькая).
+      '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
       '<div class="batch-foot">'+
-        '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
         '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
       '</div>'+
     '</div>';
@@ -3081,14 +3081,17 @@ function openBatchSurveySheet(posName){
     var cue = el.querySelector('.batch-foot-cue');
     if(!sc || !cue) return;
     var foot = el.querySelector('.batch-foot');
-    var footTop = foot ? foot.offsetTop : sc.scrollHeight;
-    var viewBottom = sc.scrollTop + sc.clientHeight;
-    var remain = footTop - viewBottom;
-    if(remain <= 24){ cue.hidden = true; return; }
+    var scRect = sc.getBoundingClientRect();
+    // Сколько ещё прокрутки осталось до кнопки «Сохранить».
+    var remain = foot
+      ? (foot.getBoundingClientRect().top - scRect.bottom)
+      : (sc.scrollHeight - sc.scrollTop - sc.clientHeight);
+    if(remain <= 8){ cue.hidden = true; return; }
+    // Карточки, чей верхний край ушёл ниже видимой области — ещё не на экране.
     var cards = el.querySelectorAll('.batch-card');
     var below = 0;
     for(var i = 0; i < cards.length; i++){
-      if(cards[i].offsetTop + cards[i].offsetHeight - 8 > viewBottom) below++;
+      if(cards[i].getBoundingClientRect().top >= scRect.bottom - 16) below++;
     }
     cue.querySelector('span').textContent = below
       ? 'ниже ещё ' + below + ' ' + declOfNum(below, ['компания', 'компании', 'компаний'])
