@@ -468,7 +468,10 @@ function openGradeForm(rowIndex){
     jobTitle: row.job_title,
     group: source.group_type || row.suggested_group || 'production',
     answers: [source.factor_1, source.factor_2, source.factor_3, source.factor_4].map(function(v){ return v || 0; }),
-    notes: source.notes || ''
+    notes: source.notes || '',
+    // Для предупреждения «выбранная группа отличается от подсказки» ниже —
+    // само значение подсказки не меняется, даже если группу потом переключат.
+    suggestedGroup: row.suggested_group || null
   };
   drawGradePositions();
   drawGradeForm();
@@ -505,13 +508,23 @@ function drawGradeForm(){
         : 'Отвечено '+answered+' из '+factors.length)+'</span>'+
       '<button class="btn-line gr-close">Закрыть</button>'+
     '</div>'+
-    '<label class="lbl">Функциональная группа</label>'+
+    '<div class="gr-groups-hd">'+
+      '<label class="lbl">Функциональная группа</label>'+
+      (hasCap('grading:factors') || (S.data && S.data.user && S.data.user.role === 'admin')
+        ? '<button class="btn-line gr-open-factors" data-g="'+esc(group.key)+'">Настройки анкеты</button>'
+        : '')+
+    '</div>'+
     '<div class="gr-groups">'+
       (GR.factors.groups || []).map(function(g){
         return '<button class="gr-group'+(g.key === group.key ? ' on' : '')+'" data-g="'+esc(g.key)+'">'+
           esc(g.label)+'<small>'+g.factors.length+' фактора</small></button>';
       }).join('')+
-    '</div>';
+    '</div>'+
+    (f.suggestedGroup && f.suggestedGroup !== group.key
+      ? '<div class="gr-group-warn">'+icBare('warn', 13)+
+        ' Выбрана группа «'+esc(group.label)+'», а по прежнему анализу у этой должности обычно «'+
+        esc((grGroup(f.suggestedGroup) || {}).label || f.suggestedGroup)+'». Если это осознанно — продолжайте, иначе переключите группу выше.</div>'
+      : '');
 
   factors.forEach(function(fac, i){
     var w = group.weights[i];
@@ -546,6 +559,14 @@ function drawGradeForm(){
   box.innerHTML = h;
 
   box.querySelector('.gr-close').onclick = function(){ GR.form = null; box.innerHTML = ''; drawGradePositions(); };
+  var factorsBtn = box.querySelector('.gr-open-factors');
+  if(factorsBtn){
+    factorsBtn.onclick = function(){
+      S.gradingScope = factorsBtn.getAttribute('data-g');
+      S.gradingDir = '';
+      openAdminPanel('gradingFactors');
+    };
+  }
   [].forEach.call(box.querySelectorAll('.gr-group'), function(btn){
     btn.onclick = function(){
       var key = btn.getAttribute('data-g');

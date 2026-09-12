@@ -10840,6 +10840,27 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-content { padding: 8px 0 20px; }
 .gr-form { margin-top: 12px; padding: 14px 16px; }
 .gr-form-hd b { font-size: 15px; }
+.gr-groups-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gr-groups-hd .lbl { margin: 0; }
+.gr-group-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.gr-group-warn svg { flex: none; color: var(--warn); margin-top: 1px; }
 .gr-groups { gap: 6px; margin-bottom: 12px; }
 .gr-group { padding: 7px 10px; font-size: 12.5px; }
 .gr-group small { font-size: 10.5px; }
