@@ -596,6 +596,115 @@ async function migrate() {
   )`);
 
   console.log('🔧 Миграция: схема грейдирования по индустриальным блокам и комиссии создана');
+
+  await seedGradingBlocks();
+}
+
+/**
+ * Раскладка подразделений и должностей по индустриальным блокам грейдирования
+ * (согласовано с пользователем 2026-09-12, см. память сессии
+ * grading-industry-rework-plan.md). База — направление (dir) целиком; два
+ * департамента физически смешаны (склад/офис, завод/офис) и раскладываются
+ * по конкретному подразделению или должности. INSERT OR IGNORE — ручные
+ * правки админа в grading_block_assignments эта функция не перезатирает,
+ * зато на каждом старте подхватывает новые unit_positions.
+ */
+async function seedGradingBlocks() {
+  const BLOCKS = [
+    { key: 'production', label: 'Производство', sort: 10 },
+    { key: 'construction', label: 'Стройка', sort: 20 },
+    { key: 'trade', label: 'Торговля', sort: 30 },
+    { key: 'office', label: 'Офис-АУП', sort: 40 }
+  ];
+  for (const b of BLOCKS) {
+    await run(
+      'INSERT OR IGNORE INTO grading_blocks (key, label, sort, created_by) VALUES (?, ?, ?, ?)',
+      [b.key, b.label, b.sort, 'исходная раскладка']
+    );
+  }
+
+  const DIR_BLOCK = {
+    'Департамент бройлерного направления': 'production',
+    'Департамент производства комбикормов': 'production',
+    'Департамент производства муки': 'production',
+    'Дивизион производства масла': 'production',
+    'Дивизион производства металлоизделий': 'production',
+    'Птицефабрика яичного производства Д1': 'production',
+    'Главная лаборатория': 'production',
+    'Технический департамент': 'production',
+    'Департамент капитального строительства': 'construction',
+    'Дивизион строительного направления': 'construction',
+    'Отдел проектирование новых проектов': 'construction',
+    'Девелоперская компания': 'construction',
+    'Проектный офис': 'construction',
+    'Торговый Дом': 'trade',
+    'Ритейл (упр)': 'trade',
+    'Отдел продаж комбикормов': 'trade',
+    'Департамент автоматизации и информационных технологий': 'office',
+    'Департамент маркетинга': 'office',
+    'Департамент по работе с государственными органами': 'office',
+    'Департамент развития': 'office',
+    'Финансовый департамент': 'office',
+    'Правление': 'office',
+    'Совет директоров': 'office'
+    // 'Обзор рынка — не распределено' — служебное, вне грейдирования, не заводим
+    // 'Департамент снабжения и логистики' и 'Административно-хозяйственное
+    // управление' целиком не входят — физически смешаны, см. правила ниже.
+  };
+
+  // Снабжение и логистика: склады/элеваторы — физический труд на площадке,
+  // закупки/логистика-координация — офисная функция.
+  const SUPPLY_WAREHOUSE_UNITS = new Set([
+    'Отдел складов готовой продукции',
+    'Отдел управления внутренними складами',
+    'Управление элеваторами и складами готовой продукции',
+    'Центральный склад'
+  ]);
+  function classifySupplyUnit(unit) {
+    if (SUPPLY_WAREHOUSE_UNITS.has(unit)) return 'production';
+    if (/^Склад/.test(unit) || /Элеваторная/.test(unit)) return 'production';
+    return 'office'; // Департамент снабжения и логистики, отделы закупки/логистики, служба логистики
+  }
+
+  // АХУ: площадочные хозслужбы/транспорт — производство по умолчанию, кроме
+  // явно офисных должностей внутри них; центральные единицы АХУ — офис.
+  const AHU_SITE_PATTERN = /^(Хозяйственная служба|Транспортный отдел|Служебный транспорт)/;
+  const AHU_OFFICE_POSITIONS = new Set([
+    'Бухгалтер', 'Менеджер', 'Менеджер по продажам', 'Специалист',
+    'Начальник', 'Начальник отдела', 'Куратор', 'Логист', 'Старший логист',
+    'Координатор', 'Диспетчер'
+  ]);
+  function classifyAhu(unit, position) {
+    if (AHU_SITE_PATTERN.test(unit)) {
+      return AHU_OFFICE_POSITIONS.has(position) ? 'office' : 'production';
+    }
+    return 'office'; // само АХУ, Отдел внутренней закупки, Аварийная группа
+  }
+
+  function classify(dir, unit, position) {
+    if (dir === 'Департамент снабжения и логистики') return classifySupplyUnit(unit);
+    if (dir === 'Административно-хозяйственное управление') return classifyAhu(unit, position);
+    return DIR_BLOCK[dir] || null;
+  }
+
+  const rows = await queryAll(`
+    SELECT up.unit AS unit, up.position AS position, d.dir AS dir
+    FROM unit_positions up
+    JOIN divisions d ON d.unit = up.unit
+  `);
+  let inserted = 0;
+  for (const r of rows) {
+    const block = classify(r.dir, r.unit, r.position);
+    if (!block) continue;
+    const res = await run(
+      'INSERT OR IGNORE INTO grading_block_assignments (block_key, unit, position) VALUES (?, ?, ?)',
+      [block, r.unit, r.position]
+    );
+    if (res && res.rowsAffected) inserted += res.rowsAffected;
+  }
+  if (inserted) {
+    console.log(`🔧 Миграция: раскладка по индустриальным блокам — добавлено ${inserted} пар «подразделение+должность»`);
+  }
 }
 
 module.exports = { migrate, ensureColumn };
