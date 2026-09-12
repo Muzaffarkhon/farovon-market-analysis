@@ -755,6 +755,17 @@ body.has-bar .wrap {
     line-height: 1;
   }
 
+  /* .rail-item span {...flex:1; min-width:0...} выше в файле метит ЛЮБОЙ span
+     внутри пункта рельсы, включая этот бейдж, и по специфичности перебивает
+     его flex:none/min-width:14px — бейдж растягивался на всю свободную
+     ширину строки (полоса на всю рельсу вместо кружка), а подпись пункта
+     обрезалась многоточием. Более специфичный селектор нужен именно здесь. */
+  .rail-item .nav-badge-count {
+    flex: none;
+    min-width: 14px;
+    width: auto;
+  }
+
   .rail-item:hover {
     background: var(--color-paper-mist);
     color: var(--color-midnight-ink);
