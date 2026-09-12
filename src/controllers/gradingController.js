@@ -200,10 +200,13 @@ async function getPositions(req, res) {
              COUNT(DISTINCT ga.unit) AS unit_count,
              COALESCE(SUM(up.staff_count), 0) AS staff_count,
              e.id AS evaluation_id, e.group_type, e.factor_1, e.factor_2, e.factor_3, e.factor_4,
-             e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at
+             e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at,
+             h.suggested_group, h.suggested_level, h.sample_count AS hint_sample_count,
+             h.group_conflict AS hint_group_conflict, h.level_conflict AS hint_level_conflict
       FROM grading_block_assignments ga
       LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
       LEFT JOIN job_evaluations e ON e.block_key = ga.block_key AND e.job_title = ga.position
+      LEFT JOIN grading_position_hints h ON h.position = ga.position
       WHERE ga.block_key = ?
       GROUP BY ga.position
       ORDER BY ga.position ASC

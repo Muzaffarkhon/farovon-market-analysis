@@ -1,6 +1,7 @@
 const { queryAll, queryOne, run } = require('./database');
 const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
 const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
+const { POSITION_HINTS } = require('../config/gradingPositionHints');
 
 /**
  * Идемпотентные миграции живой базы.
@@ -599,6 +600,33 @@ async function migrate() {
 
   await seedGradingBlocks();
   await upgradeJobEvaluationsToBlocks();
+  await seedGradingPositionHints();
+}
+
+/**
+ * Подсказки для комиссии на экране оценки: по каждой должности из более
+ * раннего анализа — какая функциональная группа и уровень встречались у неё
+ * чаще всего (см. src/config/gradingPositionHints.js). Справочная таблица,
+ * не редактируется из интерфейса — INSERT OR IGNORE достаточно.
+ */
+async function seedGradingPositionHints() {
+  await run(`CREATE TABLE IF NOT EXISTS grading_position_hints (
+    position TEXT PRIMARY KEY,
+    suggested_group TEXT NOT NULL,
+    suggested_level INTEGER NOT NULL,
+    sample_count INTEGER NOT NULL,
+    group_conflict INTEGER NOT NULL DEFAULT 0,
+    level_conflict INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  for (const h of POSITION_HINTS) {
+    await run(`
+      INSERT OR IGNORE INTO grading_position_hints
+        (position, suggested_group, suggested_level, sample_count, group_conflict, level_conflict)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [h.position, h.group, h.level, h.sampleCount, h.groupConflict ? 1 : 0, h.levelConflict ? 1 : 0]);
+  }
+  console.log(`🔧 Миграция: подсказки по должностям из прежнего анализа загружены (${POSITION_HINTS.length})`);
 }
 
 /**

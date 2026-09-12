@@ -10593,6 +10593,11 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   font-size: 12px;
   margin-bottom: 8px;
 }
+.gr-hint-warn {
+  color: var(--warn);
+  display: inline-flex;
+  vertical-align: middle;
+}
 .gr-opts {
   display: flex;
   flex-direction: column;

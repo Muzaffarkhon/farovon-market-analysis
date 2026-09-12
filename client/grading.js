@@ -73,6 +73,22 @@ function grBlockLabel(key){
   return b ? b.label : '';
 }
 
+/**
+ * Подсказка из прежнего анализа (~180 должностей, см.
+ * src/config/gradingPositionHints.js): раньше эта должность чаще всего
+ * получала такую группу и уровень. Не оценка — только ориентир для
+ * комиссии, поэтому серым и с явной пометкой при расхождении по площадкам.
+ */
+function grHintCell(r){
+  if(!r.suggested_group) return '<span class="muted">—</span>';
+  var g = grGroup(r.suggested_group);
+  var label = (g ? g.label : r.suggested_group) + ', ур. ' + r.suggested_level;
+  var warn = (r.hint_group_conflict || r.hint_level_conflict)
+    ? ' <span class="gr-hint-warn" title="У этой должности раньше расходилось по разным площадкам — оценивайте по факту, а не по подсказке">'+icBare('warn', 13)+'</span>'
+    : '';
+  return '<span class="muted" title="По прежнему анализу, '+esc(r.hint_sample_count || 0)+' сотрудников">'+esc(label)+'</span>'+warn;
+}
+
 /** Балл = сумма «оценка × вес». Повторяет gradingService.calcWeightedScore. */
 function grScore(groupKey, answers){
   var g = grGroup(groupKey);
@@ -387,7 +403,7 @@ function drawGradePositions(){
     // должно оставаться пустого экрана. Когда анкету открыли, список
     // ужимается, чтобы вопросы были видны без долгой прокрутки.
     '<div class="tblwrap gr-tblwrap'+(GR.form ? ' gr-tblwrap--compact' : '')+'"><table class="co-tbl gr-tbl">'+
-    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Подсказка</th><th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var g = r.group_type ? grGroup(r.group_type) : null;
       var open = GR.form && GR.form.jobTitle === r.job_title;
@@ -396,6 +412,7 @@ function drawGradePositions(){
         '<td>'+(r.unit_count || 0)+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         '<td>'+esc(g ? g.label : '—')+'</td>'+
+        '<td>'+grHintCell(r)+'</td>'+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">Уровень '+r.grade_level+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
         '<td><button class="btn-line gr-open" data-i="'+i+'">'+(r.grade_level ? 'Изменить' : 'Оценить')+'</button></td>'+
@@ -418,9 +435,12 @@ function openGradeForm(rowIndex){
     return;
   }
 
+  // Группа по умолчанию: своя прошлая оценка → подсказка из прежнего анализа
+  // (только выбор анкеты/весов, ответы на вопросы подсказка не знает) →
+  // производственная как самая частая.
   GR.form = {
     jobTitle: row.job_title,
-    group: row.group_type || 'production',
+    group: row.group_type || row.suggested_group || 'production',
     answers: [row.factor_1, row.factor_2, row.factor_3, row.factor_4].map(function(v){ return v || 0; }),
     notes: row.notes || ''
   };
