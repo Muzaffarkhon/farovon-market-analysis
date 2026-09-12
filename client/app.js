@@ -485,7 +485,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.39')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -520,7 +520,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.39')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -580,7 +580,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.38')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.39')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -610,7 +610,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.38')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.39')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -3930,6 +3930,13 @@ function skDash(){
 // АНАЛИТИЧЕСКИЙ ДАШБОРД (C&B, РУКОВОДСТВО, HR BP)
 // ═══════════════════════════════════════════════════════════
 function openDashboard(initialTab){
+  // См. комментарий в openAdminPanel: фиксируем вкладку и её текущий dashTab
+  // ДО перезаписи S.dashTab, иначе WorkspaceTabs.activateTab() снимет снимок
+  // состояния уходящей вкладки уже с новым значением.
+  var prevTab = (window.WorkspaceTabs && WorkspaceTabs.activeId)
+    ? WorkspaceTabs.getTab(WorkspaceTabs.activeId) : null;
+  var prevDashTab = S.dashTab;
+
   var curTab = initialTab || 'overview';
   S.dashTab = curTab;
   var dashTitles = {
@@ -3953,6 +3960,9 @@ function openDashboard(initialTab){
       state: { appView: 'dashboard', dashTab: curTab, unit: null },
       run: function(){ openDashboard(curTab); }
     });
+    if(prevTab && prevTab.state && prevTab.id !== WorkspaceTabs.activeId){
+      prevTab.state.dashTab = prevDashTab;
+    }
     return;
   }
   if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
@@ -5509,6 +5519,16 @@ function declOfNum(n, titles){
 // ПАНЕЛЬ АДМИНИСТРАТОРА
 // ═══════════════════════════════════════════════════════════
 function openAdminPanel(targetTab, targetSub){
+  // Вкладку, которую покидаем, и её текущий раздел фиксируем ДО того, как
+  // ниже перезапишем S.adminTab на новый — иначе WorkspaceTabs.activateTab()
+  // снимет «снимок состояния» уходящей вкладки уже с новым значением и
+  // спутает её с той, куда переходим (обе вкладки запомнят один и тот же
+  // adminTab; всплывает после перезагрузки страницы — вкладки отрисовываются
+  // не в свои панели).
+  var prevTab = (window.WorkspaceTabs && WorkspaceTabs.activeId)
+    ? WorkspaceTabs.getTab(WorkspaceTabs.activeId) : null;
+  var prevAdminTab = S.adminTab;
+
   if(targetTab) S.adminTab = targetTab;
   if(targetTab === 'dict' && targetSub) S.dictKind = targetSub;
 
@@ -5525,12 +5545,13 @@ function openAdminPanel(targetTab, targetSub){
   var atabNames = {
     users: 'Все пользователи', archive: 'Архив', divisions: 'Оргструктура',
     dict: (dictKindNames[S.dictKind] || 'Справочники'), period: 'Период сбора', tools: 'Сервисные утилиты',
-    audit: 'Журнал действий', roles: 'Роли и доступы'
+    audit: 'Журнал действий', gradingFactors: 'Анкеты оценки', gradingBlocks: 'Блоки грейдирования',
+    roles: 'Роли и доступы'
   };
   var atabIcons = {
     users: 'users', archive: 'archive', divisions: 'units',
     dict: 'book', period: 'clock', tools: 'wrench',
-    audit: 'clipboard', roles: 'shield'
+    audit: 'clipboard', gradingFactors: 'book', gradingBlocks: 'units', roles: 'shield'
   };
   var tabTitle = atabNames[atab] || 'Администрирование';
   var tabIcon = atabIcons[atab] || 'admin';
@@ -5544,6 +5565,11 @@ function openAdminPanel(targetTab, targetSub){
       state: { appView: 'admin', adminTab: atab, dictKind: S.dictKind, unit: null },
       run: function(){ openAdminPanel(atab, S.dictKind); }
     });
+    // Чиним «снимок» уходящей вкладки, который WorkspaceTabs.activateTab()
+    // только что испортил новым S.adminTab (см. комментарий выше).
+    if(prevTab && prevTab.state && prevTab.id !== WorkspaceTabs.activeId){
+      prevTab.state.adminTab = prevAdminTab;
+    }
     return;
   }
   if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
@@ -11656,6 +11682,13 @@ function openBenchmarks(initialTab){
     }
     return;
   }
+  // См. комментарий в openAdminPanel: фиксируем вкладку и её текущий bmTab
+  // ДО перезаписи BM_STATE.tab, иначе WorkspaceTabs.activateTab() снимет
+  // снимок состояния уходящей вкладки уже с новым значением.
+  var prevTab = (window.WorkspaceTabs && WorkspaceTabs.activeId)
+    ? WorkspaceTabs.getTab(WorkspaceTabs.activeId) : null;
+  var prevBmTab = BM_STATE.tab;
+
   if(initialTab){
     BM_STATE.tab = initialTab;
   }
@@ -11677,6 +11710,9 @@ function openBenchmarks(initialTab){
       state: { appView: 'benchmarks', bmTab: curTab, unit: null },
       run: function(){ openBenchmarks(curTab); }
     });
+    if(prevTab && prevTab.state && prevTab.id !== WorkspaceTabs.activeId){
+      prevTab.state.bmTab = prevBmTab;
+    }
     return;
   }
   if(window.WorkspaceTabs && WorkspaceTabs.updateActiveTitle){
