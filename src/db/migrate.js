@@ -526,6 +526,76 @@ async function migrate() {
   }
 
   console.log('🔧 Миграция: таблицы бенчмаркинга и базовые источники инициализированы');
+
+  // Перестройка грейдирования на индустриальные блоки и коллегиальную слепую
+  // оценку (см. docs/superpowers/specs — план от 2026-09-12). Старая
+  // job_evaluations (по подразделению) не трогается, новая модель ведётся
+  // параллельно в grading_committee_* до переноса данных.
+  await run(`CREATE TABLE IF NOT EXISTS grading_blocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    label TEXT NOT NULL,
+    sort INTEGER DEFAULT 100,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS grading_block_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL REFERENCES grading_blocks(key),
+    unit TEXT NOT NULL,
+    position TEXT NOT NULL,
+    UNIQUE(unit, position)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_grading_block_assignments_block ON grading_block_assignments(block_key)');
+
+  // Формулировки анкеты по блоку — тот же принцип, что и разрез по dir, но
+  // ключ группировки не 26 направлений оргструктуры, а укрупнённый блок.
+  await ensureColumn('grading_factors', 'block', "TEXT NOT NULL DEFAULT ''");
+
+  await run(`CREATE TABLE IF NOT EXISTS grading_committee_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL REFERENCES grading_blocks(key),
+    user_login TEXT NOT NULL,
+    UNIQUE(block_key, user_login)
+  )`);
+
+  // Слепая индивидуальная оценка эксперта комиссии по паре «должность+блок».
+  // Уникальность гарантирует, что у одного эксперта одна оценка на пару —
+  // повторная отправка обновляет её, а не плодит копию.
+  await run(`CREATE TABLE IF NOT EXISTS grading_committee_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    evaluator_login TEXT NOT NULL,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER CHECK(factor_4 IS NULL OR factor_4 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    notes TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title, evaluator_login)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_grading_committee_eval_pair ON grading_committee_evaluations(block_key, job_title)');
+
+  // Итог по должности в блоке — среднее из сданных индивидуальных оценок;
+  // пересчитывается сервисом, когда сдают все члены комиссии или админ
+  // закрывает раунд. evaluators_done/total — для прогресса в UI без раскрытия
+  // самих баллов до завершения.
+  await run(`CREATE TABLE IF NOT EXISTS grading_block_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    avg_score REAL NOT NULL,
+    grade_level INTEGER NOT NULL,
+    evaluators_done INTEGER NOT NULL,
+    evaluators_total INTEGER NOT NULL,
+    finalized_at DATETIME,
+    UNIQUE(block_key, job_title)
+  )`);
+
+  console.log('🔧 Миграция: схема грейдирования по индустриальным блокам и комиссии создана');
 }
 
 module.exports = { migrate, ensureColumn };
