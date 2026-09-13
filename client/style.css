@@ -10716,6 +10716,32 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   font-size: 12px;
   margin-bottom: 8px;
 }
+/* Свёрнутый (уже отвеченный) фактор — компактная строка с итогом выбора
+   вместо полного списка вариантов, см. drawGradeForm(). */
+.gr-factor--done { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.gr-factor--done .gr-factor-hd { flex: 1 1 auto; margin: 0; min-width: 200px; }
+.gr-factor-chosen {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 260px;
+  font-size: 13px;
+  color: var(--text);
+}
+.gr-score--sm {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  background: var(--accent-soft);
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+.gr-factor-edit { flex: none; min-height: 30px; padding: 0 12px; font-size: 12.5px; }
 .gr-hint-warn {
   color: var(--warn);
   display: inline-flex;

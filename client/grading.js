@@ -513,7 +513,8 @@ function openGradeForm(rowIndex){
     notes: source.notes || '',
     // Для предупреждения «выбранная группа отличается от подсказки» ниже —
     // само значение подсказки не меняется, даже если группу потом переключат.
-    suggestedGroup: row.suggested_group || null
+    suggestedGroup: row.suggested_group || null,
+    editingFactor: null
   };
   drawGradePositions();
   drawGradeForm();
@@ -568,17 +569,51 @@ function drawGradeForm(){
         esc((grGroup(f.suggestedGroup) || {}).label || f.suggestedGroup)+'». Если это осознанно — продолжайте, иначе переключите группу выше.</div>'
       : '');
 
+  // Раньше все факторы разворачивались сразу — 3-4 вопроса по 4-6 вариантов
+  // полным текстом каждый превращали анкету в стену текста, в которой легко
+  // потеряться (жалоба: «слишком много текста и информации, сложно
+  // сориентироваться»). Теперь открыт только ОДИН фактор за раз: первый
+  // неотвеченный, либо тот, что явно открыли на редактирование кликом
+  // «Изменить». Остальные, уже отвеченные, сворачиваются в одну строку
+  // с кратким итогом выбора — их текст никуда не делся, просто не отвлекает,
+  // пока не понадобится изменить ответ.
+  var firstUnanswered = -1;
+  for(var fi = 0; fi < factors.length; fi++){
+    if(!Number(f.answers[fi])){ firstUnanswered = fi; break; }
+  }
+  var openFactor = (f.editingFactor != null) ? f.editingFactor : firstUnanswered;
+
   factors.forEach(function(fac, i){
     var w = group.weights[i];
-    h += '<div class="gr-factor">'+
-      '<div class="gr-factor-hd"><b>'+esc(fac.code || ('Фактор ' + (i + 1)))+'. '+esc(fac.title)+'</b>'+
+    var val = Number(f.answers[i]) || 0;
+    var isOpen = (openFactor === -1) || (openFactor === i);
+    var title = '<b>'+esc(fac.code || ('Фактор ' + (i + 1)))+'. '+esc(fac.title)+'</b>';
+
+    if(!isOpen){
+      // Свёрнутая строка — либо уже отвечен (короткий итог выбора), либо
+      // ещё ждёт своей очереди (открывается по клику, не обязательно по порядку).
+      var chosen = val ? ((fac.options || [])[val - 1] || '') : '';
+      h += '<div class="gr-factor gr-factor--done" data-f="'+i+'">'+
+        '<div class="gr-factor-hd">'+title+
+          '<span class="badge">вес '+Math.round(w * 100)+'%</span>'+
+        '</div>'+
+        (val
+          ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
+          : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
+        '<button type="button" class="btn-line gr-factor-edit" data-f="'+i+'">'+(val ? 'Изменить' : 'Ответить')+'</button>'+
+      '</div>';
+      return;
+    }
+
+    h += '<div class="gr-factor gr-factor--open">'+
+      '<div class="gr-factor-hd">'+title+
         '<span class="badge">вес '+Math.round(w * 100)+'%</span></div>'+
       (fac.help ? '<div class="muted gr-help">'+esc(fac.help)+'</div>' : '')+
       '<div class="gr-opts">'+
         (fac.options || []).map(function(o, oi){
-          var val = oi + 1;
-          return '<button class="gr-opt'+(Number(f.answers[i]) === val ? ' on' : '')+'" data-f="'+i+'" data-v="'+val+'">'+
-            '<span class="gr-score">'+val+'</span><span>'+esc(o)+'</span></button>';
+          var ov = oi + 1;
+          return '<button class="gr-opt'+(val === ov ? ' on' : '')+'" data-f="'+i+'" data-v="'+ov+'">'+
+            '<span class="gr-score">'+ov+'</span><span>'+esc(o)+'</span></button>';
         }).join('')+
       '</div>'+
     '</div>';
@@ -618,6 +653,7 @@ function drawGradeForm(){
       // балл по ответам на другие вопросы.
       GR.form.group = key;
       GR.form.answers = [0, 0, 0, 0];
+      GR.form.editingFactor = null;
       drawGradeForm();
     };
   });
@@ -625,6 +661,15 @@ function drawGradeForm(){
     btn.onclick = function(){
       GR.form.notes = $('grNotes') ? $('grNotes').value : GR.form.notes;
       GR.form.answers[parseInt(btn.getAttribute('data-f'), 10)] = parseInt(btn.getAttribute('data-v'), 10);
+      // Ответ выбран — сворачиваем этот фактор и переходим к следующему
+      // неотвеченному сами, а не оставляем всё развёрнутым.
+      GR.form.editingFactor = null;
+      drawGradeForm();
+    };
+  });
+  [].forEach.call(box.querySelectorAll('.gr-factor-edit'), function(btn){
+    btn.onclick = function(){
+      GR.form.editingFactor = parseInt(btn.getAttribute('data-f'), 10);
       drawGradeForm();
     };
   });
