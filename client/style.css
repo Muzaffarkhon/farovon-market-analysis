@@ -3502,6 +3502,18 @@ label.lbl {
   justify-content: flex-start;
   text-align: left;
 }
+/* Подпись пункта должна сжиматься и обрезаться многоточием раньше, чем
+   бейдж «New»/счётчик (margin-left:auto) — без flex:1/min-width:0 на узких
+   экранах текст порой переносился на вторую строку, а бейдж, оставаясь по
+   центру всей высоты кнопки, наезжал на неё (тот же класс бага, что раньше
+   был у .rail-item — см. .rail-item .nav-badge-count чуть ниже по файлу). */
+.menu button span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Выпадающие списки категорий в меню навигации */
 .menu-cat {
