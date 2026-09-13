@@ -44,7 +44,9 @@ function canEditGrading(){
 // только тем, кто управляет блоками, а не всем, у кого просто grading:edit.
 function canManageGradingBlocks(){
   var u = (S.data && S.data.user) || {};
-  return u.role === 'admin' || hasCap('grading:blocks');
+  // Сброс оценки — необратимая для комиссии операция (удаляет чужие слепые
+  // заявки), поэтому только системный админ, а не любой с grading:blocks.
+  return u.role === 'admin';
 }
 function canSeeKeyRisks(){
   var u = (S.data && S.data.user) || {};

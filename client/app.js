@@ -324,7 +324,7 @@ function navModel(){
     // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
     // «Грейдинг» (см. grSubs выше) — это настройки грейдинга, а не общая
     // админка, держать их тут отдельной подписью было костылём.
-    { key:'support', atab:'support', label:'Чат поддержки', icon:'chat', cap:'support:manage' },
+    { key:'support', atab:'support', label:'Чат поддержки', icon:'chat', cap:'support:manage', badgeNew:true },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.53')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.53')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.53')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.53')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.54')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6014,8 +6014,8 @@ function drawAdminGradingCommittee(){
   var users = S.gbCommitteeUsers || [];
 
   var h = '<div class="gb-committee-hd">'+
-      '<b>Комиссия грейдирования</b>'+
-      '<span class="gb-committee-hint">Одна на все блоки — оценивают вслепую, независимо друг от друга</span>'+
+      '<b>Комиссия блока «'+esc(grBlockLabelAdmin(S.gbBlock))+'»</b>'+
+      '<span class="gb-committee-hint">Оценивают вслепую, независимо друг от друга — только эти люди смогут оценивать должности этого блока</span>'+
     '</div>'+
     (members.length
       ? '<div class="gb-committee-list">'+members.map(function(m){
@@ -6041,22 +6041,16 @@ function drawAdminGradingCommittee(){
 
   box.innerHTML = h;
 
-  // Комиссия одна на весь холдинг, не своя под каждый блок — добавление и
-  // исключение применяются сразу ко всем блокам, а не только к открытому
-  // сейчас. INSERT OR IGNORE / DELETE на сервере идемпотентны, поэтому
-  // параллельный вызов по всем блокам безопасен, даже если где-то запись
-  // уже была (или её не было).
-  function allBlockKeys(){
-    return (S.gbBlocks || []).filter(function(b){ return b.key !== 'unassigned'; }).map(function(b){ return b.key; });
-  }
-
+  // Комиссия — своя под каждый блок: добавление/исключение действует только
+  // на блок, открытый сейчас (S.gbBlock), а не на все сразу. Раньше один клик
+  // добавлял человека во все блоки разом — так нельзя было собрать комиссию
+  // из 2-3 конкретных людей под один блок, не зацепив остальные.
   [].forEach.call(box.querySelectorAll('.gb-member-x'), function(btn){
     btn.onclick = function(){
       var login = btn.getAttribute('data-login');
-      Promise.all(allBlockKeys().map(function(bk){
-        return call('apiAdminGradingCommitteeRemove', S.token, { block: bk, login: login });
-      })).then(function(){
-        toast('Исключён из комиссии', 'success');
+      call('apiAdminGradingCommitteeRemove', S.token, { block: S.gbBlock, login: login }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось исключить', 'error'); return; }
+        toast('Исключён из комиссии блока', 'success');
         loadAdminGradingCommittee();
         loadAdminGradingBlocks();
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
@@ -6068,15 +6062,9 @@ function drawAdminGradingCommittee(){
     addBtn.onclick = function(){
       var login = ($('gbAddLogin').value || '').trim();
       if(!login) return;
-      Promise.all(allBlockKeys().map(function(bk){
-        return call('apiAdminGradingCommitteeAdd', S.token, { block: bk, login: login });
-      })).then(function(results){
-        var firstErr = results.filter(function(r){ return !r || !r.ok; })[0];
-        if(firstErr && results.every(function(r){ return !r || !r.ok; })){
-          toast((firstErr && firstErr.error) || 'Не удалось добавить', 'error');
-          return;
-        }
-        toast('Добавлен в комиссию', 'success');
+      call('apiAdminGradingCommitteeAdd', S.token, { block: S.gbBlock, login: login }).then(function(r){
+        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
+        toast('Добавлен в комиссию блока', 'success');
         $('gbAddLogin').value = '';
         loadAdminGradingCommittee();
         loadAdminGradingBlocks();
@@ -6373,7 +6361,11 @@ function drawAdminSupportThread(){
       call('apiAdminSupportClose', S.token, { thread_id: thread.id }).then(function(r){
         if(!r || !r.ok){ toast((r && r.error) || 'Не удалось закрыть', 'error'); return; }
         toast('Диалог закрыт', 'success');
-        loadAdminSupportThread(thread.id);
+        S.supOpenThread = null;
+        S.supCurThread = null;
+        S.supCurMessages = null;
+        loadAdminSupportThreads();
+        refreshSupportUnreadBadge();
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
     });
   };
