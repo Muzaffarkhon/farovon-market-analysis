@@ -87,6 +87,10 @@ function normalizePhone(raw) {
 // этот текст обычным сообщением при нажатии, ловим его в processTelegramUpdate
 // той же обработкой, что и инлайн-«support:start» (см. openSupportThreadForGuest).
 const SUPPORT_TEXT_LABEL = '💬 Написать администратору';
+// Кнопка самообслуживания рядом с готовыми вопросами в чате поддержки —
+// показывает вопрос+ответ сразу, без ожидания администратора, для тех
+// guest-фраз, у которых в админке заполнен «Ответ».
+const FAQ_LABEL = '❓ Частые вопросы';
 
 /** Клавиатура «поделиться номером» — request_contact сам просит у Telegram
  *  разрешение и подставляет ровно тот номер, что привязан к аккаунту
@@ -387,12 +391,13 @@ async function openSupportThreadForGuest(chatId) {
   // отправляет текст кнопки обычным сообщением, дальше идёт как любое
   // «in»-сообщение треда, без отдельной обработки. Список редактируется в
   // самой админке (support_quick_replies, audience='guest'), не хардкод.
+  // Кнопка «Частые вопросы» — отдельной строкой снизу: у неё особая
+  // обработка (показывает готовые ответы сама, не уходит человеку в тред).
   const questions = await supportChat.listQuickReplies('guest');
-  const questionsKeyboard = questions.length ? {
-    reply_markup: {
-      keyboard: questions.map(q => [{ text: q.text }]),
-      resize_keyboard: true
-    }
+  const rows = questions.map(q => [{ text: q.text }]);
+  if (questions.some(q => q.answer)) rows.push([{ text: FAQ_LABEL }]);
+  const questionsKeyboard = rows.length ? {
+    reply_markup: { keyboard: rows, resize_keyboard: true }
   } : undefined;
 
   await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.', questionsKeyboard);
@@ -500,6 +505,19 @@ async function processTelegramUpdate(body) {
   // видна ещё до попытки распознать номер) — не текст в переписку, а
   // открытие/переоткрытие треда, как и её инлайн-версия (support:start).
   if (text === SUPPORT_TEXT_LABEL) { await openSupportThreadForGuest(chatId); return; }
+
+  // «Частые вопросы» — самообслуживание: показываем вопрос+ответ сразу, не
+  // отправляем нажатие в тред и не ждём администратора. Клавиатура при этом
+  // не трогается — остаётся тот же набор кнопок, что был.
+  if (text === FAQ_LABEL) {
+    const all = await supportChat.listQuickReplies('guest');
+    const answered = all.filter(q => q.answer);
+    const faqText = answered.length
+      ? answered.map(q => `❔ <b>${escHtml(q.text)}</b>\n${escHtml(q.answer)}`).join('\n\n')
+      : 'Пока нет готовых ответов — опишите вопрос, ответит администратор.';
+    await sendTelegramMessage(chatId, faqText, { parse_mode: 'HTML' });
+    return;
+  }
 
   // Команды разбираются и при открытом треде поддержки (вдруг человек
   // вспомнил код от HR) — только обычный текст без «/» уходит в переписку.

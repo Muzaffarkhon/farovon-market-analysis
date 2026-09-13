@@ -10925,8 +10925,19 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
-.sup-quick-edit-row { display: flex; gap: 5px; align-items: center; }
+.sup-quick-edit-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .sup-quick-edit-row input { flex: 1 1 auto; min-height: 30px; font-size: 12.5px; padding: 0 8px; }
+/* Ответ FAQ — во всю ширину строки (второй "ряд" внутри того же flex-wrap),
+   а не втиснут рядом с полем вопроса и крестиком удаления. */
+.sup-quick-edit-answer {
+  flex: 1 1 100%;
+  min-height: 44px;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  font-family: inherit;
+  resize: vertical;
+  white-space: normal;
+}
 .sup-quick-del {
   flex: none;
   min-height: auto;

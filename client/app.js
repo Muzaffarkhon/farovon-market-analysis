@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.57')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.58')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.57')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.58')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.57')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.58')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.57')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.58')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6511,12 +6511,18 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
         '<div class="sup-quick-edit">'+
           rows.map(function(r){
             return '<div class="sup-quick-edit-row" data-id="'+r.id+'">'+
-              '<input value="'+esc(r.text)+'" maxlength="500">'+
+              '<input class="sup-quick-edit-text" value="'+esc(r.text)+'" maxlength="500" placeholder="Вопрос">'+
+              (audience === 'guest'
+                ? '<textarea class="sup-quick-edit-answer" maxlength="2000" placeholder="Ответ для кнопки «Частые вопросы» (необязательно — без ответа кнопка просто уходит в тред)">'+esc(r.answer || '')+'</textarea>'
+                : '')+
               '<button type="button" class="btn-icon sup-quick-del" aria-label="Удалить">'+icBare('trash', 14)+'</button>'+
             '</div>';
           }).join('')+
           '<div class="sup-quick-edit-row sup-quick-add">'+
-            '<input placeholder="Новая фраза…" maxlength="500">'+
+            '<input class="sup-quick-edit-text" placeholder="Новая фраза…" maxlength="500">'+
+            (audience === 'guest'
+              ? '<textarea class="sup-quick-edit-answer" maxlength="2000" placeholder="Ответ для кнопки «Частые вопросы» (необязательно)"></textarea>'
+              : '')+
             '<button type="button" class="btn-line">Добавить</button>'+
           '</div>'+
         '</div>'
@@ -6546,15 +6552,18 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
 
     [].forEach.call(box.querySelectorAll('.sup-quick-edit-row[data-id]'), function(rowEl){
       var id = +rowEl.getAttribute('data-id');
-      var input = rowEl.querySelector('input');
-      input.onchange = function(){
+      var input = rowEl.querySelector('.sup-quick-edit-text');
+      var answerEl = rowEl.querySelector('.sup-quick-edit-answer');
+      var saveRow = function(){
         var text = input.value.trim();
         if(!text) return;
-        call('apiAdminSupportSaveQuickReply', S.token, { id: id, text: text, audience: audience }).then(function(r){
+        call('apiAdminSupportSaveQuickReply', S.token, { id: id, text: text, audience: audience, answer: answerEl ? answerEl.value.trim() : '' }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось сохранить', 'error'); return; }
           reload();
         }).catch(function(){ toast('Нет связи с сервером', 'error'); });
       };
+      input.onchange = saveRow;
+      if(answerEl) answerEl.onchange = saveRow;
       rowEl.querySelector('.sup-quick-del').onclick = function(){
         call('apiAdminSupportDeleteQuickReply', S.token, { id: id }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось удалить', 'error'); return; }
@@ -6565,11 +6574,12 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
 
     var addRow = box.querySelector('.sup-quick-add');
     if(addRow){
-      var addInput = addRow.querySelector('input');
+      var addInput = addRow.querySelector('.sup-quick-edit-text');
+      var addAnswer = addRow.querySelector('.sup-quick-edit-answer');
       var doAdd = function(){
         var text = (addInput.value || '').trim();
         if(!text) return;
-        call('apiAdminSupportSaveQuickReply', S.token, { text: text, audience: audience }).then(function(r){
+        call('apiAdminSupportSaveQuickReply', S.token, { text: text, audience: audience, answer: addAnswer ? addAnswer.value.trim() : '' }).then(function(r){
           if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
           reload();
         }).catch(function(){ toast('Нет связи с сервером', 'error'); });

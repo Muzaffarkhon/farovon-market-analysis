@@ -653,6 +653,11 @@ async function seedSupportChat() {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   await ensureColumn('support_quick_replies', 'audience', "TEXT NOT NULL DEFAULT 'admin'");
+  // answer — только для audience='guest': готовый ответ на частый вопрос,
+  // чтобы бот мог показать его сам по кнопке «Частые вопросы», не дожидаясь
+  // администратора. У admin-фраз всегда NULL — они вставляются в поле ответа,
+  // а не показываются гостю напрямую.
+  await ensureColumn('support_quick_replies', 'answer', 'TEXT');
 
   // Сид проверяем ОТДЕЛЬНО по каждой аудитории — иначе после того, как
   // admin-фразы уже есть (заведены раньше, до появления audience='guest'),
@@ -673,14 +678,19 @@ async function seedSupportChat() {
   }
   const guestCount = await queryOne("SELECT COUNT(*) AS n FROM support_quick_replies WHERE audience = 'guest'");
   if (!guestCount || !guestCount.n) {
+    // answer=null у «Другой вопрос» — намеренно: это не FAQ-пункт, а способ
+    // сразу написать администратору, когда готового ответа нет.
     const guestDefaults = [
-      'Не могу найти свой номер в приложении',
-      'Забыл логин или пароль',
-      'Хочу отвязать Telegram от аккаунта',
-      'Другой вопрос'
+      { text: 'Не могу найти свой номер в приложении',
+        answer: 'Номер телефона в карточку сотрудника вносит администратор. Если его там нет или он устарел — напишите об этом здесь, укажем корректный номер.' },
+      { text: 'Забыл логин или пароль',
+        answer: 'Если Telegram уже привязан к вашему аккаунту, наберите здесь команду /login — бот пришлёт логин и временный пароль.' },
+      { text: 'Хочу отвязать Telegram от аккаунта',
+        answer: 'Отвязать Telegram можно в самом приложении: Профиль → Telegram → «Отвязать». Если входа в приложение уже нет — напишите здесь, поможет администратор.' },
+      { text: 'Другой вопрос', answer: null }
     ];
     for (let i = 0; i < guestDefaults.length; i++) {
-      await run('INSERT INTO support_quick_replies (text, audience, sort_order) VALUES (?, \'guest\', ?)', [guestDefaults[i], i]);
+      await run('INSERT INTO support_quick_replies (text, answer, audience, sort_order) VALUES (?, ?, \'guest\', ?)', [guestDefaults[i].text, guestDefaults[i].answer, i]);
     }
   }
 

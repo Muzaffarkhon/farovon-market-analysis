@@ -157,10 +157,12 @@ async function saveQuickReply(req, res) {
     const id = req.body && req.body.id ? parseInt(req.body.id, 10) : null;
     const text = String((req.body && req.body.text) || '').trim();
     const audience = normalizeAudience(req.body && req.body.audience);
+    const answer = String((req.body && req.body.answer) || '').trim();
     if (!text) return fail(res, 'Введите текст фразы');
     if (text.length > 500) return fail(res, 'Слишком длинная фраза');
+    if (answer.length > 2000) return fail(res, 'Слишком длинный ответ');
 
-    const row = await supportChat.saveQuickReply(id, text, audience);
+    const row = await supportChat.saveQuickReply(id, text, audience, audience === 'guest' ? answer : null);
     return res.json({ ok: true, id: row.id });
   } catch (err) {
     return handleError(res, err, 'supportSaveQuickReply');
