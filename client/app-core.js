@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.56';
+var APP_VERSION = window.APP_VERSION || 'v2.5.57';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1871,6 +1871,41 @@ function humanError(e){
   return s;
 }
 
+// ── Индикатор «идёт действие» ──────────────────────────────────────────────
+// Раньше нажатие кнопки не давало никакой обратной связи, пока не придёт
+// ответ сервера (0.2-1.5с) — человек не понимал, сработал ли клик, и часто
+// жал повторно. Вместо того чтобы вручную городить disabled/спиннер в каждом
+// из сотен обработчиков кнопок, вешаем один индикатор на сетевой уровень:
+// каждый POST/PUT (то есть любое действие, которое что-то меняет — GET-чтения
+// уже покрыты скелетон-заглушками, см. «СКЕЛЕТОНЫ ЗАГРУЗКИ» ниже) на время
+// запроса показывает крутилку по центру экрана, зафиксированную относительно
+// окна (не относительно прокрутки страницы). Небольшая задержка перед показом
+// не даёт крутилке мелькать на мгновенных ответах.
+var busyCount = 0, busyShowTimer = null, busyEl = null;
+function busyStart(){
+  busyCount++;
+  if(busyCount === 1 && !busyShowTimer){
+    busyShowTimer = setTimeout(function(){
+      busyShowTimer = null;
+      if(busyCount <= 0) return;
+      if(!busyEl){
+        busyEl = document.createElement('div');
+        busyEl.className = 'global-busy';
+        busyEl.innerHTML = '<span class="global-busy-spin"></span>';
+        document.body.appendChild(busyEl);
+      }
+      busyEl.classList.add('on');
+    }, 180);
+  }
+}
+function busyEnd(){
+  busyCount = Math.max(0, busyCount - 1);
+  if(busyCount === 0){
+    if(busyShowTimer){ clearTimeout(busyShowTimer); busyShowTimer = null; }
+    if(busyEl) busyEl.classList.remove('on');
+  }
+}
+
 function fetchJson(url, opts){
   opts = opts || {};
   var headers = { 'Content-Type': 'application/json' };
@@ -1885,9 +1920,11 @@ function fetchJson(url, opts){
     // работает запасной путь: opts.token в заголовке Authorization.
     credentials: 'include'
   };
-  if(opts.body && (conf.method === 'POST' || conf.method === 'PUT')) {
+  var isMutating = (conf.method === 'POST' || conf.method === 'PUT');
+  if(opts.body && isMutating) {
     conf.body = JSON.stringify(opts.body);
   }
+  if(isMutating) busyStart();
   return fetch(url, conf).then(function(res){
     return res.json().then(function(data){
       if(!res.ok && data){
@@ -1898,6 +1935,8 @@ function fetchJson(url, opts){
     }).catch(function(){
       return { ok: false, error: 'Ошибка ответа сервера' };
     });
+  }).finally(function(){
+    if(isMutating) busyEnd();
   });
 }
 

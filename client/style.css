@@ -7500,6 +7500,35 @@ html.compact {
   justify-content: flex-end;
 }
 
+/* ─── Индикатор «идёт действие» — крутилка по центру окна на время любого
+   POST/PUT-запроса (см. busyStart/busyEnd в app-core.js). Зафиксирован
+   относительно окна, а не страницы — виден одинаково при любой прокрутке,
+   не блокирует клики (нажатая кнопка сама может быть уже задизейблена
+   отдельно, но крутилка сама по себе не мешает интерфейсу под собой). */
+.global-busy {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100010;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.global-busy.on { opacity: 1; }
+.global-busy-spin {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent, #2563eb);
+  background: var(--card);
+  box-shadow: 0 4px 18px rgba(0,0,0,.18);
+  animation: global-busy-rot .7s linear infinite;
+}
+@keyframes global-busy-rot { to { transform: rotate(360deg); } }
+
 /* ─── Всплывающие уведомления (Toast Stack - в самом низу справа) ─── */
 .toast-stack {
   position: fixed !important;
