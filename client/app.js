@@ -324,7 +324,11 @@ function navModel(){
     // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
     // «Грейдинг» (см. grSubs выше) — это настройки грейдинга, а не общая
     // админка, держать их тут отдельной подписью было костылём.
-    { key:'support', atab:'support', label:'Чат поддержки', icon:'chat', cap:'support:manage', badgeNew:true },
+    // Короче, чем «Чат поддержки» — с плашкой «New» полная подпись не
+    // помещалась в рельс/пункт меню и обрезалась многоточием сильнее, чем
+    // «Поддержка» (тот же приём, что и с «Грейдинг»/«Риски штата» выше).
+    // Внутри самого раздела (шапка, крошки) по-прежнему «Чат поддержки».
+    { key:'support', atab:'support', label:'Поддержка', icon:'chat', cap:'support:manage', badgeNew:true },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
@@ -494,7 +498,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.63')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.64')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +533,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.63')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.64')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +593,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.63')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.64')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +623,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.63')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.64')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
