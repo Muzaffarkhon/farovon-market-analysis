@@ -717,7 +717,7 @@ body.has-bar .wrap {
   .nav-badge-new {
     flex: none;
     margin-left: auto;
-    color: #dc2626;
+    color: #dc2626 !important;
     font-size: 11px;
     font-weight: 700;
     font-style: italic;
@@ -725,8 +725,11 @@ body.has-bar .wrap {
     animation: nav-badge-blink 1.2s ease-in-out infinite;
   }
   @keyframes nav-badge-blink {
+    /* Раньше проседало до 0.35 — на маленьком курсивном тексте красный на
+       таком затемнении читается почти чёрным (особенно на сжатом
+       скриншоте). Не гасим ниже половины, мигание всё равно заметно. */
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
+    50% { opacity: 0.55; }
   }
   @media (prefers-reduced-motion: reduce) {
     .nav-badge-new { animation: none; }
@@ -5619,6 +5622,14 @@ label.lbl {
   margin-top: 2px;
 }
 
+.rcard-bar {
+  margin-top: 8px;
+}
+.rcard-bar .rbar {
+  min-width: 0;
+  width: 100%;
+}
+
 .rcard.is-warn {
   border-color: var(--warn);
   background: var(--warn-soft);
@@ -10443,6 +10454,16 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   flex: 1;
   min-width: 160px;
   width: auto;
+}
+/* «Пройти обучение по интерфейсу» длиннее, чем помещается в узкую половину
+   строки на телефоне — .btn-line общим правилом запрещает перенос текста
+   (white-space: nowrap), и подпись вылезала под соседнюю кнопку «Понятно»,
+   выглядя обрезанной. Здесь — можно и нужно перенести на две строки. */
+.howto-acts .btn-line {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  padding: 8px 12px;
 }
 .onboard-hide { width: auto; }
 
