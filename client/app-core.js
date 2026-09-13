@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.60';
+var APP_VERSION = window.APP_VERSION || 'v2.5.61';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1800,6 +1800,7 @@ var API_ROUTES = {
   apiGradingEvaluate: function(args){ return fetchJson('/api/grading/evaluate', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingStats: function(args){ return fetchJson('/api/grading/stats', { method:'GET', token:args[0] }); },
   apiKeyRiskList: function(args){ return fetchJson('/api/key-personnel/list' + (args[1] ? '?unit=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
+  apiKeyRiskUnitEmployees: function(args){ return fetchJson('/api/key-personnel/unit-employees?unit=' + encodeURIComponent(args[1] || ''), { method:'GET', token:args[0] }); },
   apiKeyRiskEvaluate: function(args){ return fetchJson('/api/key-personnel/evaluate', { method:'POST', token:args[0], body:args[1] }); },
   apiKeyRiskHeatmap: function(args){ return fetchJson('/api/key-personnel/heatmap', { method:'GET', token:args[0] }); },
   apiGradingFactors: function(args){ return fetchJson('/api/grading/factors' + (args[1] ? '?dir=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },

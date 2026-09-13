@@ -26,7 +26,8 @@ var GR = {
   form: null,             // открытая анкета оценки должности
   riskForm: null,         // открытая анкета риска
   risks: [],
-  heat: []
+  heat: [],
+  riskUnitEmployees: {}   // unit -> [{fio, position}], кэш для анкеты незаменимости
 };
 
 // ─── Доступ ───
@@ -857,6 +858,17 @@ function drawRiskList(){
   if($('krNew')) $('krNew').onclick = openRiskForm;
 }
 
+function loadRiskUnitEmployees(unit){
+  if(!unit || GR.riskUnitEmployees[unit]) return;
+  call('apiKeyRiskUnitEmployees', S.token, unit).then(function(r){
+    GR.riskUnitEmployees[unit] = (r && r.ok) ? (r.rows || []) : [];
+    if(GR.riskForm && GR.riskForm.unit === unit) drawRiskForm();
+  }).catch(function(){
+    GR.riskUnitEmployees[unit] = [];
+    if(GR.riskForm && GR.riskForm.unit === unit) drawRiskForm();
+  });
+}
+
 function openRiskForm(){
   var units = grUnits();
   if(!units.length){
@@ -893,23 +905,34 @@ function drawRiskForm(){
     if(!level) level = levels[levels.length - 1];
   }
 
-  var positions = (S.data && S.data.positionsByUnit && S.data.positionsByUnit[f.unit]) || [];
+  // ФИО — выпадающий список реальных учёток этого подразделения, а не
+  // свободный текст: должность подставляется из карточки сотрудника (админка
+  // → Пользователи → «Должность») сама, вручную её больше не выбирают —
+  // раньше два независимых поля могли разойтись (не тот человек с не той
+  // должностью).
+  var employees = GR.riskUnitEmployees[f.unit];
+  var employeesLoaded = Array.isArray(employees);
+  var fioOptions = employeesLoaded ? employees : [];
 
   var h = '<div class="card gr-form">'+
     '<div class="gr-form-hd"><b>Анкета незаменимости</b><button class="btn-line kr-close">Закрыть</button></div>'+
     '<label class="lbl">Подразделение</label>'+
     grUnitPickerHtml('krUnit', f.unit)+
     '<label class="lbl">ФИО сотрудника</label>'+
-    '<input id="krFio" value="'+esc(f.fio)+'" maxlength="300" placeholder="Например: Каримов Дилшод">'+
+    (!f.unit
+      ? '<div class="muted" style="padding:8px 0">Сначала выберите подразделение</div>'
+      : !employeesLoaded
+      ? '<div class="muted" style="padding:8px 0">Загрузка списка сотрудников…</div>'
+      : fioOptions.length
+        ? '<select id="krFio"><option value="">— выберите —</option>'+
+            fioOptions.map(function(p){
+              return '<option value="'+esc(p.fio)+'"'+(p.fio === f.fio ? ' selected' : '')+'>'+esc(p.fio)+
+                (p.position ? '' : ' (нет должности в карточке)')+'</option>';
+            }).join('')+
+          '</select>'
+        : '<div class="muted" style="padding:8px 0">В этом подразделении нет сотрудников с учётной записью в системе — заведите её в «Пользователи», прежде чем оценивать риск.</div>')+
     '<label class="lbl">Должность</label>'+
-    (positions.length
-      ? '<select id="krJob"><option value="">— выберите —</option>'+
-          positions.map(function(p){
-            var name = typeof p === 'string' ? p : (p.position || p.name || '');
-            return '<option value="'+esc(name)+'"'+(name === f.jobTitle ? ' selected' : '')+'>'+esc(name)+'</option>';
-          }).join('')+
-        '</select>'
-      : '<input id="krJob" value="'+esc(f.jobTitle)+'" maxlength="300">');
+    '<input id="krJob" value="'+esc(f.jobTitle)+'" readonly disabled placeholder="Подставится при выборе ФИО" style="opacity:.75">';
 
   questions.forEach(function(q, i){
     h += '<div class="gr-factor">'+
@@ -939,21 +962,35 @@ function drawRiskForm(){
 
   box.innerHTML = h;
 
+  if(!employeesLoaded) loadRiskUnitEmployees(f.unit);
+
   // Подразделение хранится в f.unit: поле поиска по ходу набора показывает
-  // запрос, а не выбранное значение, поэтому отсюда его не читаем.
+  // запрос, а не выбранное значение, поэтому отсюда его не читаем. ФИО и
+  // должность больше не читаем руками — ФИО меняется только через onchange
+  // выпадающего списка (который сам обновляет f.fio/f.jobTitle), должность
+  // вообще не редактируется.
   function pull(){
-    f.fio = $('krFio').value;
-    f.jobTitle = $('krJob').value;
     f.plan = $('krPlan').value;
   }
 
   box.querySelector('.kr-close').onclick = function(){ GR.riskForm = null; box.innerHTML = ''; };
+  var fioSelect = $('krFio');
+  if(fioSelect){
+    fioSelect.onchange = function(){
+      var picked = fioOptions.filter(function(p){ return p.fio === fioSelect.value; })[0];
+      f.fio = fioSelect.value;
+      f.jobTitle = picked ? (picked.position || '') : '';
+      pull();
+      drawRiskForm();
+    };
+  }
   grBindUnitPicker('krUnit', function(unit){
     pull();
     f.unit = unit;
     store.set(LS_GR_UNIT, unit);
-    // Должности подставляются из штатки выбранного подразделения — прежняя
-    // могла к нему не относиться.
+    // Сотрудник и должность подставляются из штатки выбранного подразделения —
+    // прежний выбор мог к нему не относиться.
+    f.fio = '';
     f.jobTitle = '';
     drawRiskForm();
   });

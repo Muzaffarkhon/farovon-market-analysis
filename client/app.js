@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.60')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.61')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.60')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.61')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.60')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.61')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.60')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.61')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6997,8 +6997,17 @@ function openUserModal(login){
         '<select id="umRole" '+(adminFieldsLocked?'disabled style="opacity:.6;cursor:not-allowed"':'')+'>'+ roleOptionsHtml(u ? u.role : 'user') +'</select>'+
       '</div>'+
     '</div>'+
-    '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
-    '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+    '<div class="field-grid">'+
+      '<div>'+
+        '<label class="lbl">Телефон (9 цифр для Telegram)</label>'+
+        '<input id="umPhone" value="'+esc(u?u.phone:'')+'" placeholder="992900000000">'+
+      '</div>'+
+      '<div>'+
+        '<label class="lbl">Должность</label>'+
+        '<input id="umPosition" value="'+esc(u?(u.position||''):'')+'" placeholder="Например: Бухгалтер" maxlength="200">'+
+      '</div>'+
+    '</div>'+
+    '<p class="step-hint" style="margin:2px 0 0">Должность подставляется автоматически при выборе этого человека в анкете незаменимости («Риски штата»).</p>'+
     (isEdit ? '' :
       '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
       '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
@@ -7058,6 +7067,7 @@ function openUserModal(login){
       el.querySelector('#umLogin').value.trim() !== (u?u.login:'') ||
       el.querySelector('#umRole').value !== (u?u.role:'user') ||
       el.querySelector('#umPhone').value.trim() !== (u?u.phone:'') ||
+      el.querySelector('#umPosition').value.trim() !== (u?(u.position||''):'') ||
       el.querySelector('#umActive').checked !== (u?!!u.active:true) ||
       curUnits !== origUnits;
   };
@@ -7075,6 +7085,7 @@ function openUserModal(login){
       login: el.querySelector('#umLogin').value.trim(),
       role: el.querySelector('#umRole').value,
       phone: el.querySelector('#umPhone').value.trim(),
+      position: el.querySelector('#umPosition').value.trim(),
       active: el.querySelector('#umActive').checked,
       units: assignedUnits
     };

@@ -770,6 +770,38 @@ async function listRisks(req, res) {
   }
 }
 
+/**
+ * Сотрудники подразделения — для выпадающего списка «ФИО сотрудника» в
+ * анкете незаменимости (вместо свободного текста). Список только из
+ * заведённых в системе учёток (users.units), должность подставляется из
+ * users.position — у части сотрудников может быть пусто, если её ещё не
+ * внесли в карточку.
+ */
+async function unitEmployees(req, res) {
+  try {
+    const unit = readText(req.query.unit, 300);
+    if (!unit) return fail(res, 'Укажите подразделение');
+    if (!canUseUnit(req.user, unit)) {
+      return fail(res, 'Это подразделение вам не назначено', 403);
+    }
+
+    // units хранится строкой "Юнит1; Юнит2" — точное совпадение элемента
+    // списка проверяем в JS (LIKE по подстроке подхватил бы «Отдел продаж»
+    // при поиске «Отдел»).
+    const rows = await queryAll(
+      "SELECT fio, position, units FROM users WHERE archived_at IS NULL AND active = 1 AND units IS NOT NULL AND units <> ''"
+    );
+    const matched = rows.filter(u => u.units.split(';').map(s => s.trim()).indexOf(unit) >= 0);
+    return res.json({
+      ok: true,
+      rows: matched.map(u => ({ fio: u.fio, position: u.position || '' }))
+        .sort((a, b) => a.fio.localeCompare(b.fio, 'ru'))
+    });
+  } catch (err) {
+    return handleError(res, err, 'unitEmployees');
+  }
+}
+
 /** Анкета риска по сотруднику (повторная отправка обновляет прошлую). */
 async function evaluateRiskCard(req, res) {
   try {
@@ -882,6 +914,7 @@ module.exports = {
   forceFinalizeCommittee,
   resetEvaluation,
   listRisks,
+  unitEmployees,
   evaluateRiskCard,
   getHeatmap,
   // экспортируется для тестов границ видимости

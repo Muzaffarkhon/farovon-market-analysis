@@ -175,6 +175,7 @@ router.post('/grading/evaluate', requireCapability('grading:edit'), gradingContr
 router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), gradingController.getStats);
 
 router.get('/key-personnel/list', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.listRisks);
+router.get('/key-personnel/unit-employees', requireCapability('keyrisk:edit'), gradingController.unitEmployees);
 router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradingController.evaluateRiskCard);
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 

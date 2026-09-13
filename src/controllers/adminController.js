@@ -64,7 +64,7 @@ function makePassword() {
 // ─── Пользователи ───
 exports.getUsers = async (req, res) => {
   try {
-    const users = await queryAll("SELECT id, login, fio, role, phone, telegram_chat_id, units, active, last_login_at FROM users WHERE archived_at IS NULL ORDER BY fio ASC");
+    const users = await queryAll("SELECT id, login, fio, role, phone, position, telegram_chat_id, units, active, last_login_at FROM users WHERE archived_at IS NULL ORDER BY fio ASC");
 
     res.json({
       ok: true,
@@ -74,6 +74,7 @@ exports.getUsers = async (req, res) => {
         fio: u.fio,
         role: u.role,
         phone: u.phone || '',
+        position: u.position || '',
         units: u.units ? u.units.split(';').map(s => s.trim()).filter(Boolean) : [],
         active: !!u.active,
         lastIn: u.last_login_at || '',
@@ -153,7 +154,7 @@ exports.saveUser = async (req, res) => {
   // пользователь. Первичную выдачу и сброс делает Telegram-бот (/link → /login),
   // который присылает пароль в личку пользователю. Любое поле `password` в теле
   // запроса игнорируется намеренно.
-  const { fio, role, phone, active, units } = req.body;
+  const { fio, role, phone, active, units, position } = req.body;
   let { login } = req.body;
 
   if (!fio || !String(fio).trim()) {
@@ -194,6 +195,7 @@ exports.saveUser = async (req, res) => {
 
     const unitsStr = Array.isArray(units) ? units.join('; ') : (units || '');
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    const cleanPosition = String(position || '').trim().slice(0, 200);
 
     if (existing) {
       // Редактирование
@@ -238,9 +240,9 @@ exports.saveUser = async (req, res) => {
 
       await run(`
         UPDATE users
-        SET fio = ?, role = ?, phone = ?, active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
+        SET fio = ?, role = ?, phone = ?, position = ?, active = ?, units = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `, [String(fio).trim(), newRole, cleanPhone || null, active !== false ? 1 : 0, unitsStr, existing.id]);
+      `, [String(fio).trim(), newRole, cleanPhone || null, cleanPosition || null, active !== false ? 1 : 0, unitsStr, existing.id]);
 
       // Двусторонняя синхронизация: закреплённые подразделения пользователя с divisions.resp
       await syncUserUnitsWithDivisions(String(fio).trim(), existing.units, unitsStr, existing.fio);
@@ -268,9 +270,9 @@ exports.saveUser = async (req, res) => {
       const hash = hashPassword(makePassword());
 
       await run(`
-        INSERT INTO users (login, password_hash, fio, role, phone, units, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [finalLogin, hash, String(fio).trim(), targetRole, cleanPhone || null, unitsStr, active !== false ? 1 : 0]);
+        INSERT INTO users (login, password_hash, fio, role, phone, position, units, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [finalLogin, hash, String(fio).trim(), targetRole, cleanPhone || null, cleanPosition || null, unitsStr, active !== false ? 1 : 0]);
 
       // Двусторонняя синхронизация для нового пользователя
       if (unitsStr) {
