@@ -494,7 +494,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.55')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -529,7 +529,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.55')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -589,7 +589,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.54')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.55')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -619,7 +619,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.54')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.55')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -3139,9 +3139,18 @@ function openBatchSurveySheet(posName){
 
   function saveBatchSurvey(){
     try {
-      // Валидация диапазонов окладов перед сохранением
+      // Валидация окладов перед сохранением. parseMoney() у нечисловой строки
+      // молча возвращает 0 — раньше это значило, что случайно введённый текст
+      // ("абв" вместо суммы) тихо превращался в 0 и уходил как «сохранено»,
+      // а сам текст терялся без предупреждения. Отклоняем нечисловой ввод
+      // явно, до того как он попадёт в parseMoney.
+      var MONEY_RE = /^[\d\s.,]*$/;
       for(var i = 0; i < entries.length; i++){
         var it = entries[i];
+        if(!MONEY_RE.test(String(it.payFrom || '')) || !MONEY_RE.test(String(it.payTo || ''))){
+          toast('В компании "' + it.co + '" оклад должен быть числом — уберите буквы и лишние символы', 'warn');
+          return false;
+        }
         var pF = parseMoney(it.payFrom);
         var pT = parseMoney(it.payTo);
         if(pF > 0 && pT > 0 && pF > pT){
@@ -3497,8 +3506,22 @@ function openBatchSurveySheet(posName){
     var idx = +card.dataset.idx;
     var item = entries[idx];
 
-    if(e.target.classList.contains('b-pay-from')) item.payFrom = e.target.value.replace(/[^0-9\s,.]/g, '');
-    if(e.target.classList.contains('b-pay-to')) item.payTo = e.target.value.replace(/[^0-9\s,.]/g, '');
+    // Раньше буквы отфильтровывались только в item.payFrom/payTo (модель),
+    // а само поле ввода оставалось как есть — человек видел набранный текст,
+    // жал «Сохранить», получал «Сохранено», а на деле буквы тихо превращались
+    // в '' и вообще не попадали в запись. Теперь поле сразу показывает то же,
+    // что реально уйдёт на сервер, курсор сдвигается на длину вырезанного.
+    if(e.target.classList.contains('b-pay-from') || e.target.classList.contains('b-pay-to')){
+      var raw = e.target.value;
+      var clean = raw.replace(/[^0-9\s,.]/g, '');
+      if(e.target.classList.contains('b-pay-from')) item.payFrom = clean; else item.payTo = clean;
+      if(clean !== raw){
+        var cut = raw.length - clean.length;
+        var pos = Math.max(0, (e.target.selectionStart || clean.length) - cut);
+        e.target.value = clean;
+        e.target.setSelectionRange(pos, pos);
+      }
+    }
     if(e.target.classList.contains('b-grade')) item.grade = e.target.value;
     if(e.target.classList.contains('b-bon-size')){
       var szI = +e.target.dataset.bi || 0;
@@ -3797,22 +3820,43 @@ function doSave(submit){
 
   var unitAtSave = S.unit;
 
+  // Снимок массивов ИМЕННО в момент отправки — переключение вкладки/подразделения
+  // (WorkspaceTabs.activateTab) переприсваивает S.rows/S.surveys/S.added/S.removed
+  // новым массивам под другое подразделение (см. loadUnit), а не мутирует их на
+  // месте. Раньше .then() ниже читал их заново уже ПОСЛЕ ответа сервера — если
+  // пользователь успевал уйти в другую вкладку, к этому моменту S.* принадлежали
+  // уже другому подразделению, и в кэш этого (unitAtSave) писались чужие данные
+  // (или пустота, если пользователь не успел ничего добавить в новой вкладке).
+  // Захват ссылок здесь застрахован от переприсваивания — это те же самые
+  // массивы, что ушли в запрос.
+  var sentRows = S.rows, sentAdded = S.added, sentSurveys = S.surveys, sentRemoved = S.removed;
+  var sentNote = S.note;
+
   // Обе вкладки сохраняются вместе — человек не должен думать, где он находится
   var p1 = call('apiSave', S.token, {
-    unit: unitAtSave, rows: S.rows, added: S.added, note: S.note, submit: !!submit });
+    unit: unitAtSave, rows: sentRows, added: sentAdded, note: sentNote, submit: !!submit });
 
   var saveGroup = currentUnitGroup();
-  var needSurvey = S.surveys.length > 0 || S.removed.length > 0;
+  var needSurvey = sentSurveys.length > 0 || sentRemoved.length > 0;
   var p2 = needSurvey
     ? call('apiSaveSurvey', S.token, saveGroup
-        ? { unit: unitAtSave, groupKey: saveGroup, upsert: S.surveys, remove: S.removed }
-        : { unit: unitAtSave, upsert: S.surveys, remove: S.removed })
+        ? { unit: unitAtSave, groupKey: saveGroup, upsert: sentSurveys, remove: sentRemoved }
+        : { unit: unitAtSave, upsert: sentSurveys, remove: sentRemoved })
     : Promise.resolve({ ok:true, newIds:[], added:0, updated:0, removed:0 });
 
   Promise.all([p1, p2]).then(function(res){
+    // Пользователь мог успеть уйти на другое подразделение/вкладку, пока шёл
+    // запрос — тогда S.unit уже не unitAtSave, и живые S.rows/S.surveys/S.dirty
+    // относятся к новому месту. Трогаем их только если всё ещё там же; кэш
+    // S.data.* при этом обновляем в любом случае через снимки sent*, а не
+    // через текущие S.*.
+    var stillHere = (S.unit === unitAtSave);
+
     S.saving = false;
-    $('btnSave').disabled = false;
-    $('btnSave').textContent = 'Сохранить';
+    if(stillHere){
+      $('btnSave').disabled = false;
+      $('btnSave').textContent = 'Сохранить';
+    }
 
     var a = res[0], b = res[1];
     if(!a || !a.ok || !b || !b.ok){
@@ -3825,14 +3869,21 @@ function doSave(submit){
       return;
     }
 
-    S.dirty = false;
+    if(stillHere) S.dirty = false;
+    // Снять «не сохранено» и с фоновой вкладки этого подразделения, если она
+    // сейчас не активна — иначе при возврате в неё будет ложное предупреждение.
+    if(!stillHere && window.WorkspaceTabs && WorkspaceTabs.tabs){
+      WorkspaceTabs.tabs.forEach(function(t){
+        if(t.state && t.state.unit === unitAtSave) t.state.dirty = false;
+      });
+    }
     store.del(LS_DRAFT + unitAtSave);
 
     // Смежная группа: сервер применил upsert/remove ко всем площадкам и не
     // возвращает пер-строчные ID — локальный кэш не патчим, а перечитываем
     // истину целиком (doRefresh_ → onLoaded).
     if(b && b.group){
-      S.removed = [];
+      if(stillHere) S.removed = [];
       // Конкуренты Шага 1 всё же могли сохраниться (p1) — их ID подхватит refresh.
       toast(submit ? 'Отправлено. Спасибо!' :
         'Сохранено — применено ко всем площадкам группы (' + (b.units || '?') + ')', 'ok');
@@ -3840,30 +3891,39 @@ function doSave(submit){
       return;
     }
 
-    // Конкуренты: добавленные получили ID — переносим в основной список
-    S.added.forEach(function(x, k){
+    // Конкуренты: добавленные получили ID — переносим в основной список.
+    // Пишем в S.data.rows (переживает переключение вкладок) всегда; в живой
+    // S.rows — только если это подразделение всё ещё открыто.
+    sentAdded.forEach(function(x, k){
       x.id = (a.newIds && a.newIds[k]) || x.id;
-      if(x.id){ S.rows.push(x); S.data.rows.push(x); }
+      if(x.id){
+        if(stillHere) S.rows.push(x);
+        S.data.rows.push(x);
+      }
     });
-    S.added = [];
-    syncCache(S.rows, S.data.rows);
+    if(stillHere) S.added = [];
+    syncCache(stillHere ? S.rows : sentRows, S.data.rows);
 
     // Обзор: newIds идёт в том же порядке, что и отправленный upsert
     (b.newIds || []).forEach(function(id, k){
-      if(id && S.surveys[k]) S.surveys[k].id = id;
+      if(id && sentSurveys[k]) sentSurveys[k].id = id;
     });
-    S.removed = [];
+    if(stillHere) S.removed = [];
     S.data.surveys = S.data.surveys.filter(function(x){ return x.unit !== unitAtSave; })
-      .concat(S.surveys.map(function(x){ return JSON.parse(JSON.stringify(x)); }));
+      .concat(sentSurveys.map(function(x){ return JSON.parse(JSON.stringify(x)); }));
 
     var u = S.data.units.filter(function(x){ return x.unit === unitAtSave; })[0];
     if(u){
-      var after = counts();
-      u.total = after.all;
-      u.done = after.done;
-      u.ask = after.ask;
-      u.surveys = S.surveys.length;
-      u.note = S.note;
+      // counts() читает живой S.rows/S.surveys — годится только если мы всё ещё
+      // на этом подразделении; иначе считаем по тому, что реально сохранили.
+      if(stillHere){
+        var after = counts();
+        u.total = after.all;
+        u.done = after.done;
+        u.ask = after.ask;
+      }
+      u.surveys = sentSurveys.length;
+      u.note = sentNote;
     }
 
     if(window.WorkspaceTabs && WorkspaceTabs.notifyDataChange){
@@ -3875,7 +3935,7 @@ function doSave(submit){
     // состояние теперь расходится с базой, поэтому явно предупреждаем и
     // предлагаем обновить, а не притворяемся, что сохранилось всё.
     var blocked = ([]).concat((a.blocked || []), (b.blocked || []));
-    if(blocked.length){
+    if(blocked.length && stillHere){
       var names = blocked.map(function(x){ return (x.company||'')+' — заполняет '+(x.owner||'кто-то другой'); });
       ask({
         title: 'Часть строк не сохранена',
@@ -3887,12 +3947,15 @@ function doSave(submit){
     }
 
     toast(submit ? 'Отправлено. Спасибо!' : 'Сохранено в ' + a.at, 'ok');
+    if(!stillHere) return;
     if(submit) setTimeout(renderUnits, 900);
     else renderUnit();
   }).catch(function(){
     S.saving = false;
-    $('btnSave').disabled = false;
-    $('btnSave').textContent = 'Сохранить';
+    if(S.unit === unitAtSave){
+      $('btnSave').disabled = false;
+      $('btnSave').textContent = 'Сохранить';
+    }
     toast('Нет связи. Черновик сохранён на устройстве — попробуйте позже.', 'no');
   });
 }
