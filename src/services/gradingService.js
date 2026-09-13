@@ -25,7 +25,7 @@ const GROUPS = {
   production: { label: 'Производственный персонал', weights: [0.30, 0.30, 0.25, 0.15], maxGrade: 6 },
   auxiliary:  { label: 'Вспомогательный персонал',  weights: [0.40, 0.30, 0.30],       maxGrade: 6 },
   sales:      { label: 'Торговый персонал',         weights: [0.50, 0.30, 0.20],       maxGrade: 5 },
-  aup:        { label: 'АУП',                       weights: [0.40, 0.40, 0.20],       maxGrade: 5 }
+  aup:        { label: 'АУП',                       weights: [0.35, 0.30, 0.15, 0.20], maxGrade: 5 }
 };
 
 const GROUP_KEYS = Object.keys(GROUPS);
