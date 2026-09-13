@@ -3814,6 +3814,25 @@ label.lbl {
     color: var(--accent);
   }
 
+  /* На узкой нижней полосе слово «New» рядом с подписью раздувало кнопку
+     ("Грейдинг New" переносилось на 2 строки, "Риски штата New" вылезало
+     за край экрана). Тот же бейдж, но точкой без текста — компактно и
+     всё равно заметно. */
+  #topNav .nav-btn { position: relative; }
+  #topNav .nav-btn .nav-badge-new {
+    position: absolute;
+    top: 2px;
+    right: 22%;
+    margin-left: 0;
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border-radius: 50%;
+    background: #dc2626;
+    overflow: hidden;
+    text-indent: -999px;
+  }
+
   body.has-topnav .wrap {
     padding-bottom: 60px;
   }
