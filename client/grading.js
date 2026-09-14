@@ -540,7 +540,10 @@ function drawGradeForm(){
   factors.forEach(function(fac, i){
     var w = weights[i];
     var val = Number(f.answers[i]) || 0;
-    var isOpen = (openFactor === -1) || (openFactor === i);
+    // openFactor === -1 значит «неотвеченных нет и явно ничего не открывали» —
+    // весь список должен свернуться в сводку, а не наоборот развернуться
+    // целиком (была именно такая инверсия: -1 читалось как «открыть всё»).
+    var isOpen = openFactor !== -1 && openFactor === i;
     var title = '<b>'+esc(fac.code || ('Фактор ' + (i + 1)))+'. '+esc(fac.title)+'</b>';
 
     if(!isOpen){
@@ -776,7 +779,7 @@ function drawRiskList(){
     h += '<div class="empty">Оценённых сотрудников пока нет</div>';
   } else {
     h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
-      '<thead><tr><th>Сотрудник</th><th>Должность</th><th>Подразделение</th><th>Баллы</th><th>Статус</th><th>Что делаем</th></tr></thead><tbody>'+
+      '<thead><tr><th>Сотрудник</th><th>Должность</th><th>Подразделение</th><th>Баллы</th><th>Статус</th><th>Что делаем</th><th>Оценил</th></tr></thead><tbody>'+
       GR.risks.map(function(r){
         return '<tr>'+
           '<td><b>'+esc(r.employee_fio)+'</b></td>'+
@@ -785,6 +788,7 @@ function drawRiskList(){
           '<td><b>'+r.total_risk_score+'</b> из 20</td>'+
           '<td>'+riskStatusBadge(r.risk_status, riskLevelOf(r.risk_status).label)+'</td>'+
           '<td class="kr-plan">'+esc(r.action_plan || '')+'</td>'+
+          '<td class="muted">'+esc(r.evaluator_fio || '—')+'</td>'+
         '</tr>';
       }).join('')+
       '</tbody></table></div>';
@@ -818,7 +822,8 @@ function openRiskForm(){
     fio: '',
     jobTitle: '',
     answers: [0, 0, 0, 0],
-    plan: ''
+    plan: '',
+    editingFactor: null
   };
   drawRiskForm();
 }
@@ -870,14 +875,39 @@ function drawRiskForm(){
     '<label class="lbl">Должность</label>'+
     '<input id="krJob" value="'+esc(f.jobTitle)+'" readonly disabled placeholder="Подставится при выборе ФИО" style="opacity:.75">';
 
+  // Тот же формат «один вопрос за раз», что и на экране оценки должностей
+  // (см. drawGradeForm) — иначе анкета из 4 вопросов по 5 вариантов каждый
+  // превращается в стену текста.
+  var riskFirstUnanswered = -1;
+  for(var ri = 0; ri < questions.length; ri++){
+    if(!Number(f.answers[ri])){ riskFirstUnanswered = ri; break; }
+  }
+  var riskOpenFactor = (f.editingFactor != null) ? f.editingFactor : riskFirstUnanswered;
+
   questions.forEach(function(q, i){
-    h += '<div class="gr-factor">'+
-      '<div class="gr-factor-hd"><b>'+esc(q.code || ('Вопрос ' + (i + 1)))+'. '+esc(q.title)+'</b></div>'+
+    var val = Number(f.answers[i]) || 0;
+    var isOpen = riskOpenFactor !== -1 && riskOpenFactor === i;
+    var title = '<b>'+esc(q.code || ('Вопрос ' + (i + 1)))+'. '+esc(q.title)+'</b>';
+
+    if(!isOpen){
+      var chosen = val ? ((q.options || [])[val - 1] || '') : '';
+      h += '<div class="gr-factor gr-factor--done" data-f="'+i+'">'+
+        '<div class="gr-factor-hd">'+title+'</div>'+
+        (val
+          ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
+          : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
+        '<button type="button" class="btn-line gr-factor-edit" data-f="'+i+'">'+(val ? 'Изменить' : 'Ответить')+'</button>'+
+      '</div>';
+      return;
+    }
+
+    h += '<div class="gr-factor gr-factor--open">'+
+      '<div class="gr-factor-hd">'+title+'</div>'+
       '<div class="gr-opts">'+
         (q.options || []).map(function(o, oi){
-          var val = oi + 1;
-          return '<button class="gr-opt'+(Number(f.answers[i]) === val ? ' on' : '')+'" data-f="'+i+'" data-v="'+val+'">'+
-            '<span class="gr-score">'+val+'</span><span>'+esc(o)+'</span></button>';
+          var ov = oi + 1;
+          return '<button class="gr-opt'+(val === ov ? ' on' : '')+'" data-f="'+i+'" data-v="'+ov+'">'+
+            '<span class="gr-score">'+ov+'</span><span>'+esc(o)+'</span></button>';
         }).join('')+
       '</div>'+
     '</div>';
@@ -934,6 +964,16 @@ function drawRiskForm(){
     btn.onclick = function(){
       pull();
       f.answers[parseInt(btn.getAttribute('data-f'), 10)] = parseInt(btn.getAttribute('data-v'), 10);
+      // Ответ выбран — сворачиваем этот вопрос и переходим к следующему
+      // неотвеченному сами, как в анкете грейдирования.
+      f.editingFactor = null;
+      drawRiskForm();
+    };
+  });
+  [].forEach.call(box.querySelectorAll('.gr-factor-edit'), function(btn){
+    btn.onclick = function(){
+      pull();
+      f.editingFactor = parseInt(btn.getAttribute('data-f'), 10);
       drawRiskForm();
     };
   });
