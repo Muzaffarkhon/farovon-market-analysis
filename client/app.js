@@ -505,7 +505,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -540,7 +540,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -600,7 +600,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -630,7 +630,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.69')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.70')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -10775,8 +10775,6 @@ function loadDict(){
   });
 }
 
-var STAFF_DICT_PER_PAGE = 50;
-
 function drawStaffDict(){
   var q = norm(S.dictQ);
   var unitFilter = S.dictStaffUnit || '';
@@ -10796,12 +10794,6 @@ function drawStaffDict(){
            norm(it.unit).indexOf(q) >= 0 ||
            norm(it.position || '').indexOf(q) >= 0;
   });
-
-  var pg = Math.max(1, S.dictStaffPage || 1);
-  var totalPages = Math.max(1, Math.ceil(items.length / STAFF_DICT_PER_PAGE));
-  if(pg > totalPages) pg = totalPages;
-  S.dictStaffPage = pg;
-  var pageItems = items.slice((pg - 1) * STAFF_DICT_PER_PAGE, pg * STAFF_DICT_PER_PAGE);
 
   var h = '<div class="toolbar">'+
     '<div class="search-wrap">'+icBare('search')+
@@ -10836,30 +10828,18 @@ function drawStaffDict(){
   h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
     '<th>ФИО</th><th>Подразделение</th><th>Должность</th><th></th>'+
     '</tr></thead><tbody>'+
-    pageItems.map(function(it){
+    items.map(function(it){
       return '<tr><td><b>'+esc(it.fio)+'</b></td><td>'+esc(it.unit)+'</td>'+
         '<td>'+(it.position ? esc(it.position) : '<span style="color:var(--muted)">—</span>')+'</td>'+
         '<td class="u-acts"><button class="row-menu-trigger" data-staff-act="'+it.id+'" title="Действия" aria-label="Действия с записью">'+icBare('more',16)+'</button></td></tr>';
     }).join('')+
     '</tbody></table></div>';
 
-  if(totalPages > 1){
-    h += '<div class="pager" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 0">'+
-      '<button class="btn-line" id="dictStaffPrev"'+(pg <= 1 ? ' disabled' : '')+'>← Назад</button>'+
-      '<span class="muted" style="font-size:13px">Стр. '+pg+' из '+totalPages+'</span>'+
-      '<button class="btn-line" id="dictStaffNext"'+(pg >= totalPages ? ' disabled' : '')+'>Вперёд →</button>'+
-    '</div>';
-  }
-
   $('dictBox').innerHTML = h;
   bindDictBar();
 
   var unitSel = $('dictStaffUnit');
-  if(unitSel) unitSel.onchange = function(){ S.dictStaffUnit = this.value; S.dictStaffPage = 1; drawStaffDict(); };
-  var prevBtn = $('dictStaffPrev');
-  if(prevBtn) prevBtn.onclick = function(){ S.dictStaffPage = pg - 1; drawStaffDict(); };
-  var nextBtn = $('dictStaffNext');
-  if(nextBtn) nextBtn.onclick = function(){ S.dictStaffPage = pg + 1; drawStaffDict(); };
+  if(unitSel) unitSel.onchange = function(){ S.dictStaffUnit = this.value; drawStaffDict(); };
   var addBtn = $('dictStaffAdd');
   if(addBtn) addBtn.onclick = function(){ openStaffDictItem(null); };
   $('dictBox').querySelectorAll('button[data-staff-act]').forEach(function(b){
