@@ -6022,7 +6022,11 @@ function resetGradingFactor(card){
 // находят и точечно переносят в другой блок, не трогая остальное.
 
 function renderAdminGradingBlocks(){
-  $('adminContent').innerHTML = '<div id="gbBox">' + skTable() + '</div>';
+  // Скелетон только на первый заход — иначе фоновое обновление сносит уже
+  // отрисованный список блоков и рисует его заново каждые 20-90 секунд.
+  if(!$('gbBox') || !S.gbBlocks || !S.gbBlocks.length){
+    $('adminContent').innerHTML = '<div id="gbBox">' + skTable() + '</div>';
+  }
   loadAdminGradingBlocks();
 }
 
@@ -7265,7 +7269,11 @@ function loadAdminArchive(){
     if(b){ b.innerHTML = '<div id="adminContent" class="admin-content">' + skTable() + '</div>'; }
     aContent = $('adminContent');
   }
-  if(aContent) aContent.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка архива...</div>';
+  // Как и в loadAdminUsers — скелетон только пока нет ранее загруженных
+  // данных, иначе фоновое обновление дёргает экран на каждый опрос.
+  if(aContent && (!S.adminArchive || !S.adminArchive.length)){
+    aContent.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка архива...</div>';
+  }
 
   call('apiAdminGetArchive', S.token).then(function(r){
     if(!r || !r.ok){
@@ -7342,7 +7350,13 @@ function renderAdminArchive(){
 // ─── Вкладка: Оргструктура ───
 function loadAdminDivisions(){
   try { saveViewScroll('admin:divisions:' + (S.adminDivsView || 'tree')); } catch(e){}
-  $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка оргструктуры...</div>';
+  // Скелетон-загрузку показываем только при первом заходе на вкладку —
+  // если данные уже есть (фоновое live-обновление их просто освежает),
+  // полная замена разметки на «Загрузка...» и обратно на каждый опрос
+  // выглядела бы как дёрганье экрана.
+  if(!S.adminDivs || !S.adminDivs.length){
+    $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка оргструктуры...</div>';
+  }
   call('apiAdminGetDivisions', S.token).then(function(r){
     if(!r || !r.ok){
       var msg = (r && (r.message || r.error)) || 'Ошибка загрузки оргструктуры';
@@ -10701,9 +10715,13 @@ function renderAdminDict(){
   }
   setTop(dictTitle, userLabel(), false, 'book');
 
-  var h = '<div id="dictBox" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">' + skTable(6) + '</div>';
-
-  $('adminContent').innerHTML = h;
+  // Скелетон только на первый заход в этот справочник — данные по разным
+  // dictKind кэшируются отдельно (см. loadDict), и при возврате/фоновом
+  // обновлении показывать заглушку вместо уже известных строк незачем.
+  if(!$('dictBox') || !S.dictItems || !S.dictItems.length){
+    var h = '<div id="dictBox" style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">' + skTable(6) + '</div>';
+    $('adminContent').innerHTML = h;
+  }
   loadDict();
 }
 
@@ -11645,6 +11663,37 @@ function roleOptionsHtml(current){
   }).join('');
 }
 
+/** Есть ли несохранённые правки в матрице ролей (S.rc) — используется
+ *  и кнопкой «Сохранить», и фоновым live-обновлением (liveRefresh.js),
+ *  чтобы не перерисовывать экран поверх того, что человек ещё не сохранил. */
+function rcIsDirty(){
+  var d = S.rc;
+  if(!d) return false;
+  var labelsDirty = Object.keys(d.labels || {}).some(function(k){
+    var r = (d.roles || []).filter(function(x){ return x.key === k; })[0];
+    var v = String(d.labels[k] || '').trim();
+    return r && v && v !== r.label;
+  });
+  if(labelsDirty) return true;
+  return (d.roles || []).some(function(r){
+    if(r.key === 'admin') return false;
+    var now = (d.matrix[r.key] || []).slice().sort().join(',');
+    var was = (d.orig[r.key] || []).slice().sort().join(',');
+    return now !== was;
+  });
+}
+
+/** То же самое для «Персональные права» (S.ucap). */
+function ucapIsDirty(){
+  var d = S.ucap;
+  if(!d) return false;
+  return Object.keys(d.matrix || {}).some(function(login){
+    var now = (d.matrix[login] || []).slice().sort().join(',');
+    var was = (d.orig[login] || []).slice().sort().join(',');
+    return now !== was;
+  });
+}
+
 function loadAdminRoles(){
   call('apiAdminGetRoleCapabilities', S.token).then(function(r){
     if(!r || !r.ok){
@@ -11658,7 +11707,12 @@ function loadAdminRoles(){
       matrix: r.matrix,
       orig: JSON.parse(JSON.stringify(r.matrix)),
       labels: {},
-      sel: (S.rc && S.rc.sel) || (r.roles[0] && r.roles[0].key)
+      sel: (S.rc && S.rc.sel) || (r.roles[0] && r.roles[0].key),
+      // Режим («По ролям» / «Персонально») — не с сервера, чисто
+      // клиентское состояние вкладки. Если не перенести его при каждом
+      // фоновом обновлении (см. liveRefresh.js), пользователя молча
+      // выкидывало на «По ролям» посреди работы в «Персонально».
+      mode: (S.rc && S.rc.mode) || 'role'
     };
     renderAdminRoles();
   }).catch(function(){
@@ -11690,6 +11744,11 @@ function loadAdminUserCapabilities(){
       users: users,
       orig: orig,
       matrix: JSON.parse(JSON.stringify(orig)),
+      // Что сотруднику уже даёт его роль/должность — показываем в
+      // чек-листе как факт (не редактируется здесь), чтобы было видно,
+      // от чего человек отталкивается, прежде чем добавлять личное сверху.
+      roleCapabilities: r.roleCapabilities || {},
+      roleLabels: r.roleLabels || {},
       sel: keepSel ? S.ucap.sel : (users[0] && users[0].login),
       search: (S.ucap && S.ucap.search) || ''
     };
@@ -11823,24 +11882,39 @@ function renderUcapDetail(){
 
   var groups = ucapGroups();
   var granted = d.matrix[user.login] || [];
+  // Что уже даёт роль/должность сотрудника — факт, здесь не редактируется
+  // (менять можно только на вкладке «По ролям»). Показываем, чтобы было
+  // видно, от чего человек отталкивается, прежде чем добавлять личное.
+  var roleCaps = (d.roleCapabilities && d.roleCapabilities[user.role]) || [];
+  var roleLabel = (d.roleLabels && d.roleLabels[user.role]) || user.role;
 
   var head = '<div class="r2-head">'+
     '<div class="r2-title">'+esc(user.fio)+'</div>'+
     '<span class="r2-key">'+esc(user.login)+'</span>'+
-    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все ('+granted.length+')</button>' : '')+
-  '</div>';
+    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все личные ('+granted.length+')</button>' : '')+
+  '</div>'+
+  '<p class="step-hint" style="margin-bottom:14px">Роль: <b>'+esc(roleLabel)+'</b>. Отмеченные и заблокированные права уже есть по роли — ниже можно добавить сверх неё лично для этого сотрудника.</p>';
 
   var body = !granted.length && !groups.length
     ? ''
     : groups.map(function(g){
-        var ids = g.items.map(function(c){ return c.id; });
-        var allOn = ids.length > 0 && ids.every(function(id){ return granted.indexOf(id) >= 0; });
+        var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
+        var allOn = toggleIds.length > 0 && toggleIds.every(function(id){ return granted.indexOf(id) >= 0; });
         return '<div class="r2-group">'+
-          '<label class="r2-group-t r2-group-t--check">'+
-            '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
-            '<span>'+esc(g.label)+'</span>'+
-          '</label>'+
+          (toggleIds.length
+            ? '<label class="r2-group-t r2-group-t--check">'+
+                '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
+                '<span>'+esc(g.label)+'</span>'+
+              '</label>'
+            : '<div class="r2-group-t">'+esc(g.label)+'</div>')+
           g.items.map(function(c){
+            var viaRole = roleCaps.indexOf(c.id) >= 0;
+            if(viaRole){
+              return '<label class="r2-cap r2-cap--role" title="Уже есть по роли «'+esc(roleLabel)+'» — не редактируется здесь">'+
+                '<input type="checkbox" checked disabled>'+
+                '<span>'+esc(c.label)+' <span class="r2-cap-tag">по роли</span></span>'+
+              '</label>';
+            }
             var on = granted.indexOf(c.id) >= 0;
             return '<label class="r2-cap">'+
               '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on?' checked':'')+'>'+
@@ -11855,16 +11929,16 @@ function renderUcapDetail(){
   el.querySelectorAll('input[data-ucap-group]').forEach(function(box){
     var g = groups.filter(function(x){ return x.label === box.dataset.ucapGroup; })[0];
     if(!g) return;
-    var ids = g.items.map(function(c){ return c.id; });
-    var onCount = ids.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
+    var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
+    var onCount = toggleIds.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
     // «Частично выбрано» задаётся только свойством, не HTML-атрибутом.
-    box.indeterminate = onCount > 0 && onCount < ids.length;
+    box.indeterminate = onCount > 0 && onCount < toggleIds.length;
     box.onchange = function(){
       var arr = d.matrix[user.login] = d.matrix[user.login] || [];
       var checked = this.checked;
-      g.items.forEach(function(c){
-        var i = arr.indexOf(c.id);
-        if(checked){ if(i<0) arr.push(c.id); }
+      toggleIds.forEach(function(id){
+        var i = arr.indexOf(id);
+        if(checked){ if(i<0) arr.push(id); }
         else if(i>=0) arr.splice(i,1);
       });
       renderUcapDetail();

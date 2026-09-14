@@ -8813,17 +8813,21 @@ html.compact {
 /* ─── Конструктор ролей и доступов (вкладка «Роли и доступы») ─── */
 .roles2 { display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 0; }
 .roles2-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; flex-shrink: 0; }
+/* min-width: 0 на обеих колонках — без него grid-элемент не сжимается
+   уже своего содержимого (тот же баг, что у flex): длинное ФИО или
+   длинная подпись права требуют для себя ширину больше 260px/1fr, и
+   колонка раздувается за пределы видимой рамки вместо переноса текста. */
 .roles2-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
-.roles2-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
-.roles2-detail { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-cards); background: var(--card); padding: 16px; }
+.roles2-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; min-width: 0; }
+.roles2-detail { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-cards); background: var(--card); padding: 16px; min-width: 0; }
 
 .r2-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
-  text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  min-width: 0; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--card); cursor: pointer; transition: border-color .12s, background .12s; }
 .r2-item:hover { border-color: var(--line-strong); }
 .r2-item.on { border-color: var(--accent); background: var(--accent-soft); }
-.r2-name { font-weight: 700; font-size: 14px; color: var(--text); }
-.r2-sub { font-size: 12px; color: var(--muted); }
+.r2-name { font-weight: 700; font-size: 14px; color: var(--text); max-width: 100%; overflow-wrap: break-word; }
+.r2-sub { font-size: 12px; color: var(--muted); max-width: 100%; overflow-wrap: break-word; }
 
 .r2-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .r2-title { font-weight: 800; font-size: 16px; }
@@ -8851,6 +8855,14 @@ html.compact {
   border-bottom: 1px solid var(--line); cursor: pointer; }
 .r2-cap:last-child { border-bottom: none; }
 .r2-cap input { flex-shrink: 0; }
+
+/* Право уже есть по роли сотрудника — показываем фактом, не редактируем
+   здесь (менять можно только на вкладке «По ролям»). */
+.r2-cap--role { cursor: default; color: var(--muted); }
+.r2-cap--role input { cursor: default; }
+.r2-cap-tag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--subtle); background: var(--card-2); border: 1px solid var(--line);
+  border-radius: 5px; padding: 1px 5px; margin-left: 4px; vertical-align: 1px; }
 
 /* Чекбокс-заголовок блока («Персональные права» → выбрать/снять весь
    раздел разом) — тот же .r2-group-t, но кликабельный ряд с чекбоксом

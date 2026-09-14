@@ -1860,7 +1860,7 @@ exports.saveRoleCapabilities = async (req, res) => {
 // можно было бы выдать себе что угодно. Бессрочно — снимается вручную.
 exports.getUserCapabilities = async (req, res) => {
   try {
-    const [users, grants] = await Promise.all([
+    const [users, grants, roleCapRows, roles] = await Promise.all([
       queryAll("SELECT login, fio, role, active FROM users WHERE archived_at IS NULL ORDER BY fio ASC"),
       queryAll(`
         SELECT g.user_login AS "userLogin", COALESCE(u.fio, g.user_login) AS "userFio",
@@ -1868,14 +1868,25 @@ exports.getUserCapabilities = async (req, res) => {
         FROM user_capabilities g
         LEFT JOIN users u ON u.login = g.user_login
         ORDER BY "userFio" ASC, g.capability ASC
-      `)
+      `),
+      queryAll('SELECT role, capability FROM role_capabilities'),
+      roleService.getRoles()
     ]);
+
+    // Что сотруднику уже даёт его роль — чтобы в чек-листе отличать «уже
+    // есть по должности» от того, что можно выдать лично сверху. 'admin'
+    // сюда не попадает намеренно: у него все права и без этой таблицы.
+    const roleCapabilities = {};
+    roles.forEach(r => { roleCapabilities[r.key] = []; });
+    roleCapRows.forEach(r => { if (roleCapabilities[r.role]) roleCapabilities[r.role].push(r.capability); });
 
     res.json({
       ok: true,
       capabilities: CAPABILITIES,
       users: users.map(u => ({ login: u.login, fio: u.fio, role: u.role, active: !!u.active })),
-      grants
+      grants,
+      roleCapabilities,
+      roleLabels: roles.reduce((acc, r) => { acc[r.key] = r.label; return acc; }, {})
     });
   } catch (err) {
     console.error('getUserCapabilities error:', err);
