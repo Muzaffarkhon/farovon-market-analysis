@@ -173,6 +173,18 @@ async function migrate() {
   }
   console.log('🔧 Миграция: права ролей по умолчанию проверены и синхронизированы');
 
+  // Персональные права — точечная надбавка поверх роли, чтобы не выдавать
+  // право сразу всем с этой ролью (см. hasCapability в middleware/auth.js).
+  // Бессрочные: expires_at здесь нет, в отличие от period_edit_grants —
+  // снимаются вручную тем же экраном.
+  await run(`CREATE TABLE IF NOT EXISTS user_capabilities (
+    user_login TEXT NOT NULL,
+    capability TEXT NOT NULL,
+    granted_by TEXT,
+    granted_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_login, capability)
+  )`);
+
   // Справочник ролей: раньше список ролей был только константой в коде. Теперь
   // он в БД, чтобы админ мог добавлять свои роли (конструктор «Роли и доступы»).
   // Зарезервированные 6 ключей помечаем is_protected — их поведение зашито в

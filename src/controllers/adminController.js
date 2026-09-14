@@ -1852,6 +1852,96 @@ exports.saveRoleCapabilities = async (req, res) => {
   }
 };
 
+// ─── Персональные права ───
+// Точечная выдача права конкретному человеку в обход роли — чтобы не
+// приходилось включать право всей роли ("Роли и доступы"), когда нужно
+// дать доступ одному руководителю. admin-only, той же логикой, что и
+// конструктор ролей: не requireCapability, иначе через саму настройку
+// можно было бы выдать себе что угодно. Бессрочно — снимается вручную.
+exports.getUserCapabilities = async (req, res) => {
+  try {
+    const [users, grants] = await Promise.all([
+      queryAll("SELECT login, fio, role, active FROM users WHERE archived_at IS NULL ORDER BY fio ASC"),
+      queryAll(`
+        SELECT g.user_login AS "userLogin", COALESCE(u.fio, g.user_login) AS "userFio",
+               u.role AS "userRole", g.capability, g.granted_by AS "grantedBy", g.granted_at AS "grantedAt"
+        FROM user_capabilities g
+        LEFT JOIN users u ON u.login = g.user_login
+        ORDER BY "userFio" ASC, g.capability ASC
+      `)
+    ]);
+
+    res.json({
+      ok: true,
+      capabilities: CAPABILITIES,
+      users: users.map(u => ({ login: u.login, fio: u.fio, role: u.role, active: !!u.active })),
+      grants
+    });
+  } catch (err) {
+    console.error('getUserCapabilities error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки персональных прав' });
+  }
+};
+
+exports.grantUserCapability = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const capability = String(req.body.capability || '').trim();
+
+  if (!userLogin) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник' });
+  }
+  if (!CAPABILITIES.some(c => c.id === capability)) {
+    return res.status(400).json({ ok: false, error: 'Неизвестное право' });
+  }
+
+  try {
+    const user = await queryOne('SELECT login, fio, role FROM users WHERE login = ? AND archived_at IS NULL', [userLogin]);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Сотрудник не найден' });
+    }
+    if (user.role === 'admin') {
+      return res.status(400).json({ ok: false, error: 'У «Администратора» и так все права' });
+    }
+
+    await run(`
+      INSERT INTO user_capabilities (user_login, capability, granted_by, granted_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_login, capability) DO UPDATE SET
+        granted_by = excluded.granted_by, granted_at = CURRENT_TIMESTAMP
+    `, [userLogin, capability, req.user.fio || req.user.login]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, 'выдано персональное право',
+      `Сотрудник: ${user.fio} (${userLogin}), право: ${capability}`
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('grantUserCapability error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка выдачи права' });
+  }
+};
+
+exports.revokeUserCapability = async (req, res) => {
+  const userLogin = String(req.body.userLogin || '').trim();
+  const capability = String(req.body.capability || '').trim();
+
+  if (!userLogin || !capability) {
+    return res.status(400).json({ ok: false, error: 'Не указан сотрудник или право' });
+  }
+
+  try {
+    await run('DELETE FROM user_capabilities WHERE user_login = ? AND capability = ?', [userLogin, capability]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, 'отозвано персональное право', `Сотрудник: ${userLogin}, право: ${capability}`
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('revokeUserCapability error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка отзыва права' });
+  }
+};
+
 // ─── CRUD своих ролей ───
 exports.createRole = async (req, res) => {
   const label = String((req.body && req.body.label) || '').trim();

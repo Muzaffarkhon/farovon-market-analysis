@@ -11635,6 +11635,83 @@ function loadAdminRoles(){
   });
 }
 
+// ─── Персональные права ───
+// Точечная выдача права одному человеку, без включения его всей роли —
+// ответ на «хочу дать доступ одному руководителю, а приходится включать
+// всем». Живёт отдельной панелью под матрицей ролей той же вкладки.
+function loadAdminUserCapabilities(){
+  var el = $('ucapPanel');
+  if(el) el.innerHTML = 'Загрузка…';
+  call('apiAdminGetUserCapabilities', S.token).then(function(r){
+    if(!r || !r.ok){
+      if($('ucapPanel')) $('ucapPanel').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
+      return;
+    }
+    S.ucap = { capabilities:r.capabilities, users:(r.users||[]).filter(function(u){ return u.role !== 'admin'; }), grants:r.grants||[] };
+    renderAdminUserCapabilities();
+  }).catch(function(){
+    if($('ucapPanel')) $('ucapPanel').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+function renderAdminUserCapabilities(){
+  var el = $('ucapPanel');
+  if(!el) return;
+  var d = S.ucap;
+  if(!d){ el.innerHTML = 'Загрузка…'; return; }
+
+  var userItems = d.users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')'+(u.active?'':' · заблокирован') }; });
+  var capItems = d.capabilities.map(function(c){ return { v:c.id, label:c.resourceLabel+' — '+c.label }; });
+
+  var formHtml = !userItems.length
+    ? '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>'
+    : niceSelect({ id:'ucapUserSel', width:240, value: userItems[0].v, items:userItems })+
+      niceSelect({ id:'ucapCapSel', width:320, value: capItems[0] && capItems[0].v, items:capItems })+
+      '<button id="ucapGrantBtn" class="btn-line">Выдать</button>';
+
+  var listHtml = !d.grants.length
+    ? '<div class="note">Персональных прав пока никому не выдано.</div>'
+    : '<table class="co-tbl"><thead><tr><th>Сотрудник</th><th>Право</th><th></th></tr></thead><tbody>'+
+      d.grants.map(function(g){
+        var cap = d.capabilities.filter(function(c){ return c.id === g.capability; })[0];
+        var capLabel = cap ? (cap.resourceLabel+' — '+cap.label) : g.capability;
+        return '<tr>'+
+          '<td>'+esc(g.userFio)+'</td>'+
+          '<td>'+esc(capLabel)+'</td>'+
+          '<td><button class="btn-ghost btn-danger" data-ucap-revoke-user="'+esc(g.userLogin)+'" data-ucap-revoke-cap="'+esc(g.capability)+'">Отозвать</button></td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table>';
+
+  el.innerHTML =
+    '<p class="step-hint">Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.</p>'+
+    '<div class="ucap-form" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+formHtml+'</div>'+
+    listHtml;
+
+  if(userItems.length){
+    wireNiceSelect('ucapUserSel', function(){});
+    wireNiceSelect('ucapCapSel', function(){});
+    $('ucapGrantBtn').onclick = function(){
+      var userLogin = $('ucapUserSel').dataset.value;
+      var capability = $('ucapCapSel').dataset.value;
+      if(!userLogin || !capability){ toast('Выберите сотрудника и право', 'no'); return; }
+      call('apiAdminGrantUserCapability', S.token, userLogin, capability).then(function(r){
+        if(r && r.ok){ toast('Право выдано'); loadAdminUserCapabilities(); }
+        else toast((r&&r.error)||'Ошибка', 'no');
+      });
+    };
+  }
+
+  el.querySelectorAll('button[data-ucap-revoke-user]').forEach(function(btn){
+    btn.onclick = function(){
+      call('apiAdminRevokeUserCapability', S.token, btn.dataset.ucapRevokeUser, btn.dataset.ucapRevokeCap).then(function(r){
+        if(r && r.ok){ toast('Право отозвано'); loadAdminUserCapabilities(); }
+        else toast((r&&r.error)||'Ошибка', 'no');
+      });
+    };
+  });
+}
+
 function renderAdminRoles(){
   var d = S.rc; if(!d) return;
   var caps = d.catalog;
@@ -11668,9 +11745,14 @@ function renderAdminRoles(){
         '<div class="roles2-list">'+listHtml+'</div>'+
         '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
       '</div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:16px">'+
+      '<h3 style="margin-top:0">Персональные права</h3>'+
+      '<div id="ucapPanel">Загрузка…</div>'+
     '</div>';
 
   wireAdminRoles(groups);
+  if(S.ucap) renderAdminUserCapabilities(); else loadAdminUserCapabilities();
 }
 
 function roleDetailHtml(r, groups){
