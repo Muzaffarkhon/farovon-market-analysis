@@ -4183,7 +4183,11 @@ function wireNiceSelect(id, onPick){
       root.classList.add('open');
       if(search){
         search.value = '';
-        panel.querySelectorAll('.nselect-opt').forEach(function(opt){ opt.hidden = false; });
+        // .nselect-opt задаёт свой display:block в CSS — он перебивает
+        // нативное скрытие через атрибут hidden (у [hidden] в UA-таблице
+        // стилей ниже приоритет, чем у авторского правила display), поэтому
+        // видимость пункта переключаем через inline style, а не hidden.
+        panel.querySelectorAll('.nselect-opt').forEach(function(opt){ opt.style.display = ''; });
         if(empty) empty.hidden = true;
         setTimeout(function(){ search.focus(); }, 0);
       } else {
@@ -4201,7 +4205,7 @@ function wireNiceSelect(id, onPick){
       var any = false;
       panel.querySelectorAll('.nselect-opt').forEach(function(opt){
         var match = !q || (opt.dataset.q || '').indexOf(q) >= 0;
-        opt.hidden = !match;
+        opt.style.display = match ? '' : 'none';
         if(match) any = true;
       });
       if(empty) empty.hidden = any;
@@ -11694,7 +11698,7 @@ function renderAdminUserCapabilities(){
   var formHtml = !userItems.length
     ? '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>'
     : niceSelect({ id:'ucapUserSel', width:240, search:true, value: userItems[0].v, items:userItems })+
-      niceSelect({ id:'ucapCapSel', width:320, value: capItems[0] && capItems[0].v, items:capItems })+
+      niceSelect({ id:'ucapCapSel', width:320, search:true, value: capItems[0] && capItems[0].v, items:capItems })+
       '<button id="ucapGrantBtn" class="btn-line">Выдать</button>';
 
   var listHtml = !d.grants.length
