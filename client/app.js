@@ -11638,7 +11638,8 @@ function loadAdminRoles(){
 // ─── Персональные права ───
 // Точечная выдача права одному человеку, без включения его всей роли —
 // ответ на «хочу дать доступ одному руководителю, а приходится включать
-// всем». Живёт отдельной панелью под матрицей ролей той же вкладки.
+// всем». Второй режим той же вкладки «Роли и доступы» (переключатель
+// «По ролям / Персонально» в renderAdminRoles), не отдельный экран.
 function loadAdminUserCapabilities(){
   var el = $('ucapPanel');
   if(el) el.innerHTML = 'Загрузка…';
@@ -11684,8 +11685,7 @@ function renderAdminUserCapabilities(){
       '</tbody></table>';
 
   el.innerHTML =
-    '<p class="step-hint">Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.</p>'+
-    '<div class="ucap-form" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+formHtml+'</div>'+
+    '<div class="ucap-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+formHtml+'</div>'+
     listHtml;
 
   if(userItems.length){
@@ -11734,25 +11734,42 @@ function renderAdminRoles(){
     '</button>';
   }).join('');
 
+  var mode = d.mode || 'role';
+  var byRoleHint = 'Слева — роли, справа — что роль видит и делает в админке. У «Администратора» доступ всегда полный. Особые полномочия структурных ролей заданы в коде — здесь показаны для справки.';
+  var personalHint = 'Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.';
+
   $('adminContent').innerHTML =
     '<div class="roles2">'+
       '<div class="roles2-bar">'+
-        '<p class="step-hint roles2-hint">Слева \u2014 роли, справа \u2014 что роль видит и делает в админке. У \u00abАдминистратора\u00bb доступ всегда полный. Особые полномочия структурных ролей заданы в коде \u2014 здесь показаны для справки.</p>'+
-        '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'+
-        '<button id="roleSaveAll" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'+
+        '<div class="seg">'+
+          '<button class="seg-btn'+(mode==='role'?' on':'')+'" data-rmode="role">'+ic('shield',14)+' По ролям</button>'+
+          '<button class="seg-btn'+(mode==='personal'?' on':'')+'" data-rmode="personal">'+ic('users',14)+' Персонально</button>'+
+        '</div>'+
+        '<p class="step-hint roles2-hint">'+(mode==='role' ? byRoleHint : personalHint)+'</p>'+
+        (mode==='role'
+          ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'+
+            '<button id="roleSaveAll" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'
+          : '')+
       '</div>'+
-      '<div class="roles2-body">'+
-        '<div class="roles2-list">'+listHtml+'</div>'+
-        '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
-      '</div>'+
-    '</div>'+
-    '<div class="card" style="margin-top:16px">'+
-      '<h3 style="margin-top:0">Персональные права</h3>'+
-      '<div id="ucapPanel">Загрузка…</div>'+
+      (mode==='role'
+        ? '<div class="roles2-body">'+
+            '<div class="roles2-list">'+listHtml+'</div>'+
+            '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
+          '</div>'
+        : '<div class="roles2-detail" id="ucapPanel" style="flex:1;min-height:0">Загрузка…</div>')+
     '</div>';
 
-  wireAdminRoles(groups);
-  if(S.ucap) renderAdminUserCapabilities(); else loadAdminUserCapabilities();
+  if(mode==='role'){
+    wireAdminRoles(groups);
+  } else if(S.ucap){
+    renderAdminUserCapabilities();
+  } else {
+    loadAdminUserCapabilities();
+  }
+
+  $('adminContent').querySelectorAll('button[data-rmode]').forEach(function(btn){
+    btn.onclick = function(){ d.mode = btn.dataset.rmode; renderAdminRoles(); };
+  });
 }
 
 function roleDetailHtml(r, groups){

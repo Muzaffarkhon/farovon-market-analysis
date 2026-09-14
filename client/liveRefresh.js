@@ -19,8 +19,23 @@
 
   function loggedIn(){ return !!(window.S && S.token); }
 
+  // Пока у пользователя открыт кастомный выпадающий список (niceSelect,
+  // класс .nselect.open) — например, он выбирает право в панели
+  // «Персональные права», — полная перерисовка текущего раздела вырвет
+  // список у него из рук (сама перерисовка не помнит, что список был
+  // открыт). Поэтому вместо немедленной перерисовки откладываем её и
+  // проверяем снова — список закроется сам, когда он выберет пункт или
+  // кликнет мимо.
+  function isUiBusy(){
+    return !!document.querySelector('.nselect.open');
+  }
+
   function refreshCurrentView(){
     if(!loggedIn() || document.visibilityState !== 'visible') return;
+    if(isUiBusy()){
+      setTimeout(refreshCurrentView, 3000);
+      return;
+    }
     if(S.appView === 'dashboard'){
       if(typeof fetchDashboard === 'function') fetchDashboard(true);
     } else if(S.appView === 'admin'){
