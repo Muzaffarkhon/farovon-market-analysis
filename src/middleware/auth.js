@@ -98,8 +98,9 @@ async function hasCapability(user, capability) {
   if (user.role === 'admin') return true;
   try {
     const row = await queryOne(
-      'SELECT 1 AS ok FROM role_capabilities WHERE role = ? AND capability = ?',
-      [user.role, capability]
+      `SELECT 1 AS ok FROM role_capabilities WHERE role = ? AND capability = ?
+       UNION SELECT 1 FROM user_capabilities WHERE user_login = ? AND capability = ?`,
+      [user.role, capability, user.login, capability]
     );
     return !!row;
   } catch (err) {

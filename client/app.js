@@ -4142,16 +4142,21 @@ function fetchDashboard(quiet){
 function niceSelect(o){
   var items = o.items || [];
   var cur = items.filter(function(it){ return String(it.v) === String(o.value || ''); })[0] || items[0] || { label:'' };
+  // search:true — строка поиска сверху панели, для длинных списков (все
+  // сотрудники компании), где пролистывать до нужного неудобно.
+  var search = o.search && items.length > 6;
   return '<div class="nselect" id="'+o.id+'" data-value="'+esc(String(o.value || ''))+'"'+
       (o.width ? ' style="width:'+o.width+'px"' : '')+'>'+
     '<button type="button" class="nselect-btn">'+
       '<span class="nselect-cur">'+esc(cur.label)+'</span>'+icBare('chevron', 14)+
     '</button>'+
     '<div class="nselect-panel" hidden>'+
+      (search ? '<input type="text" class="nselect-search" placeholder="Поиск…" autocomplete="off">' : '')+
       items.map(function(it){
         return '<button type="button" class="nselect-opt'+(String(it.v) === String(o.value || '') ? ' on' : '')+
-          '" data-v="'+esc(String(it.v))+'">'+esc(it.label)+'</button>';
+          '" data-v="'+esc(String(it.v))+'"'+(search ? ' data-q="'+esc(String(it.label).toLowerCase())+'"' : '')+'>'+esc(it.label)+'</button>';
       }).join('')+
+      (search ? '<div class="nselect-empty" hidden>Ничего не найдено</div>' : '')+
     '</div>'+
   '</div>';
 }
@@ -4161,6 +4166,8 @@ function wireNiceSelect(id, onPick){
   if(!root) return;
   var btn = root.querySelector('.nselect-btn');
   var panel = root.querySelector('.nselect-panel');
+  var search = panel.querySelector('.nselect-search');
+  var empty = panel.querySelector('.nselect-empty');
   var onDoc = function(e){ if(!root.contains(e.target)) close(); };
   var onKey = function(e){ if(e.key === 'Escape') close(); };
   function close(){
@@ -4174,12 +4181,36 @@ function wireNiceSelect(id, onPick){
     if(panel.hidden){
       panel.hidden = false;
       root.classList.add('open');
-      var on = panel.querySelector('.nselect-opt.on');
-      if(on) on.scrollIntoView({ block:'nearest' });
+      if(search){
+        search.value = '';
+        // .nselect-opt задаёт свой display:block в CSS — он перебивает
+        // нативное скрытие через атрибут hidden (у [hidden] в UA-таблице
+        // стилей ниже приоритет, чем у авторского правила display), поэтому
+        // видимость пункта переключаем через inline style, а не hidden.
+        panel.querySelectorAll('.nselect-opt').forEach(function(opt){ opt.style.display = ''; });
+        if(empty) empty.hidden = true;
+        setTimeout(function(){ search.focus(); }, 0);
+      } else {
+        var on = panel.querySelector('.nselect-opt.on');
+        if(on) on.scrollIntoView({ block:'nearest' });
+      }
       document.addEventListener('click', onDoc, true);
       document.addEventListener('keydown', onKey, true);
     } else { close(); }
   };
+  if(search){
+    search.onclick = function(e){ e.stopPropagation(); };
+    search.oninput = function(){
+      var q = search.value.trim().toLowerCase();
+      var any = false;
+      panel.querySelectorAll('.nselect-opt').forEach(function(opt){
+        var match = !q || (opt.dataset.q || '').indexOf(q) >= 0;
+        opt.style.display = match ? '' : 'none';
+        if(match) any = true;
+      });
+      if(empty) empty.hidden = any;
+    };
+  }
   panel.querySelectorAll('.nselect-opt').forEach(function(opt){
     opt.onclick = function(){
       root.dataset.value = this.dataset.v;
@@ -10507,7 +10538,7 @@ function loadPeriodGrantsPanel(){
       $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
     } else {
       $('periodGrantsForm').innerHTML =
-        niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
+        niceSelect({ id:'grantUserSel', width:220, search:true, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
         niceSelect({ id:'grantPeriodSel', width:280, value: grantablePeriods[0] ? String(grantablePeriods[0].id) : '', items: grantablePeriods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
         '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
       wireNiceSelect('grantUserSel', function(){});
@@ -11635,6 +11666,233 @@ function loadAdminRoles(){
   });
 }
 
+// ─── Персональные права ───
+// Точечная выдача права одному человеку, без включения его всей роли —
+// ответ на «хочу дать доступ одному руководителю, а приходится включать
+// всем». Второй режим той же вкладки «Роли и доступы» (переключатель
+// «По ролям / Персонально» в renderAdminRoles), не отдельный экран.
+function loadAdminUserCapabilities(){
+  var el = $('ucapBody');
+  if(el) el.innerHTML = 'Загрузка…';
+  call('apiAdminGetUserCapabilities', S.token).then(function(r){
+    if(!r || !r.ok){
+      if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
+      return;
+    }
+    var byUser = {};
+    (r.grants || []).forEach(function(g){ (byUser[g.userLogin] = byUser[g.userLogin] || []).push(g.capability); });
+    var users = (r.users || []).filter(function(u){ return u.role !== 'admin'; });
+    var orig = {};
+    users.forEach(function(u){ orig[u.login] = (byUser[u.login] || []).slice(); });
+    var keepSel = S.ucap && S.ucap.sel && users.some(function(u){ return u.login === S.ucap.sel; });
+    S.ucap = {
+      capabilities: r.capabilities,
+      users: users,
+      orig: orig,
+      matrix: JSON.parse(JSON.stringify(orig)),
+      sel: keepSel ? S.ucap.sel : (users[0] && users[0].login),
+      search: (S.ucap && S.ucap.search) || ''
+    };
+    renderAdminUserCapabilities();
+  }).catch(function(){
+    if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+/** Каталог прав, сгруппированный по разделам — та же группировка, что и
+ *  в матрице ролей (roleDetailHtml), но независимо пересчитанная из
+ *  S.ucap.capabilities, чтобы эта панель не зависела от S.rc. */
+function ucapGroups(){
+  var groups = [], byRes = {};
+  (S.ucap.capabilities || []).forEach(function(c){
+    if(!byRes[c.resource]){ byRes[c.resource] = { label:c.resourceLabel, items:[] }; groups.push(byRes[c.resource]); }
+    byRes[c.resource].items.push(c);
+  });
+  return groups;
+}
+
+function ucapUserBadge(u){
+  var n = (S.ucap.matrix[u.login] || []).length;
+  return n ? (n+' '+declOfNum(n,["личное право","личных права","личных прав"])) : 'нет личных прав';
+}
+
+function renderAdminUserCapabilities(){
+  var body = $('ucapBody');
+  if(!body) return;
+  var d = S.ucap;
+  if(!d){ body.innerHTML = 'Загрузка…'; return; }
+  if(!d.users.length){
+    body.innerHTML = '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>';
+  } else {
+    body.innerHTML = '<div class="roles2-list" id="ucapList"></div><div class="roles2-detail" id="ucapDetail"></div>';
+    renderUcapList();
+    renderUcapDetail();
+  }
+
+  var saveBtn = $('ucapSaveAll');
+  if(saveBtn){
+    saveBtn.onclick = function(){
+      var btn = this; btn.disabled = true; btn.textContent = 'Сохраняем…';
+      var jobs = [];
+      Object.keys(d.matrix).forEach(function(login){
+        var now = (d.matrix[login] || []).slice().sort().join(',');
+        var was = (d.orig[login] || []).slice().sort().join(',');
+        if(now !== was) jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || []));
+      });
+      if(!jobs.length){ btn.disabled = false; btn.textContent = 'Сохранить'; toast('Изменений нет','ok'); return; }
+      Promise.all(jobs).then(function(results){
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        if(results.some(function(x){ return !x || !x.ok; })) toast('Часть изменений не сохранена','no');
+        else toast('Сохранено','ok');
+        loadAdminUserCapabilities();
+      }).catch(function(){
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        toast('Нет связи с сервером','no');
+      });
+    };
+  }
+}
+
+/** Список сотрудников слева, с поиском. Видимость строк переключается
+ *  через style.display, не через атрибут hidden — у .r2-item в CSS свой
+ *  display:flex, который бы иначе перебил hidden (тот же баг уже ловили
+ *  на .nselect-opt). */
+function renderUcapList(){
+  var listEl = $('ucapList');
+  if(!listEl) return;
+  var d = S.ucap;
+
+  var rows = d.users.map(function(u){
+    return '<button class="r2-item'+(u.login===d.sel?' on':'')+'" data-ul="'+esc(u.login)+'" data-q="'+esc((u.fio+' '+u.login).toLowerCase())+'">'+
+      '<span class="r2-name">'+esc(u.fio)+(u.active?'':' · заблокирован')+'</span>'+
+      '<span class="r2-sub">'+esc(ucapUserBadge(u))+'</span>'+
+    '</button>';
+  }).join('');
+
+  listEl.innerHTML =
+    '<input id="ucapUserSearch" class="r2-search" placeholder="Поиск сотрудника…" value="'+esc(d.search||'')+'">'+
+    '<div class="note" id="ucapListEmpty">Никого не найдено.</div>'+
+    rows;
+
+  var search = $('ucapUserSearch');
+  var empty = $('ucapListEmpty');
+  function applyFilter(){
+    var q = search.value.trim().toLowerCase();
+    var any = false;
+    listEl.querySelectorAll('.r2-item').forEach(function(btn){
+      var match = !q || btn.dataset.q.indexOf(q) >= 0;
+      btn.style.display = match ? '' : 'none';
+      if(match) any = true;
+    });
+    if(empty) empty.style.display = any ? 'none' : '';
+  }
+  search.oninput = function(){ d.search = search.value; applyFilter(); };
+  applyFilter();
+
+  listEl.querySelectorAll('.r2-item').forEach(function(btn){
+    btn.onclick = function(){
+      d.sel = btn.dataset.ul;
+      listEl.querySelectorAll('.r2-item').forEach(function(x){ x.classList.toggle('on', x === btn); });
+      renderUcapDetail();
+    };
+  });
+}
+
+function ucapUpdateListBadge(login){
+  var listEl = $('ucapList');
+  if(!listEl) return;
+  var user = S.ucap.users.filter(function(u){ return u.login === login; })[0];
+  if(!user) return;
+  listEl.querySelectorAll('.r2-item').forEach(function(btn){
+    if(btn.dataset.ul !== login) return;
+    var sub = btn.querySelector('.r2-sub');
+    if(sub) sub.textContent = ucapUserBadge(user);
+  });
+}
+
+/** Чек-лист прав выбранного сотрудника: по одному праву, чекбоксом
+ *  «весь блок» (заголовок группы) и кнопкой «Убрать все» для этого
+ *  сотрудника. Изменения копятся в S.ucap.matrix — на сервер уходят
+ *  только по «Сохранить» в шапке вкладки (та же схема, что у ролей). */
+function renderUcapDetail(){
+  var el = $('ucapDetail');
+  if(!el) return;
+  var d = S.ucap;
+  var user = d.users.filter(function(u){ return u.login === d.sel; })[0];
+  if(!user){ el.innerHTML = '<div class="note">Выберите сотрудника слева.</div>'; return; }
+
+  var groups = ucapGroups();
+  var granted = d.matrix[user.login] || [];
+
+  var head = '<div class="r2-head">'+
+    '<div class="r2-title">'+esc(user.fio)+'</div>'+
+    '<span class="r2-key">'+esc(user.login)+'</span>'+
+    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все ('+granted.length+')</button>' : '')+
+  '</div>';
+
+  var body = !granted.length && !groups.length
+    ? ''
+    : groups.map(function(g){
+        var ids = g.items.map(function(c){ return c.id; });
+        var allOn = ids.length > 0 && ids.every(function(id){ return granted.indexOf(id) >= 0; });
+        return '<div class="r2-group">'+
+          '<label class="r2-group-t r2-group-t--check">'+
+            '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
+            '<span>'+esc(g.label)+'</span>'+
+          '</label>'+
+          g.items.map(function(c){
+            var on = granted.indexOf(c.id) >= 0;
+            return '<label class="r2-cap">'+
+              '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on?' checked':'')+'>'+
+              '<span>'+esc(c.label)+'</span>'+
+            '</label>';
+          }).join('')+
+        '</div>';
+      }).join('');
+
+  el.innerHTML = head + '<div class="r2-caps">'+body+'</div>';
+
+  el.querySelectorAll('input[data-ucap-group]').forEach(function(box){
+    var g = groups.filter(function(x){ return x.label === box.dataset.ucapGroup; })[0];
+    if(!g) return;
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
+    // «Частично выбрано» задаётся только свойством, не HTML-атрибутом.
+    box.indeterminate = onCount > 0 && onCount < ids.length;
+    box.onchange = function(){
+      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
+      var checked = this.checked;
+      g.items.forEach(function(c){
+        var i = arr.indexOf(c.id);
+        if(checked){ if(i<0) arr.push(c.id); }
+        else if(i>=0) arr.splice(i,1);
+      });
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  });
+
+  el.querySelectorAll('input[data-ucap-cap]').forEach(function(box){
+    box.onchange = function(){
+      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
+      var i = arr.indexOf(this.dataset.ucapCap);
+      if(this.checked){ if(i<0) arr.push(this.dataset.ucapCap); }
+      else if(i>=0) arr.splice(i,1);
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  });
+
+  var clearBtn = $('ucapClearBtn');
+  if(clearBtn){
+    clearBtn.onclick = function(){
+      d.matrix[user.login] = [];
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  }
+}
+
 function renderAdminRoles(){
   var d = S.rc; if(!d) return;
   var caps = d.catalog;
@@ -11657,20 +11915,42 @@ function renderAdminRoles(){
     '</button>';
   }).join('');
 
+  var mode = d.mode || 'role';
+  var byRoleHint = 'Слева — роли, справа — что роль видит и делает в админке. У «Администратора» доступ всегда полный. Особые полномочия структурных ролей заданы в коде — здесь показаны для справки.';
+  var personalHint = 'Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.';
+
   $('adminContent').innerHTML =
     '<div class="roles2">'+
       '<div class="roles2-bar">'+
-        '<p class="step-hint roles2-hint">Слева \u2014 роли, справа \u2014 что роль видит и делает в админке. У \u00abАдминистратора\u00bb доступ всегда полный. Особые полномочия структурных ролей заданы в коде \u2014 здесь показаны для справки.</p>'+
-        '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'+
-        '<button id="roleSaveAll" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'+
+        '<div class="seg">'+
+          '<button class="seg-btn'+(mode==='role'?' on':'')+'" data-rmode="role">'+ic('shield',14)+' По ролям</button>'+
+          '<button class="seg-btn'+(mode==='personal'?' on':'')+'" data-rmode="personal">'+ic('users',14)+' Персонально</button>'+
+        '</div>'+
+        '<p class="step-hint roles2-hint">'+(mode==='role' ? byRoleHint : personalHint)+'</p>'+
+        (mode==='role'
+          ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'
+          : '')+
+        '<button id="'+(mode==='role'?'roleSaveAll':'ucapSaveAll')+'" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'+
       '</div>'+
-      '<div class="roles2-body">'+
-        '<div class="roles2-list">'+listHtml+'</div>'+
-        '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
-      '</div>'+
+      (mode==='role'
+        ? '<div class="roles2-body">'+
+            '<div class="roles2-list">'+listHtml+'</div>'+
+            '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
+          '</div>'
+        : '<div class="roles2-body" id="ucapBody">Загрузка…</div>')+
     '</div>';
 
-  wireAdminRoles(groups);
+  if(mode==='role'){
+    wireAdminRoles(groups);
+  } else if(S.ucap){
+    renderAdminUserCapabilities();
+  } else {
+    loadAdminUserCapabilities();
+  }
+
+  $('adminContent').querySelectorAll('button[data-rmode]').forEach(function(btn){
+    btn.onclick = function(){ d.mode = btn.dataset.rmode; renderAdminRoles(); };
+  });
 }
 
 function roleDetailHtml(r, groups){
