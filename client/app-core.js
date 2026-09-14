@@ -1737,6 +1737,8 @@ var API_ROUTES = {
   apiSetUnits: function(args){ return fetchJson('/api/auth/set-units', { method:'POST', token:args[0], body:{ units:args[1] } }); },
   apiMarkOnboarded: function(args){ return fetchJson('/api/auth/onboarded', { method:'POST', token:args[0] }); },
   apiTelegramLink: function(args){ return fetchJson('/api/telegram/link', { method:'POST', token:args[0] }); },
+  // Публичный, без токена — нужен экрану входа до авторизации.
+  apiTelegramBotInfo: function(){ return fetchJson('/api/telegram/bot-info', { method:'GET' }); },
   apiTelegramUnlink: function(args){ return fetchJson('/api/telegram/unlink', { method:'POST', token:args[0] }); },
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
@@ -3143,13 +3145,30 @@ function renderRail(){ renderNav(); }
 // СТАРТ
 // ═══════════════════════════════════════════════════════════
 /**
- * Экран входа. Ссылку на форму и доступ человек получает в боте,
- * поэтому здесь только логин и пароль — без кнопки «получить доступ».
+ * Экран входа. Ссылку на форму и доступ человек получает в боте, поэтому
+ * здесь только логин и пароль — без кнопки «получить доступ». Кнопка
+ * «Открыть бота» и ссылка «Написать администратору» ведут в один и тот же
+ * бот: разбор сообщений от незнакомых людей на «написать администратору»
+ * уже реализован внутри самого бота (см. supportChatService на сервере),
+ * второй веб-формы под это заводить не нужно.
  */
 (function loginScreen(){
-  $('loginHelp').innerHTML =
-    '<p style="text-align:center;color:var(--muted);font-size:14px;margin-top:16px">'+
+  var FALLBACK_HTML = '<p style="text-align:center;color:var(--muted);font-size:14px;margin-top:16px">'+
     'Логин и пароль присылает бот. Не приходил — обратитесь к своему HR BP.</p>';
+  $('loginHelp').innerHTML = FALLBACK_HTML;
+
+  call('apiTelegramBotInfo').then(function(r){
+    if(!r || !r.ok || !r.username) return; // бот не подключён — остаётся текстовый вариант
+    var link = 'https://t.me/' + r.username;
+    $('loginHelp').innerHTML =
+      '<a href="'+esc(link)+'" target="_blank" class="btn-line" '+
+        'style="display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;margin-top:16px">'+
+        ic('chat', 15)+'Открыть бота @'+esc(r.username)+'</a>'+
+      '<a href="'+esc(link)+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:5px;'+
+        'color:var(--muted);font-size:13.5px;text-decoration:none;margin-top:12px">'+
+        ic('help', 14)+'Не получается войти? Написать администратору</a>';
+  }).catch(function(){ /* остаётся текстовый вариант */ });
+
   if(window.WorkspaceTabs) WorkspaceTabs.init();
 })();
 
