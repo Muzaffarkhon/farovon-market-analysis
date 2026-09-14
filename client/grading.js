@@ -549,14 +549,23 @@ function drawGradeForm(){
     if(!isOpen){
       // Свёрнутая строка — либо уже отвечен (короткий итог выбора), либо
       // ещё ждёт своей очереди (открывается по клику, не обязательно по порядку).
+      // Текст (вопрос+ответ) и кнопка «Изменить» — две grid-колонки (1fr +
+      // auto), а не flex-шринк на одном уровне: у grid ширина auto-колонки
+      // считается ДО раздачи остатка на 1fr, поэтому кнопка гарантированно
+      // получает своё место и не может быть выдавлена/обрезана контейнером
+      // (в отличие от flex, где без точного min-width на каждом элементе
+      // сумма «внутренних» ширин могла превысить контейнер и увести кнопку
+      // за пределы видимой области).
       var chosen = val ? ((fac.options || [])[val - 1] || '') : '';
       h += '<div class="gr-factor gr-factor--done" data-f="'+i+'">'+
-        '<div class="gr-factor-hd">'+title+
-          '<span class="badge">вес '+Math.round(w * 100)+'%</span>'+
+        '<div class="gr-factor-summary">'+
+          '<div class="gr-factor-hd">'+title+
+            '<span class="badge">вес '+Math.round(w * 100)+'%</span>'+
+          '</div>'+
+          (val
+            ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
+            : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
         '</div>'+
-        (val
-          ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
-          : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
         '<button type="button" class="btn-line gr-factor-edit" data-f="'+i+'">'+(val ? 'Изменить' : 'Ответить')+'</button>'+
       '</div>';
       return;
@@ -892,10 +901,12 @@ function drawRiskForm(){
     if(!isOpen){
       var chosen = val ? ((q.options || [])[val - 1] || '') : '';
       h += '<div class="gr-factor gr-factor--done" data-f="'+i+'">'+
-        '<div class="gr-factor-hd">'+title+'</div>'+
-        (val
-          ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
-          : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
+        '<div class="gr-factor-summary">'+
+          '<div class="gr-factor-hd">'+title+'</div>'+
+          (val
+            ? '<div class="gr-factor-chosen"><span class="gr-score gr-score--sm">'+val+'</span><span>'+esc(chosen)+'</span></div>'
+            : '<div class="gr-factor-chosen muted">Ещё не отвечено</div>')+
+        '</div>'+
         '<button type="button" class="btn-line gr-factor-edit" data-f="'+i+'">'+(val ? 'Изменить' : 'Ответить')+'</button>'+
       '</div>';
       return;

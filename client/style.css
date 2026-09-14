@@ -10769,32 +10769,49 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   margin-bottom: 8px;
 }
 /* Свёрнутый (уже отвеченный) фактор — компактная строка с итогом выбора
-   вместо полного списка вариантов, см. drawGradeForm(). Одна строка без
-   переноса: заголовок и выбранный ответ обрезаются многоточием, а кнопка
-   «Изменить» всегда остаётся справа на той же строке. */
-.gr-factor--done { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px 10px; }
-.gr-factor--done .gr-factor-hd {
+   вместо полного списка вариантов, см. drawGradeForm()/drawRiskForm().
+   Grid, а не flex: у grid ширина auto-колонки (кнопка) считается ДО раздачи
+   остатка на 1fr-колонку (текст) — кнопка гарантированно получает своё место
+   при любой ширине контейнера. На чистом flex без min-width на каждом
+   вложенном элементе сумма внутренних ширин иногда превышала контейнер, и
+   кнопку срезало вместе с частью текста, а не переносило на строку ниже. */
+.gr-factor--done {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+}
+.gr-factor-summary {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+.gr-factor-summary .gr-factor-hd {
   flex: 1 1 auto;
   margin: 0;
   min-width: 0;
 }
-.gr-factor--done .gr-factor-hd b {
+.gr-factor-summary .gr-factor-hd b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
-.gr-factor--done .gr-factor-hd .badge { flex: none; }
+.gr-factor-summary .gr-factor-hd .badge { flex: none; }
 .gr-factor-chosen {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1 1 180px;
+  flex: 1 1 120px;
   min-width: 0;
   font-size: 13px;
   color: var(--text);
 }
-.gr-factor-chosen span:last-child {
+.gr-factor-chosen span:last-child,
+.gr-factor-chosen.muted {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
