@@ -10769,16 +10769,36 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   margin-bottom: 8px;
 }
 /* Свёрнутый (уже отвеченный) фактор — компактная строка с итогом выбора
-   вместо полного списка вариантов, см. drawGradeForm(). */
-.gr-factor--done { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
-.gr-factor--done .gr-factor-hd { flex: 1 1 auto; margin: 0; min-width: 200px; }
+   вместо полного списка вариантов, см. drawGradeForm(). Одна строка без
+   переноса: заголовок и выбранный ответ обрезаются многоточием, а кнопка
+   «Изменить» всегда остаётся справа на той же строке. */
+.gr-factor--done { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px 10px; }
+.gr-factor--done .gr-factor-hd {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+}
+.gr-factor--done .gr-factor-hd b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.gr-factor--done .gr-factor-hd .badge { flex: none; }
 .gr-factor-chosen {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  flex: 1 1 260px;
+  flex: 1 1 180px;
+  min-width: 0;
   font-size: 13px;
   color: var(--text);
+}
+.gr-factor-chosen span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .gr-score--sm {
   flex: none;
