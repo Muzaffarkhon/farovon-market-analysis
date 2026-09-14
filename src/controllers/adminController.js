@@ -1883,15 +1883,20 @@ exports.getUserCapabilities = async (req, res) => {
   }
 };
 
-exports.grantUserCapability = async (req, res) => {
+/**
+ * Полная замена набора персональных прав одного сотрудника — той же формы,
+ * что и saveRoleCapabilities для роли. Чек-лист на клиенте (сгруппированный
+ * по разделам, с чекбоксом «выбрать весь блок») отправляет сюда итоговый
+ * список за один вызов: и выдача по одному/по блоку/всем разом, и отзыв —
+ * это один и тот же diff «было / стало», отдельные ручки grant/revoke не
+ * нужны.
+ */
+exports.setUserCapabilities = async (req, res) => {
   const userLogin = String(req.body.userLogin || '').trim();
-  const capability = String(req.body.capability || '').trim();
+  const capabilities = req.body.capabilities;
 
   if (!userLogin) {
     return res.status(400).json({ ok: false, error: 'Не указан сотрудник' });
-  }
-  if (!CAPABILITIES.some(c => c.id === capability)) {
-    return res.status(400).json({ ok: false, error: 'Неизвестное право' });
   }
 
   try {
@@ -1903,42 +1908,25 @@ exports.grantUserCapability = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'У «Администратора» и так все права' });
     }
 
-    await run(`
-      INSERT INTO user_capabilities (user_login, capability, granted_by, granted_at)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(user_login, capability) DO UPDATE SET
-        granted_by = excluded.granted_by, granted_at = CURRENT_TIMESTAMP
-    `, [userLogin, capability, req.user.fio || req.user.login]);
+    const known = new Set(CAPABILITIES.map(c => c.id));
+    const clean = Array.isArray(capabilities) ? [...new Set(capabilities.filter(c => known.has(c)))] : [];
+
+    await run('DELETE FROM user_capabilities WHERE user_login = ?', [userLogin]);
+    for (const cap of clean) {
+      await run('INSERT INTO user_capabilities (user_login, capability, granted_by, granted_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)', [
+        userLogin, cap, req.user.fio || req.user.login
+      ]);
+    }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
-      req.user.login, 'выдано персональное право',
-      `Сотрудник: ${user.fio} (${userLogin}), право: ${capability}`
+      req.user.login, 'изменены персональные права',
+      `Сотрудник: ${user.fio} (${userLogin}), прав: ${clean.length}`
     ]);
 
-    res.json({ ok: true });
+    res.json({ ok: true, capabilities: clean });
   } catch (err) {
-    console.error('grantUserCapability error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка выдачи права' });
-  }
-};
-
-exports.revokeUserCapability = async (req, res) => {
-  const userLogin = String(req.body.userLogin || '').trim();
-  const capability = String(req.body.capability || '').trim();
-
-  if (!userLogin || !capability) {
-    return res.status(400).json({ ok: false, error: 'Не указан сотрудник или право' });
-  }
-
-  try {
-    await run('DELETE FROM user_capabilities WHERE user_login = ? AND capability = ?', [userLogin, capability]);
-    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
-      req.user.login, 'отозвано персональное право', `Сотрудник: ${userLogin}, право: ${capability}`
-    ]);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('revokeUserCapability error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка отзыва права' });
+    console.error('setUserCapabilities error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения персональных прав' });
   }
 };
 

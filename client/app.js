@@ -11672,75 +11672,225 @@ function loadAdminRoles(){
 // всем». Второй режим той же вкладки «Роли и доступы» (переключатель
 // «По ролям / Персонально» в renderAdminRoles), не отдельный экран.
 function loadAdminUserCapabilities(){
-  var el = $('ucapPanel');
+  var el = $('ucapBody');
   if(el) el.innerHTML = 'Загрузка…';
   call('apiAdminGetUserCapabilities', S.token).then(function(r){
     if(!r || !r.ok){
-      if($('ucapPanel')) $('ucapPanel').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
+      if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
       return;
     }
-    S.ucap = { capabilities:r.capabilities, users:(r.users||[]).filter(function(u){ return u.role !== 'admin'; }), grants:r.grants||[] };
+    var byUser = {};
+    (r.grants || []).forEach(function(g){ (byUser[g.userLogin] = byUser[g.userLogin] || []).push(g.capability); });
+    var users = (r.users || []).filter(function(u){ return u.role !== 'admin'; });
+    var orig = {};
+    users.forEach(function(u){ orig[u.login] = (byUser[u.login] || []).slice(); });
+    var keepSel = S.ucap && S.ucap.sel && users.some(function(u){ return u.login === S.ucap.sel; });
+    S.ucap = {
+      capabilities: r.capabilities,
+      users: users,
+      orig: orig,
+      matrix: JSON.parse(JSON.stringify(orig)),
+      sel: keepSel ? S.ucap.sel : (users[0] && users[0].login),
+      search: (S.ucap && S.ucap.search) || ''
+    };
     renderAdminUserCapabilities();
   }).catch(function(){
-    if($('ucapPanel')) $('ucapPanel').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
 }
 
+/** Каталог прав, сгруппированный по разделам — та же группировка, что и
+ *  в матрице ролей (roleDetailHtml), но независимо пересчитанная из
+ *  S.ucap.capabilities, чтобы эта панель не зависела от S.rc. */
+function ucapGroups(){
+  var groups = [], byRes = {};
+  (S.ucap.capabilities || []).forEach(function(c){
+    if(!byRes[c.resource]){ byRes[c.resource] = { label:c.resourceLabel, items:[] }; groups.push(byRes[c.resource]); }
+    byRes[c.resource].items.push(c);
+  });
+  return groups;
+}
+
+function ucapUserBadge(u){
+  var n = (S.ucap.matrix[u.login] || []).length;
+  return n ? (n+' '+declOfNum(n,["личное право","личных права","личных прав"])) : 'нет личных прав';
+}
+
 function renderAdminUserCapabilities(){
-  var el = $('ucapPanel');
-  if(!el) return;
+  var body = $('ucapBody');
+  if(!body) return;
   var d = S.ucap;
-  if(!d){ el.innerHTML = 'Загрузка…'; return; }
+  if(!d){ body.innerHTML = 'Загрузка…'; return; }
+  if(!d.users.length){
+    body.innerHTML = '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>';
+  } else {
+    body.innerHTML = '<div class="roles2-list" id="ucapList"></div><div class="roles2-detail" id="ucapDetail"></div>';
+    renderUcapList();
+    renderUcapDetail();
+  }
 
-  var userItems = d.users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')'+(u.active?'':' · заблокирован') }; });
-  var capItems = d.capabilities.map(function(c){ return { v:c.id, label:c.resourceLabel+' — '+c.label }; });
-
-  var formHtml = !userItems.length
-    ? '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>'
-    : niceSelect({ id:'ucapUserSel', width:240, search:true, value: userItems[0].v, items:userItems })+
-      niceSelect({ id:'ucapCapSel', width:320, search:true, value: capItems[0] && capItems[0].v, items:capItems })+
-      '<button id="ucapGrantBtn" class="btn-line">Выдать</button>';
-
-  var listHtml = !d.grants.length
-    ? '<div class="note">Персональных прав пока никому не выдано.</div>'
-    : '<table class="co-tbl"><thead><tr><th>Сотрудник</th><th>Право</th><th></th></tr></thead><tbody>'+
-      d.grants.map(function(g){
-        var cap = d.capabilities.filter(function(c){ return c.id === g.capability; })[0];
-        var capLabel = cap ? (cap.resourceLabel+' — '+cap.label) : g.capability;
-        return '<tr>'+
-          '<td>'+esc(g.userFio)+'</td>'+
-          '<td>'+esc(capLabel)+'</td>'+
-          '<td><button class="btn-ghost btn-danger" data-ucap-revoke-user="'+esc(g.userLogin)+'" data-ucap-revoke-cap="'+esc(g.capability)+'">Отозвать</button></td>'+
-        '</tr>';
-      }).join('')+
-      '</tbody></table>';
-
-  el.innerHTML =
-    '<div class="ucap-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+formHtml+'</div>'+
-    listHtml;
-
-  if(userItems.length){
-    wireNiceSelect('ucapUserSel', function(){});
-    wireNiceSelect('ucapCapSel', function(){});
-    $('ucapGrantBtn').onclick = function(){
-      var userLogin = $('ucapUserSel').dataset.value;
-      var capability = $('ucapCapSel').dataset.value;
-      if(!userLogin || !capability){ toast('Выберите сотрудника и право', 'no'); return; }
-      call('apiAdminGrantUserCapability', S.token, userLogin, capability).then(function(r){
-        if(r && r.ok){ toast('Право выдано'); loadAdminUserCapabilities(); }
-        else toast((r&&r.error)||'Ошибка', 'no');
+  var saveBtn = $('ucapSaveAll');
+  if(saveBtn){
+    saveBtn.onclick = function(){
+      var btn = this; btn.disabled = true; btn.textContent = 'Сохраняем…';
+      var jobs = [];
+      Object.keys(d.matrix).forEach(function(login){
+        var now = (d.matrix[login] || []).slice().sort().join(',');
+        var was = (d.orig[login] || []).slice().sort().join(',');
+        if(now !== was) jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || []));
+      });
+      if(!jobs.length){ btn.disabled = false; btn.textContent = 'Сохранить'; toast('Изменений нет','ok'); return; }
+      Promise.all(jobs).then(function(results){
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        if(results.some(function(x){ return !x || !x.ok; })) toast('Часть изменений не сохранена','no');
+        else toast('Сохранено','ok');
+        loadAdminUserCapabilities();
+      }).catch(function(){
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        toast('Нет связи с сервером','no');
       });
     };
   }
+}
 
-  el.querySelectorAll('button[data-ucap-revoke-user]').forEach(function(btn){
+/** Список сотрудников слева, с поиском. Видимость строк переключается
+ *  через style.display, не через атрибут hidden — у .r2-item в CSS свой
+ *  display:flex, который бы иначе перебил hidden (тот же баг уже ловили
+ *  на .nselect-opt). */
+function renderUcapList(){
+  var listEl = $('ucapList');
+  if(!listEl) return;
+  var d = S.ucap;
+
+  var rows = d.users.map(function(u){
+    return '<button class="r2-item'+(u.login===d.sel?' on':'')+'" data-ul="'+esc(u.login)+'" data-q="'+esc((u.fio+' '+u.login).toLowerCase())+'">'+
+      '<span class="r2-name">'+esc(u.fio)+(u.active?'':' · заблокирован')+'</span>'+
+      '<span class="r2-sub">'+esc(ucapUserBadge(u))+'</span>'+
+    '</button>';
+  }).join('');
+
+  listEl.innerHTML =
+    '<input id="ucapUserSearch" class="r2-search" placeholder="Поиск сотрудника…" value="'+esc(d.search||'')+'">'+
+    '<div class="note" id="ucapListEmpty">Никого не найдено.</div>'+
+    rows;
+
+  var search = $('ucapUserSearch');
+  var empty = $('ucapListEmpty');
+  function applyFilter(){
+    var q = search.value.trim().toLowerCase();
+    var any = false;
+    listEl.querySelectorAll('.r2-item').forEach(function(btn){
+      var match = !q || btn.dataset.q.indexOf(q) >= 0;
+      btn.style.display = match ? '' : 'none';
+      if(match) any = true;
+    });
+    if(empty) empty.style.display = any ? 'none' : '';
+  }
+  search.oninput = function(){ d.search = search.value; applyFilter(); };
+  applyFilter();
+
+  listEl.querySelectorAll('.r2-item').forEach(function(btn){
     btn.onclick = function(){
-      call('apiAdminRevokeUserCapability', S.token, btn.dataset.ucapRevokeUser, btn.dataset.ucapRevokeCap).then(function(r){
-        if(r && r.ok){ toast('Право отозвано'); loadAdminUserCapabilities(); }
-        else toast((r&&r.error)||'Ошибка', 'no');
-      });
+      d.sel = btn.dataset.ul;
+      listEl.querySelectorAll('.r2-item').forEach(function(x){ x.classList.toggle('on', x === btn); });
+      renderUcapDetail();
     };
   });
+}
+
+function ucapUpdateListBadge(login){
+  var listEl = $('ucapList');
+  if(!listEl) return;
+  var user = S.ucap.users.filter(function(u){ return u.login === login; })[0];
+  if(!user) return;
+  listEl.querySelectorAll('.r2-item').forEach(function(btn){
+    if(btn.dataset.ul !== login) return;
+    var sub = btn.querySelector('.r2-sub');
+    if(sub) sub.textContent = ucapUserBadge(user);
+  });
+}
+
+/** Чек-лист прав выбранного сотрудника: по одному праву, чекбоксом
+ *  «весь блок» (заголовок группы) и кнопкой «Убрать все» для этого
+ *  сотрудника. Изменения копятся в S.ucap.matrix — на сервер уходят
+ *  только по «Сохранить» в шапке вкладки (та же схема, что у ролей). */
+function renderUcapDetail(){
+  var el = $('ucapDetail');
+  if(!el) return;
+  var d = S.ucap;
+  var user = d.users.filter(function(u){ return u.login === d.sel; })[0];
+  if(!user){ el.innerHTML = '<div class="note">Выберите сотрудника слева.</div>'; return; }
+
+  var groups = ucapGroups();
+  var granted = d.matrix[user.login] || [];
+
+  var head = '<div class="r2-head">'+
+    '<div class="r2-title">'+esc(user.fio)+'</div>'+
+    '<span class="r2-key">'+esc(user.login)+'</span>'+
+    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все ('+granted.length+')</button>' : '')+
+  '</div>';
+
+  var body = !granted.length && !groups.length
+    ? ''
+    : groups.map(function(g){
+        var ids = g.items.map(function(c){ return c.id; });
+        var allOn = ids.length > 0 && ids.every(function(id){ return granted.indexOf(id) >= 0; });
+        return '<div class="r2-group">'+
+          '<label class="r2-group-t r2-group-t--check">'+
+            '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
+            '<span>'+esc(g.label)+'</span>'+
+          '</label>'+
+          g.items.map(function(c){
+            var on = granted.indexOf(c.id) >= 0;
+            return '<label class="r2-cap">'+
+              '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on?' checked':'')+'>'+
+              '<span>'+esc(c.label)+'</span>'+
+            '</label>';
+          }).join('')+
+        '</div>';
+      }).join('');
+
+  el.innerHTML = head + '<div class="r2-caps">'+body+'</div>';
+
+  el.querySelectorAll('input[data-ucap-group]').forEach(function(box){
+    var g = groups.filter(function(x){ return x.label === box.dataset.ucapGroup; })[0];
+    if(!g) return;
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
+    // «Частично выбрано» задаётся только свойством, не HTML-атрибутом.
+    box.indeterminate = onCount > 0 && onCount < ids.length;
+    box.onchange = function(){
+      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
+      var checked = this.checked;
+      g.items.forEach(function(c){
+        var i = arr.indexOf(c.id);
+        if(checked){ if(i<0) arr.push(c.id); }
+        else if(i>=0) arr.splice(i,1);
+      });
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  });
+
+  el.querySelectorAll('input[data-ucap-cap]').forEach(function(box){
+    box.onchange = function(){
+      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
+      var i = arr.indexOf(this.dataset.ucapCap);
+      if(this.checked){ if(i<0) arr.push(this.dataset.ucapCap); }
+      else if(i>=0) arr.splice(i,1);
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  });
+
+  var clearBtn = $('ucapClearBtn');
+  if(clearBtn){
+    clearBtn.onclick = function(){
+      d.matrix[user.login] = [];
+      renderUcapDetail();
+      ucapUpdateListBadge(user.login);
+    };
+  }
 }
 
 function renderAdminRoles(){
@@ -11778,16 +11928,16 @@ function renderAdminRoles(){
         '</div>'+
         '<p class="step-hint roles2-hint">'+(mode==='role' ? byRoleHint : personalHint)+'</p>'+
         (mode==='role'
-          ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'+
-            '<button id="roleSaveAll" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'
+          ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'
           : '')+
+        '<button id="'+(mode==='role'?'roleSaveAll':'ucapSaveAll')+'" class="btn-primary roles2-bar-btn">'+ic('check',14)+' Сохранить</button>'+
       '</div>'+
       (mode==='role'
         ? '<div class="roles2-body">'+
             '<div class="roles2-list">'+listHtml+'</div>'+
             '<div class="roles2-detail" id="roleDetail">'+roleDetailHtml(sel, groups)+'</div>'+
           '</div>'
-        : '<div class="roles2-detail" id="ucapPanel" style="flex:1;min-height:0">Загрузка…</div>')+
+        : '<div class="roles2-body" id="ucapBody">Загрузка…</div>')+
     '</div>';
 
   if(mode==='role'){

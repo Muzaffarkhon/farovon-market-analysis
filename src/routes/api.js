@@ -136,8 +136,7 @@ router.post('/admin/roles/:key/delete', requireRoles('admin'), adminController.d
 
 // Персональные права — та же admin-only логика, что и у конструктора ролей.
 router.get('/admin/user-capabilities', requireRoles('admin'), adminController.getUserCapabilities);
-router.post('/admin/user-capabilities', requireRoles('admin'), adminController.grantUserCapability);
-router.post('/admin/user-capabilities/revoke', requireRoles('admin'), adminController.revokeUserCapability);
+router.post('/admin/user-capabilities', requireRoles('admin'), adminController.setUserCapabilities);
 
 // ─── Мультиисточниковый бенчмаркинг вознаграждений ───
 router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);

@@ -1814,8 +1814,7 @@ var API_ROUTES = {
   apiAdminRenameRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/rename', { method:'POST', token:args[0], body:{ label:args[2] } }); },
   apiAdminDeleteRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/delete', { method:'POST', token:args[0] }); },
   apiAdminGetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'GET', token:args[0] }); },
-  apiAdminGrantUserCapability: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capability:args[2] } }); },
-  apiAdminRevokeUserCapability: function(args){ return fetchJson('/api/admin/user-capabilities/revoke', { method:'POST', token:args[0], body:{ userLogin:args[1], capability:args[2] } }); },
+  apiAdminSetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capabilities:args[2] } }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
   // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
@@ -1957,7 +1956,7 @@ var MUTATING_API_ACTIONS = [
   'apiAdminGradingBlockReassign', 'apiAdminGradingCommitteeAdd', 'apiAdminGradingCommitteeRemove',
   'apiAdminGradingCommitteeFinalize',
   'apiAdminCreateRole', 'apiAdminRenameRole', 'apiAdminDeleteRole',
-  'apiAdminGrantUserCapability', 'apiAdminRevokeUserCapability',
+  'apiAdminSetUserCapabilities',
   'apiSetPeriod', 'apiPeriodGrantCreate', 'apiPeriodGrantRevoke'
 ];
 
