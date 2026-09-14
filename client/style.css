@@ -6576,6 +6576,37 @@ label.lbl {
   color: var(--accent);
 }
 
+/* Поиск внутри выпадающей панели (списки на 50+ сотрудников) — прилипает
+   к верху при прокрутке панели, чтобы всегда оставаться под рукой. */
+.nselect-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.nselect-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.nselect-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
 @media (max-width: 560px) {
   .dash-filters .nselect {
     flex: 1 1 45%;

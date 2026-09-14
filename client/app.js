@@ -4142,16 +4142,21 @@ function fetchDashboard(quiet){
 function niceSelect(o){
   var items = o.items || [];
   var cur = items.filter(function(it){ return String(it.v) === String(o.value || ''); })[0] || items[0] || { label:'' };
+  // search:true — строка поиска сверху панели, для длинных списков (все
+  // сотрудники компании), где пролистывать до нужного неудобно.
+  var search = o.search && items.length > 6;
   return '<div class="nselect" id="'+o.id+'" data-value="'+esc(String(o.value || ''))+'"'+
       (o.width ? ' style="width:'+o.width+'px"' : '')+'>'+
     '<button type="button" class="nselect-btn">'+
       '<span class="nselect-cur">'+esc(cur.label)+'</span>'+icBare('chevron', 14)+
     '</button>'+
     '<div class="nselect-panel" hidden>'+
+      (search ? '<input type="text" class="nselect-search" placeholder="Поиск…" autocomplete="off">' : '')+
       items.map(function(it){
         return '<button type="button" class="nselect-opt'+(String(it.v) === String(o.value || '') ? ' on' : '')+
-          '" data-v="'+esc(String(it.v))+'">'+esc(it.label)+'</button>';
+          '" data-v="'+esc(String(it.v))+'"'+(search ? ' data-q="'+esc(String(it.label).toLowerCase())+'"' : '')+'>'+esc(it.label)+'</button>';
       }).join('')+
+      (search ? '<div class="nselect-empty" hidden>Ничего не найдено</div>' : '')+
     '</div>'+
   '</div>';
 }
@@ -4161,6 +4166,8 @@ function wireNiceSelect(id, onPick){
   if(!root) return;
   var btn = root.querySelector('.nselect-btn');
   var panel = root.querySelector('.nselect-panel');
+  var search = panel.querySelector('.nselect-search');
+  var empty = panel.querySelector('.nselect-empty');
   var onDoc = function(e){ if(!root.contains(e.target)) close(); };
   var onKey = function(e){ if(e.key === 'Escape') close(); };
   function close(){
@@ -4174,12 +4181,32 @@ function wireNiceSelect(id, onPick){
     if(panel.hidden){
       panel.hidden = false;
       root.classList.add('open');
-      var on = panel.querySelector('.nselect-opt.on');
-      if(on) on.scrollIntoView({ block:'nearest' });
+      if(search){
+        search.value = '';
+        panel.querySelectorAll('.nselect-opt').forEach(function(opt){ opt.hidden = false; });
+        if(empty) empty.hidden = true;
+        setTimeout(function(){ search.focus(); }, 0);
+      } else {
+        var on = panel.querySelector('.nselect-opt.on');
+        if(on) on.scrollIntoView({ block:'nearest' });
+      }
       document.addEventListener('click', onDoc, true);
       document.addEventListener('keydown', onKey, true);
     } else { close(); }
   };
+  if(search){
+    search.onclick = function(e){ e.stopPropagation(); };
+    search.oninput = function(){
+      var q = search.value.trim().toLowerCase();
+      var any = false;
+      panel.querySelectorAll('.nselect-opt').forEach(function(opt){
+        var match = !q || (opt.dataset.q || '').indexOf(q) >= 0;
+        opt.hidden = !match;
+        if(match) any = true;
+      });
+      if(empty) empty.hidden = any;
+    };
+  }
   panel.querySelectorAll('.nselect-opt').forEach(function(opt){
     opt.onclick = function(){
       root.dataset.value = this.dataset.v;
@@ -10507,7 +10534,7 @@ function loadPeriodGrantsPanel(){
       $('periodGrantsForm').innerHTML = '<div class="note">Архивных годов пока нет — доступ не на что выдавать.</div>';
     } else {
       $('periodGrantsForm').innerHTML =
-        niceSelect({ id:'grantUserSel', width:220, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
+        niceSelect({ id:'grantUserSel', width:220, search:true, value: users[0] ? users[0].login : '', items: users.map(function(u){ return { v:u.login, label:u.fio+' ('+u.login+')' }; }) })+
         niceSelect({ id:'grantPeriodSel', width:280, value: grantablePeriods[0] ? String(grantablePeriods[0].id) : '', items: grantablePeriods.map(function(p){ return { v:String(p.id), label: p.name + (p.updatedAt ? ' — ' + fmtDateTime(p.updatedAt) : '') }; }) })+
         '<button id="btnGrantPeriod" class="btn-line">Выдать на 24 часа</button>';
       wireNiceSelect('grantUserSel', function(){});
@@ -11666,7 +11693,7 @@ function renderAdminUserCapabilities(){
 
   var formHtml = !userItems.length
     ? '<div class="note">Сотрудников без роли «Администратор» пока нет.</div>'
-    : niceSelect({ id:'ucapUserSel', width:240, value: userItems[0].v, items:userItems })+
+    : niceSelect({ id:'ucapUserSel', width:240, search:true, value: userItems[0].v, items:userItems })+
       niceSelect({ id:'ucapCapSel', width:320, value: capItems[0] && capItems[0].v, items:capItems })+
       '<button id="ucapGrantBtn" class="btn-line">Выдать</button>';
 
