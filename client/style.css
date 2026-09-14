@@ -8855,6 +8855,10 @@ html.compact {
   border-bottom: 1px solid var(--line); cursor: pointer; }
 .r2-cap:last-child { border-bottom: none; }
 .r2-cap input { flex-shrink: 0; }
+/* Подпись права — flex-элемент без min-width:0 не сжимается уже своего
+   контента; у подписей вида «Открытие/закрытие периода» слеш стоит без
+   пробела, переносить их браузеру совсем некуда без overflow-wrap. */
+.r2-cap span { min-width: 0; overflow-wrap: break-word; }
 
 /* Право уже есть по роли сотрудника — показываем фактом, не редактируем
    здесь (менять можно только на вкладке «По ролям»). */
@@ -8868,8 +8872,12 @@ html.compact {
    раздел разом) — тот же .r2-group-t, но кликабельный ряд с чекбоксом
    вместо простого текста. */
 .r2-group-t--check { display: flex; align-items: center; gap: 8px; cursor: pointer;
-  text-transform: none; letter-spacing: normal; font-size: 13px; color: var(--text); }
+  /* Тот же левый отступ 4px, что и у .r2-cap ниже — иначе чекбокс
+     заголовка блока стоит на 4px левее чекбоксов самих прав, и ряд
+     визуально «прыгает». */
+  padding: 0 4px; text-transform: none; letter-spacing: normal; font-size: 13px; color: var(--text); }
 .r2-group-t--check input { flex-shrink: 0; }
+.r2-group-t--check span { min-width: 0; overflow-wrap: break-word; }
 
 /* Поиск сотрудника в левом списке «Персональные права» — прилипает к
    верху при прокрутке списка (тот же приём, что у .nselect-search). */
