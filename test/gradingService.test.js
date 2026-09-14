@@ -4,49 +4,53 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  calcWeightedScore, calcGrade, evaluatePosition, evaluateRisk, GradingError
+  calcWeightedScore, calcGrade, evaluatePosition, evaluateRisk, GradingError, CRITERIA_WEIGHTS
 } = require('../src/services/gradingService');
 
-test('производство: 4 фактора со своими весами', () => {
-  // 5×0.30 + 4×0.30 + 3×0.25 + 2×0.15 = 1.5 + 1.2 + 0.75 + 0.3 = 3.75
-  assert.equal(calcWeightedScore('production', [5, 4, 3, 2]), 3.75);
-  assert.equal(calcGrade('production', 3.75), 3);
+test('единая анкета: 6 факторов со своими весами', () => {
+  // 5×0.20 + 4×0.20 + 3×0.20 + 2×0.15 + 2×0.15 + 1×0.10 = 1 + 0.8 + 0.6 + 0.3 + 0.3 + 0.1 = 3.1
+  assert.equal(calcWeightedScore([5, 4, 3, 2, 2, 1]), 3.1);
+  assert.equal(calcGrade(3.1), 4);
 });
 
 test('максимум и минимум шкалы', () => {
-  assert.equal(calcWeightedScore('aup', [5, 5, 5]), 5);
-  assert.equal(calcGrade('aup', 5), 1);
-  assert.equal(calcWeightedScore('aup', [1, 1, 1]), 1);
-  // У торгового и АУП шкала 5 → 1, поэтому балл ниже 1.70 — это уровень 5.
-  assert.equal(calcGrade('aup', 1), 5);
-  // У производства та же ситуация даёт самый низкий уровень 6.
-  assert.equal(calcGrade('production', 1), 6);
+  assert.equal(calcWeightedScore([5, 5, 5, 5, 5, 5]), 5);
+  assert.equal(calcGrade(5), 1);
+  assert.equal(calcWeightedScore([1, 1, 1, 1, 1, 1]), 1);
+  // Балл ниже 1.70 — это самый низкий уровень шкалы (5), второго дна нет.
+  assert.equal(calcGrade(1), 5);
 });
 
 test('границы диапазонов попадают в старший уровень', () => {
-  assert.equal(calcGrade('auxiliary', 4.60), 1);
-  assert.equal(calcGrade('auxiliary', 4.59), 2);
-  assert.equal(calcGrade('auxiliary', 4.00), 2);
-  assert.equal(calcGrade('auxiliary', 3.99), 3);
-  assert.equal(calcGrade('auxiliary', 3.30), 3);
-  assert.equal(calcGrade('auxiliary', 2.50), 4);
-  assert.equal(calcGrade('auxiliary', 1.70), 5);
-  assert.equal(calcGrade('auxiliary', 1.69), 6);
+  assert.equal(calcGrade(4.60), 1);
+  assert.equal(calcGrade(4.59), 2);
+  assert.equal(calcGrade(4.00), 2);
+  assert.equal(calcGrade(3.99), 3);
+  assert.equal(calcGrade(3.30), 3);
+  assert.equal(calcGrade(2.50), 4);
+  assert.equal(calcGrade(1.70), 5);
+  assert.equal(calcGrade(1.69), 5);
 });
 
-test('торговый персонал: вес первого фактора половина', () => {
-  // 4×0.50 + 2×0.30 + 1×0.20 = 2 + 0.6 + 0.2 = 2.8
-  const r = evaluatePosition('sales', [4, 2, 1]);
-  assert.equal(r.weightedScore, 2.8);
-  assert.equal(r.gradeLevel, 4);
-  assert.equal(r.groupType, 'sales');
+test('evaluatePosition считает балл и уровень одним вызовом', () => {
+  const r = evaluatePosition([4, 4, 4, 3, 3, 2]);
+  // 4×0.20 + 4×0.20 + 4×0.20 + 3×0.15 + 3×0.15 + 2×0.10 = 0.8+0.8+0.8+0.45+0.45+0.2 = 3.5
+  assert.equal(r.weightedScore, 3.5);
+  assert.equal(r.gradeLevel, 3);
+  assert.deepEqual(r.factors, [4, 4, 4, 3, 3, 2]);
+});
+
+test('веса шести факторов складываются в 100%', () => {
+  const sum = CRITERIA_WEIGHTS.reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(sum - 1) < 1e-9);
+  assert.equal(CRITERIA_WEIGHTS.length, 6);
 });
 
 test('неверные данные анкеты не проходят', () => {
-  assert.throws(() => calcWeightedScore('production', [5, 4, 3]), GradingError);   // пропущен фактор
-  assert.throws(() => calcWeightedScore('aup', [5, 4, 6]), GradingError);          // балл вне 1–5
-  assert.throws(() => calcWeightedScore('aup', [5, 4, 2.5]), GradingError);        // дробная оценка
-  assert.throws(() => calcWeightedScore('director', [5, 4, 3]), GradingError);     // нет такой группы
+  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2]), GradingError);          // пропущен фактор
+  assert.throws(() => calcWeightedScore([5, 4, 6, 2, 2, 1]), GradingError);       // балл вне 1–5
+  assert.throws(() => calcWeightedScore([5, 4, 2.5, 2, 2, 1]), GradingError);     // дробная оценка
+  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2, 1, 1]), GradingError);    // лишний фактор
 });
 
 test('риск: сумма четырёх факторов и статус', () => {
@@ -101,17 +105,14 @@ test('пользователь без подразделений не получ
 
 // ─── Тексты анкет ───
 
-const { GROUP_FACTORS, RISK_FACTORS } = require('../src/config/gradingFactors');
-const { GROUPS, RISK_FACTOR_FIELDS } = require('../src/services/gradingService');
+const { CRITERIA, RISK_FACTORS } = require('../src/config/gradingFactors');
+const { RISK_FACTOR_FIELDS } = require('../src/services/gradingService');
 
-test('у каждой группы столько факторов, сколько весов, и по 5 вариантов ответа', () => {
-  Object.keys(GROUPS).forEach(key => {
-    const factors = GROUP_FACTORS[key];
-    assert.equal(factors.length, GROUPS[key].weights.length, 'группа ' + key);
-    factors.forEach(f => {
-      assert.equal(f.options.length, 5, f.code);
-      assert.ok(f.title.length > 0, f.code);
-    });
+test('единая анкета: 6 факторов, у каждого по 5 вариантов ответа', () => {
+  assert.equal(CRITERIA.length, 6);
+  CRITERIA.forEach(f => {
+    assert.equal(f.options.length, 5, f.code);
+    assert.ok(f.title.length > 0, f.code);
   });
 });
 
@@ -126,15 +127,15 @@ const factorsService = require('../src/services/gradingFactorsService');
 
 test('правка анкеты: пустой вопрос и неполные варианты не проходят', async () => {
   await assert.rejects(
-    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: '', options: ['а', 'б', 'в', 'г', 'д'] }),
+    () => factorsService.saveFactor({ scope: 'position', idx: 1, title: '', options: ['а', 'б', 'в', 'г', 'д'] }),
     /пустой/i
   );
   await assert.rejects(
-    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в'] }),
+    () => factorsService.saveFactor({ scope: 'position', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в'] }),
     /5 вариантов/
   );
   await assert.rejects(
-    () => factorsService.saveFactor({ scope: 'production', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', '  '] }),
+    () => factorsService.saveFactor({ scope: 'position', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', '  '] }),
     /5 вариантов/
   );
 });
@@ -144,34 +145,34 @@ test('правка анкеты: чужая анкета и номер вне д
     () => factorsService.saveFactor({ scope: 'директора', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
     /Неизвестная анкета/
   );
-  // У АУП три фактора — четвёртого вопроса не существует.
+  // В единой анкете 6 вопросов — седьмого не существует.
   await assert.rejects(
-    () => factorsService.saveFactor({ scope: 'aup', idx: 4, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
+    () => factorsService.saveFactor({ scope: 'position', idx: 7, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
     /номер вопроса/
   );
 });
 
 test('формулировка направления перекрывает общую, остальные направления её не видят', () => {
   const row = (scope, idx, dir, title) => ({
-    scope, idx, dir, code: 'П' + idx, title, help: '',
+    scope, idx, dir, code: 'К' + idx, title, help: '',
     option_1: 'а', option_2: 'б', option_3: 'в', option_4: 'г', option_5: 'д'
   });
   const rows = [
-    row('production', 1, '', 'Общий вопрос 1'),
-    row('production', 1, 'Мука', 'Про мельницу'),
-    row('production', 2, '', 'Общий вопрос 2')
+    row('position', 1, '', 'Общий вопрос 1'),
+    row('position', 1, 'Мука', 'Про мельницу'),
+    row('position', 2, '', 'Общий вопрос 2')
   ];
 
   const мука = factorsService.pickForDir(rows, 'Мука');
-  assert.equal(мука.production[0].title, 'Про мельницу');
-  assert.equal(мука.production[0].dir, 'Мука');
+  assert.equal(мука.position[0].title, 'Про мельницу');
+  assert.equal(мука.position[0].dir, 'Мука');
   // Второй вопрос своей формулировки не имеет — берётся общая.
-  assert.equal(мука.production[1].title, 'Общий вопрос 2');
-  assert.equal(мука.production[1].dir, '');
+  assert.equal(мука.position[1].title, 'Общий вопрос 2');
+  assert.equal(мука.position[1].dir, '');
 
   const масло = factorsService.pickForDir(rows, 'Масло');
-  assert.equal(масло.production[0].title, 'Общий вопрос 1');
+  assert.equal(масло.position[0].title, 'Общий вопрос 1');
 
   const общая = factorsService.pickForDir(rows, '');
-  assert.equal(общая.production[0].title, 'Общий вопрос 1');
+  assert.equal(общая.position[0].title, 'Общий вопрос 1');
 });

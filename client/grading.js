@@ -73,49 +73,26 @@ function grDirOf(unit){
   return (any && any.dir) || '';
 }
 
-function grGroup(key){
-  var list = (GR.factors && GR.factors.groups) || [];
-  return list.filter(function(g){ return g.key === key; })[0] || null;
-}
-
 function grBlockLabel(key){
   var b = (GR.blocks || []).filter(function(x){ return x.key === key; })[0];
   return b ? b.label : '';
 }
 
-/**
- * Подсказка из прежнего анализа (~180 должностей, см.
- * src/config/gradingPositionHints.js): раньше эта должность чаще всего
- * получала такую группу и уровень. Не оценка — только ориентир для
- * комиссии, поэтому серым и с явной пометкой при расхождении по площадкам.
- */
-function grHintCell(r){
-  if(!r.suggested_group) return '<span class="muted">—</span>';
-  var g = grGroup(r.suggested_group);
-  var label = (g ? g.label : r.suggested_group) + ', ур. ' + r.suggested_level;
-  var warn = (r.hint_group_conflict || r.hint_level_conflict)
-    ? ' <span class="gr-hint-warn" title="У этой должности раньше расходилось по разным площадкам — оценивайте по факту, а не по подсказке">'+icBare('warn', 13)+'</span>'
-    : '';
-  return '<span class="muted" title="По прежнему анализу, '+esc(r.hint_sample_count || 0)+' сотрудников">'+esc(label)+'</span>'+warn;
-}
-
 /** Балл = сумма «оценка × вес». Повторяет gradingService.calcWeightedScore. */
-function grScore(groupKey, answers){
-  var g = grGroup(groupKey);
-  if(!g) return 0;
+function grScore(answers){
+  var weights = (GR.factors && GR.factors.weights) || [];
   var sum = 0;
-  g.weights.forEach(function(w, i){ sum += (Number(answers[i]) || 0) * w; });
+  weights.forEach(function(w, i){ sum += (Number(answers[i]) || 0) * w; });
   return Math.round(sum * 100) / 100;
 }
 
 /** Уровень по баллу. Пороги приходят с сервера — второй копии правил нет. */
-function grGrade(groupKey, score){
-  var g = grGroup(groupKey);
+function grGrade(score){
   var thresholds = (GR.factors && GR.factors.grades) || [];
   for(var i = 0; i < thresholds.length; i++){
     if(score >= thresholds[i].from) return thresholds[i].grade;
   }
-  return (g && g.maxGrade) || 6;
+  return (GR.factors && GR.factors.maxGrade) || 5;
 }
 
 function grAnswered(answers, need){
@@ -429,11 +406,10 @@ function drawGradePositions(){
     // экрана. Пока анкета открыта, этот блок вообще скрыт (см. выше), так
     // что ужимать под неё больше не нужно.
     '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
-    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th><th>Группа</th><th>Подсказка</th>'+
+    '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th>'+
       (hasCommittee ? '<th>Комиссия</th>' : '')+
       '<th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
-      var g = r.group_type ? grGroup(r.group_type) : null;
       var mySubmitted = !!r.my_submission;
       var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
       var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
@@ -441,8 +417,6 @@ function drawGradePositions(){
         '<td><b>'+esc(r.job_title)+'</b></td>'+
         '<td>'+(r.unit_count || 0)+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
-        '<td>'+esc(g ? g.label : '—')+'</td>'+
-        '<td>'+grHintCell(r)+'</td>'+
         (hasCommittee ? '<td>'+(r.grade_level ? '<span class="muted">завершено</span>' : (r.submitted_count || 0)+' из '+GR.committeeSize+(mySubmitted ? ' '+icBare('check', 12) : ''))+'</td>' : '')+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">Уровень '+r.grade_level+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
@@ -504,17 +478,11 @@ function openGradeForm(rowIndex){
   // проставлен) строка row уже содержит официальный итог, его и показываем.
   var mine = !row.grade_level ? row.my_submission : null;
   var source = mine || row;
-  // Группа по умолчанию: свой ответ/прошлая оценка → подсказка из прежнего
-  // анализа (только выбор анкеты/весов, ответы на вопросы подсказка не
-  // знает) → производственная как самая частая.
   GR.form = {
     jobTitle: row.job_title,
-    group: source.group_type || row.suggested_group || 'production',
-    answers: [source.factor_1, source.factor_2, source.factor_3, source.factor_4].map(function(v){ return v || 0; }),
+    answers: [source.factor_1, source.factor_2, source.factor_3, source.factor_4, source.factor_5, source.factor_6]
+      .map(function(v){ return v || 0; }),
     notes: source.notes || '',
-    // Для предупреждения «выбранная группа отличается от подсказки» ниже —
-    // само значение подсказки не меняется, даже если группу потом переключат.
-    suggestedGroup: row.suggested_group || null,
     editingFactor: null
   };
   drawGradePositions();
@@ -532,17 +500,16 @@ function drawGradeForm(){
     return;
   }
 
-  var group = grGroup(f.group) || (GR.factors.groups || [])[0];
-  if(!group) return;
-  var factors = group.factors || [];
-  var score = grScore(group.key, f.answers);
-  var grade = grGrade(group.key, score);
+  var factors = GR.factors.criteria || [];
+  var weights = GR.factors.weights || [];
+  var score = grScore(f.answers);
+  var grade = grGrade(score);
   var answered = grAnswered(f.answers, factors.length);
-  var ready = answered === factors.length;
+  var ready = factors.length > 0 && answered === factors.length;
 
-  // Шапка липкая: в анкете производственной группы четыре блока вопросов,
-  // и на середине прокрутки уже не видно, какую должность оцениваешь.
-  // Там же держим текущий балл — иначе за ним пришлось бы листать вниз.
+  // Шапка липкая: в анкете 6 блоков вопросов, и на середине прокрутки уже не
+  // видно, какую должность оцениваешь. Там же держим текущий балл — иначе за
+  // ним пришлось бы листать вниз.
   var h = '<div class="card gr-form">'+
     '<div class="gr-form-hd">'+
       '<b>'+esc(f.jobTitle)+'</b>'+
@@ -552,26 +519,12 @@ function drawGradeForm(){
         : 'Отвечено '+answered+' из '+factors.length)+'</span>'+
       '<button class="btn-line gr-close">Закрыть</button>'+
     '</div>'+
-    '<div class="gr-groups-hd">'+
-      '<label class="lbl">Функциональная группа</label>'+
-      (hasCap('grading:factors') || (S.data && S.data.user && S.data.user.role === 'admin')
-        ? '<button class="btn-line gr-open-factors" data-g="'+esc(group.key)+'">Настройки анкеты</button>'
-        : '')+
-    '</div>'+
-    '<div class="gr-groups">'+
-      (GR.factors.groups || []).map(function(g){
-        return '<button class="gr-group'+(g.key === group.key ? ' on' : '')+'" data-g="'+esc(g.key)+'">'+
-          esc(g.label)+'<small>'+g.factors.length+' фактора</small></button>';
-      }).join('')+
-    '</div>'+
-    (f.suggestedGroup && f.suggestedGroup !== group.key
-      ? '<div class="gr-group-warn">'+icBare('warn', 13)+
-        ' Выбрана группа «'+esc(group.label)+'», а по прежнему анализу у этой должности обычно «'+
-        esc((grGroup(f.suggestedGroup) || {}).label || f.suggestedGroup)+'». Если это осознанно — продолжайте, иначе переключите группу выше.</div>'
+    (hasCap('grading:factors') || (S.data && S.data.user && S.data.user.role === 'admin')
+      ? '<div class="gr-groups-hd"><button class="btn-line gr-open-factors">Настройки анкеты</button></div>'
       : '');
 
-  // Раньше все факторы разворачивались сразу — 3-4 вопроса по 4-6 вариантов
-  // полным текстом каждый превращали анкету в стену текста, в которой легко
+  // Раньше все факторы разворачивались сразу — вопросы по 5 вариантов полным
+  // текстом каждый превращали анкету в стену текста, в которой легко
   // потеряться (жалоба: «слишком много текста и информации, сложно
   // сориентироваться»). Теперь открыт только ОДИН фактор за раз: первый
   // неотвеченный, либо тот, что явно открыли на редактирование кликом
@@ -585,7 +538,7 @@ function drawGradeForm(){
   var openFactor = (f.editingFactor != null) ? f.editingFactor : firstUnanswered;
 
   factors.forEach(function(fac, i){
-    var w = group.weights[i];
+    var w = weights[i];
     var val = Number(f.answers[i]) || 0;
     var isOpen = (openFactor === -1) || (openFactor === i);
     var title = '<b>'+esc(fac.code || ('Фактор ' + (i + 1)))+'. '+esc(fac.title)+'</b>';
@@ -640,24 +593,11 @@ function drawGradeForm(){
   var factorsBtn = box.querySelector('.gr-open-factors');
   if(factorsBtn){
     factorsBtn.onclick = function(){
-      S.gradingScope = factorsBtn.getAttribute('data-g');
+      S.gradingScope = 'position';
       S.gradingDir = '';
       openAdminPanel('gradingFactors');
     };
   }
-  [].forEach.call(box.querySelectorAll('.gr-group'), function(btn){
-    btn.onclick = function(){
-      var key = btn.getAttribute('data-g');
-      if(key === GR.form.group) return;
-      // У групп разное число факторов, поэтому ответы сбрасываем: молча
-      // перенести «фактор 3» из одной анкеты в другую значило бы посчитать
-      // балл по ответам на другие вопросы.
-      GR.form.group = key;
-      GR.form.answers = [0, 0, 0, 0];
-      GR.form.editingFactor = null;
-      drawGradeForm();
-    };
-  });
   [].forEach.call(box.querySelectorAll('.gr-opt'), function(btn){
     btn.onclick = function(){
       GR.form.notes = $('grNotes') ? $('grNotes').value : GR.form.notes;
@@ -681,14 +621,11 @@ function drawGradeForm(){
 function saveGradeForm(){
   var f = GR.form;
   if(!f) return;
-  var group = grGroup(f.group);
-  if(!group) return;
 
   var body = {
     block: GR.block,
     job_title: f.jobTitle,
-    group_type: group.key,
-    factors: f.answers.slice(0, group.weights.length),
+    factors: f.answers,
     notes: $('grNotes') ? $('grNotes').value : ''
   };
 
@@ -719,22 +656,21 @@ function loadGradingStats(){
     }
 
     // Уровни по горизонтали, группы по вертикали — так видно перекос
-    // (например, все АУП на 2-м уровне).
-    var levels = [1, 2, 3, 4, 5, 6];
-    var byGroup = {};
+    // (например, весь блок «Торговля» осел на 4-м уровне).
+    var levels = [1, 2, 3, 4, 5];
+    var byBlock = {};
     (r.rows || []).forEach(function(x){
-      if(!byGroup[x.group_type]) byGroup[x.group_type] = {};
-      byGroup[x.group_type][x.grade_level] = Number(x.n || 0);
+      if(!byBlock[x.block_key]) byBlock[x.block_key] = {};
+      byBlock[x.block_key][x.grade_level] = Number(x.n || 0);
     });
 
     var h = '<div class="gr-progress">Всего оценено должностей: <b>'+r.total+'</b></div>'+
       '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
-      '<thead><tr><th>Группа</th>'+levels.map(function(l){ return '<th>Уровень '+l+'</th>'; }).join('')+'<th>Итого</th></tr></thead><tbody>'+
-      Object.keys(byGroup).map(function(key){
-        var g = grGroup(key);
-        var row = byGroup[key];
+      '<thead><tr><th>Блок</th>'+levels.map(function(l){ return '<th>Уровень '+l+'</th>'; }).join('')+'<th>Итого</th></tr></thead><tbody>'+
+      Object.keys(byBlock).map(function(key){
+        var row = byBlock[key];
         var total = levels.reduce(function(s, l){ return s + (row[l] || 0); }, 0);
-        return '<tr><td><b>'+esc(g ? g.label : key)+'</b></td>'+
+        return '<tr><td><b>'+esc(grBlockLabel(key) || key)+'</b></td>'+
           levels.map(function(l){
             var n = row[l] || 0;
             return '<td'+(n ? ' class="gr-cell-on"' : '')+'>'+(n || '—')+'</td>';

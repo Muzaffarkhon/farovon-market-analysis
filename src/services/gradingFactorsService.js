@@ -4,26 +4,32 @@
  * Тексты анкет оценки: чтение из таблицы grading_factors и правка из админки.
  *
  * Формулировки лежат в базе, чтобы C&B менял вопросы и расшифровку баллов сам,
- * без разработчика. Значения из src/config/gradingFactors.js — исходная
- * Google-форма — остаются запасным вариантом: если таблицы ещё нет (сервер
- * поднялся раньше миграции) или строка почему-то пропала, анкета показывается
- * по коду, а не ломается.
+ * без разработчика. Значения из src/config/gradingFactors.js остаются
+ * запасным вариантом: если таблицы ещё нет (сервер поднялся раньше миграции)
+ * или строка почему-то пропала, анкета показывается по коду, а не ломается.
+ *
+ * Два независимых scope: 'position' — единая анкета грейдирования должностей
+ * (6 факторов, одна для всех категорий персонала), 'risk' — анкета риска
+ * незаменимости (4 фактора). До 2026-09-14 у грейдирования было 4 разных
+ * scope по функциональным группам — сведены в один, т.к. веса и факторы
+ * теперь общие для всей компании.
  *
  * Кэш на минуту — тот же приём, что в roleService: тексты меняют раз в
  * полгода, а запрашиваются при каждом открытии раздела.
  */
 
 const { queryAll, queryOne, run } = require('../db/database');
-const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
-const { GROUP_KEYS, GradingError } = require('./gradingService');
+const { CRITERIA, RISK_FACTORS } = require('../config/gradingFactors');
+const { FACTOR_COUNT, GradingError } = require('./gradingService');
 
 const TTL_MS = 60 * 1000;
+const POSITION_SCOPE = 'position';
 const RISK_SCOPE = 'risk';
-const SCOPES = [...GROUP_KEYS, RISK_SCOPE];
+const SCOPES = [POSITION_SCOPE, RISK_SCOPE];
 const OPTION_COUNT = 5;
 const MAX_TITLE = 300;
 const MAX_TEXT = 1000;
-// Формулировку можно переопределить и под индустриальный блок экрана «Оценка
+// Формулировку можно переопределить под индустриальный блок экрана «Оценка
 // должностей» (grading_blocks.key: production/construction/trade/office), не
 // только под направление оргструктуры. Оба переопределения живут в одной
 // колонке dir — блок отличаем префиксом, т.к. ключи блоков короткие
@@ -34,9 +40,9 @@ const BLOCK_DIR_PREFIX = 'block:';
 let cache = null;
 let cachedAt = 0;
 
-/** Сколько факторов у каждой анкеты — по этому проверяем правку. */
+/** Сколько факторов у анкеты — по этому проверяем правку. */
 function expectedCount(scope) {
-  return scope === RISK_SCOPE ? RISK_FACTORS.length : (GROUP_FACTORS[scope] || []).length;
+  return scope === RISK_SCOPE ? RISK_FACTORS.length : FACTOR_COUNT;
 }
 
 function fromRow(row) {
@@ -80,9 +86,11 @@ function pickForDir(rows, wantDir) {
 
 /** Запасной вариант — исходные формулировки из кода. */
 function fallback() {
-  const groups = {};
-  GROUP_KEYS.forEach(key => { groups[key] = (GROUP_FACTORS[key] || []).map(f => ({ ...f })); });
-  return { groups, risk: RISK_FACTORS.map(f => ({ ...f })), source: 'код' };
+  return {
+    criteria: CRITERIA.map(f => ({ ...f })),
+    risk: RISK_FACTORS.map(f => ({ ...f })),
+    source: 'код'
+  };
 }
 
 /** Все строки таблицы с коротким кэшем — направлений мало, фильтруем в памяти. */
@@ -95,13 +103,13 @@ async function loadRows() {
 }
 
 /**
- * Формулировки анкет для конкретного направления:
- * { groups: {production: [...]}, risk: [...] }.
+ * Формулировки анкет для конкретного направления/блока:
+ * { criteria: [...6 факторов], risk: [...4 фактора] }.
  *
- * Порядок подстановки: своя формулировка направления → общая (dir = '') →
- * исходная из кода. Так «Департамент производства муки» может описывать
- * баллы про мельницу, а все остальные видят общий текст, и веса при этом
- * у всех одни — уровни остаются сравнимыми между заводами.
+ * Порядок подстановки: своя формулировка направления/блока → общая (dir = '')
+ * → исходная из кода. Так «Департамент производства муки» может описывать
+ * баллы иначе, а все остальные видят общий текст, и веса при этом у всех
+ * одни — уровни остаются сравнимыми по всей компании.
  */
 async function getFactors(dir) {
   const wantDir = String(dir == null ? '' : dir).trim();
@@ -122,10 +130,10 @@ async function getFactors(dir) {
 
   // Подменяем только те анкеты, которые в базе заполнены целиком: половина
   // вопросов из базы и половина из кода — это путаница на экране оценки.
-  GROUP_KEYS.forEach(key => {
-    const list = byScope[key];
-    if (list && list.filter(Boolean).length === expectedCount(key)) result.groups[key] = list;
-  });
+  const positionList = byScope[POSITION_SCOPE];
+  if (positionList && positionList.filter(Boolean).length === expectedCount(POSITION_SCOPE)) {
+    result.criteria = positionList;
+  }
   const riskList = byScope[RISK_SCOPE];
   if (riskList && riskList.filter(Boolean).length === expectedCount(RISK_SCOPE)) result.risk = riskList;
 
@@ -137,7 +145,7 @@ function cleanText(raw, max) {
 }
 
 /**
- * Правка одного вопроса анкеты. Меняются только тексты: код фактора («П1»),
+ * Правка одного вопроса анкеты. Меняются только тексты: код фактора («К1»),
  * его порядок и вес остаются за кодом — от них зависит расчёт балла.
  */
 async function saveFactor(input) {
@@ -161,7 +169,7 @@ async function saveFactor(input) {
   const dir = await checkDir(input.dir);
   const author = cleanText(input.updatedBy, MAX_TITLE) || 'не указан';
 
-  // Код фактора («П1») берём у общей строки — он часть расчёта и одинаков
+  // Код фактора («К1») берём у общей строки — он часть расчёта и одинаков
   // для всех направлений.
   const base = await queryOne(
     "SELECT code FROM grading_factors WHERE scope = ? AND idx = ? AND dir = '' ",
@@ -192,7 +200,7 @@ async function saveFactor(input) {
 
 /**
  * Сброс вопроса: у направления — удаление его формулировки (дальше действует
- * общая), у общей — возврат к исходному тексту Google-формы.
+ * общая), у общей — возврат к исходному тексту.
  */
 async function resetFactor(scope, idx, dirRaw, updatedBy) {
   if (!SCOPES.includes(scope)) throw new GradingError('Неизвестная анкета: ' + (scope || '(пусто)'));
@@ -207,7 +215,7 @@ async function resetFactor(scope, idx, dirRaw, updatedBy) {
     return { scope, idx, dir, title: '' };
   }
 
-  const list = scope === RISK_SCOPE ? RISK_FACTORS : GROUP_FACTORS[scope];
+  const list = scope === RISK_SCOPE ? RISK_FACTORS : CRITERIA;
   const source = list && list[idx - 1];
   if (!source) throw new GradingError('Исходной формулировки для этого вопроса нет');
   return saveFactor({
@@ -251,5 +259,6 @@ async function listOverrideDirs() {
 }
 
 module.exports = {
-  getFactors, saveFactor, resetFactor, listOverrideDirs, invalidate, pickForDir, SCOPES, RISK_SCOPE
+  getFactors, saveFactor, resetFactor, listOverrideDirs, invalidate, pickForDir,
+  SCOPES, POSITION_SCOPE, RISK_SCOPE
 };
