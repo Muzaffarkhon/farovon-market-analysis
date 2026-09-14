@@ -5,7 +5,13 @@
  *
  * Здесь только математика и классификаторы — без запросов к базе и без HTTP,
  * чтобы правила расчёта можно было прогонять тестами и менять в одном месте.
- * Источник правил — PLAN_GRADING_AND_KEY_PERSONNEL.md (разделы 3.1 и 3.2).
+ *
+ * Единая анкета грейдирования для всей компании (согласовано с руководством
+ * 2026-09-14): раньше у 4 функциональных групп (производство/вспомогательный/
+ * торговый/АУП) были разные факторы, веса и даже разная длина шкалы — грейды
+ * одной группы нельзя было сравнить с другой. Теперь один набор из 6
+ * факторов и одна шкала на всех, чтобы влияние на бизнес было сравнимо между
+ * любыми двумя должностями холдинга.
  *
  * Оценивается ТРЕБОВАНИЕ К ФУНКЦИИ (роли), а не человек: одна и та же
  * должность в разных цехах может получить разный грейд только если у неё
@@ -15,27 +21,14 @@
 const MIN_FACTOR = 1;
 const MAX_FACTOR = 5;
 
-/**
- * Четыре функциональные группы. У производства 4 фактора, у остальных 3 —
- * отсюда разная длина `weights`. `maxGrade` — самый низкий уровень шкалы:
- * у производства и вспомогательного персонала шкала 6 → 1, у торгового
- * и АУП 5 → 1.
- */
-const GROUPS = {
-  production: { label: 'Производственный персонал', weights: [0.30, 0.30, 0.25, 0.15], maxGrade: 6 },
-  auxiliary:  { label: 'Вспомогательный персонал',  weights: [0.40, 0.30, 0.30],       maxGrade: 6 },
-  sales:      { label: 'Торговый персонал',         weights: [0.50, 0.30, 0.20],       maxGrade: 5 },
-  aup:        { label: 'АУП',                       weights: [0.35, 0.30, 0.15, 0.20], maxGrade: 5 }
-};
+/** Веса 6 факторов — сумма 100%. Порядок совпадает с CRITERIA в config/gradingFactors.js. */
+const CRITERIA_WEIGHTS = [0.20, 0.20, 0.20, 0.15, 0.15, 0.10];
+const FACTOR_COUNT = CRITERIA_WEIGHTS.length;
 
-const GROUP_KEYS = Object.keys(GROUPS);
+/** Самый низкий уровень шкалы — ниже нижнего порога грейд не опускается. */
+const MAX_GRADE = 5;
 
-/**
- * Нижние границы баллов по уровням, от старшего уровня к младшему.
- * Балл ниже 1.70 — это самый низкий уровень шкалы группы (6 у производства
- * и вспомогательного, 5 у торгового и АУП), поэтому отдельной строки в
- * таблице для него нет.
- */
+/** Нижние границы баллов по уровням, от старшего уровня к младшему. */
 const GRADE_THRESHOLDS = [
   { grade: 1, from: 4.60 },
   { grade: 2, from: 4.00 },
@@ -77,14 +70,6 @@ class GradingError extends Error {
   }
 }
 
-function normalizeGroup(groupType) {
-  const key = String(groupType || '').trim().toLowerCase();
-  if (!GROUPS[key]) {
-    throw new GradingError('Неизвестная группа должностей: ' + (groupType || '(пусто)'));
-  }
-  return key;
-}
-
 /** Балл фактора — целое число от 1 до 5; «4», 4 и 4.0 принимаем, «высокий» — нет. */
 function parseFactor(value, label) {
   const num = Number(value);
@@ -96,53 +81,42 @@ function parseFactor(value, label) {
 
 /**
  * Проверка ответов анкеты: количество оценок должно точно совпадать с числом
- * факторов группы — иначе оператор пропустил вопрос, и балл молча оказался бы
+ * факторов (6) — иначе оператор пропустил вопрос, и балл молча оказался бы
  * заниженным. Возвращает оценки, приведённые к числам.
  */
-function normalizeFactors(groupType, factors) {
-  const key = normalizeGroup(groupType);
-  const { weights } = GROUPS[key];
+function normalizeFactors(factors) {
   const list = Array.isArray(factors) ? factors : [];
-
-  if (list.length !== weights.length) {
-    throw new GradingError(
-      `Для группы «${GROUPS[key].label}» нужно ${weights.length} оценок, получено ${list.length}`
-    );
+  if (list.length !== FACTOR_COUNT) {
+    throw new GradingError(`Нужно ${FACTOR_COUNT} оценок, получено ${list.length}`);
   }
   return list.map((value, i) => parseFactor(value, `Фактор ${i + 1}`));
 }
 
 /** Взвешенный балл должности: сумма «оценка фактора × вес фактора». */
-function calcWeightedScore(groupType, factors) {
-  const key = normalizeGroup(groupType);
-  const { weights } = GROUPS[key];
-  const score = normalizeFactors(key, factors).reduce((sum, value, i) => sum + value * weights[i], 0);
+function calcWeightedScore(factors) {
+  const score = normalizeFactors(factors).reduce((sum, value, i) => sum + value * CRITERIA_WEIGHTS[i], 0);
   return Math.round(score * 100) / 100;
 }
 
 /** Грейд (уровень) по взвешенному баллу. Чем выше балл — тем старше уровень. */
-function calcGrade(groupType, score) {
-  const key = normalizeGroup(groupType);
+function calcGrade(score) {
   const num = Number(score);
   if (!Number.isFinite(num)) throw new GradingError('Балл должности не рассчитан');
 
   const hit = GRADE_THRESHOLDS.find(t => num >= t.from);
-  return hit ? hit.grade : GROUPS[key].maxGrade;
+  return hit ? hit.grade : MAX_GRADE;
 }
 
 /** Полный расчёт по анкете грейдирования: балл + уровень одним вызовом. */
-function evaluatePosition(groupType, factors) {
-  const key = normalizeGroup(groupType);
-  const values = normalizeFactors(key, factors);
-  const weightedScore = calcWeightedScore(key, values);
+function evaluatePosition(factors) {
+  const values = normalizeFactors(factors);
+  const weightedScore = calcWeightedScore(values);
   return {
-    groupType: key,
-    groupLabel: GROUPS[key].label,
     // Уже приведённые к числам оценки — их и пишем в базу (в теле запроса
     // приходят строки «5», а CHECK в SQLite строку не примет).
     factors: values,
     weightedScore,
-    gradeLevel: calcGrade(key, weightedScore)
+    gradeLevel: calcGrade(weightedScore)
   };
 }
 
@@ -150,6 +124,7 @@ function evaluatePosition(groupType, factors) {
  * Индекс риска незаменимости: простая сумма четырёх оценок 1–5.
  * Веса здесь намеренно не применяются — все четыре фактора равнозначны
  * (уход носителя знаний бьёт по бизнесу одинаково, с какой стороны ни зайди).
+ * Уже единая анкета для всех категорий персонала — трогать нечего.
  */
 function evaluateRisk(answers) {
   const src = answers || {};
@@ -172,14 +147,14 @@ function evaluateRisk(answers) {
 }
 
 module.exports = {
-  GROUPS,
-  GROUP_KEYS,
+  CRITERIA_WEIGHTS,
+  FACTOR_COUNT,
+  MAX_GRADE,
   GRADE_THRESHOLDS,
   RISK_LEVELS,
   RISK_FACTOR_FIELDS,
   RISK_FACTOR_LABELS,
   GradingError,
-  normalizeGroup,
   normalizeFactors,
   calcWeightedScore,
   calcGrade,

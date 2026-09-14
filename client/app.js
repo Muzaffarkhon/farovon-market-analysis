@@ -5765,13 +5765,11 @@ function renderAdminPanel(){
 // ─── Вкладка: Анкеты оценки (формулировки вопросов) ───
 
 // Подписи анкет. Ключи совпадают с scope в таблице grading_factors и с
-// группами в src/services/gradingService.js — менять их нельзя, от них
-// зависит расчёт балла.
+// scope в src/services/gradingFactorsService.js — менять их нельзя, от них
+// зависит расчёт балла. С 2026-09-14 одна единая анкета грейдирования
+// ('position') на всю компанию вместо 4 разных по функциональным группам.
 var GRADING_SCOPES = [
-  { key:'production', label:'Производственный персонал', hint:'4 фактора: заводы, цеха, производственные линии' },
-  { key:'auxiliary', label:'Вспомогательный персонал', hint:'3 фактора: автопарк, склады, АХО, столовые, охрана' },
-  { key:'sales', label:'Торговый персонал', hint:'3 фактора: Торговый Дом, филиалы, опт и розница' },
-  { key:'aup', label:'АУП', hint:'4 фактора: Правление, бухгалтерия, финансы, HR, IT, юристы' },
+  { key:'position', label:'Оценка должностей', hint:'6 факторов, единая анкета для всех категорий персонала' },
   { key:'risk', label:'Анкета рисков незаменимости', hint:'4 вопроса о ключевых сотрудниках' }
 ];
 
@@ -5804,14 +5802,12 @@ function renderAdminGradingFactors(){
 function gradingFactorsOf(scope){
   var data = S.gradingFactors || {};
   if(scope === 'risk') return data.riskFactors || [];
-  var g = (data.groups || []).filter(function(x){ return x.key === scope; })[0];
-  return (g && g.factors) || [];
+  return data.criteria || [];
 }
 
 function gradingWeightsOf(scope){
   if(scope === 'risk') return null;
-  var g = ((S.gradingFactors || {}).groups || []).filter(function(x){ return x.key === scope; })[0];
-  return (g && g.weights) || null;
+  return (S.gradingFactors || {}).weights || null;
 }
 
 function drawGradingFactors(){

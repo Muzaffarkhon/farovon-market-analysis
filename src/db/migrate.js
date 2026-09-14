@@ -1,6 +1,6 @@
 const { queryAll, queryOne, run, batch } = require('./database');
 const { ROLES, DEFAULT_ROLE_CAPABILITIES, RESERVED_ROLE_KEYS, ROLE_LABELS } = require('../config/capabilities');
-const { GROUP_FACTORS, RISK_FACTORS } = require('../config/gradingFactors');
+const { CRITERIA, RISK_FACTORS } = require('../config/gradingFactors');
 const { POSITION_HINTS } = require('../config/gradingPositionHints');
 
 /**
@@ -454,9 +454,7 @@ async function migrate() {
   // Базы, созданные до появления разреза по направлениям, доводим до нового
   // вида: колонка dir и уникальность по тройке (анкета, вопрос, направление).
   await upgradeGradingFactorsToDirs();
-  for (const [scope, list] of Object.entries(GROUP_FACTORS)) {
-    await seedFactors(scope, list);
-  }
+  await seedFactors('position', CRITERIA);
   await seedFactors('risk', RISK_FACTORS);
 
   // Риски незаменимости ключевого персонала. Здесь, в отличие от
@@ -611,7 +609,79 @@ async function migrate() {
   await seedGradingBlocks();
   await upgradeJobEvaluationsToBlocks();
   await seedGradingPositionHints();
+  await unifyGradingCriteria();
   await seedSupportChat();
+}
+
+/**
+ * Переход с 4 разных анкет грейдирования по функциональным группам
+ * (производство/вспомогательный/торговый/АУП — разные факторы, разные веса,
+ * разная длина шкалы) на одну единую анкету из 6 факторов с одними весами
+ * для всей компании (согласовано с руководством 2026-09-14 — грейды разных
+ * категорий персонала должны быть сравнимы напрямую).
+ *
+ * Решение по старым данным: не переносить и не архивировать — физически
+ * удалить и оценить заново по новой анкете (см. docs/superpowers, сессия
+ * 2026-09-14). Поэтому здесь DROP, а не ALTER: старые таблицы были рассчитаны
+ * на 3-4 фактора и колонку group_type, которой в новой модели больше нет.
+ */
+async function unifyGradingCriteria() {
+  const MIGRATION_NAME = '20260914_unified_grading_criteria';
+  const applied = await queryOne('SELECT name FROM schema_migrations WHERE name = ?', [MIGRATION_NAME]);
+  if (applied) return;
+
+  await run('DROP TABLE IF EXISTS job_evaluations');
+  await run(`CREATE TABLE job_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL REFERENCES grading_blocks(key),
+    job_title TEXT NOT NULL,
+    unit TEXT,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER NOT NULL CHECK(factor_4 BETWEEN 1 AND 5),
+    factor_5 INTEGER NOT NULL CHECK(factor_5 BETWEEN 1 AND 5),
+    factor_6 INTEGER NOT NULL CHECK(factor_6 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    grade_level INTEGER NOT NULL,
+    evaluated_by TEXT NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_block ON job_evaluations(block_key)');
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_title ON job_evaluations(job_title)');
+
+  await run('DROP TABLE IF EXISTS grading_committee_evaluations');
+  await run(`CREATE TABLE grading_committee_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    evaluator_login TEXT NOT NULL,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER NOT NULL CHECK(factor_4 BETWEEN 1 AND 5),
+    factor_5 INTEGER NOT NULL CHECK(factor_5 BETWEEN 1 AND 5),
+    factor_6 INTEGER NOT NULL CHECK(factor_6 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    notes TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title, evaluator_login)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_grading_committee_eval_pair ON grading_committee_evaluations(block_key, job_title)');
+
+  // Старые переопределения текста анкеты по функциональной группе больше не
+  // применимы (у 'production' было 4 вопроса, у 'sales' — 3, у новой единой
+  // анкеты 'position' — 6, номера вопросов не совпадают ни по смыслу, ни по
+  // количеству). Формулировки риска незаменимости (scope='risk') не трогаем —
+  // там менялся только текст, структура анкеты не менялась.
+  await run("DELETE FROM grading_factors WHERE scope IN ('production', 'auxiliary', 'sales', 'aup')");
+
+  await run('INSERT INTO schema_migrations (name) VALUES (?)', [MIGRATION_NAME]);
+  console.log('🔧 Миграция: грейдирование переведено на единую анкету из 6 факторов для всей компании ' +
+    '(старые оценки должностей удалены, требуется переоценка)');
 }
 
 /**
