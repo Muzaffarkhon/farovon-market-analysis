@@ -2254,22 +2254,72 @@ exports.importStaffDirectory = async (req, res) => {
 };
 
 /**
- * Просмотр справочника сотрудников («Справочники → Сотрудники»). Только
- * чтение — записи приходят пачкой через импорт (см. importStaffDirectory
- * выше), редактировать/добавлять по одной здесь нельзя.
+ * Просмотр справочника сотрудников («Справочники → Сотрудники»). Массово
+ * записи приходят через импорт (importStaffDirectory выше); отдельную
+ * запись можно поправить или добавить руками — см. saveStaffDirectory/
+ * deleteStaffDirectory ниже (для точечных правок между импортами, чтобы не
+ * пере-выгружать весь файл из-за одной опечатки).
  */
 exports.listStaffDirectory = async (req, res) => {
   try {
-    const rows = await queryAll('SELECT unit, fio, position, imported_at FROM staff_directory ORDER BY unit ASC, fio ASC');
+    const rows = await queryAll('SELECT id, unit, fio, position, imported_at FROM staff_directory ORDER BY unit ASC, fio ASC');
     const importedAt = rows.length ? rows[0].imported_at : null;
     res.json({
       ok: true,
-      items: rows.map(r => ({ unit: r.unit, fio: r.fio, position: r.position || '' })),
+      items: rows.map(r => ({ id: r.id, unit: r.unit, fio: r.fio, position: r.position || '' })),
       importedAt,
     });
   } catch (err) {
     console.error('listStaffDirectory error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки справочника сотрудников' });
+  }
+};
+
+/** Добавление или правка одной записи. id пустой/отсутствует — создание. */
+exports.saveStaffDirectory = async (req, res) => {
+  try {
+    const id = parseInt(req.body && req.body.id, 10);
+    const unit = String((req.body && req.body.unit) || '').trim().slice(0, 300);
+    const fio = String((req.body && req.body.fio) || '').trim().slice(0, 300);
+    const position = String((req.body && req.body.position) || '').trim().slice(0, 300);
+
+    if (!unit || !fio) return res.status(400).json({ ok: false, error: 'Укажите подразделение и ФИО' });
+
+    if (Number.isInteger(id)) {
+      const existing = await queryOne('SELECT id FROM staff_directory WHERE id = ?', [id]);
+      if (!existing) return res.status(404).json({ ok: false, error: 'Запись не найдена' });
+      await run('UPDATE staff_directory SET unit = ?, fio = ?, position = ? WHERE id = ?', [unit, fio, position || null, id]);
+      await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+        [req.user.login, 'справочник сотрудников: правка', `«${fio}», ${unit}, ${position || 'без должности'}`]);
+      return res.json({ ok: true, id });
+    }
+
+    const inserted = await run('INSERT INTO staff_directory (unit, fio, position) VALUES (?, ?, ?)', [unit, fio, position || null]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      [req.user.login, 'справочник сотрудников: добавление', `«${fio}», ${unit}, ${position || 'без должности'}`]);
+    return res.json({ ok: true, id: inserted.lastInsertRowid != null ? Number(inserted.lastInsertRowid) : null });
+  } catch (err) {
+    console.error('saveStaffDirectory error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения' });
+  }
+};
+
+/** Удаление одной записи справочника сотрудников. */
+exports.deleteStaffDirectory = async (req, res) => {
+  try {
+    const id = parseInt(req.body && req.body.id, 10);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: 'Некорректная запись' });
+
+    const existing = await queryOne('SELECT fio, unit FROM staff_directory WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Запись не найдена' });
+
+    await run('DELETE FROM staff_directory WHERE id = ?', [id]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      [req.user.login, 'справочник сотрудников: удаление', `«${existing.fio}», ${existing.unit}`]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('deleteStaffDirectory error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка удаления' });
   }
 };
 

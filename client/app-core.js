@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.68';
+var APP_VERSION = window.APP_VERSION || 'v2.5.69';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1825,6 +1825,9 @@ var API_ROUTES = {
   // Импорт справочника сотрудников (выгрузка 1С). args: [token, csvText, dryRun]
   apiAdminImportStaffDirectory: function(args){ return fetchJson('/api/admin/import-staff-directory', { method:'POST', token:args[0], body:{ csv:args[1], dryRun:args[2] } }); },
   apiAdminStaffDirectoryList: function(args){ return fetchJson('/api/admin/staff-directory', { method:'GET', token:args[0] }); },
+  // args: [token, {id, unit, fio, position}] — id пустой/undefined = создание новой записи
+  apiAdminStaffDirectorySave: function(args){ return fetchJson('/api/admin/staff-directory', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminStaffDirectoryDelete: function(args){ return fetchJson('/api/admin/staff-directory/delete', { method:'POST', token:args[0], body:{ id:args[1] } }); },
   apiAdminUnlock: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'unlock', targetOwner:args[1], targetRole:args[2] } }); },
   apiAdminDataStatus: function(args){ return fetchJson('/api/admin/data-status', { method:'GET', token:args[0] }); },
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },

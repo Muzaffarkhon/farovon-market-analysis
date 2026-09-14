@@ -1,5 +1,5 @@
 // Farovon Market Analysis PWA Service Worker
-const CACHE_NAME = 'farovon-market-v2-5-68';
+const CACHE_NAME = 'farovon-market-v2-5-69';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

@@ -123,6 +123,8 @@ router.post('/admin/maintenance', requireCapability('service:edit'), adminContro
 router.post('/admin/import-survey', requireCapability('service:edit'), adminController.importSurvey);
 router.post('/admin/import-staff-directory', requireCapability('service:edit'), adminController.importStaffDirectory);
 router.get('/admin/staff-directory', requireCapability('dictionary:view'), adminController.listStaffDirectory);
+router.post('/admin/staff-directory', requireCapability('dictionary:create', 'dictionary:edit'), adminController.saveStaffDirectory);
+router.post('/admin/staff-directory/delete', requireCapability('dictionary:edit'), adminController.deleteStaffDirectory);
 router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);
 router.get('/admin/data-status', requireCapability('service:view'), adminController.getDataStatus);
 

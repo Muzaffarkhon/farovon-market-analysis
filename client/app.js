@@ -505,7 +505,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -540,7 +540,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -600,7 +600,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.69')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -630,7 +630,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.68')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.69')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -10812,8 +10812,9 @@ function drawStaffDict(){
       units.map(function(u){ return '<option value="'+esc(u)+'"'+(u === unitFilter ? ' selected' : '')+'>'+esc(u)+'</option>'; }).join('')+
     '</select>'+
     tblCount(items.length, all.length, ['запись', 'записи', 'записей'])+
+    '<button class="btn-primary toolbar-act" id="dictStaffAdd">+ Добавить сотрудника</button>'+
   '</div>'+
-  '<div class="muted" style="font-size:12.5px;padding:0 2px 8px">Только просмотр — список приходит целиком через «Сервисные утилиты → Импорт справочника сотрудников»'+
+  '<div class="muted" style="font-size:12.5px;padding:0 2px 8px">Список приходит целиком через «Сервисные утилиты → Импорт справочника сотрудников» — точечная правка здесь не переживёт следующую полную загрузку файла'+
     (S.dictStaffImportedAt ? ('. Загружен: ' + esc(String(S.dictStaffImportedAt).slice(0, 16).replace('T', ' '))) : '') +
   '.</div>';
 
@@ -10822,20 +10823,23 @@ function drawStaffDict(){
       ? '<div class="empty empty--lg">'+
           '<span class="empty-ic">'+icBare('users', 40)+'</span>'+
           '<b>Справочник сотрудников пока пуст</b>'+
-          '<span>Загрузите файл в «Сервисные утилиты → Импорт справочника сотрудников»</span>'+
+          '<span>Загрузите файл в «Сервисные утилиты → Импорт справочника сотрудников» или добавьте первую запись кнопкой выше</span>'+
         '</div>'
       : '<div class="empty">Ничего не найдено</div>';
     $('dictBox').innerHTML = h;
     bindDictBar();
+    var addBtnEmpty = $('dictStaffAdd');
+    if(addBtnEmpty) addBtnEmpty.onclick = function(){ openStaffDictItem(null); };
     return;
   }
 
   h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
-    '<th>ФИО</th><th>Подразделение</th><th>Должность</th>'+
+    '<th>ФИО</th><th>Подразделение</th><th>Должность</th><th></th>'+
     '</tr></thead><tbody>'+
     pageItems.map(function(it){
       return '<tr><td><b>'+esc(it.fio)+'</b></td><td>'+esc(it.unit)+'</td>'+
-        '<td>'+(it.position ? esc(it.position) : '<span style="color:var(--muted)">—</span>')+'</td></tr>';
+        '<td>'+(it.position ? esc(it.position) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+        '<td class="u-acts"><button class="row-menu-trigger" data-staff-act="'+it.id+'" title="Действия" aria-label="Действия с записью">'+icBare('more',16)+'</button></td></tr>';
     }).join('')+
     '</tbody></table></div>';
 
@@ -10856,6 +10860,105 @@ function drawStaffDict(){
   if(prevBtn) prevBtn.onclick = function(){ S.dictStaffPage = pg - 1; drawStaffDict(); };
   var nextBtn = $('dictStaffNext');
   if(nextBtn) nextBtn.onclick = function(){ S.dictStaffPage = pg + 1; drawStaffDict(); };
+  var addBtn = $('dictStaffAdd');
+  if(addBtn) addBtn.onclick = function(){ openStaffDictItem(null); };
+  $('dictBox').querySelectorAll('button[data-staff-act]').forEach(function(b){
+    b.onclick = function(e){ openStaffDictActions(e, parseInt(this.dataset.staffAct, 10)); };
+  });
+}
+
+function openStaffDictActions(e, id){
+  var it = (S.dictItems || []).filter(function(x){ return x.id === id; })[0];
+  openOverflowMenu(e, [
+    { label:'Редактировать', icon:'pencil', run:function(){ openStaffDictItem(it); } },
+    { divider:true },
+    { label:'Удалить', icon:'trash', danger:true, run:function(){ removeStaffDictItem(it); } }
+  ]);
+}
+
+/** Карточка записи справочника сотрудников. it === null — создание новой. */
+function openStaffDictItem(it){
+  var isEdit = !!it;
+  var cur = { unit: it ? it.unit : (S.dictStaffUnit || ''), fio: it ? it.fio : '', position: it ? (it.position || '') : '' };
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  var unitOptions = (function(){
+    var seen = {};
+    var list = [];
+    (S.dictItems || []).forEach(function(x){ if(!seen[x.unit]){ seen[x.unit] = true; list.push(x.unit); } });
+    list.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+    return list;
+  })();
+
+  var body = '<label class="lbl">ФИО</label>'+
+    '<input id="sdFio" value="'+esc(cur.fio)+'" placeholder="Фамилия Имя Отчество" autocomplete="off" spellcheck="false">'+
+    '<label class="lbl">Подразделение</label>'+
+    '<input id="sdUnit" value="'+esc(cur.unit)+'" list="sdUnitList" placeholder="Как в оргструктуре" autocomplete="off" spellcheck="false">'+
+    '<datalist id="sdUnitList">'+unitOptions.map(function(u){ return '<option value="'+esc(u)+'">'; }).join('')+'</datalist>'+
+    '<label class="lbl">Должность</label>'+
+    '<input id="sdPosition" value="'+esc(cur.position)+'" placeholder="Необязательно" autocomplete="off" spellcheck="false">'+
+    (cur.unit && unitOptions.indexOf(cur.unit) < 0
+      ? '<div class="muted" style="font-size:12.5px;margin-top:4px">Такого подразделения ещё нет в текущем справочнике — если это не опечатка, убедитесь, что оно есть в оргструктуре, иначе сотрудник не попадёт в списки риска.</div>'
+      : '');
+
+  el.innerHTML = '<div class="sheet-in um-modal" style="max-width:420px">'+
+    '<div class="sheet-hd"><b>'+ic('users',16)+(isEdit ? 'Правка записи' : 'Новая запись')+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div style="padding:6px 0 2px">'+ body +'</div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+      '<button class="btn-line" data-x="1" style="min-height:34px;padding:0 14px">Отмена</button>'+
+      '<button class="btn-primary" id="sdSave" style="min-height:34px;padding:0 16px">'+ic('check',14)+'Сохранить</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(el);
+
+  function close(){ if(el.parentNode) el.remove(); }
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.closest('[data-x]')) close();
+  });
+
+  $('sdSave').onclick = function(){
+    var fio = $('sdFio').value.trim();
+    var unit = $('sdUnit').value.trim();
+    var position = $('sdPosition').value.trim();
+    if(!fio || !unit){ toast('Укажите ФИО и подразделение', 'warn'); return; }
+    var btn = $('sdSave');
+    btn.disabled = true; btn.textContent = 'Сохраняю…';
+    call('apiAdminStaffDirectorySave', S.token, { id: it ? it.id : null, unit: unit, fio: fio, position: position }).then(function(r){
+      if(r && r.ok){
+        toast(isEdit ? 'Сохранено' : 'Добавлено', 'ok');
+        close();
+        loadDict();
+      } else {
+        btn.disabled = false; btn.textContent = 'Сохранить';
+        toast((r && r.error) || 'Не удалось сохранить', 'no');
+      }
+    }).catch(function(){
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      toast('Нет связи с сервером', 'no');
+    });
+  };
+}
+
+function removeStaffDictItem(it){
+  if(!it) return;
+  ask({
+    title: 'Удалить «' + it.fio + '»?',
+    html: 'Запись пропадёт из справочника сотрудников и из выпадающего списка «ФИО» в анкете «Риски штата».',
+    ok: 'Удалить',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminStaffDirectoryDelete', S.token, it.id).then(function(r){
+      if(r && r.ok){
+        toast('Удалено', 'ok');
+        loadDict();
+      } else {
+        toast((r && r.error) || 'Не удалось удалить', 'no');
+      }
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+  });
 }
 
 function drawDict(){
