@@ -10907,11 +10907,16 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
    начиналось в своей точке (К1 короткий заголовок — ответ сразу после,
    К3 длинный — ответ уводило дальше). Фиксированная колонка под плашку
    выравнивает начало ответа по всем строкам сразу — а не обрезает длинное
-   название многоточием (было), а переносит его на второй ряд внутри той же
-   колонки: полный текст видно, при этом ширина колонки не гуляет. */
+   название многоточием (было), а переносит его на второй-третий ряд внутри
+   той же колонки: полный текст видно, при этом ширина колонки не гуляет.
+   Именно ФИКСИРОВАННОЕ число, не minmax(min,max) — с переносом текста
+   (white-space:normal ниже) диапазон почти всегда даёт максимум, но не
+   гарантированно одно и то же число в каждой строке; фиксированная ширина
+   гарантирует буквально. Анкета риска (вопросы-предложения) шире грейдинга
+   (.gr-factor-summary--grade переопределяет своим значением ниже по файлу). */
 .gr-factor-summary {
   display: grid;
-  grid-template-columns: minmax(150px, 300px) minmax(0, 1fr);
+  grid-template-columns: 520px minmax(0, 1fr);
   align-items: start;
   gap: 8px 10px;
   min-width: 0;
@@ -10940,6 +10945,11 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .gr-factor-summary--grade .gr-factor-hd b { white-space: nowrap; }
 .gr-factor-summary--grade .gr-factor-chosen { padding-top: 0; }
+/* Карточка просмотра анкеты риска (узкая модалка, не вся страница) — своя,
+   компактная ширина колонки под вопрос вместо 520px большой анкеты. */
+.gr-factor-summary.gr-factor-summary--card {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
 .gr-factor-summary .gr-factor-hd .badge { flex: none; }
 .gr-factor-chosen {
   display: flex;
@@ -11310,6 +11320,8 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .kr-result.kr-attention { border-color: #eab308; }
 .kr-result.kr-critical { border-color: #dc2626; }
 .kr-plan { max-width: 420px; font-size: 12px; color: var(--muted); }
+.gr-risk-row { cursor: pointer; }
+.gr-risk-row:hover { background: var(--card-2); }
 .kr-heat .kr-cell { text-align: center; }
 .kr-heat .kr-cell.on { font-weight: 700; }
 .kr-heat .kr-standard.on { background: rgba(22, 163, 74, .12); }
@@ -11444,10 +11456,15 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-group small { font-size: 10.5px; }
 .gr-factor { padding: 10px 0; }
 .gr-factor-hd b { font-size: 13.5px; }
-/* На узком экране колонка под плашку уже, чем на десктопе (там до 300px) —
+/* На узком экране колонка под плашку уже, чем на десктопе (там до 520px) —
    но не обрезаем текст, а даём ему перенестись на 2–3 строки (см. white-space:
-   normal выше), общая точка начала ответа всё равно останется одинаковой. */
-.gr-factor-summary { grid-template-columns: minmax(110px, 180px) minmax(0, 1fr); }
+   normal выше), общая точка начала ответа всё равно останется одинаковой.
+   ВАЖНО: обязательно внутри @media — эта строка раньше стояла голой прямо
+   тут, между двумя соседними media-блоками, и поэтому применялась ВСЕГДА,
+   на любом экране, перебивая десктопную колонку 520px (см. handoff). */
+@media (max-width: 640px) {
+  .gr-factor-summary { grid-template-columns: 220px minmax(0, 1fr); }
+}
 .gr-opts { gap: 4px; }
 .gr-opt { padding: 6px 9px; font-size: 12.5px; }
 .gr-opt .gr-score { flex-basis: 21px; height: 21px; font-size: 11px; }

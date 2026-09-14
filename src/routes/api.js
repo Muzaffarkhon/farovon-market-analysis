@@ -175,6 +175,8 @@ router.get('/admin/grading-blocks', requireCapability('grading:blocks'), grading
 router.get('/admin/grading-blocks/positions', requireCapability('grading:blocks'), gradingController.getAdminBlockPositions);
 router.post('/admin/grading-blocks/reassign', requireCapability('grading:blocks'), gradingController.reassignBlockPosition);
 router.post('/admin/grading-blocks/reset-evaluation', requireCapability('grading:blocks'), gradingController.resetEvaluation);
+// Карточка сравнения: кто из комиссии что выбрал по каждому фактору, до утверждения итога.
+router.get('/admin/grading-blocks/committee-breakdown', requireCapability('grading:blocks', 'grading:committee'), gradingController.getCommitteeBreakdown);
 // Комиссия: кто входит в оценку блока вслепую, и принудительное подведение
 // итога, если кворум набрать уже некому.
 router.get('/admin/grading-committee', requireCapability('grading:committee'), gradingController.getCommittee);

@@ -361,7 +361,7 @@ function loadGradePositions(){
   Promise.all([
     call('apiGradingPositions', S.token, GR.block),
     needFactors ? call('apiGradingFactors', S.token, wantDir) : Promise.resolve(GR.factors)
-  ]).then(function(res){
+  ]).then(guardAsyncToTab(function(res){
     var pos = res[0];
     var factors = res[1];
     if(!pos || !pos.ok){
@@ -377,9 +377,9 @@ function loadGradePositions(){
     GR.isCommitteeMember = !!pos.isCommitteeMember;
     drawGradePositions();
     if(GR.form) drawGradeForm();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('grList').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function drawGradePositions(){
@@ -414,13 +414,22 @@ function drawGradePositions(){
       var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
       var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
       var unitsCell = (r.unit_count || 0)
-        ? '<button type="button" class="list-cell gr-units-cell" data-i="'+i+'">'+(r.unit_count || 0)+'</button>'
+        ? '<button type="button" class="list-cell gr-units-cell" data-i="'+i+'" data-ctx-label="'+esc('Подразделения: ' + (r.unit_count || 0))+'">'+(r.unit_count || 0)+'</button>'
         : '0';
+      // «Комиссия» — если хоть одна заявка есть, у admin/C&B (canReset) кликабельно:
+      // открывает карточку сравнения, кто что выбрал (см. openCommitteeBreakdown).
+      // Остальным членам комиссии чужие голоса до утверждения не показываем —
+      // отсюда и «слепая» заявка теряет смысл, если любой мог бы их сверить.
+      var committeePlain = (r.grade_level ? 'завершено' : (r.submitted_count || 0)+' из '+GR.committeeSize);
+      var committeeText = committeePlain + (mySubmitted ? ' '+icBare('check', 12) : '');
+      var committeeCell = (canReset && (r.submitted_count || 0) > 0)
+        ? '<button type="button" class="list-cell gr-committee-cell" data-i="'+i+'" data-ctx-label="'+esc('Комиссия: ' + committeePlain)+'">'+committeeText+'</button>'
+        : committeeText;
       return '<tr>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
         '<td>'+unitsCell+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
-        (hasCommittee ? '<td>'+(r.grade_level ? '<span class="muted">завершено</span>' : (r.submitted_count || 0)+' из '+GR.committeeSize+(mySubmitted ? ' '+icBare('check', 12) : ''))+'</td>' : '')+
+        (hasCommittee ? '<td>'+committeeCell+'</td>' : '')+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">Уровень '+r.grade_level+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
         '<td class="gr-row-acts">'+
@@ -445,6 +454,93 @@ function drawGradePositions(){
         return { label: u.unit, hint: (u.staffCount || 0) + ' чел.' };
       }));
     };
+  });
+  [].forEach.call(document.querySelectorAll('#grList .gr-committee-cell'), function(btn){
+    btn.onclick = function(){
+      var row = GR.rows[parseInt(btn.getAttribute('data-i'), 10)];
+      if(row) openCommitteeBreakdown(row);
+    };
+  });
+}
+
+/**
+ * Карточка сравнения по должности с оценкой комиссии: факторы в строках,
+ * члены комиссии — отдельными столбцами, в каждой ячейке — балл и текст
+ * выбранного варианта. Пока не утверждено — можно «Сбросить» прямо отсюда
+ * (та же операция, что кнопка в строке таблицы); после утверждения карточка
+ * только для просмотра, сброс всё равно доступен (снаружи и внутри — как
+ * попросили), а точечно поменять чей-то голос уже нельзя ни отсюда, ни из
+ * формы (см. серверную проверку в evaluateAsCommittee).
+ */
+function openCommitteeBreakdown(row){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in um-modal" style="max-width:720px">'+
+    '<div class="sheet-hd"><b>'+ic('users',16)+'Комиссия: '+esc(row.job_title)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div id="cbBody" style="padding:6px 0 2px"><div class="sp"><i></i> Загрузка…</div></div>'+
+  '</div>';
+  document.body.appendChild(el);
+
+  function close(){ if(el.parentNode) el.remove(); }
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.closest('[data-x]')) close();
+  });
+
+  call('apiAdminGradingCommitteeBreakdown', S.token, GR.block, row.job_title).then(function(r){
+    var body = el.querySelector('#cbBody');
+    if(!body) return;
+    if(!r || !r.ok){
+      body.innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить')+'</div>';
+      return;
+    }
+    var factors = (GR.factors && GR.factors.criteria) || [];
+    var subs = r.submissions || [];
+
+    var html = r.finalized
+      ? '<div class="gr-result gr-result--ready" style="margin-bottom:12px">'+
+          '<div><span class="muted">Итоговый балл</span><b>'+esc(String(r.final.weighted_score))+'</b></div>'+
+          '<div><span class="muted">Уровень</span><b>Уровень '+r.final.grade_level+'</b></div>'+
+          '<div class="gr-result-note">Утверждено — менять отдельные голоса больше нельзя, только «Сбросить».</div>'+
+        '</div>'
+      : '<div class="muted" style="margin-bottom:10px">Сдали '+subs.length+' из '+r.committeeSize+'. Итог подведётся автоматически, когда ответят все.</div>';
+
+    if(!subs.length){
+      html += '<div class="empty">Заявок пока нет</div>';
+    } else {
+      html += '<div class="tblwrap"><table class="co-tbl"><thead><tr><th>Фактор</th>'+
+        subs.map(function(s){ return '<th>'+esc(s.evaluator_fio)+'</th>'; }).join('')+
+        '</tr></thead><tbody>'+
+        factors.map(function(fac, fi){
+          var key = 'factor_' + (fi + 1);
+          return '<tr><td><b>'+esc(fac.code || ('Ф'+(fi+1)))+'</b><div class="muted" style="font-size:11.5px">'+esc(fac.title)+'</div></td>'+
+            subs.map(function(s){
+              var val = s[key];
+              if(val == null) return '<td class="muted">—</td>';
+              var opt = (fac.options || [])[Math.round(val) - 1] || '';
+              return '<td><span class="gr-score gr-score--sm">'+val+'</span> '+esc(opt)+'</td>';
+            }).join('')+
+          '</tr>';
+        }).join('')+
+        '</tbody></table></div>';
+    }
+
+    if(canManageGradingBlocks()){
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:12px">'+
+        '<button class="btn-line btn-danger" id="cbReset">Сбросить</button>'+
+      '</div>';
+    }
+
+    body.innerHTML = html;
+    var resetBtn = body.querySelector('#cbReset');
+    if(resetBtn) resetBtn.onclick = function(){
+      close();
+      var idx = GR.rows.indexOf(row);
+      resetGradeEvaluation(idx >= 0 ? idx : GR.rows.length);
+    };
+  }).catch(function(){
+    var body = el.querySelector('#cbBody');
+    if(body) body.innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
 }
 
@@ -767,7 +863,7 @@ function loadRiskList(){
   Promise.all([
     call('apiKeyRiskList', S.token),
     (!GR.factors || GR.factorsDir !== dir) ? call('apiGradingFactors', S.token, dir) : Promise.resolve(GR.factors)
-  ]).then(function(res){
+  ]).then(guardAsyncToTab(function(res){
     var r = res[0];
     if(res[1] && res[1].ok){ GR.factors = res[1]; GR.factorsDir = dir; }
     if(!r || !r.ok){
@@ -777,9 +873,9 @@ function loadRiskList(){
     GR.risks = r.rows || [];
     GR.riskLevels = r.levels || [];
     drawRiskList();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('krContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function riskStatusBadge(status, label){
@@ -799,13 +895,17 @@ function drawRiskList(){
   '</div>'+
   '<div id="krForm" data-no-smart-filter="true"></div>';
 
+  var canEdit = canEditKeyRisks();
   if(!GR.risks.length){
     h += '<div class="empty">Оценённых сотрудников пока нет</div>';
   } else {
     h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
       '<thead><tr><th>Сотрудник</th><th>Должность</th><th>Подразделение</th><th>Баллы</th><th>Статус</th><th>Что делаем</th><th>Оценил</th></tr></thead><tbody>'+
-      GR.risks.map(function(r){
-        return '<tr>'+
+      GR.risks.map(function(r, i){
+        // Клик по строке — карточка просмотра (см. openRiskViewCard): что
+        // именно выбрали по каждому вопросу. «Изменить» внутри неё уже
+        // открывает форму (openRiskForm(existing)) с этими же ответами.
+        return '<tr'+(canEdit ? ' class="gr-risk-row" data-i="'+i+'" title="Посмотреть ответы"' : '')+'>'+
           '<td><b>'+esc(r.employee_fio)+'</b></td>'+
           '<td>'+esc(r.job_title)+'</td>'+
           '<td>'+esc(r.unit)+'</td>'+
@@ -819,7 +919,63 @@ function drawRiskList(){
   }
 
   $('krContent').innerHTML = h;
-  if($('krNew')) $('krNew').onclick = openRiskForm;
+  if($('krNew')) $('krNew').onclick = function(){ openRiskForm(); };
+  if(canEdit){
+    [].forEach.call(document.querySelectorAll('#krContent .gr-risk-row'), function(tr){
+      tr.onclick = function(){ openRiskViewCard(GR.risks[parseInt(this.dataset.i, 10)]); };
+    });
+  }
+}
+
+/** Карточка просмотра одной анкеты риска — 4 вопроса с выбранным вариантом,
+ *  без редактирования. «Изменить» внутри открывает форму (openRiskForm). */
+function openRiskViewCard(r){
+  if(!r) return;
+  var questions = (GR.factors && GR.factors.riskFactors) || [];
+  var answers = [r.bus_factor, r.replacement_time, r.knowledge_monopoly, r.financial_risk];
+  var level = riskLevelOf(r.risk_status);
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  var h = '<div class="sheet-in um-modal" style="max-width:640px">'+
+    '<div class="sheet-hd"><b>'+ic('risk',16)+esc(r.employee_fio)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div style="padding:6px 0 2px">'+
+      '<div class="muted" style="margin-bottom:10px">'+esc(r.job_title)+' · '+esc(r.unit)+'</div>'+
+      questions.map(function(q, i){
+        var val = Number(answers[i]) || 0;
+        var chosen = val ? ((q.options || [])[val - 1] || '') : '—';
+        // --card: у большой анкеты колонка под вопрос — 520px (там простор
+        // всей страницы), в этой узкой модалке столько места нет.
+        return '<div class="gr-factor gr-factor--done">'+
+          '<div class="gr-factor-summary gr-factor-summary--card">'+
+            '<div class="gr-factor-hd"><b>'+esc(q.code || ('Вопрос '+(i+1)))+'. '+esc(q.title)+'</b></div>'+
+            '<div class="gr-factor-chosen">'+(val ? '<span class="gr-score gr-score--sm">'+val+'</span>' : '')+'<span>'+esc(chosen)+'</span></div>'+
+          '</div>'+
+        '</div>';
+      }).join('')+
+      '<div class="gr-result kr-result kr-'+r.risk_status+'" style="margin-top:12px">'+
+        '<div><span class="muted">Индекс риска</span><b>'+r.total_risk_score+' из 20</b></div>'+
+        '<div><span class="muted">Статус</span><b>'+esc(level.label)+'</b></div>'+
+        (r.action_plan ? '<div class="gr-result-note">'+esc(r.action_plan)+'</div>' : '')+
+      '</div>'+
+      '<div class="muted" style="font-size:12.5px;margin-top:8px">Оценил: '+esc(r.evaluator_fio || '—')+'</div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:flex-end;margin-top:14px">'+
+      '<button class="btn-primary" id="rvEdit">'+ic('pencil',14)+'Изменить</button>'+
+    '</div>'+
+  '</div>';
+  el.innerHTML = h;
+  document.body.appendChild(el);
+
+  function close(){ if(el.parentNode) el.remove(); }
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.closest('[data-x]')) close();
+  });
+  el.querySelector('#rvEdit').onclick = function(){
+    close();
+    openRiskForm(r);
+  };
 }
 
 function loadRiskUnitEmployees(unit){
@@ -833,10 +989,32 @@ function loadRiskUnitEmployees(unit){
   });
 }
 
-function openRiskForm(){
+/**
+ * existing — строка из GR.risks (клик по уже оценённому сотруднику в списке):
+ * открывает ту же анкету, но с подставленными прошлыми ответами — иначе
+ * заново оценить/посмотреть, что выбрали в прошлый раз, было решительно
+ * негде (список показывал только итоговый балл, не разбивку по вопросам).
+ * Повторная отправка формы с тем же unit+fio+job_title перезаписывает запись
+ * (см. evaluateRiskCard на сервере — ON CONFLICT DO UPDATE), так что это
+ * одновременно и «посмотреть», и «изменить».
+ */
+function openRiskForm(existing){
   var units = grUnits();
   if(!units.length){
     toast('Вам не назначено ни одного подразделения', 'warn');
+    return;
+  }
+  if(existing){
+    GR.riskForm = {
+      unit: existing.unit,
+      fio: existing.employee_fio,
+      jobTitle: existing.job_title,
+      answers: [existing.bus_factor, existing.replacement_time, existing.knowledge_monopoly, existing.financial_risk],
+      plan: existing.action_plan || '',
+      editingFactor: null
+    };
+    loadRiskUnitEmployees(existing.unit);
+    drawRiskForm();
     return;
   }
   GR.riskForm = {

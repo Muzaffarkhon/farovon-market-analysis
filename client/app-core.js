@@ -706,6 +706,34 @@ function $(id){
   }
   return document.getElementById(id);
 }
+
+/**
+ * Защита от гонки вкладок: $(id) внутри отложенного (.then/.catch) кода
+ * всегда резолвится по ТЕКУЩЕЙ активной вкладке (см. $() выше) — если между
+ * запуском асинхронной загрузки и приходом ответа человек успел переключиться
+ * на другую вкладку, результат прошлой загрузки дорисовывается в чужую панель:
+ * заголовок вкладки остаётся один, а содержимое — от другого раздела.
+ *
+ * guardAsyncToTab(fn) запоминает, какая вкладка активна ПРЯМО СЕЙЧАС, и
+ * оборачивает fn так, что она выполнится только если к моменту вызова эта же
+ * вкладка всё ещё активна; иначе — no-op, а вкладка помечается needsRefresh,
+ * чтобы при возврате на неё данные подтянулись заново, а не остались старыми.
+ * Использовать на всех call(...).then(callback) / .catch(callback), которые
+ * пишут в DOM (через $) или в общий S.*, а не только на своё локальное состояние.
+ */
+function guardAsyncToTab(fn){
+  var tabId = (window.WorkspaceTabs && WorkspaceTabs.activeId) || null;
+  return function(){
+    var stillActive = !tabId || !window.WorkspaceTabs || WorkspaceTabs.activeId === tabId;
+    if(!stillActive){
+      var t = window.WorkspaceTabs && WorkspaceTabs.getTab ? WorkspaceTabs.getTab(tabId) : null;
+      if(t) t.needsRefresh = true;
+      return;
+    }
+    return fn.apply(this, arguments);
+  };
+}
+
 // Экранирование для вставки в HTML. Помимо & < > " гасим и одинарную кавычку
 // (&#39;) — на случай атрибутов в одинарных кавычках и inline-обработчиков,
 // чтобы esc() был безопасен в любом HTML-контексте, а не только в "...".
@@ -713,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.71';
+var APP_VERSION = window.APP_VERSION || 'v2.5.72';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1789,6 +1817,7 @@ var API_ROUTES = {
   apiAdminGradingCommitteePending: function(args){ return fetchJson('/api/admin/grading-committee/pending?block=' + encodeURIComponent(args[1] || ''), { method:'GET', token:args[0] }); },
   apiAdminGradingCommitteeFinalize: function(args){ return fetchJson('/api/admin/grading-committee/finalize', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingResetEvaluation: function(args){ return fetchJson('/api/admin/grading-blocks/reset-evaluation', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminGradingCommitteeBreakdown: function(args){ return fetchJson('/api/admin/grading-blocks/committee-breakdown?block=' + encodeURIComponent(args[1]) + '&job_title=' + encodeURIComponent(args[2]), { method:'GET', token:args[0] }); },
   apiAdminSupportThreads: function(args){ return fetchJson('/api/admin/support/threads', { method:'GET', token:args[0] }); },
   apiAdminSupportThread: function(args){ return fetchJson('/api/admin/support/threads/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
   apiAdminSupportReply: function(args){ return fetchJson('/api/admin/support/reply', { method:'POST', token:args[0], body:args[1] }); },

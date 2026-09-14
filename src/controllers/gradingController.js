@@ -355,6 +355,19 @@ async function evaluateAsCommittee(req, res, ctx) {
   );
   if (!member) return fail(res, 'Вы не входите в комиссию этого блока', 403);
 
+  // Итог уже утверждён (все сдали, или админ/C&B подвели вручную) — дальше
+  // менять индивидуальные заявки нельзя, только «Сбросить» (grading:blocks)
+  // возвращает должность в исходное «не оценено». Раньше на этом месте
+  // проверки не было: повторная отправка кем угодно из комиссии молча
+  // пересчитывала уже утверждённый итог.
+  const already = await queryOne(
+    'SELECT grade_level FROM job_evaluations WHERE block_key = ? AND job_title = ?',
+    [block, jobTitle]
+  );
+  if (already && already.grade_level != null) {
+    return fail(res, 'Оценка уже утверждена комиссией — изменить нельзя. Обратитесь к администратору или C&B за сбросом.', 409);
+  }
+
   await run(`
     INSERT INTO grading_committee_evaluations
       (block_key, job_title, evaluator_login, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, weighted_score, notes)
@@ -523,6 +536,49 @@ async function resetEvaluation(req, res) {
     return res.json({ ok: true, message: 'Оценка сброшена — должность снова «не оценена»' });
   } catch (err) {
     return handleError(res, err, 'resetEvaluation');
+  }
+}
+
+/**
+ * Разбивка по должности для комиссии: кто из членов комиссии что выбрал по
+ * каждому фактору — «карточка сравнения» перед утверждением итога (кнопка
+ * рядом со счётчиком «сдали N из M» в списке должностей). Доступ — только
+ * тем, кто управляет блоками (grading:blocks), как и «Сбросить»: до
+ * утверждения это чужие голоса, которые не должны быть видны всем подряд.
+ */
+async function getCommitteeBreakdown(req, res) {
+  try {
+    const block = readText(req.query.block, 100);
+    const jobTitle = readText(req.query.job_title, 300);
+    if (!block || !jobTitle) return fail(res, 'Укажите блок и должность');
+
+    const submissions = await queryAll(`
+      SELECT c.evaluator_login, COALESCE(u.fio, c.evaluator_login) AS evaluator_fio,
+             c.factor_1, c.factor_2, c.factor_3, c.factor_4, c.factor_5, c.factor_6,
+             c.weighted_score, c.notes, c.submitted_at
+      FROM grading_committee_evaluations c
+      LEFT JOIN users u ON u.login = c.evaluator_login
+      WHERE c.block_key = ? AND c.job_title = ?
+      ORDER BY c.submitted_at ASC
+    `, [block, jobTitle]);
+
+    const final = await queryOne(
+      'SELECT weighted_score, grade_level, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, evaluated_by FROM job_evaluations WHERE block_key = ? AND job_title = ?',
+      [block, jobTitle]
+    );
+    const committeeSize = await queryOne(
+      'SELECT COUNT(*) AS n FROM grading_committee_members WHERE block_key = ?', [block]
+    );
+
+    return res.json({
+      ok: true,
+      submissions,
+      final: final || null,
+      finalized: !!(final && final.grade_level != null),
+      committeeSize: committeeSize.n || 0,
+    });
+  } catch (err) {
+    return handleError(res, err, 'getCommitteeBreakdown');
   }
 }
 
@@ -931,6 +987,7 @@ module.exports = {
   getCommitteePending,
   forceFinalizeCommittee,
   resetEvaluation,
+  getCommitteeBreakdown,
   listRisks,
   unitEmployees,
   evaluateRiskCard,

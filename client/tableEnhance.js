@@ -164,6 +164,12 @@
   }
 
   function rowLabel(btn){
+    // data-ctx-label — явная подпись для контекстного меню, когда у кнопки
+    // самой по себе текст неоднозначен вне таблицы (например, голое число
+    // «1» у счётчика подразделений — понятно в своей колонке, но не в
+    // отдельном пункте меню без заголовка колонки).
+    var custom = btn.getAttribute('data-ctx-label');
+    if(custom) return custom;
     var t = (btn.textContent || '').replace(/\s+/g, ' ').trim();
     return t || btn.getAttribute('title') || btn.getAttribute('aria-label') || 'Действие';
   }

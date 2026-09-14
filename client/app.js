@@ -511,7 +511,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.72')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -546,7 +546,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.72')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -606,7 +606,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.72')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -636,7 +636,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.71')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.72')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6726,14 +6726,14 @@ function loadAdminUsers(){
     }).catch(function(){});
   }
   if(!S.adminDivs || !S.adminDivs.length){
-    call('apiAdminGetDivisions', S.token).then(function(dRes){
+    call('apiAdminGetDivisions', S.token).then(guardAsyncToTab(function(dRes){
       if(dRes && dRes.ok){
         S.adminDivs = dRes.divisions || [];
         if($('uDept')) renderAdminUsers();
       }
-    }).catch(function(){});
+    })).catch(function(){});
   }
-  call('apiAdminGetUsers', S.token).then(function(r){
+  call('apiAdminGetUsers', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       if(!S.adminUsers || !S.adminUsers.length){
         $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки пользователей')+'</div>';
@@ -6742,11 +6742,11 @@ function loadAdminUsers(){
     }
     S.adminUsers = r.users || [];
     renderAdminUsers();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     if(!S.adminUsers || !S.adminUsers.length){
       $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
     }
-  });
+  }));
 }
 
 function userActs(u, compact){
@@ -6982,7 +6982,7 @@ function renderAdminUsers(){
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
       '<td class="u-t-dim" data-dirs="'+esc(dirsStr)+'" title="'+esc(dirsStr ? 'Направления: ' + dirsStr + '\nПодразделения: ' + (u.units||[]).join('\n') : (u.units||[]).join('\n'))+'">'+
         ((u.units && u.units.length)
-          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'">'+u.units.length+'</button>'
+          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'" data-ctx-label="'+esc('Подразделения: ' + u.units.length)+'">'+u.units.length+'</button>'
           : '0')+
       '</td>'+
       '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
@@ -7003,7 +7003,7 @@ function renderAdminUsers(){
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
         '<br>Подразделений: '+
         ((u.units && u.units.length)
-          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'">'+u.units.length+'</button>'
+          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'" data-ctx-label="'+esc('Подразделения: ' + u.units.length)+'">'+u.units.length+'</button>'
           : '<b>0</b>')+
         (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
