@@ -5810,7 +5810,11 @@ function gradingBlockLabel(key){
 }
 
 function renderAdminGradingFactors(){
-  $('adminContent').innerHTML = '<div id="gfBox">' + skTable() + '</div>';
+  // Скелетон только на первый заход — иначе фоновое обновление сносит уже
+  // отрисованную анкету и рисует её заново каждые 20-90 секунд.
+  if(!$('gfBox') || !S.gradingFactors){
+    $('adminContent').innerHTML = '<div id="gfBox">' + skTable() + '</div>';
+  }
 
   Promise.all([
     call('apiGradingFactors', S.token, S.gradingDir || ''),
@@ -6268,7 +6272,13 @@ function drawAdminGradingBlockPositions(rows, total){
 // переписка — при открытии треда (см. telegramController.js на сервере).
 
 function renderAdminSupport(){
-  $('adminContent').innerHTML = '<div id="supBox">' + skTable() + '</div>';
+  // Скелетон только на первый заход — свой поллинг раздела (supPollTick,
+  // раз в 8с) и так обновляет переписку бесшовно; полная перерисовка сюда
+  // же ещё и от общего live-обновления (раз в 20-90с) добавляла бы вспышку
+  // «Загрузка...» поверх уже открытого чата.
+  if(!$('supBox') || !S.supThreads){
+    $('adminContent').innerHTML = '<div id="supBox">' + skTable() + '</div>';
+  }
   loadAdminSupportThreads();
   startSupPoll();
 }
@@ -10426,7 +10436,16 @@ function renderAdminPeriod(){
 
   $('adminContent').innerHTML = h;
 
-  if(canEdit) loadPeriodGrantsPanel();
+  if(canEdit){
+    // Пока идёт свежий запрос — сразу показываем то, что уже знаем с
+    // прошлого раза, вместо «Загрузка…»; loadPeriodGrantsPanel() ниже
+    // подменит их актуальными данными, когда ответ придёт.
+    if(S.periodGrantsCache){
+      renderPeriodGrantsList(S.periodGrantsCache.grants);
+      renderPeriodsManageList(S.periodGrantsCache.periods);
+    }
+    loadPeriodGrantsPanel();
+  }
 
   if($('btnAdminPeriodOpen')){
     $('btnAdminPeriodOpen').onclick = function(){
@@ -10568,6 +10587,7 @@ function loadPeriodGrantsPanel(){
       };
     }
 
+    S.periodGrantsCache = { grants: panel.grants || [], periods: periods };
     renderPeriodGrantsList(panel.grants || []);
     renderPeriodsManageList(periods);
   });
@@ -11042,6 +11062,13 @@ function removeDictItem(name){
 
 // ─── Вкладка: Сервисные утилиты (Компактный Enterprise B2B вид) ───
 function renderAdminTools(){
+  // Список утилит статический — на фоновом обновлении незачем сносить всю
+  // таблицу и рисовать её заново, только чтобы освежить карточку статуса
+  // данных сверху. Если экран уже отрисован, просто пересчитываем статус.
+  if($('dataStatus')){
+    loadDataStatus();
+    return;
+  }
   var toolsList = [
     {
       id: 'import_survey',
@@ -11162,12 +11189,18 @@ function renderAdminTools(){
 
 // ─── Вкладка: Журнал действий (Audit Log) ───
 function renderAdminAudit(){
-  var h = '<div id="auditLogBox" style="flex:1;min-height:0;display:flex;flex-direction:column">' + skTable() + '</div>';
-  $('adminContent').innerHTML = h;
+  // Скелетон только на первый заход — иначе фоновое обновление сносит уже
+  // отрисованный журнал (и введённый поиск/фильтр) каждые 20-90 секунд.
+  // Фильтры при этом всё равно не переживают повторный вызов — сама
+  // функция строит их с нуля, но хотя бы не мигает скелетоном поверх
+  // уже открытого журнала, если человек просто его читает.
+  if(!$('auditLogBox')){
+    $('adminContent').innerHTML = '<div id="auditLogBox" style="flex:1;min-height:0;display:flex;flex-direction:column">' + skTable() + '</div>';
+  }
 
   call('apiAdminGetAuditLog', S.token, 200).then(function(r){
     if(!r || !r.ok){
-      $('auditLogBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить журнал')+'</div>';
+      if($('auditLogBox')) $('auditLogBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить журнал')+'</div>';
       return;
     }
     var logs = r.logs || [];
