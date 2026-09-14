@@ -295,6 +295,13 @@ function navModel(){
       icon: 'units',
       active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'regions'; },
       run: function(){ openAdminPanel('dict', 'regions'); }
+    },
+    {
+      key: 'dict:staff',
+      label: 'Сотрудники',
+      icon: 'users',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'staff'; },
+      run: function(){ openAdminPanel('dict', 'staff'); }
     }
   ];
 
@@ -498,7 +505,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -533,7 +540,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -593,7 +600,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.68')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -623,7 +630,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.67')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.68')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5664,7 +5671,8 @@ function openAdminPanel(targetTab, targetSub){
     companies: 'Компании',
     positions: 'Должности',
     segments: 'Сегменты',
-    regions: 'Регионы'
+    regions: 'Регионы',
+    staff: 'Сотрудники'
   };
 
   var atabNames = {
@@ -10721,7 +10729,10 @@ var DICT_KINDS = [
   { id:'companies', label:'Компании',  one:'компанию',  ttl:'Компания' },
   { id:'positions', label:'Должности', one:'должность', ttl:'Должность' },
   { id:'segments',  label:'Сегменты',  one:'сегмент',   ttl:'Сегмент' },
-  { id:'regions',   label:'Регионы',   one:'регион',    ttl:'Регион' }
+  { id:'regions',   label:'Регионы',   one:'регион',    ttl:'Регион' },
+  // Только просмотр — записи приходят пачкой через «Сервисные утилиты →
+  // Импорт справочника сотрудников», добавлять/править по одной здесь нельзя.
+  { id:'staff', label:'Сотрудники', one:'сотрудника', ttl:'Сотрудник', readOnly:true }
 ];
 
 function renderAdminDict(){
@@ -10747,21 +10758,109 @@ function renderAdminDict(){
 
 function loadDict(){
   var kind = S.dictKind;
-  call('apiDictList', S.token, kind).then(function(r){
+  var req = kind === 'staff'
+    ? call('apiAdminStaffDirectoryList', S.token)
+    : call('apiDictList', S.token, kind);
+  req.then(function(r){
     if(!r || !r.ok){
       $('dictBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить справочник')+'</div>';
       return;
     }
     S.dictItems = r.items || [];
     S.dictDirs = r.dirs || [];
+    if(kind === 'staff') S.dictStaffImportedAt = r.importedAt || null;
     drawDict();
   }).catch(function(){
     $('dictBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
   });
 }
 
+var STAFF_DICT_PER_PAGE = 50;
+
+function drawStaffDict(){
+  var q = norm(S.dictQ);
+  var unitFilter = S.dictStaffUnit || '';
+  var all = S.dictItems || [];
+
+  var units = [];
+  var seenUnit = {};
+  all.forEach(function(it){
+    if(!seenUnit[it.unit]){ seenUnit[it.unit] = true; units.push(it.unit); }
+  });
+  units.sort(function(a, b){ return a.localeCompare(b, 'ru'); });
+
+  var items = all.filter(function(it){
+    if(unitFilter && it.unit !== unitFilter) return false;
+    if(!q) return true;
+    return norm(it.fio).indexOf(q) >= 0 ||
+           norm(it.unit).indexOf(q) >= 0 ||
+           norm(it.position || '').indexOf(q) >= 0;
+  });
+
+  var pg = Math.max(1, S.dictStaffPage || 1);
+  var totalPages = Math.max(1, Math.ceil(items.length / STAFF_DICT_PER_PAGE));
+  if(pg > totalPages) pg = totalPages;
+  S.dictStaffPage = pg;
+  var pageItems = items.slice((pg - 1) * STAFF_DICT_PER_PAGE, pg * STAFF_DICT_PER_PAGE);
+
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="dictQ" placeholder="Поиск по ФИО, подразделению, должности…" value="'+esc(S.dictQ)+'" '+
+      'autocomplete="off" spellcheck="false"></div>'+
+    '<select id="dictStaffUnit" class="toolbar-select">'+
+      '<option value="">Все подразделения ('+units.length+')</option>'+
+      units.map(function(u){ return '<option value="'+esc(u)+'"'+(u === unitFilter ? ' selected' : '')+'>'+esc(u)+'</option>'; }).join('')+
+    '</select>'+
+    tblCount(items.length, all.length, ['запись', 'записи', 'записей'])+
+  '</div>'+
+  '<div class="muted" style="font-size:12.5px;padding:0 2px 8px">Только просмотр — список приходит целиком через «Сервисные утилиты → Импорт справочника сотрудников»'+
+    (S.dictStaffImportedAt ? ('. Загружен: ' + esc(String(S.dictStaffImportedAt).slice(0, 16).replace('T', ' '))) : '') +
+  '.</div>';
+
+  if(!items.length){
+    h += !all.length
+      ? '<div class="empty empty--lg">'+
+          '<span class="empty-ic">'+icBare('users', 40)+'</span>'+
+          '<b>Справочник сотрудников пока пуст</b>'+
+          '<span>Загрузите файл в «Сервисные утилиты → Импорт справочника сотрудников»</span>'+
+        '</div>'
+      : '<div class="empty">Ничего не найдено</div>';
+    $('dictBox').innerHTML = h;
+    bindDictBar();
+    return;
+  }
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+    '<th>ФИО</th><th>Подразделение</th><th>Должность</th>'+
+    '</tr></thead><tbody>'+
+    pageItems.map(function(it){
+      return '<tr><td><b>'+esc(it.fio)+'</b></td><td>'+esc(it.unit)+'</td>'+
+        '<td>'+(it.position ? esc(it.position) : '<span style="color:var(--muted)">—</span>')+'</td></tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
+  if(totalPages > 1){
+    h += '<div class="pager" style="display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 0">'+
+      '<button class="btn-line" id="dictStaffPrev"'+(pg <= 1 ? ' disabled' : '')+'>← Назад</button>'+
+      '<span class="muted" style="font-size:13px">Стр. '+pg+' из '+totalPages+'</span>'+
+      '<button class="btn-line" id="dictStaffNext"'+(pg >= totalPages ? ' disabled' : '')+'>Вперёд →</button>'+
+    '</div>';
+  }
+
+  $('dictBox').innerHTML = h;
+  bindDictBar();
+
+  var unitSel = $('dictStaffUnit');
+  if(unitSel) unitSel.onchange = function(){ S.dictStaffUnit = this.value; S.dictStaffPage = 1; drawStaffDict(); };
+  var prevBtn = $('dictStaffPrev');
+  if(prevBtn) prevBtn.onclick = function(){ S.dictStaffPage = pg - 1; drawStaffDict(); };
+  var nextBtn = $('dictStaffNext');
+  if(nextBtn) nextBtn.onclick = function(){ S.dictStaffPage = pg + 1; drawStaffDict(); };
+}
+
 function drawDict(){
   var kind = S.dictKind;
+  if(kind === 'staff') return drawStaffDict();
   var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
   var q = norm(S.dictQ);
   var items = (S.dictItems || []).filter(function(it){

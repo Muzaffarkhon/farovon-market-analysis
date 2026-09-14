@@ -2253,4 +2253,24 @@ exports.importStaffDirectory = async (req, res) => {
   }
 };
 
+/**
+ * Просмотр справочника сотрудников («Справочники → Сотрудники»). Только
+ * чтение — записи приходят пачкой через импорт (см. importStaffDirectory
+ * выше), редактировать/добавлять по одной здесь нельзя.
+ */
+exports.listStaffDirectory = async (req, res) => {
+  try {
+    const rows = await queryAll('SELECT unit, fio, position, imported_at FROM staff_directory ORDER BY unit ASC, fio ASC');
+    const importedAt = rows.length ? rows[0].imported_at : null;
+    res.json({
+      ok: true,
+      items: rows.map(r => ({ unit: r.unit, fio: r.fio, position: r.position || '' })),
+      importedAt,
+    });
+  } catch (err) {
+    console.error('listStaffDirectory error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки справочника сотрудников' });
+  }
+};
+
 exports.getAccessibleDivisions = getAccessibleDivisions;
