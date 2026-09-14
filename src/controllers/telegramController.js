@@ -52,6 +52,18 @@ exports.link = async (req, res) => {
   });
 };
 
+/**
+ * Юзернейм бота для экрана входа (кнопка «Открыть бота» и ссылка «Написать
+ * администратору» — обе ведут в один и тот же бот, разбор незнакомых
+ * сообщений на «написать администратору» уже реализован внутри самого бота,
+ * см. supportChatService). Публичный роут: до входа в систему у человека
+ * ещё нет JWT, а username бота — не секрет.
+ */
+exports.botInfo = async (req, res) => {
+  const username = config.telegramBotToken ? await getBotUsername() : null;
+  res.json({ ok: true, username: username || null });
+};
+
 /** Отвязка из самого приложения (кнопка «Telegram привязан» → «Отвязать» в профиле). */
 exports.unlink = async (req, res) => {
   try {
