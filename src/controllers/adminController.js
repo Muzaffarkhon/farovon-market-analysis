@@ -2186,4 +2186,71 @@ exports.importSurvey = async (req, res) => {
   }
 };
 
+// ─── Импорт справочника сотрудников (CSV, выгрузка 1С) ───────────────────────
+// Кнопка «Сервисные утилиты → Импорт справочника сотрудников». Тело запроса:
+//   { csv: "<содержимое файла>", dryRun: true|false }
+// dryRun=true (по умолчанию) — только проверка и отчёт, в базу ничего не пишется.
+// При реальной загрузке прежний снимок справочника (staff_directory) полностью
+// заменяется новым — это всегда полная выгрузка штата на дату отчёта, а не
+// частичное обновление, поэтому проще перезалить целиком, чем сверять построчно.
+const staffDirectoryImport = require('../services/staffDirectoryImport');
+
+exports.importStaffDirectory = async (req, res) => {
+  const { csv, dryRun } = req.body || {};
+  if (typeof csv !== 'string' || !csv.trim()) {
+    return res.status(400).json({ ok: false, error: 'Пустой файл' });
+  }
+
+  let rows;
+  try {
+    rows = staffDirectoryImport.parseCsv(csv);
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: 'Не удалось разобрать CSV: ' + err.message });
+  }
+  if (!rows.length) return res.status(400).json({ ok: false, error: 'В файле нет строк данных' });
+
+  const need = [staffDirectoryImport.COLS.unit, staffDirectoryImport.COLS.fio];
+  const have = Object.keys(rows[0] || {});
+  const missing = need.filter(c => !have.includes(c));
+  if (missing.length) {
+    return res.status(400).json({
+      ok: false,
+      error: 'В файле нет обязательных колонок: ' + missing.join(', ') +
+        '. Ожидается выгрузка 1С «Список сотрудников организаций» без переименования колонок.',
+    });
+  }
+
+  try {
+    const divisions = await queryAll('SELECT unit FROM divisions');
+    const result = staffDirectoryImport.analyze(rows, divisions.map(d => d.unit));
+
+    if (dryRun !== false) {
+      return res.json({ ok: true, dryRun: true, report: result });
+    }
+
+    const stmts = [{ sql: 'DELETE FROM staff_directory', args: [] }];
+    for (const p of result.prepared) {
+      stmts.push({
+        sql: 'INSERT INTO staff_directory (unit, fio, position) VALUES (?, ?, ?)',
+        args: [p.unit, p.fio, p.position || null],
+      });
+    }
+    const detail =
+      `Справочник сотрудников перезалит: ${result.rowsPrepared} человек в ${result.units} подразделениях` +
+      (result.unmatchedCount ? `, не сопоставлено с оргструктурой: ${result.unmatchedCount} (в ${result.unmatchedUnits.length} подразделениях)` : '') +
+      (result.rowsSkipped ? `. Отбраковано строк: ${result.rowsSkipped}` : '') + '.';
+    stmts.push({ sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', args: [req.user.login, 'импорт справочника сотрудников', detail] });
+
+    const CHUNK = 200;
+    for (let i = 0; i < stmts.length; i += CHUNK) {
+      await batch(stmts.slice(i, i + CHUNK));
+    }
+
+    return res.json({ ok: true, dryRun: false, message: detail, report: result });
+  } catch (err) {
+    console.error('importStaffDirectory error:', err);
+    return res.status(500).json({ ok: false, error: 'Ошибка импорта. Подробности в логах сервера.' });
+  }
+};
+
 exports.getAccessibleDivisions = getAccessibleDivisions;

@@ -713,7 +713,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.66';
+var APP_VERSION = window.APP_VERSION || 'v2.5.67';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1822,6 +1822,8 @@ var API_ROUTES = {
   apiAdminGetLocks: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'get_locks' } }); },
   // Импорт файла опроса зарплат. args: [token, csvText, dryRun, dupAction]
   apiAdminImportSurvey: function(args){ return fetchJson('/api/admin/import-survey', { method:'POST', token:args[0], body:{ csv:args[1], dryRun:args[2], dupAction:args[3] } }); },
+  // Импорт справочника сотрудников (выгрузка 1С). args: [token, csvText, dryRun]
+  apiAdminImportStaffDirectory: function(args){ return fetchJson('/api/admin/import-staff-directory', { method:'POST', token:args[0], body:{ csv:args[1], dryRun:args[2] } }); },
   apiAdminUnlock: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'unlock', targetOwner:args[1], targetRole:args[2] } }); },
   apiAdminDataStatus: function(args){ return fetchJson('/api/admin/data-status', { method:'GET', token:args[0] }); },
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },

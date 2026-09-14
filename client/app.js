@@ -498,7 +498,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.66')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -533,7 +533,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.66')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -593,7 +593,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.66')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.67')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -623,7 +623,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.66')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.67')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -11079,6 +11079,14 @@ function renderAdminTools(){
       acts: '<button class="btn-primary" onclick="importSurveyFile()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('download', 13)+'<span>Выбрать файл…</span></button>'
     },
     {
+      id: 'import_staff_directory',
+      icon: 'users',
+      accent: true,
+      title: 'Импорт справочника сотрудников',
+      desc: 'Загрузка полного штата (ФИО + подразделение + должность) из выгрузки 1С — источник для выпадающего списка «ФИО» в анкете «Риски штата». Полностью заменяет прежний снимок.',
+      acts: '<button class="btn-primary" onclick="importStaffDirectoryFile()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('download', 13)+'<span>Выбрать файл…</span></button>'
+    },
+    {
       id: 'import_staffing',
       icon: 'units',
       title: 'Загрузить штатное расписание',
@@ -11135,7 +11143,7 @@ function renderAdminTools(){
 
       '<div style="margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between">'+
         '<div style="font-size:15px;font-weight:700;color:var(--text);letter-spacing:-0.01em">Сервисные утилиты обслуживания системы</div>'+
-        '<span style="font-size:12.5px;color:var(--muted)">7 утилит</span>'+
+        '<span style="font-size:12.5px;color:var(--muted)">'+toolsList.length+' утилит</span>'+
       '</div>'+
 
       '<div class="tools-panel-card" data-no-smart-filter="true">'+
@@ -11173,6 +11181,7 @@ function renderAdminTools(){
         '</table>'+
       '</div>'+
       '<input type="file" id="importSurveyInput" accept=".csv,text/csv" style="display:none">'+
+      '<input type="file" id="importStaffDirectoryInput" accept=".csv,text/csv" style="display:none">'+
     '</div>'+
   '</div>';
 
@@ -11543,6 +11552,98 @@ function showImportReport(fileName, csv, res){
     var btn = $('impGo');
     btn.disabled = true; btn.textContent = 'Загружаю…';
     call('apiAdminImportSurvey', S.token, csv, false, act).then(function(out){
+      close();
+      if(out && out.ok){
+        ask({ title:'Загрузка завершена', html: esc(out.message || 'Готово'), ok:'Понятно' });
+        renderAdminTools();
+      } else {
+        ask({ title:'Ошибка загрузки', html: esc((out && out.error) || 'Не удалось загрузить'), ok:'Понятно' });
+      }
+    }).catch(function(){
+      close();
+      toast('Нет связи с сервером', 'no');
+    });
+  };
+}
+
+// ─── Импорт справочника сотрудников (выгрузка 1С) ───
+function importStaffDirectoryFile(){
+  var inp = $('importStaffDirectoryInput');
+  if(!inp) return;
+  inp.value = '';
+  inp.onchange = function(){
+    var file = inp.files && inp.files[0];
+    if(!file) return;
+    if(file.size > 9 * 1024 * 1024){ toast('Файл больше 9 МБ — слишком большой', 'no'); return; }
+    var reader = new FileReader();
+    reader.onload = function(){
+      var csv = String(reader.result || '');
+      toast('Проверяю файл «' + file.name + '»…');
+      call('apiAdminImportStaffDirectory', S.token, csv, true).then(function(res){
+        if(res && res.ok && res.report){
+          showStaffDirectoryImportReport(file.name, csv, res);
+        } else {
+          ask({ title:'Файл не принят', html: esc((res && res.error) || 'Не удалось разобрать файл'), ok:'Понятно' });
+        }
+      }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+    };
+    reader.onerror = function(){ toast('Не удалось прочитать файл', 'no'); };
+    reader.readAsText(file, 'utf-8');
+  };
+  inp.click();
+}
+
+function showStaffDirectoryImportReport(fileName, csv, res){
+  var r = res.report || {};
+
+  function kpi(label, val, hint){
+    return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0">'+
+      '<div style="font-size:20px;font-weight:700;line-height:1.1">'+val+'</div>'+
+      '<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+esc(label)+'</div>'+
+      (hint ? '<div style="font-size:12px;color:var(--accent);margin-top:2px">'+esc(hint)+'</div>' : '')+
+    '</div>';
+  }
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  var h = '<div class="sheet-in um-modal" style="max-width:640px">'+
+    '<div class="sheet-hd"><b>'+ic('users',16)+'Проверка файла: '+esc(fileName)+'</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div style="padding:6px 0 2px">'+
+      '<div class="err" style="display:'+(r.rowsSkipped ? 'block':'none')+';margin-bottom:10px">'+
+        'Отбраковано строк без ФИО/подразделения или дублей: '+r.rowsSkipped+'.</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">'+
+        kpi('строк в файле', r.rowsInFile, '')+
+        kpi('к загрузке', r.rowsPrepared, '')+
+        kpi('подразделений', r.units, r.unmatchedUnits.length ? ('не сопоставлено '+r.unmatchedUnits.length) : '')+
+      '</div>'+
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Загрузка полностью заменит текущий справочник сотрудников (использует выпадающий список «ФИО» в анкете «Риски штата»).</div>';
+
+  if(r.unmatchedUnits && r.unmatchedUnits.length){
+    h += '<details style="margin-bottom:10px" open><summary style="cursor:pointer;font-size:13.5px;color:var(--muted)">'+
+      'Подразделения из файла без пары в системе ('+r.unmatchedUnits.length+', '+r.unmatchedCount+' чел.) — эти люди загрузятся, но не появятся ни в одном списке риска, пока подразделение не заведено или не переименовано</summary>'+
+      '<div style="font-size:13px;padding:6px 0 0;line-height:1.6">'+r.unmatchedUnits.map(function(u){
+        return '<span class="badge b-user" style="margin:0 4px 4px 0;display:inline-block">'+esc(u.unit)+' — '+u.count+'</span>';
+      }).join('')+'</div></details>';
+  }
+
+  h += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">'+
+      '<button class="btn-line" data-x="1" style="min-height:34px;padding:0 14px">Отмена</button>'+
+      '<button class="btn-primary" id="impSdGo" style="min-height:34px;padding:0 16px">'+ic('check',14)+'Загрузить '+r.rowsPrepared+' чел.</button>'+
+    '</div>'+
+  '</div></div>';
+  el.innerHTML = h;
+  document.body.appendChild(el);
+
+  function close(){ if(el.parentNode) el.remove(); }
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.closest('[data-x]')) close();
+  });
+
+  $('impSdGo').onclick = function(){
+    var btn = $('impSdGo');
+    btn.disabled = true; btn.textContent = 'Загружаю…';
+    call('apiAdminImportStaffDirectory', S.token, csv, false).then(function(out){
       close();
       if(out && out.ok){
         ask({ title:'Загрузка завершена', html: esc(out.message || 'Готово'), ok:'Понятно' });

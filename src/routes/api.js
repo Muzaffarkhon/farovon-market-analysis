@@ -121,6 +121,7 @@ router.get('/admin/period-grants/users', requireCapability('period:edit'), admin
 router.post('/admin/periods/delete', requireCapability('period:edit'), adminController.deletePeriod);
 router.post('/admin/maintenance', requireCapability('service:edit'), adminController.runMaintenance);
 router.post('/admin/import-survey', requireCapability('service:edit'), adminController.importSurvey);
+router.post('/admin/import-staff-directory', requireCapability('service:edit'), adminController.importStaffDirectory);
 router.get('/admin/audit-log', requireCapability('service:view'), adminController.getAuditLog);
 router.get('/admin/data-status', requireCapability('service:view'), adminController.getDataStatus);
 

@@ -761,10 +761,12 @@ async function listRisks(req, res) {
 
 /**
  * Сотрудники подразделения — для выпадающего списка «ФИО сотрудника» в
- * анкете незаменимости (вместо свободного текста). Список только из
- * заведённых в системе учёток (users.units), должность подставляется из
- * users.position — у части сотрудников может быть пусто, если её ещё не
- * внесли в карточку.
+ * анкете незаменимости (вместо свободного текста). Основной источник — весь
+ * штат из staff_directory (импорт выгрузки 1С, см. adminController.importStaffDirectory),
+ * не только те, у кого есть логин. Плюс подмешиваются учётки системы (users)
+ * с этим подразделением, которых почему-то нет в последней выгрузке 1С (сама
+ * учётка могла быть заведена вручную позже) — дедуп по ФИО, приоритет у
+ * учётки, если запись есть в обоих источниках (её должность правит сам админ).
  */
 async function unitEmployees(req, res) {
   try {
@@ -774,17 +776,24 @@ async function unitEmployees(req, res) {
       return fail(res, 'Это подразделение вам не назначено', 403);
     }
 
-    // units хранится строкой "Юнит1; Юнит2" — точное совпадение элемента
-    // списка проверяем в JS (LIKE по подстроке подхватил бы «Отдел продаж»
-    // при поиске «Отдел»).
-    const rows = await queryAll(
-      "SELECT fio, position, units FROM users WHERE archived_at IS NULL AND active = 1 AND units IS NOT NULL AND units <> ''"
-    );
-    const matched = rows.filter(u => u.units.split(';').map(s => s.trim()).indexOf(unit) >= 0);
+    const [directoryRows, userRows] = await Promise.all([
+      queryAll('SELECT fio, position FROM staff_directory WHERE unit = ?', [unit]),
+      // units хранится строкой "Юнит1; Юнит2" — точное совпадение элемента
+      // списка проверяем в JS (LIKE по подстроке подхватил бы «Отдел продаж»
+      // при поиске «Отдел»).
+      queryAll(
+        "SELECT fio, position, units FROM users WHERE archived_at IS NULL AND active = 1 AND units IS NOT NULL AND units <> ''"
+      ),
+    ]);
+    const matchedUsers = userRows.filter(u => u.units.split(';').map(s => s.trim()).indexOf(unit) >= 0);
+
+    const byFio = new Map();
+    directoryRows.forEach(u => byFio.set(u.fio, { fio: u.fio, position: u.position || '' }));
+    matchedUsers.forEach(u => byFio.set(u.fio, { fio: u.fio, position: u.position || '' }));
+
     return res.json({
       ok: true,
-      rows: matched.map(u => ({ fio: u.fio, position: u.position || '' }))
-        .sort((a, b) => a.fio.localeCompare(b.fio, 'ru'))
+      rows: Array.from(byFio.values()).sort((a, b) => a.fio.localeCompare(b.fio, 'ru'))
     });
   } catch (err) {
     return handleError(res, err, 'unitEmployees');

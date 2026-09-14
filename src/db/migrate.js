@@ -495,6 +495,23 @@ async function migrate() {
   // анкета риска; повторная отправка обновляет её.
   await run('CREATE UNIQUE INDEX IF NOT EXISTS idx_key_personnel_person ON key_personnel_risks(unit, employee_fio, job_title)');
 
+  // Справочник сотрудников для анкеты «Риски штата» — полный штат из выгрузки
+  // 1С («Список сотрудников организаций»), а не только те, у кого заведена
+  // учётка в системе. Руководитель должен иметь возможность оценить риск по
+  // любому своему сотруднику, даже если тот никогда не логинился в систему.
+  // Загружается целиком через «Сервисные утилиты → Импорт справочника
+  // сотрудников» (adminController.importStaffDirectory) — при каждой загрузке
+  // прежний снимок полностью заменяется новым, промежуточных апдейтов нет.
+  await run(`CREATE TABLE IF NOT EXISTS staff_directory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    fio TEXT NOT NULL,
+    position TEXT,
+    imported_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_staff_directory_unit ON staff_directory(unit)');
+  await run('CREATE UNIQUE INDEX IF NOT EXISTS idx_staff_directory_person ON staff_directory(unit, fio)');
+
   // Синхронизация пользователей с оргструктурой и штатным расписанием 1С (2026-09-09).
   // Обычные сотрудники сняты с общедепартаментских «шапок» и привязаны к конкретным
   // заводам/цехам/отделам; руководители отделов переведены в роль head; актуализированы
