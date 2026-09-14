@@ -223,6 +223,26 @@ async function getPositions(req, res) {
       LIMIT ? OFFSET ?
     `, [block, block, limit, offset]);
 
+    // Список подразделений по каждой должности — для всплывающей подсказки
+    // у числа в колонке «Подразделений» (не грузить по отдельному запросу
+    // на клик, сразу отдаём вместе со страницей должностей).
+    if (rows.length) {
+      const titles = rows.map(r => r.job_title);
+      const unitRows = await queryAll(`
+        SELECT ga.position AS job_title, ga.unit AS unit, COALESCE(up.staff_count, 0) AS staff_count
+        FROM grading_block_assignments ga
+        LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
+        WHERE ga.block_key = ? AND ga.position IN (${titles.map(() => '?').join(',')})
+        ORDER BY ga.unit ASC
+      `, [block, ...titles]);
+      const unitsByTitle = new Map();
+      unitRows.forEach(u => {
+        if (!unitsByTitle.has(u.job_title)) unitsByTitle.set(u.job_title, []);
+        unitsByTitle.get(u.job_title).push({ unit: u.unit, staffCount: u.staff_count });
+      });
+      rows.forEach(r => { r.units = unitsByTitle.get(r.job_title) || []; });
+    }
+
     // Своя (слепая) заявка эксперта — можно вернуть себе для правки, чужие
     // ответы сюда никогда не попадают.
     if (committeeSize.n) {

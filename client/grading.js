@@ -413,9 +413,12 @@ function drawGradePositions(){
       var mySubmitted = !!r.my_submission;
       var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
       var btnLabel = r.grade_level ? 'Изменить' : (mySubmitted ? 'Изменить свой ответ' : 'Оценить');
+      var unitsCell = (r.unit_count || 0)
+        ? '<button type="button" class="list-cell gr-units-cell" data-i="'+i+'">'+(r.unit_count || 0)+'</button>'
+        : '0';
       return '<tr>'+
         '<td><b>'+esc(r.job_title)+'</b></td>'+
-        '<td>'+(r.unit_count || 0)+'</td>'+
+        '<td>'+unitsCell+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         (hasCommittee ? '<td>'+(r.grade_level ? '<span class="muted">завершено</span>' : (r.submitted_count || 0)+' из '+GR.committeeSize+(mySubmitted ? ' '+icBare('check', 12) : ''))+'</td>' : '')+
         '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
@@ -434,6 +437,14 @@ function drawGradePositions(){
   });
   [].forEach.call(document.querySelectorAll('#grList .gr-reset'), function(btn){
     btn.onclick = function(){ resetGradeEvaluation(parseInt(btn.getAttribute('data-i'), 10)); };
+  });
+  [].forEach.call(document.querySelectorAll('#grList .gr-units-cell'), function(btn){
+    btn.onclick = function(e){
+      var row = GR.rows[parseInt(btn.getAttribute('data-i'), 10)];
+      if(row) showListPopover(e, row.job_title, (row.units || []).map(function(u){
+        return { label: u.unit, hint: (u.staffCount || 0) + ' чел.' };
+      }));
+    };
   });
 }
 
@@ -558,7 +569,11 @@ function drawGradeForm(){
       // за пределы видимой области).
       var chosen = val ? ((fac.options || [])[val - 1] || '') : '';
       h += '<div class="gr-factor gr-factor--done" data-f="'+i+'">'+
-        '<div class="gr-factor-summary">'+
+        // --grade: заголовки K1–K6 короткие ("Условия труда и нагрузка") — в
+        // отличие от анкеты риска, где заголовки — целые вопросы-предложения
+        // и на одну строку их в принципе не уместить. Здесь можно дать плашке
+        // колонку пошире и не переносить текст на 2 строки.
+        '<div class="gr-factor-summary gr-factor-summary--grade">'+
           '<div class="gr-factor-hd">'+title+
             '<span class="badge">вес '+Math.round(w * 100)+'%</span>'+
           '</div>'+
@@ -782,7 +797,7 @@ function drawRiskList(){
     '<span class="muted" style="margin-left:10px">Анкету заполняет руководитель по своим людям. '+
       'Данные видят только своё подразделение, C&amp;B и администратор.</span>'+
   '</div>'+
-  '<div id="krForm"></div>';
+  '<div id="krForm" data-no-smart-filter="true"></div>';
 
   if(!GR.risks.length){
     h += '<div class="empty">Оценённых сотрудников пока нет</div>';

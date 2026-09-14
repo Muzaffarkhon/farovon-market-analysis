@@ -1022,7 +1022,11 @@
       prev = prev.previousElementSibling;
     }
 
-    if(prev && prev.classList && (
+    // data-no-smart-filter здесь — не таблица, а произвольный блок (например
+    // #krForm — открытая анкета с собственным полем поиска подразделения):
+    // без этой проверки его search-wrap принимали за тулбар таблицы и
+    // подсовывали кнопку «Фильтр» внутрь чужой формы (см. handoff).
+    if(prev && prev.classList && !prev.hasAttribute('data-no-smart-filter') && (
       prev.classList.contains('toolbar') ||
       prev.classList.contains('org-tree-toolbar') ||
       prev.classList.contains('audit-toolbar') ||

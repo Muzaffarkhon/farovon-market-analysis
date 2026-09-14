@@ -33,6 +33,10 @@
   //     («Персонально» → «По ролям»), если бы правки не переносились.
   function isUiBusy(){
     if(document.querySelector('.nselect.open')) return true;
+    // Открытое модальное окно (карточка пользователя, отчёт импорта, диалог
+    // подтверждения и т.п.) — пока оно на экране, человек посреди действия,
+    // даже если между кликами фокус не стоит ни в одном поле ввода.
+    if(document.querySelector('.sheet')) return true;
     var ae = document.activeElement;
     if(ae){
       var tag = ae.tagName;
@@ -42,6 +46,11 @@
       if(typeof rcIsDirty === 'function' && S.rc && rcIsDirty()) return true;
       if(typeof ucapIsDirty === 'function' && S.ucap && ucapIsDirty()) return true;
     }
+    // Открытая анкета грейдирования/риска незаменимости — отвечают кликами по
+    // карточкам вариантов, а не вводом в поле, так что фокус в INPUT выше это
+    // не поймает. Полная перерисовка текущего раздела стёрла бы уже отмеченные
+    // (но не сохранённые) ответы.
+    if(window.GR && (GR.form || GR.riskForm)) return true;
     return false;
   }
 

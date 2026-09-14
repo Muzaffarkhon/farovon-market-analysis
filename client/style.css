@@ -7308,6 +7308,57 @@ html.compact {
   box-shadow: var(--shadow-lg);
 }
 
+/* Кликабельное число в колонке вида «Подразделений: N» (грейдирование,
+   пользователи и т.п.) — открывает .list-pop (showListPopover в app.js) со
+   списком конкретных значений вместо простого счётчика/hover-тултипа
+   (на телефоне hover не работает вообще). */
+.list-cell {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+  box-shadow: none;
+  display: inline;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.list-cell:hover { color: var(--color-midnight-ink); }
+
+.list-pop {
+  max-width: min(360px, 88vw);
+  max-height: min(320px, 70vh);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.list-pop-hd {
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--color-ash);
+  flex: none;
+}
+.list-pop-list {
+  overflow-y: auto;
+  padding: 4px;
+}
+.list-pop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: var(--radius-inputs);
+}
+.list-pop-row:hover { background: var(--color-paper-mist); }
+
 /* Меню по правому клику на строке таблицы (tableEnhance.js) — та же
    визуальная база, что у «⋮»-меню строк. */
 .tbl-ctx-menu { max-width: min(280px, 88vw); }
@@ -10851,31 +10902,49 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   align-items: center;
   gap: 8px 10px;
 }
+/* Grid, не flex: у синей плашки (название фактора) была flex:1 1 auto —
+   ширина плыла за длиной названия, и «1 [ответ]» после неё в каждой строке
+   начиналось в своей точке (К1 короткий заголовок — ответ сразу после,
+   К3 длинный — ответ уводило дальше). Фиксированная колонка под плашку
+   выравнивает начало ответа по всем строкам сразу — а не обрезает длинное
+   название многоточием (было), а переносит его на второй ряд внутри той же
+   колонки: полный текст видно, при этом ширина колонки не гуляет. */
 .gr-factor-summary {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(150px, 300px) minmax(0, 1fr);
+  align-items: start;
   gap: 8px 10px;
   min-width: 0;
-  overflow: hidden;
 }
 .gr-factor-summary .gr-factor-hd {
-  flex: 1 1 auto;
   margin: 0;
   min-width: 0;
+  flex-wrap: wrap;
 }
 .gr-factor-summary .gr-factor-hd b {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
+  white-space: normal;
 }
+.gr-factor-summary .gr-factor-chosen {
+  padding-top: 8px;
+}
+/* Только для грейдирования должностей (K1–K6) — заголовки короткие,
+   помещаются на одну строку при чуть более широкой колонке; в анкете риска
+   заголовки — целые вопросы-предложения, там перенос (правило выше) остаётся.
+   Двойной класс в селекторе — специфичность выше, чем у голого
+   .gr-factor-summary в мобильном media-запросе ниже по файлу, иначе тот
+   его перебивал бы независимо от размера экрана. */
+.gr-factor-summary.gr-factor-summary--grade {
+  grid-template-columns: minmax(230px, 460px) minmax(0, 1fr);
+  align-items: center;
+}
+.gr-factor-summary--grade .gr-factor-hd b { white-space: nowrap; }
+.gr-factor-summary--grade .gr-factor-chosen { padding-top: 0; }
 .gr-factor-summary .gr-factor-hd .badge { flex: none; }
 .gr-factor-chosen {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1 1 120px;
   min-width: 0;
   font-size: 13px;
   color: var(--text);
@@ -11375,6 +11444,10 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-group small { font-size: 10.5px; }
 .gr-factor { padding: 10px 0; }
 .gr-factor-hd b { font-size: 13.5px; }
+/* На узком экране колонка под плашку уже, чем на десктопе (там до 300px) —
+   но не обрезаем текст, а даём ему перенестись на 2–3 строки (см. white-space:
+   normal выше), общая точка начала ответа всё равно останется одинаковой. */
+.gr-factor-summary { grid-template-columns: minmax(110px, 180px) minmax(0, 1fr); }
 .gr-opts { gap: 4px; }
 .gr-opt { padding: 6px 9px; font-size: 12.5px; }
 .gr-opt .gr-score { flex-basis: 21px; height: 21px; font-size: 11px; }

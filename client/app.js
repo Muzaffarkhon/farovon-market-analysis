@@ -227,7 +227,11 @@ function navModel(){
     primary.push({ key:'grading', label:'Грейдинг', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
       badgeNew:true,
-      run:canSeeGradingMain ? function(){ switchView('grading'); } : grSubs[0].run });
+      // Клик по самому «Грейдингу» (не по под-вкладке из стрелочки) всегда ведёт
+      // на главную «Оценка должностей» — а не туда, где случайно остались в
+      // прошлый раз (openGrading() без аргумента помнит последнюю вкладку,
+      // это нужно только для восстановления после перезагрузки страницы).
+      run:canSeeGradingMain ? function(){ openGrading('assess'); } : grSubs[0].run });
   }
   if(typeof canSeeKeyRisks === 'function' && canSeeKeyRisks()){
     var krSubs = [
@@ -239,7 +243,9 @@ function navModel(){
     primary.push({ key:'keyrisk', label:'Риски штата', icon:'risk',
       active:mkActive('keyrisk'), inTabs:true, subsections:krSubs, submenu:krSubs,
       badgeNew:true,
-      run:function(){ switchView('keyrisk'); } });
+      // Та же логика, что и у «Грейдинга» выше: клик по разделу — всегда на
+      // главную «Ключевые сотрудники», а не на последнюю открытую вкладку.
+      run:function(){ openKeyRisks('list'); } });
   }
   if(role === 'hrbp'){
     primary.push({ key:'hrbp_summary', label:'Сводка по HR BP', icon:'clipboard',
@@ -505,7 +511,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -540,7 +546,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -600,7 +606,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.70')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.71')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -630,7 +636,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.70')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.71')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1804,7 +1810,7 @@ function crumbTrail(title){
     }
     // Переехали в подраздел «Грейдинга» в навигации — крошка должна вести туда же.
     if(S.adminTab === 'gradingFactors' || S.adminTab === 'gradingBlocks'){
-      return [ { label:'Грейдинг', go:function(){ switchView('grading'); } }, { label: title || 'Раздел' } ];
+      return [ { label:'Грейдинг', go:function(){ openGrading('assess'); } }, { label: title || 'Раздел' } ];
     }
     // Раньше «Администрирование» тут было немым текстом — попав вглубь любого
     // раздела админки (Оргструктура, Период сбора, Роли и т.д.), некуда было
@@ -6772,6 +6778,40 @@ function closeOverflowMenus(){
   document.querySelectorAll('.row-menu-pop').forEach(function(menu){ menu.remove(); });
 }
 
+/**
+ * Всплывающий read-only список рядом с местом клика — общая замена «голому»
+ * числу в колонке вида «Подразделений: N»: пользователю не нужно листать
+ * отдельный экран/тултип-на-hover (не работает на телефоне), чтобы увидеть,
+ * что именно за этим числом стоит. items — строки или {label, hint}.
+ */
+function showListPopover(e, title, items){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  closeOverflowMenus();
+
+  var pop = document.createElement('div');
+  pop.className = 'row-menu-pop list-pop';
+  pop.setAttribute('role', 'menu');
+  pop.innerHTML = '<div class="list-pop-hd">'+esc(title)+'</div>'+
+    (items && items.length
+      ? '<div class="list-pop-list">'+items.map(function(it){
+          var label = (typeof it === 'string') ? it : it.label;
+          var hint = (typeof it === 'string') ? '' : (it.hint || '');
+          return '<div class="list-pop-row"><span>'+esc(label)+'</span>'+
+            (hint ? '<span class="muted">'+esc(hint)+'</span>' : '')+'</div>';
+        }).join('')+'</div>'
+      : '<div class="muted" style="padding:8px 10px">Пусто</div>');
+  pop.onclick = function(evt){ evt.stopPropagation(); };
+  document.body.appendChild(pop);
+
+  var anchor = e && (e.currentTarget || (e.target && e.target.closest && e.target.closest('button')));
+  if(anchor){
+    var rect = anchor.getBoundingClientRect();
+    pop.style.top = Math.max(8, Math.min(window.innerHeight - pop.offsetHeight - 8, rect.bottom + 4)) + 'px';
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8, rect.left)) + 'px';
+  }
+  setTimeout(function(){ document.addEventListener('click', closeOverflowMenus, { once:true }); }, 0);
+}
+
 function openOverflowMenu(e, actions){
   if(e){ e.preventDefault(); e.stopPropagation(); }
   closeOverflowMenus();
@@ -6940,7 +6980,11 @@ function renderAdminUsers(){
       '<td class="u-t-dim">'+esc(u.phone || '—')+'</td>'+
       '<td><span class="badge '+rBadge+'">'+esc(u.role)+'</span></td>'+
       '<td><span class="badge '+(u.active?'b-active':'b-blocked')+'">'+(u.active?'Активен':'Заблокирован')+'</span></td>'+
-      '<td class="u-t-dim" data-dirs="'+esc(dirsStr)+'" title="'+esc(dirsStr ? 'Направления: ' + dirsStr + '\nПодразделения: ' + (u.units||[]).join('\n') : (u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</td>'+
+      '<td class="u-t-dim" data-dirs="'+esc(dirsStr)+'" title="'+esc(dirsStr ? 'Направления: ' + dirsStr + '\nПодразделения: ' + (u.units||[]).join('\n') : (u.units||[]).join('\n'))+'">'+
+        ((u.units && u.units.length)
+          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'">'+u.units.length+'</button>'
+          : '0')+
+      '</td>'+
       '<td class="u-t-dim">'+esc(fmtDateTime(u.lastIn) || '—')+'</td>'+
       '<td><div class="u-t-acts">'+userActs(u, true)+'</div></td>'+
     '</tr>';
@@ -6957,7 +7001,10 @@ function renderAdminUsers(){
         'Логин: <b>'+esc(u.login)+'</b>'+
         (u.phone ? ' · Тел: '+esc(u.phone) : '') +
         (u.hasTelegram ? ' · <span class="badge b-tg">Telegram привязан</span>' : '') +
-        '<br>Подразделений: <b title="'+esc((u.units||[]).join('\n'))+'">'+(u.units?u.units.length:0)+'</b>'+
+        '<br>Подразделений: '+
+        ((u.units && u.units.length)
+          ? '<button type="button" class="list-cell" data-units-login="'+esc(u.login)+'">'+u.units.length+'</button>'
+          : '<b>0</b>')+
         (u.lastIn ? ' · Вход: '+esc(fmtDateTime(u.lastIn)) : '') +
       '</div>'+
       '<div class="u-acts">'+userActs(u, false)+'</div>'+
@@ -6990,6 +7037,13 @@ function renderAdminUsers(){
         e.preventDefault();
         openUserActions(e, login);
       }
+    };
+  });
+  $('adminContent').querySelectorAll('button[data-units-login]').forEach(function(btn){
+    btn.onclick = function(e){
+      var login = this.dataset.unitsLogin;
+      var u = (S.adminUsers || []).filter(function(x){ return x.login === login; })[0];
+      if(u) showListPopover(e, u.fio, u.units || []);
     };
   });
 
