@@ -641,6 +641,7 @@ async function migrate() {
   await unifyGradingCriteria();
   await seedSupportChat();
   await createPositionCompanySelections();
+  await cleanupLegacySurveyTestData();
 }
 
 /**
