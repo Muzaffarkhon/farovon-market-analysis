@@ -77,6 +77,10 @@ router.post('/survey/save', surveyController.saveSurveyData);
 router.post('/survey/save-details', surveyController.saveSurveyDetails);
 router.post('/survey/for-period', surveyController.getSurveysForPeriod);
 router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
+// Position-first Шаг 1: чек-лист компаний для сравнения по каждой должности
+// (заменяет прежний унитарный на весь unit флаг competitors.actual).
+router.post('/survey/position-selections', surveyController.getPositionSelections);
+router.post('/survey/position-selection/save', surveyController.savePositionSelection);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
 // всех HR BP). Кто именно видит её, кроме admin, теперь настраивается в

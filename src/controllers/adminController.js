@@ -1079,12 +1079,15 @@ exports.setPeriod = async (req, res) => {
           args: [name, from || null, to || null, by]
         }
       ]);
-      // Новый год сбора — «чистый лист» по актуальности конкурентов: старые
-      // отметки «актуально»/«не актуально» могли устареть за год, HR BP
-      // должны перепроверить каждую заново. Анкеты не трогаем — они
-      // остаются за своим периодом по surveys.period_id.
+      // Новый год сбора: выбор компаний по должностям (position_company_selections)
+      // и сами анкеты (surveys) хранятся за своим периодом по period_id и сами
+      // по себе не переносятся на новый год — HR BP заново отмечает релевантные
+      // компании по каждой должности в новом периоде. competitors.actual —
+      // унаследованное поле старого унитарного Шага 1, системой больше не
+      // читается; сброс оставлен как безвредная гигиена данных на случай
+      // старого клиента/кэша.
       await run("UPDATE competitors SET actual = 'уточнить'");
-      auditDetail = `Период «${name}»: открыт новый (актуальность конкурентов сброшена)`;
+      auditDetail = `Период «${name}»: открыт новый`;
 
     } else if (action === 'edit') {
       const newName = name || active.name;
@@ -2153,6 +2156,24 @@ exports.importSurvey = async (req, res) => {
         ],
       });
       inserted++;
+    }
+
+    // Импортированные анкеты обходят чек-лист position-first Шага 1 (это
+    // массовая загрузка внешних данных) — без соответствующей строки выбора
+    // такая должность/компания навсегда показывала бы статус «не начата»,
+    // хотя данные по ней уже есть. Заводим выбор той же парой, что и анкету.
+    const selSeen = new Set();
+    for (const p of result.prepared) {
+      if (!p.pos_our || !p.company) continue;
+      const key = norm(p.unit) + '|' + norm(p.pos_our) + '|' + norm(p.company);
+      if (selSeen.has(key)) continue;
+      selSeen.add(key);
+      stmts.push({
+        sql: `INSERT OR IGNORE INTO position_company_selections
+                (unit, period_id, pos_our, company, selected_by, selected_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [p.unit, period.id, p.pos_our, p.company, 'импорт', p.created_at || new Date().toISOString()],
+      });
     }
 
     const detail =

@@ -697,6 +697,200 @@ exports.addDictionaryItem = async (req, res) => {
  * docs/superpowers/specs/2026-09-05-archive-edit-access-design.md). Та же
  * проверка доступа, что и на сохранении — resolveEditablePeriod.
  */
+/**
+ * Position-first Шаг 1: какие компании выбраны для сравнения по каждой
+ * должности подразделения в данном периоде. Заменяет собой прежний
+ * унитарный (на весь unit) флаг competitors.actual — см. схему
+ * position_company_selections. Доступ к unit — та же проверка, что и у
+ * getSurveysForPeriod (см. комментарий там).
+ */
+exports.getPositionSelections = async (req, res) => {
+  const { unit, periodId } = req.body;
+  const cleanUnit = String(unit || '').trim();
+  if (!cleanUnit) {
+    return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
+  }
+
+  try {
+    const isElevated = req.user.role === 'admin' || req.user.role === 'cb';
+    if (!isElevated) {
+      const myUnits = Array.isArray(req.user.units) ? req.user.units : [];
+      let allowed = myUnits.includes(cleanUnit);
+      if (!allowed && myUnits.length) {
+        const ph = myUnits.map(() => '?').join(',');
+        const groupRow = await queryOne(
+          `SELECT 1 FROM divisions WHERE unit = ? AND group_key <> '' AND group_key IN (
+             SELECT group_key FROM divisions WHERE unit IN (${ph}) AND group_key <> ''
+           )`,
+          [cleanUnit, ...myUnits]
+        );
+        allowed = !!groupRow;
+      }
+      if (!allowed) {
+        return res.status(403).json({ ok: false, error: 'Нет доступа к этому подразделению' });
+      }
+    }
+
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+
+    const rows = await queryAll(
+      'SELECT pos_our, company FROM position_company_selections WHERE unit = ? AND period_id = ?',
+      [cleanUnit, resolved.period.id]
+    );
+    const selections = {};
+    rows.forEach(r => {
+      (selections[r.pos_our] = selections[r.pos_our] || []).push(r.company);
+    });
+
+    res.json({ ok: true, selections });
+  } catch (err) {
+    console.error('getPositionSelections error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка загрузки выбора компаний по должностям' });
+  }
+};
+
+/**
+ * Сохранение чек-листа компаний для ОДНОЙ должности (position-first Шаг 1).
+ * Ноль выбранных компаний — валидный результат (позиция без рыночного
+ * сравнения), поэтому здесь нет ошибки на пустой список — предупреждение
+ * об этом показывает фронт.
+ *
+ * Смежная группа: та же философия, что и в saveSurveyDetails — выбор
+ * разносится на площадки группы, но ТОЛЬКО туда, где эта же должность
+ * (по нормализованному имени) действительно есть в штатке (unit_positions),
+ * иначе можно было бы завести должность там, где её нет.
+ */
+exports.savePositionSelection = async (req, res) => {
+  const { unit, posOur, companies, groupKey, periodId } = req.body;
+  const cleanUnit = String(unit || '').trim();
+  const cleanPos = String(posOur || '').trim();
+  if (!cleanUnit) {
+    return res.status(400).json({ ok: false, error: 'Не указано подразделение' });
+  }
+  if (!cleanPos) {
+    return res.status(400).json({ ok: false, error: 'Не указана должность' });
+  }
+  if (companies !== undefined && companies !== null && !Array.isArray(companies)) {
+    return res.status(400).json({ ok: false, error: 'Список компаний должен быть массивом' });
+  }
+
+  const cleanCompanies = [];
+  const seenC = new Set();
+  (companies || []).forEach(c => {
+    const name = String(c || '').trim();
+    if (!name) return;
+    const k = norm(name);
+    if (seenC.has(k)) return;
+    seenC.add(k);
+    cleanCompanies.push(name);
+  });
+
+  try {
+    const resolved = await resolveEditablePeriod(periodId, req.user);
+    if (!resolved.ok) {
+      return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    }
+    const period = resolved.period;
+    const latestRow = await getActivePeriod();
+    const isCurrentPeriod = !latestRow || period.id === latestRow.id;
+    if (isCurrentPeriod && period.state === 'закрыт' && req.user.role !== 'hrbp' && req.user.role !== 'admin' && req.user.role !== 'cb') {
+      return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
+    }
+
+    const isElevated = req.user.role === 'admin' || req.user.role === 'cb';
+    if (!isElevated) {
+      const myUnits = Array.isArray(req.user.units) ? req.user.units : [];
+      let allowed = myUnits.includes(cleanUnit);
+      if (!allowed && myUnits.length) {
+        const ph = myUnits.map(() => '?').join(',');
+        const groupRow = await queryOne(
+          `SELECT 1 FROM divisions WHERE unit = ? AND group_key <> '' AND group_key IN (
+             SELECT group_key FROM divisions WHERE unit IN (${ph}) AND group_key <> ''
+           )`,
+          [cleanUnit, ...myUnits]
+        );
+        allowed = !!groupRow;
+      }
+      if (!allowed) {
+        return res.status(403).json({ ok: false, error: 'Нет доступа к этому подразделению' });
+      }
+    }
+
+    let cleanGroupKey = groupKey ? String(groupKey).trim() : '';
+    if (!cleanGroupKey) {
+      const ownGrp = await queryOne('SELECT group_key FROM divisions WHERE unit = ?', [cleanUnit]);
+      if (ownGrp && String(ownGrp.group_key || '').trim()) cleanGroupKey = String(ownGrp.group_key).trim();
+    }
+
+    let targetUnits = [cleanUnit];
+    if (cleanGroupKey && isCurrentPeriod) {
+      const groupUnits = (await queryAll('SELECT unit FROM divisions WHERE group_key = ?', [cleanGroupKey]))
+        .map(r => r.unit).filter(Boolean);
+      if (groupUnits.length >= 2 && groupUnits.includes(cleanUnit) && groupUnits.length <= 50) {
+        const ph = groupUnits.map(() => '?').join(',');
+        const siblingPositions = await queryAll(
+          `SELECT DISTINCT unit, position FROM unit_positions WHERE unit IN (${ph})`, groupUnits
+        );
+        const posOk = new Set(
+          siblingPositions.filter(p => norm(p.position) === norm(cleanPos)).map(p => p.unit)
+        );
+        posOk.add(cleanUnit);
+        targetUnits = groupUnits.filter(u => posOk.has(u));
+      }
+    }
+
+    const ph2 = targetUnits.map(() => '?').join(',');
+    const existingRows = await queryAll(
+      `SELECT id, unit, pos_our, company FROM position_company_selections WHERE unit IN (${ph2}) AND period_id = ?`,
+      [...targetUnits, period.id]
+    );
+
+    const nowIso = new Date().toISOString();
+    const stmts = [];
+    const posKey = norm(cleanPos);
+    const wantNorm = new Set(cleanCompanies.map(norm));
+    targetUnits.forEach(u => {
+      const existingForUnitPos = existingRows.filter(r => r.unit === u && norm(r.pos_our) === posKey);
+      const existingNorm = new Set(existingForUnitPos.map(r => norm(r.company)));
+
+      existingForUnitPos.forEach(r => {
+        if (!wantNorm.has(norm(r.company))) {
+          stmts.push({ sql: 'DELETE FROM position_company_selections WHERE id = ?', args: [r.id] });
+        }
+      });
+      cleanCompanies.forEach(c => {
+        if (!existingNorm.has(norm(c))) {
+          stmts.push({
+            sql: `INSERT INTO position_company_selections (unit, period_id, pos_our, company, selected_by, selected_at)
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [u, period.id, cleanPos, c, req.user.fio || req.user.login, nowIso]
+          });
+        }
+      });
+    });
+
+    stmts.push({
+      sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      args: [
+        req.user.login,
+        'выбор компаний по должности',
+        `Подразделение: ${cleanUnit}, должность: ${cleanPos}, компаний: ${cleanCompanies.length}` +
+          (targetUnits.length > 1 ? `, разнесено на ${targetUnits.length} площадок группы` : '')
+      ]
+    });
+
+    if (stmts.length) await batch(stmts);
+
+    res.json({ ok: true, unit: cleanUnit, posOur: cleanPos, companies: cleanCompanies, unitsAffected: targetUnits.length });
+  } catch (err) {
+    console.error('savePositionSelection error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения выбора компаний' });
+  }
+};
+
 exports.getSurveysForPeriod = async (req, res) => {
   const { unit, periodId } = req.body;
   const cleanUnit = String(unit || '').trim();

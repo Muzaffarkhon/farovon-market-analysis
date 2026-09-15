@@ -147,6 +147,7 @@ async function getUserPayload(user) {
     allUnits,
     compRows,
     survRows,
+    selRows,
     dictCompanies,
     dictPositionsRows,
     segRows,
@@ -167,7 +168,11 @@ async function getUserPayload(user) {
       }
     }),
     queryAll('SELECT unit, company, actual FROM competitors'),
-    queryAll("SELECT unit FROM surveys WHERE state != 'удалена' AND period_id = ?", [period.id]),
+    queryAll("SELECT unit, pos_our, company, pay_from, pay_to FROM surveys WHERE state != 'удалена' AND period_id = ?", [period.id]),
+    // Position-first Шаг 1: выбор компаний по должности (заменяет прежний
+    // унитарный на весь unit флаг competitors.actual) — источник прогресса
+    // «проверено/на уточнении» ниже.
+    queryAll('SELECT unit, pos_our, company FROM position_company_selections WHERE period_id = ?', [period.id]),
     cached('dictCompanies', () => withDirs(
       "SELECT name, segment, region, COALESCE(dirs, '') AS dirs FROM dictionary_companies ORDER BY name ASC",
       'SELECT name, segment, region FROM dictionary_companies ORDER BY name ASC'
@@ -191,14 +196,25 @@ async function getUserPayload(user) {
   // services/companyFilter). Дальше по коду используем только compRowsShown.
   const compRowsShown = compRows.filter(c => !isHiddenCompany(c.company));
 
-  // Подсчёт прогресса по доступным подразделениям (в памяти)
+  // Подсчёт прогресса по доступным подразделениям (в памяти). Position-first
+  // Шаг 1: «total» — сколько пар «должность × компания» отмечено релевантными
+  // для сравнения (position_company_selections), «done» — сколько из них уже
+  // закрыто реальными данными по рынку (surveys с окладом). Унитарный флаг
+  // «уточнить» (competitors.actual) упразднён — «ask» оставлен нулём ради
+  // обратной совместимости формы ответа, фронт его больше не показывает.
+  const normPos = (v) => String(v == null ? '' : v).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+  const filledSurveyKeys = new Set();
+  survRows.forEach(s => {
+    if (Number(s.pay_from) > 0 || Number(s.pay_to) > 0) {
+      filledSurveyKeys.add(`${s.unit}|${normPos(s.pos_our)}|${normPos(s.company)}`);
+    }
+  });
+  const selRowsShown = selRows.filter(c => !isHiddenCompany(c.company));
   const compMap = {};
-  compRowsShown.forEach(c => {
+  selRowsShown.forEach(c => {
     if (!compMap[c.unit]) compMap[c.unit] = { total: 0, done: 0, ask: 0 };
     compMap[c.unit].total++;
-    const act = (c.actual || '').toLowerCase();
-    if (act === 'актуально' || act === 'не актуально') compMap[c.unit].done++;
-    else if (act === 'уточнить') compMap[c.unit].ask++;
+    if (filledSurveyKeys.has(`${c.unit}|${normPos(c.pos_our)}|${normPos(c.company)}`)) compMap[c.unit].done++;
   });
 
   const survMap = {};
@@ -240,21 +256,18 @@ async function getUserPayload(user) {
   // уточнении» — хоть одна связь в статусе «уточнить».
   const visibleUnitSet = new Set(visibleUnits.map(u => u.unit));
   const compByName = new Map();
-  compRowsShown.forEach(c => {
+  selRowsShown.forEach(c => {
     if (!visibleUnitSet.has(c.unit)) return;
     const name = String(c.company || '').trim().toLowerCase();
     if (!name) return;
-    const act = (c.actual || '').toLowerCase();
     let e = compByName.get(name);
-    if (!e) { e = { allChecked: true, anyAsk: false }; compByName.set(name, e); }
-    if (act === 'уточнить') { e.anyAsk = true; e.allChecked = false; }
-    else if (act !== 'актуально' && act !== 'не актуально') { e.allChecked = false; }
+    if (!e) { e = { anyDone: false }; compByName.set(name, e); }
+    if (filledSurveyKeys.has(`${c.unit}|${normPos(c.pos_our)}|${normPos(c.company)}`)) e.anyDone = true;
   });
   let marketCompaniesDone = 0;
-  let marketAskCompanies = 0;
+  const marketAskCompanies = 0;
   compByName.forEach(e => {
-    if (e.allChecked) marketCompaniesDone++;
-    if (e.anyAsk) marketAskCompanies++;
+    if (e.anyDone) marketCompaniesDone++;
   });
   const marketCompanies = compByName.size;
 
