@@ -12612,7 +12612,15 @@ function openProgress(){
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
-  call('apiDashboard', S.token).then(function(r){
+  // guardAsyncToTab: без неё $('body') внутри этого .then резолвится по ТОЙ
+  // вкладке, что активна в момент прихода ответа сервера, а не в момент
+  // запроса — если пока apiDashboard считал, пользователь успел уйти в другую
+  // вкладку (например, сохранил анкету и WorkspaceTabs.notifyDataChange фоново
+  // дёрнул openProgress() в неактивной вкладке «Сводка по подразделениям»),
+  // эта сводка дорисовывалась поверх ЧУЖОЙ, уже активной вкладки (гонка
+  // вкладок — тот же класс бага, что и в openAdminPanel/openBenchmarks выше,
+  // только про DOM-запись из отложенного колбэка, а не про S.*).
+  call('apiDashboard', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){ $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка')+'</div>'; return; }
     if(r.period) S.data.period = r.period;
     var p = S.data.period || {};
@@ -12955,7 +12963,7 @@ function openProgress(){
       openProgress();
     }
     function periodFail(){ toast('Нет связи'); openProgress(); }
-  });
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════
