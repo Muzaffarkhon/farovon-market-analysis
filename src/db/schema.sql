@@ -87,6 +87,24 @@ CREATE TABLE IF NOT EXISTS surveys (
   period_id INTEGER REFERENCES periods(id)
 );
 
+-- Шаг 1 (новая модель, position-first): какие компании выбраны для сравнения
+-- по КОНКРЕТНОЙ должности конкретного подразделения в конкретном периоде.
+-- Заменяет собой унитарный (на весь unit) флаг competitors.actual — выбор
+-- теперь делается для каждой пары «должность × компания» отдельно. Строка =
+-- «эта компания отмечена как релевантная для сравнения по этой должности».
+-- Отсутствие строк для пары (unit, period, pos_our) = компании ещё не выбраны
+-- («не начата»); наличие строк без сохранённых surveys = «в процессе».
+CREATE TABLE IF NOT EXISTS position_company_selections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  unit TEXT NOT NULL,
+  period_id INTEGER REFERENCES periods(id),
+  pos_our TEXT NOT NULL,
+  company TEXT NOT NULL,
+  selected_by TEXT,
+  selected_at DATETIME,
+  UNIQUE(unit, period_id, pos_our, company)
+);
+
 CREATE TABLE IF NOT EXISTS dictionary_companies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT UNIQUE NOT NULL,
@@ -213,6 +231,8 @@ CREATE TABLE IF NOT EXISTS fx_rates (
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
 CREATE INDEX IF NOT EXISTS idx_divisions_unit ON divisions(unit);
 CREATE INDEX IF NOT EXISTS idx_competitors_unit ON competitors(unit);
+CREATE INDEX IF NOT EXISTS idx_position_company_selections_unit ON position_company_selections(unit, period_id);
+CREATE INDEX IF NOT EXISTS idx_position_company_selections_pos ON position_company_selections(unit, period_id, pos_our);
 CREATE INDEX IF NOT EXISTS idx_surveys_unit ON surveys(unit);
 CREATE INDEX IF NOT EXISTS idx_surveys_pos ON surveys(pos_our);
 CREATE INDEX IF NOT EXISTS idx_benchmark_rows_dataset ON benchmark_rows(dataset_id);
