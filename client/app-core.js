@@ -1417,27 +1417,22 @@ var WorkspaceTabs = {
 
   handleDataChange: function(meta){
     var self = this;
+    // Раньше здесь для каждой фоновой (не активной) вкладки временно
+    // выставлялся self.activeId = t.id и синхронно вызывался t.run(), чтобы
+    // «молча» освежить её данные. Это оказалось небезопасно: run() у вкладок
+    // (openProgress, openAdminPanel и т.п.) не ограничивается своим paneEl —
+    // он пишет в глобальные S.appView/S.unit, зовёт saveNavState()/renderTopNav(),
+    // и главное — setTop() правит $('ttl') напрямую, а $('ttl')/$('bar') не
+    // резолвятся по активной вкладке (в отличие от $('body')), это единственные
+    // на страницу элементы. Поэтому фоновый рендер на мгновение перебивал
+    // заголовок/нижнюю панель у вкладки, которую пользователь реально видит —
+    // даже притом что activeId потом корректно восстанавливался в finally.
+    // Теперь просто помечаем вкладку «нужно обновить» и ничего не рендерим:
+    // activateTab() и так уже перерисует её свежими данными в момент, когда
+    // пользователь на неё реально переключится (см. shouldRun там же).
     this.tabs.forEach(function(t){
       if(t.id === self.activeId) return;
-
-      var isDirty = (t.state && t.state.dirty);
-      if(!isDirty){
-        t.needsRefresh = true;
-        if(t.paneEl && typeof t.run === 'function'){
-          var prevActive = self.activeId;
-          self.activeId = t.id;
-          self.isInsideTabRun = true;
-          try {
-            t.run();
-          } catch(e){}
-          finally {
-            self.isInsideTabRun = false;
-            self.activeId = prevActive;
-          }
-        }
-      } else {
-        t.needsRefresh = true;
-      }
+      t.needsRefresh = true;
     });
   },
 
