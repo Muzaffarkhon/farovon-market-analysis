@@ -2701,7 +2701,9 @@ function openPositionCompaniesSheet(posName){
   }
 
   el.innerHTML = '<div class="sheet-in">'+
-    '<div class="sheet-hd"><b>Компании для сравнения — «'+esc(posName)+'»</b>'+
+    '<div class="sheet-hd sheet-hd--step1">'+
+      '<div><span class="step-pill step-pill--1">'+ic('units', 12)+'Шаг 1 · Компании</span>'+
+      '<b>Компании для сравнения — «'+esc(posName)+'»</b></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<p class="step-hint" style="margin:0 0 10px">Отметьте компании, с которыми сравниваете оклад по этой должности. '+
     'Ноль компаний — тоже допустимый результат, если сравнивать не с кем.</p>'+
@@ -3130,8 +3132,9 @@ function openBatchSurveySheet(posName){
     }).join('');
 
     el.innerHTML = '<div class="sheet-in batch-sheet'+(wide ? ' batch-sheet--wide' : '')+'">'+
-      '<div class="sheet-hd">'+
+      '<div class="sheet-hd sheet-hd--step2">'+
         '<div>'+
+          '<span class="step-pill step-pill--2">'+ic('wallet', 12)+'Шаг 2 · Оклады</span>'+
           '<b>Должность: '+esc(posName)+'</b>'+
           '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
         '</div>'+
