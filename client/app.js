@@ -2368,6 +2368,64 @@ function selectionsForPos(posName){
   return [];
 }
 
+/**
+ * Порядок компаний-кандидатов в чек-листе Шага 1 — по релевантности, не
+ * по алфавиту (см. постановку задачи). Прямой связи «должность → сегмент»
+ * в модели данных нет (должности вроде «Бухгалтер»/«Юрист» слишком общие,
+ * чтобы гадать по названию), поэтому берём косвенный признак — сегменты,
+ * в которых у ЭТОГО подразделения уже есть свои конкуренты (competitors,
+ * S.rows/S.added): это и есть отрасль, в которой реально работает
+ * подразделение. Сортировка:
+ *  1) компании из сегмента(ов), уже встречающихся среди своих конкурентов —
+ *     внутри группы по competitors.prio (справочник S.data.ref.priorities
+ *     задаёт порядок «высокий → низкий», тот же, что в чипах при добавлении
+ *     конкурента);
+ *  2) все остальные компании — тоже по prio;
+ *  3) при равенстве — по алфавиту.
+ * Сегмент и prio берём из собственных competitors подразделения (там они
+ * есть); для компаний из общего справочника холдинга, которые ещё не
+ * заведены конкурентом этого подразделения, segment есть (S.data.companies
+ * .seg), а prio — нет (в dictionary_companies такого поля нет), поэтому у
+ * них ранг приоритета — «ниже всех заданных», не отбрасываем и не гадаем. */
+function sortCompanyPoolByRelevance(pool){
+  var priorities = (S.data.ref && S.data.ref.priorities && S.data.ref.priorities.length)
+    ? S.data.ref.priorities : ['высокий', 'средний', 'низкий'];
+  var prioRank = {};
+  priorities.forEach(function(p, i){ prioRank[norm(p)] = i; });
+  var worstRank = priorities.length; // нет приоритета — идёт последним внутри своей группы
+
+  var segByName = {}; var prioByName = {};
+  (S.data.companies || []).forEach(function(c){
+    if(c && c.name) segByName[norm(c.name)] = c.seg || '';
+  });
+  // Свои конкуренты подразделения — источник истины по сегменту/приоритету
+  // ЭТОЙ компании для ЭТОГО подразделения, перекрывает общий справочник.
+  var ownSegments = {};
+  S.rows.concat(S.added).forEach(function(r){
+    if(!r || !r.company) return;
+    var k = norm(r.company);
+    if(r.segment) segByName[k] = r.segment;
+    if(r.prio) prioByName[k] = r.prio;
+    if(r.segment) ownSegments[norm(r.segment)] = true;
+  });
+
+  function rankOf(name){
+    var k = norm(name);
+    var seg = segByName[k] || '';
+    var inOwnSegment = seg && ownSegments[norm(seg)];
+    var pr = prioByName[k] || '';
+    var pRank = prioRank[norm(pr)] != null ? prioRank[norm(pr)] : worstRank;
+    return { group: inOwnSegment ? 0 : 1, pRank: pRank };
+  }
+
+  return pool.slice().sort(function(a, b){
+    var ra = rankOf(a), rb = rankOf(b);
+    if(ra.group !== rb.group) return ra.group - rb.group;
+    if(ra.pRank !== rb.pRank) return ra.pRank - rb.pRank;
+    return a.localeCompare(b, 'ru');
+  });
+}
+
 /** Пул компаний-кандидатов для чек-листа должности: свои компании
  *  подразделения (S.rows/S.added, источник — competitors) плюс общий
  *  справочник холдинга (S.data.companies) — тот же источник, что уже
@@ -2620,7 +2678,7 @@ function openPositionCompaniesSheet(posName){
   current.forEach(function(c){
     if(!nameByNorm[norm(c)]){ nameByNorm[norm(c)] = c; pool.push(c); }
   });
-  pool.sort(function(a,b){ return a.localeCompare(b, 'ru'); });
+  pool = sortCompanyPoolByRelevance(pool);
 
   var normCurrent = {};
   current.forEach(function(c){ normCurrent[norm(c)] = true; });
@@ -2690,7 +2748,7 @@ function openPositionCompaniesSheet(posName){
         if(!res || !res.ok){ toast((res && res.error) || 'Не удалось добавить компанию', 'no'); return; }
         nameByNorm[norm(name)] = name;
         pool.push(name);
-        pool.sort(function(a,b){ return a.localeCompare(b, 'ru'); });
+        pool = sortCompanyPoolByRelevance(pool);
         picked[norm(name)] = true;
         if(S.data.companies && !S.data.companies.some(function(c){ return norm(c.name) === norm(name); })){
           S.data.companies.push({ name: name, seg:'', region:'' });
