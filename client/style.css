@@ -10667,7 +10667,6 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 
 /* ── #25 — моногарнитура + tabular-nums на остальных числовых элементах ── */
-.pos-badge,
 .tbl-count b,
 .pager-btns button,
 .pager-info,
@@ -10679,6 +10678,7 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   font-variant-numeric: tabular-nums;
 }
 /* Смешанный текст+число — только выравнивание цифр, гарнитуру не трогаем */
+.pos-badge,
 .top-period-pill,
 .batch-st-tag,
 .u-status,
