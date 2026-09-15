@@ -1771,6 +1771,9 @@ var API_ROUTES = {
   apiSave: function(args){ return fetchJson('/api/survey/save', { method:'POST', token:args[0], body:args[1] }); },
   apiSaveSurvey: function(args){ return fetchJson('/api/survey/save-details', { method:'POST', token:args[0], body:args[1] }); },
   apiSurveysForPeriod: function(args){ return fetchJson('/api/survey/for-period', { method:'POST', token:args[0], body:{ unit:args[1], periodId:args[2] } }); },
+  // Position-first Шаг 1: чек-лист компаний по одной должности.
+  apiPositionSelections: function(args){ return fetchJson('/api/survey/position-selections', { method:'POST', token:args[0], body:{ unit:args[1], periodId:args[2] } }); },
+  apiSavePositionSelection: function(args){ return fetchJson('/api/survey/position-selection/save', { method:'POST', token:args[0], body:args[1] }); },
   apiPeriodGrantsPanel: function(args){ return fetchJson('/api/admin/period-grants', { method:'GET', token:args[0] }); },
   apiPeriodGrantUsers: function(args){ return fetchJson('/api/admin/period-grants/users', { method:'GET', token:args[0] }); },
   apiPeriodGrantCreate: function(args){ return fetchJson('/api/admin/period-grants', { method:'POST', token:args[0], body:{ userLogin:args[1], periodId:args[2] } }); },
@@ -1981,7 +1984,7 @@ function fetchJson(url, opts){
 }
 
 var MUTATING_API_ACTIONS = [
-  'apiSave', 'apiSaveSurvey', 'apiDictSave', 'apiDictDelete',
+  'apiSave', 'apiSaveSurvey', 'apiSavePositionSelection', 'apiDictSave', 'apiDictDelete',
   'apiAdminSaveUser', 'apiAdminToggleUser', 'apiAdminResetPassword',
   'apiAdminArchiveUser', 'apiAdminRestoreUser', 'apiAdminSaveDivision',
   'apiAdminCreateDivision', 'apiAdminBatchAssignDivision',
