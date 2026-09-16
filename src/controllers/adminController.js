@@ -1688,6 +1688,119 @@ exports.runMaintenance = async (req, res) => {
         (totalBench ? `, строк бенчмарков ${totalBench}` : '') +
         `. Удалено дублей из справочника: ${removedDict}. Сегменты сохранены: «${mergedSegment}».`;
 
+    } else if (taskType === 'position_usage') {
+      // То же самое, что company_usage, но для названий должностей. Не
+      // трогает job_evaluations/key_personnel_risks/staff_directory — это
+      // отдельные модули (грейдинг, риски, штат из 1С), где "должность" не
+      // тот же справочник, что здесь.
+      const [survCounts, selCounts, unitCounts, dictRows] = await Promise.all([
+        queryAll("SELECT pos_our AS position, COUNT(*) AS n FROM surveys WHERE TRIM(COALESCE(pos_our,'')) <> '' GROUP BY pos_our"),
+        queryAll("SELECT pos_our AS position, COUNT(*) AS n FROM position_company_selections WHERE TRIM(COALESCE(pos_our,'')) <> '' GROUP BY pos_our"),
+        queryAll("SELECT position, COUNT(*) AS n FROM unit_positions WHERE TRIM(COALESCE(position,'')) <> '' GROUP BY position"),
+        queryAll('SELECT name, dirs, code FROM dictionary_positions')
+      ]);
+      const map = {};
+      const ensure = (name) => {
+        if (!map[name]) map[name] = { name, surveys: 0, selections: 0, unitPositions: 0, inDictionary: false, dirs: '', code: '' };
+        return map[name];
+      };
+      survCounts.forEach(r => { ensure(r.position).surveys = r.n; });
+      selCounts.forEach(r => { ensure(r.position).selections = r.n; });
+      unitCounts.forEach(r => { ensure(r.position).unitPositions = r.n; });
+      dictRows.forEach(r => {
+        const e = ensure(r.name);
+        e.inDictionary = true;
+        e.dirs = r.dirs || '';
+        e.code = r.code || '';
+      });
+      const positions = Object.values(map)
+        .map(e => ({ ...e, total: e.surveys + e.selections + e.unitPositions }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru'));
+      return res.json({ ok: true, positions });
+
+    } else if (taskType === 'merge_positions') {
+      // Объединяет несколько написаний одной должности в одно "основное".
+      const keep = String(req.body.keep || '').trim();
+      const mergeList = Array.from(new Set(
+        (Array.isArray(req.body.merge) ? req.body.merge : [])
+          .map(s => String(s || '').trim())
+          .filter(s => s && s !== keep)
+      ));
+      if (!keep) {
+        return res.status(400).json({ ok: false, error: 'Не указана основная должность' });
+      }
+      if (!mergeList.length) {
+        return res.status(400).json({ ok: false, error: 'Не выбраны должности для объединения' });
+      }
+
+      // dirs (список направлений, где встречается должность) объединяем так
+      // же, как segment/region у компаний — через уникальный список, только
+      // разделитель ';' (так его пишет surveyController при обычном сохранении).
+      const dictRows = await queryAll(
+        `SELECT name, dirs, code FROM dictionary_positions WHERE name IN (${[keep, ...mergeList].map(() => '?').join(',')})`,
+        [keep, ...mergeList]
+      );
+      const joinUniqueSemi = (parts) => Array.from(new Set(
+        parts.flatMap(p => String(p || '').split(';').map(s => s.trim()).filter(Boolean))
+      )).join(';');
+      const mergedDirs = joinUniqueSemi(dictRows.map(r => r.dirs));
+      const keepRow = dictRows.find(r => r.name === keep) || {};
+      const mergedCode = (keepRow.code && String(keepRow.code).trim())
+        ? keepRow.code
+        : (dictRows.map(r => r.code).find(c => c && String(c).trim()) || '');
+
+      let totalSurv = 0, totalSel = 0, totalUnit = 0, removedDict = 0;
+      for (const dup of mergeList) {
+        const rSurv = await run('UPDATE surveys SET pos_our = ? WHERE pos_our = ?', [keep, dup]);
+        totalSurv += rSurv.rowsAffected || 0;
+
+        // UNIQUE(unit, period_id, pos_our, company): убираем дублирующую
+        // строку вместо переименования, если основная должность для этой же
+        // пары "отдел × компания" уже выбрана.
+        await run(
+          `DELETE FROM position_company_selections WHERE pos_our = ? AND EXISTS (
+             SELECT 1 FROM position_company_selections p2
+             WHERE p2.unit = position_company_selections.unit
+               AND p2.period_id = position_company_selections.period_id
+               AND p2.company = position_company_selections.company
+               AND p2.pos_our = ?
+           )`,
+          [dup, keep]
+        );
+        const rSel = await run('UPDATE position_company_selections SET pos_our = ? WHERE pos_our = ?', [keep, dup]);
+        totalSel += rSel.rowsAffected || 0;
+
+        // UNIQUE(unit, position): если в том же отделе уже есть строка с
+        // основным названием — переносим в неё численность (staff_count)
+        // дубля, а не просто отбрасываем её.
+        await run(
+          `UPDATE unit_positions SET staff_count = staff_count + (
+             SELECT COALESCE(d.staff_count, 0) FROM unit_positions d WHERE d.unit = unit_positions.unit AND d.position = ?
+           )
+           WHERE position = ? AND EXISTS (
+             SELECT 1 FROM unit_positions d WHERE d.unit = unit_positions.unit AND d.position = ?
+           )`,
+          [dup, keep, dup]
+        );
+        await run(
+          `DELETE FROM unit_positions WHERE position = ? AND EXISTS (
+             SELECT 1 FROM unit_positions k WHERE k.unit = unit_positions.unit AND k.position = ?
+           )`,
+          [dup, keep]
+        );
+        const rUnit = await run('UPDATE unit_positions SET position = ? WHERE position = ?', [keep, dup]);
+        totalUnit += rUnit.rowsAffected || 0;
+
+        const rDict = await run('DELETE FROM dictionary_positions WHERE name = ?', [dup]);
+        removedDict += rDict.rowsAffected || 0;
+      }
+      await run('INSERT OR IGNORE INTO dictionary_positions (name) VALUES (?)', [keep]);
+      await run('UPDATE dictionary_positions SET dirs = ?, code = ? WHERE name = ?', [mergedDirs, mergedCode, keep]);
+
+      message = `Объединено написаний должности: ${mergeList.length} (${mergeList.join(', ')}) → «${keep}». ` +
+        `Обновлено: анкет зарплат ${totalSurv}, выбора компаний по должностям ${totalSel}, штатных пар «должность × отдел» ${totalUnit}. ` +
+        `Удалено дублей из справочника: ${removedDict}.`;
+
     } else if (taskType === 'get_locks') {
       const compLocks = await queryAll(`
         SELECT TRIM(updated_by) AS owner, COUNT(*) AS n 

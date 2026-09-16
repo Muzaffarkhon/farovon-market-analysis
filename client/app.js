@@ -11421,6 +11421,14 @@ function renderAdminTools(){
       acts: '<button class="btn-primary" onclick="openMergeCompaniesModal()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('merge', 13)+'<span>Объединить дубли…</span></button>'
     },
     {
+      id: 'merge_positions',
+      icon: 'merge',
+      accent: true,
+      title: 'Объединение дублей должностей',
+      desc: 'Должность записана по-разному («Складчик-продавец» / «Складчик-продовец(мобилный)»)? Выберите варианты и основное название — система переименует должность в штатке, анкетах зарплат и выборе компаний по должностям.',
+      acts: '<button class="btn-primary" onclick="openMergePositionsModal()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('merge', 13)+'<span>Объединить дубли…</span></button>'
+    },
+    {
       id: 'fix_links',
       icon: 'link',
       title: 'Проверка привязки к оргструктуре',
@@ -12077,6 +12085,119 @@ function openMergeCompaniesModal(){
     }));
   }
   $('mergeCompSearch').oninput = function(){ renderList(this.value); };
+  load();
+}
+
+function openMergePositionsModal(){
+  if(document.getElementById('mergePosBody')) return; // уже открыто — не плодим дубли при повторном клике
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in um-modal" style="max-width:680px">'+
+    '<div class="sheet-hd"><b>'+ic('merge', 16)+'Объединение дублей должностей</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div style="padding:8px 0 10px;color:var(--muted);font-size:13.5px;line-height:1.4">'+
+      'Отметьте варианты написания одной и той же должности, затем внизу выберите, какое название сделать основным. '+
+      'Система переименует должность в штатных парах «должность × отдел», анкетах зарплат и выборе компаний по должностям. '+
+      'Грейдинг, риски незаменимости и справочник сотрудников 1С этот инструмент не трогает — там своя должность.'+
+    '</div>'+
+    '<input id="mergePosSearch" type="text" placeholder="Поиск по названию…" style="width:100%;margin-bottom:8px;height:34px">'+
+    '<div id="mergePosBody"><div class="sp"><i></i> Загрузка списка должностей…</div></div>'+
+    '<div id="mergePosFooter"></div>'+
+  '</div>';
+  document.body.appendChild(el);
+  guardClose(el, function(){ return false; });
+
+  var allPositions = [];
+  var checked = {}; // name -> true
+
+  function renderFooter(){
+    var names = Object.keys(checked).filter(function(n){ return checked[n]; });
+    var foot = $('mergePosFooter');
+    if(names.length < 2){
+      foot.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Отметьте минимум 2 варианта написания, чтобы объединить.</div>';
+      return;
+    }
+    var byName = {};
+    allPositions.forEach(function(p){ byName[p.name] = p; });
+    var sorted = names.slice().sort(function(a,b){ return (byName[b].total||0) - (byName[a].total||0); });
+    var opts = sorted.map(function(n){
+      var p = byName[n] || { surveys:0, selections:0, unitPositions:0 };
+      return '<option value="'+esc(n)+'">'+esc(n)+' (анкет: '+p.surveys+', в штатке: '+p.unitPositions+')</option>';
+    }).join('');
+    foot.innerHTML = '<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:6px">'+
+      '<div style="font-size:13.5px;margin-bottom:6px">Выбрано вариантов: <b>'+names.length+'</b>. Сделать основным:</div>'+
+      '<select id="mergePosKeepSelect" style="width:100%;margin-bottom:10px;height:34px">'+opts+'</select>'+
+      '<button class="btn-primary" id="btnDoMergePos" style="width:100%;min-height:34px">'+ic('merge',13)+'<span>Объединить '+names.length+' → 1</span></button>'+
+    '</div>';
+    $('btnDoMergePos').onclick = function(){
+      var keep = $('mergePosKeepSelect').value;
+      var merge = names.filter(function(n){ return n !== keep; });
+      ask({
+        title: 'Объединить должности?',
+        html: 'Варианты: <b>'+merge.map(esc).join('</b>, <b>')+'</b><br>станут называться: <b>'+esc(keep)+'</b>.'+
+          '<br><br>Изменятся все упоминания в штатке, анкетах зарплат и выборе компаний по должностям. Действие необратимо.',
+        ok: 'Объединить',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        toast('Объединяем…');
+        call('apiAdminMergePositions', S.token, keep, merge).then(function(res){
+          if(res && res.ok){
+            ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
+            checked = {};
+            load();
+            quietRefresh();
+          } else {
+            toast((res && res.error) || 'Ошибка выполнения', 'no');
+          }
+        }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+      });
+    };
+  }
+
+  function renderList(filterText){
+    var q = (filterText||'').trim().toLowerCase();
+    var list = allPositions.filter(function(p){ return !q || p.name.toLowerCase().indexOf(q) !== -1; });
+    if(!list.length){
+      $('mergePosBody').innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:var(--muted)">Ничего не найдено</div>';
+      return;
+    }
+    var h = '<div class="tblwrap" style="max-height:340px;margin-bottom:0"><table class="co-tbl">'+
+      '<thead><tr><th style="width:28px"></th><th>Должность</th><th class="num">Анкет</th><th class="num">В штатке</th><th class="num">Выбор компаний</th><th>Справочник</th></tr></thead><tbody>';
+    list.forEach(function(p){
+      h += '<tr>'+
+        '<td><input type="checkbox" data-pos-name="'+esc(p.name)+'"'+(checked[p.name] ? ' checked' : '')+'></td>'+
+        '<td><b>'+esc(p.name)+'</b></td>'+
+        '<td class="num">'+(p.surveys||0)+'</td>'+
+        '<td class="num">'+(p.unitPositions||0)+'</td>'+
+        '<td class="num">'+(p.selections||0)+'</td>'+
+        '<td>'+(p.inDictionary ? ic('check',12) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+      '</tr>';
+    });
+    h += '</tbody></table></div>';
+    $('mergePosBody').innerHTML = h;
+    $('mergePosBody').querySelectorAll('input[data-pos-name]').forEach(function(cb){
+      cb.onchange = function(){
+        checked[this.dataset.posName] = this.checked;
+        renderFooter();
+      };
+    });
+  }
+
+  function load(){
+    call('apiAdminPositionUsage', S.token).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok){
+        $('mergePosBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
+        return;
+      }
+      allPositions = r.positions || [];
+      renderList($('mergePosSearch') ? $('mergePosSearch').value : '');
+      renderFooter();
+    })).catch(guardAsyncToTab(function(){
+      $('mergePosBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    }));
+  }
+  $('mergePosSearch').oninput = function(){ renderList(this.value); };
   load();
 }
 
