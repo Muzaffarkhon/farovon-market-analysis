@@ -256,8 +256,9 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// SPA fallback для роутинга
-app.get('*', (req, res) => {
+// SPA fallback для роутинга (Express 5: безымянный '*' больше не поддерживается
+// path-to-regexp — нужен именованный wildcard)
+app.get('/*splat', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
