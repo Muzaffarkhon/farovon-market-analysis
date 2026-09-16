@@ -27,7 +27,13 @@ function handleError(res, err, where) {
 
 async function listThreads(req, res) {
   try {
-    const rows = await supportChat.listThreads();
+    const rows = await supportChat.listThreads({
+      q: req.query.q,
+      status: req.query.status,
+      reply: req.query.reply,
+      login: req.query.login,
+      unread: req.query.unread
+    });
     return res.json({ ok: true, rows });
   } catch (err) {
     return handleError(res, err, 'supportListThreads');

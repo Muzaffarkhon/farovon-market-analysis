@@ -73,9 +73,19 @@ const LINKED_FIO_JOIN = `
     OR (t.source != 'web' AND lu.telegram_chat_id = t.telegram_chat_id AND lu.archived_at IS NULL AND lu.active = 1)
 `;
 
-/** Список тредов для админки — сначала с непрочитанным, затем по свежести. */
-async function listThreads() {
-  return queryAll(`
+/**
+ * Список тредов для админки — сначала с непрочитанным, затем по свежести.
+ * Поиск/фильтры — тот же приём, что и у renderSupLinkResults на клиенте
+ * (см. client/app.js): фильтруем в JS после выборки, а не через SQL LIKE.
+ * Это не обход — SQLite LIKE/LOWER регистронезависимы только для ASCII,
+ * с кириллицей (имена, темы) просто не сработают; тредов немного, лишний
+ * SELECT дешевле, чем городить кастомную коллацию в Turso.
+ *
+ * filters: { q, status, reply:'pending', login:'missing', unread:'yes' }
+ */
+async function listThreads(filters) {
+  filters = filters || {};
+  let rows = await queryAll(`
     SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.source, t.topic, t.last_message_at, t.created_at,
       lu.fio AS linked_fio,
       (SELECT body FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
@@ -85,6 +95,39 @@ async function listThreads() {
     ${LINKED_FIO_JOIN}
     ORDER BY (unread_count > 0) DESC, t.last_message_at DESC
   `);
+
+  const q = String(filters.q || '').trim();
+  if (q) {
+    const qLower = q.toLowerCase();
+    // Поиск «по переписке» — не только по тому, что видно в строке списка
+    // (имя/телефон/тема), но и по тексту сообщений. Сообщений немного —
+    // проще выбрать все разом и отфильтровать в JS.
+    const allMsgs = await queryAll('SELECT thread_id, body FROM support_messages');
+    const matchedInMsgs = new Set();
+    allMsgs.forEach(m => { if (String(m.body || '').toLowerCase().includes(qLower)) matchedInMsgs.add(m.thread_id); });
+
+    rows = rows.filter(r => {
+      const inVisible =
+        String(r.linked_fio || '').toLowerCase().includes(qLower) ||
+        String(r.phone || '').toLowerCase().includes(qLower) ||
+        String(r.topic || '').toLowerCase().includes(qLower);
+      const inMsgs = matchedInMsgs.has(r.id);
+      if (!inVisible && !inMsgs) return false;
+      r.matched_in_message_only = !inVisible && inMsgs;
+      return true;
+    });
+  }
+
+  if (filters.status === 'open' || filters.status === 'closed') {
+    rows = rows.filter(r => r.status === filters.status);
+  }
+  if (filters.reply === 'pending') rows = rows.filter(r => r.last_direction === 'in');
+  // «Нет привязки» имеет смысл только для гостя Telegram-бота — у веб-треда
+  // личность известна с самого начала (см. коммент у LINKED_FIO_JOIN).
+  if (filters.login === 'missing') rows = rows.filter(r => r.source !== 'web' && !r.linked_fio);
+  if (filters.unread === 'yes') rows = rows.filter(r => r.unread_count > 0);
+
+  return rows;
 }
 
 async function countUnreadThreads() {
