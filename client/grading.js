@@ -196,7 +196,7 @@ function renderGradeAssess(){
 }
 
 function loadGradeBlocks(){
-  call('apiGradingBlocks', S.token).then(function(r){
+  call('apiGradingBlocks', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('grBlockBar').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить блоки')+'</div>';
       return;
@@ -206,9 +206,9 @@ function loadGradeBlocks(){
     drawGradeBlocks();
     if(GR.block) loadGradePositions();
     else $('grList').innerHTML = '<div class="empty">Индустриальные блоки ещё не настроены</div>';
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('grBlockBar').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function drawGradeBlocks(){
@@ -752,7 +752,7 @@ function saveGradeForm(){
     notes: $('grNotes') ? $('grNotes').value : ''
   };
 
-  call('apiGradingEvaluate', S.token, body).then(function(r){
+  call('apiGradingEvaluate', S.token, body).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       toast((r && r.error) || 'Не удалось сохранить оценку', 'error');
       return;
@@ -763,12 +763,12 @@ function saveGradeForm(){
     GR.form = null;
     $('grForm').innerHTML = '';
     loadGradePositions();
-  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+  })).catch(function(){ toast('Нет связи с сервером', 'error'); });
 }
 
 /** Сводка: сколько должностей на каждом уровне. */
 function loadGradingStats(){
-  call('apiGradingStats', S.token).then(function(r){
+  call('apiGradingStats', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('grContent').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить сводку')+'</div>';
       return;
@@ -803,9 +803,9 @@ function loadGradingStats(){
       '</tbody></table></div>';
 
     $('grContent').innerHTML = h;
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('grContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1207,7 +1207,7 @@ function saveRiskForm(){
     action_plan: f.plan
   };
 
-  call('apiKeyRiskEvaluate', S.token, body).then(function(r){
+  call('apiKeyRiskEvaluate', S.token, body).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       toast((r && r.error) || 'Не удалось сохранить оценку', 'error');
       return;
@@ -1215,12 +1215,12 @@ function saveRiskForm(){
     toast(r.statusLabel + ' — ' + r.totalScore + ' баллов', 'success');
     GR.riskForm = null;
     loadRiskList();
-  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+  })).catch(function(){ toast('Нет связи с сервером', 'error'); });
 }
 
 /** Тепловая карта: сколько людей в каком статусе риска по направлениям. */
 function loadRiskHeatmap(){
-  call('apiKeyRiskHeatmap', S.token).then(function(r){
+  call('apiKeyRiskHeatmap', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('krContent').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить карту')+'</div>';
       return;
@@ -1249,7 +1249,7 @@ function loadRiskHeatmap(){
       '</tbody></table></div>';
 
     $('krContent').innerHTML = h;
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('krContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }

@@ -689,7 +689,7 @@ function openEditName(){
     if(v === cur){ el.remove(); return; }
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохраняем…';
-    call('apiChangeName', S.token, v).then(function(r){
+    call('apiChangeName', S.token, v).then(guardAsyncToTab(function(r){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(!r || !r.ok){ err((r && r.error) || 'Не удалось изменить ФИО'); return; }
       persistToken(r);
@@ -698,7 +698,7 @@ function openEditName(){
       toast('ФИО обновлено');
       if(typeof renderTopNav === 'function') renderTopNav();
       if(S.appView === 'home' && typeof renderHome === 'function') renderHome();
-    }).catch(function(){
+    })).catch(function(){
       btn.disabled = false; btn.textContent = 'Сохранить';
       err('Нет связи с сервером');
     });
@@ -1453,10 +1453,10 @@ function renderUnitPicker(){
     var list = Object.keys(chosen).filter(function(k){ return chosen[k]; });
     if(!list.length){ toast('Отметьте хотя бы одно подразделение'); return; }
     this.disabled = true; this.textContent = 'Сохраняем…';
-    call('apiSetUnits', S.token, list).then(function(r){
+    call('apiSetUnits', S.token, list).then(guardAsyncToTab(function(r){
       if(r && r.ok){ S.data = r.data; renderUnits(); }
       else { toast((r&&r.error)||'Ошибка'); $('pickGo').disabled=false; $('pickGo').textContent='Продолжить'; }
-    });
+    }));
   };
 }
 
@@ -2081,7 +2081,7 @@ function switchUnitEditingPeriod(periodId){
       return;
     }
 
-    call('apiSurveysForPeriod', S.token, S.unit, periodId).then(function(res){
+    call('apiSurveysForPeriod', S.token, S.unit, periodId).then(guardAsyncToTab(function(res){
       if(!res || !res.ok){ toast((res&&res.error)||'Ошибка загрузки архивных данных', 'no'); return; }
       S.editingPeriodId = periodId;
       S.surveys = res.surveys || [];
@@ -2089,7 +2089,7 @@ function switchUnitEditingPeriod(periodId){
       S.dirty = false;
       $('btnSave').onclick = function(){ doSaveArchive(); };
       renderUnit();
-    });
+    }));
   }
 
   if(S.dirty){
@@ -2105,7 +2105,7 @@ function doSaveArchive(){
   $('btnSave').disabled = true;
   $('btnSave').textContent = 'Сохраняем…';
 
-  call('apiSaveSurvey', S.token, { unit: S.unit, upsert: S.surveys, remove: S.removed, periodId: S.editingPeriodId }).then(function(res){
+  call('apiSaveSurvey', S.token, { unit: S.unit, upsert: S.surveys, remove: S.removed, periodId: S.editingPeriodId }).then(guardAsyncToTab(function(res){
     S.saving = false;
     $('btnSave').disabled = false;
     $('btnSave').textContent = 'Сохранить';
@@ -2134,12 +2134,12 @@ function doSaveArchive(){
       toast('Архивные данные сохранены', 'ok');
     }
     renderTabSurvey();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     S.saving = false;
     $('btnSave').disabled = false;
     $('btnSave').textContent = 'Сохранить';
     toast('Нет связи с сервером', 'no');
-  });
+  }));
 }
 
 // ─────────── Вкладка 1: конкуренты ───────────
@@ -4129,7 +4129,7 @@ function fetchDashboard(quiet){
   if(!quiet){
     $('body').innerHTML = skDash();
   }
-  return call('apiCBDashboardExtended', S.token, S.dashFilters).then(function(r){
+  return call('apiCBDashboardExtended', S.token, S.dashFilters).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       if(!quiet) $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить данные дашборда')+'</div>';
       else toast((r&&r.error)||'Ошибка загрузки', 'no');
@@ -4143,10 +4143,10 @@ function fetchDashboard(quiet){
     } else {
       renderDashboard();
     }
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     if(!quiet) $('body').innerHTML = '<div class="err">Нет связи с сервером. Попробуйте обновить.</div>';
     else toast('Нет связи с сервером', 'no');
-  });
+  }));
 }
 
 // ─── Кастомный выпадающий список вместо нативного <select>: скруглённая
@@ -6049,7 +6049,7 @@ function renderAdminGradingBlocks(){
 }
 
 function loadAdminGradingBlocks(){
-  call('apiAdminGradingBlocks', S.token).then(function(r){
+  call('apiAdminGradingBlocks', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('gbBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить блоки')+'</div>';
       return;
@@ -6059,9 +6059,9 @@ function loadAdminGradingBlocks(){
       S.gbBlock = (S.gbBlocks[0] || {}).key || '';
     }
     drawAdminGradingBlocks();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('gbBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function drawAdminGradingBlocks(){
@@ -6190,13 +6190,13 @@ function drawAdminGradingCommittee(){
     addBtn.onclick = function(){
       var login = ($('gbAddLogin').value || '').trim();
       if(!login) return;
-      call('apiAdminGradingCommitteeAdd', S.token, { block: S.gbBlock, login: login }).then(function(r){
+      call('apiAdminGradingCommitteeAdd', S.token, { block: S.gbBlock, login: login }).then(guardAsyncToTab(function(r){
         if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
         toast('Добавлен в комиссию блока', 'success');
         $('gbAddLogin').value = '';
         loadAdminGradingCommittee();
         loadAdminGradingBlocks();
-      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      })).catch(function(){ toast('Нет связи с сервером', 'error'); });
     };
   }
 
@@ -6220,15 +6220,15 @@ function grBlockLabelAdmin(key){
 
 function loadAdminGradingBlockPositions(){
   if(!S.gbBlock) return;
-  call('apiAdminGradingBlockPositions', S.token, S.gbBlock, S.gbSearch || '').then(function(r){
+  call('apiAdminGradingBlockPositions', S.token, S.gbBlock, S.gbSearch || '').then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('gbList').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить список')+'</div>';
       return;
     }
     drawAdminGradingBlockPositions(r.rows || [], r.total || 0);
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('gbList').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function drawAdminGradingBlockPositions(rows, total){
@@ -6320,7 +6320,7 @@ function supPollTick(){
   }
   if(S.supOpenThread){
     var openId = S.supOpenThread;
-    call('apiAdminSupportThread', S.token, openId).then(function(r){
+    call('apiAdminSupportThread', S.token, openId).then(guardAsyncToTab(function(r){
       if(!r || !r.ok) return;
       if(S.supOpenThread !== openId) return; // уже открыли другой тред/ушли, пока грузилось
       var prevLen = (S.supCurMessages || []).length;
@@ -6333,41 +6333,41 @@ function supPollTick(){
         var input2 = $('supReplyText');
         if(draft && input2) input2.value = draft;
       }
-    }).catch(function(){});
+    })).catch(function(){});
   } else {
-    call('apiAdminSupportThreads', S.token).then(function(r){
+    call('apiAdminSupportThreads', S.token).then(guardAsyncToTab(function(r){
       if(!r || !r.ok) return;
       if(S.supOpenThread) return; // успели открыть тред, пока грузился список
       S.supThreads = r.rows || [];
       drawAdminSupport();
-    }).catch(function(){});
+    })).catch(function(){});
   }
   refreshSupportUnreadBadge();
 }
 
 function loadAdminSupportThreads(){
-  call('apiAdminSupportThreads', S.token).then(function(r){
+  call('apiAdminSupportThreads', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('supBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить чат поддержки')+'</div>';
       return;
     }
     S.supThreads = r.rows || [];
     drawAdminSupport();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('supBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 /** Число непрочитанных для плашки в левом меню — отдельный лёгкий запрос,
  *  не весь список тредов, дёргается сразу после входа и после действий. */
 function refreshSupportUnreadBadge(){
   if(!hasCap('support:manage')) return;
-  call('apiAdminSupportUnreadCount', S.token).then(function(r){
+  call('apiAdminSupportUnreadCount', S.token).then(guardAsyncToTab(function(r){
     if(r && r.ok){
       S.supportUnreadCount = r.count || 0;
       renderNav();
     }
-  }).catch(function(){});
+  })).catch(function(){});
 }
 
 function drawAdminSupport(){
@@ -6427,7 +6427,7 @@ function drawAdminSupport(){
 function loadAdminSupportThread(id){
   var box = $('supBox');
   if(box) box.innerHTML = skTable();
-  call('apiAdminSupportThread', S.token, id).then(function(r){
+  call('apiAdminSupportThread', S.token, id).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       toast((r && r.error) || 'Не удалось открыть переписку', 'error');
       S.supOpenThread = null;
@@ -6440,7 +6440,7 @@ function loadAdminSupportThread(id){
     // Сервер уже пометил входящие треда прочитанными — обновляем бейдж сразу,
     // не дожидаясь следующего тика автообновления (иначе «висит» до 8 сек).
     refreshSupportUnreadBadge();
-  }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+  })).catch(function(){ toast('Нет связи с сервером', 'error'); });
 }
 
 function drawAdminSupportThread(){
@@ -6661,10 +6661,10 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
  *  и переиспользуется, список меняется редко, а тред могут открывать часто. */
 function loadSupUsersCache(cb){
   if(S.supUsersCache){ cb(S.supUsersCache); return; }
-  call('apiAdminGetUsers', S.token).then(function(r){
+  call('apiAdminGetUsers', S.token).then(guardAsyncToTab(function(r){
     S.supUsersCache = (r && r.ok) ? r.users : [];
     cb(S.supUsersCache);
-  }).catch(function(){ cb([]); });
+  })).catch(function(){ cb([]); });
 }
 
 function renderSupLinkResults(thread, q){
@@ -6721,9 +6721,9 @@ function loadAdminUsers(){
   }
   // список ролей нужен для выпадашки в карточке пользователя — тянем в фоне
   if(!S.rolesList){
-    call('apiAdminGetRoleCapabilities', S.token).then(function(rr){
+    call('apiAdminGetRoleCapabilities', S.token).then(guardAsyncToTab(function(rr){
       if(rr && rr.ok) S.rolesList = (rr.roles || []).map(function(x){ return { key:x.key, label:x.label }; });
-    }).catch(function(){});
+    })).catch(function(){});
   }
   if(!S.adminDivs || !S.adminDivs.length){
     call('apiAdminGetDivisions', S.token).then(guardAsyncToTab(function(dRes){
@@ -7207,7 +7207,7 @@ function openUserModal(login){
 
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохраняем…';
-    call('apiAdminSaveUser', S.token, payload).then(function(res){
+    call('apiAdminSaveUser', S.token, payload).then(guardAsyncToTab(function(res){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
         el.remove();
@@ -7242,7 +7242,7 @@ function openUserModal(login){
         err.textContent = (res && res.error) || 'Ошибка сохранения';
         err.classList.remove('hidden');
       }
-    }).catch(function(){
+    })).catch(function(){
       btn.disabled = false; btn.textContent = 'Сохранить';
       toast('Нет связи');
     });
@@ -7347,7 +7347,7 @@ function loadAdminArchive(){
     aContent.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка архива...</div>';
   }
 
-  call('apiAdminGetArchive', S.token).then(function(r){
+  call('apiAdminGetArchive', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       var el = $('adminContent');
       if(el) el.innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки архива')+'</div>';
@@ -7355,9 +7355,9 @@ function loadAdminArchive(){
     }
     S.adminArchive = r.users || [];
     renderAdminArchive();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function renderAdminArchive(){
@@ -7429,7 +7429,7 @@ function loadAdminDivisions(){
   if(!S.adminDivs || !S.adminDivs.length){
     $('adminContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:14px">Загрузка оргструктуры...</div>';
   }
-  call('apiAdminGetDivisions', S.token).then(function(r){
+  call('apiAdminGetDivisions', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       var msg = (r && (r.message || r.error)) || 'Ошибка загрузки оргструктуры';
       $('adminContent').innerHTML = '<div class="err">'+esc(msg)+' <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
@@ -7439,17 +7439,17 @@ function loadAdminDivisions(){
     S.adminGroupSuggestions = r.groupSuggestions || [];
     renderAdminDivisions();
     ensureAdminUsers();
-  }).catch(function(err){
+  })).catch(guardAsyncToTab(function(err){
     var msg = (err && (err.message || err.error)) || 'Нет связи с сервером';
     $('adminContent').innerHTML = '<div class="err">'+esc(msg)+' <button class="btn-ghost" style="margin-left:12px;color:var(--accent)" onclick="loadAdminDivisions()">Повторить</button></div>';
-  });
+  }));
 }
 
 function ensureAdminUsers(){
   if(S.adminUsers && S.adminUsers.length) return;
-  call('apiAdminGetUsers', S.token).then(function(r){
+  call('apiAdminGetUsers', S.token).then(guardAsyncToTab(function(r){
     if(r && r.ok) S.adminUsers = r.users || [];
-  }).catch(function(){});
+  })).catch(function(){});
 }
 
 // ── Персональный стек отмены (только своя сессия) ───────────────────────────
@@ -7471,7 +7471,7 @@ function popUndo(){
       unit: rec.unit,
       targetDir: rec.oldDir,
       parentUnit: rec.oldParentUnit || null
-    }).then(function(res){
+    }).then(guardAsyncToTab(function(res){
       if(res && res.ok){
         var d = (S.adminDivs || []).find(function(x){ return x.unit === rec.unit; });
         if(d){ d.dir = rec.oldDir; d.parent_unit = rec.oldParentUnit || null; }
@@ -7499,7 +7499,7 @@ function popUndo(){
         S.myUndoStack.push(rec); // не удалось — возвращаем в стек
         toast((res && res.error) || 'Не удалось отменить', 'err');
       }
-    }).catch(function(){
+    })).catch(function(){
       S.myUndoStack.push(rec);
       toast('Нет связи с сервером', 'err');
     });
@@ -7533,7 +7533,7 @@ function popUndo(){
     call('apiAdminSaveDivision', S.token, {
       unit: rec.unit,
       resp: rec.oldResp
-    }).then(function(res){
+    }).then(guardAsyncToTab(function(res){
       if(res && res.ok){
         var d = (S.adminDivs || []).find(function(x){ return x.unit === rec.unit; });
         if(d) d.resp = rec.oldResp;
@@ -7551,7 +7551,7 @@ function popUndo(){
         S.myUndoStack.push(rec);
         toast((res && res.error) || 'Не удалось отменить', 'err');
       }
-    }).catch(function(){
+    })).catch(function(){
       S.myUndoStack.push(rec);
       toast('Нет связи с сервером', 'err');
     });
@@ -7569,7 +7569,7 @@ function popUndo(){
         active: u.active,
         units: oldUnitsArr
       };
-      call('apiAdminSaveUser', S.token, payload).then(function(res){
+      call('apiAdminSaveUser', S.token, payload).then(guardAsyncToTab(function(res){
         if(res && res.ok){
           u.units = oldUnitsArr;
           loadAdminUsers();
@@ -7583,7 +7583,7 @@ function popUndo(){
           S.myUndoStack.push(rec);
           toast((res && res.error) || 'Не удалось отменить', 'err');
         }
-      }).catch(function(){
+      })).catch(function(){
         S.myUndoStack.push(rec);
         toast('Нет связи с сервером', 'err');
       });
@@ -9623,7 +9623,7 @@ function openAddDivisionModal(){
       hrbp: el.querySelector('#adHrbp').value || ''
     };
     var btn = this; btn.disabled = true; btn.textContent = 'Создаём…';
-    call('apiAdminCreateDivision', S.token, body).then(function(res){
+    call('apiAdminCreateDivision', S.token, body).then(guardAsyncToTab(function(res){
       if(res && res.ok){
         toast('Подразделение «'+name+'» создано', 'ok');
         el.remove();
@@ -9635,7 +9635,7 @@ function openAddDivisionModal(){
         btn.disabled = false; btn.textContent = 'Создать подразделение';
         showErr((res && (res.error || res.message)) || 'Не удалось создать');
       }
-    }).catch(function(){
+    })).catch(function(){
       btn.disabled = false; btn.textContent = 'Создать подразделение';
       showErr('Нет связи с сервером');
     });
@@ -9951,7 +9951,7 @@ function openDivisionModal(unit, opts){
         .map(function(c){ return { unit: c.value, region: c.getAttribute('data-region') || '' }; });
       if(chosen.length < 2){ toast('Отметьте минимум 2 площадки', 'no'); return; }
       sugBtn.disabled = true; sugBtn.textContent = 'Объединяем…';
-      call('apiAdminApplyAdjacentGroup', S.token, { key: groupSug.key, units: chosen }).then(function(res){
+      call('apiAdminApplyAdjacentGroup', S.token, { key: groupSug.key, units: chosen }).then(guardAsyncToTab(function(res){
         if(res && res.ok){
           var unitNames = {};
           chosen.forEach(function(u){ unitNames[u.unit] = u.region || ''; });
@@ -9971,7 +9971,7 @@ function openDivisionModal(unit, opts){
           sugBtn.disabled = false; sugBtn.textContent = 'Объединить отмеченные';
           toast((res && res.error) || 'Не удалось объединить', 'no');
         }
-      }).catch(function(){
+      })).catch(function(){
         sugBtn.disabled = false; sugBtn.textContent = 'Объединить отмеченные';
         toast('Нет связи с сервером', 'no');
       });
@@ -10099,7 +10099,7 @@ function openDivisionModal(unit, opts){
     };
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохраняем…';
-    call('apiAdminSaveDivision', S.token, payload).then(function(res){
+    call('apiAdminSaveDivision', S.token, payload).then(guardAsyncToTab(function(res){
       btn.disabled = false; btn.textContent = 'Сохранить';
       if(res && res.ok){
         pushUndo({
@@ -10140,7 +10140,7 @@ function openDivisionModal(unit, opts){
       } else {
         toast((res && res.error) || 'Ошибка', 'err');
       }
-    }).catch(function(){
+    })).catch(function(){
       btn.disabled = false; btn.textContent = 'Сохранить';
       toast('Нет связи с сервером', 'err');
     });
@@ -11443,7 +11443,7 @@ function renderAdminAudit(){
     $('adminContent').innerHTML = '<div id="auditLogBox" style="flex:1;min-height:0;display:flex;flex-direction:column">' + skTable() + '</div>';
   }
 
-  call('apiAdminGetAuditLog', S.token, 200).then(function(r){
+  call('apiAdminGetAuditLog', S.token, 200).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       if($('auditLogBox')) $('auditLogBox').innerHTML = '<div class="err">'+esc((r&&r.error)||'Не удалось загрузить журнал')+'</div>';
       return;
@@ -11550,9 +11550,9 @@ function renderAdminAudit(){
     }
 
     drawLogs('', '');
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('auditLogBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 /**
@@ -11561,7 +11561,7 @@ function renderAdminAudit(){
  * от роли смотрящего.
  */
 function loadDataStatus(){
-  call('apiAdminDataStatus', S.token).then(function(r){
+  call('apiAdminDataStatus', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok || !$('dataStatus')){
       if($('dataStatus')) $('dataStatus').innerHTML =
         '<div class="err">'+esc((r && r.error) || 'Не удалось получить состояние данных')+'</div>';
@@ -11597,9 +11597,9 @@ function loadDataStatus(){
           stCardMini('Анкеты', n(s.surveys), 'записей')+
         '</div>'+
       '</div>';
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     if($('dataStatus')) $('dataStatus').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 function stCardMini(title, value, sub){
@@ -11906,7 +11906,7 @@ function openLocksModal(){
   guardClose(el, function(){ return false; });
 
   function load(){
-    call('apiAdminGetLocks', S.token).then(function(r){
+    call('apiAdminGetLocks', S.token).then(guardAsyncToTab(function(r){
       if(!r || !r.ok){
         $('locksBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
         return;
@@ -11959,9 +11959,9 @@ function openLocksModal(){
           adminUnlockTarget(owner, null, 'пользователя «' + owner + '»', el, load);
         };
       });
-    }).catch(function(){
+    })).catch(guardAsyncToTab(function(){
       $('locksBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
-    });
+    }));
   }
   load();
 }
@@ -12065,7 +12065,7 @@ function ucapIsDirty(){
 }
 
 function loadAdminRoles(){
-  call('apiAdminGetRoleCapabilities', S.token).then(function(r){
+  call('apiAdminGetRoleCapabilities', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       $('adminContent').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки прав доступа')+'</div>';
       return;
@@ -12085,9 +12085,9 @@ function loadAdminRoles(){
       mode: (S.rc && S.rc.mode) || 'role'
     };
     renderAdminRoles();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     $('adminContent').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 // ─── Персональные права ───
@@ -12098,7 +12098,7 @@ function loadAdminRoles(){
 function loadAdminUserCapabilities(){
   var el = $('ucapBody');
   if(el) el.innerHTML = 'Загрузка…';
-  call('apiAdminGetUserCapabilities', S.token).then(function(r){
+  call('apiAdminGetUserCapabilities', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
       return;
@@ -12123,9 +12123,9 @@ function loadAdminUserCapabilities(){
       search: (S.ucap && S.ucap.search) || ''
     };
     renderAdminUserCapabilities();
-  }).catch(function(){
+  })).catch(guardAsyncToTab(function(){
     if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
-  });
+  }));
 }
 
 /** Каталог прав, сгруппированный по разделам — та же группировка, что и
@@ -12546,7 +12546,7 @@ function openProgress(){
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
-  call('apiDashboard', S.token).then(function(r){
+  call('apiDashboard', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){ $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка')+'</div>'; return; }
     if(r.period) S.data.period = r.period;
     var p = S.data.period || {};
@@ -12889,7 +12889,7 @@ function openProgress(){
       openProgress();
     }
     function periodFail(){ toast('Нет связи'); openProgress(); }
-  });
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -13548,7 +13548,7 @@ function renderBmDatasets(){
   $('btnBmUpload').onclick = openBmImportModal;
   $('btnBmAddSource').onclick = openBmAddSourceModal;
 
-  call('apiBenchmarkDatasets', S.token).then(function(res){
+  call('apiBenchmarkDatasets', S.token).then(guardAsyncToTab(function(res){
     var list = (res && res.datasets) || [];
     var el = $('bmDatasetsList');
     if(!el) return;
@@ -13595,7 +13595,7 @@ function renderBmDatasets(){
         });
       }
     };
-  });
+  }));
 }
 
 function openBmAddSourceModal(){
@@ -13774,7 +13774,7 @@ function openBmImportModal(){
       columnMap: colMap,
       title: $('bmiTitle').value.trim(),
       dataAsOf: $('bmiDataAsOf').value
-    }).then(function(res){
+    }).then(guardAsyncToTab(function(res){
       $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
       if(!res || !res.ok){
         $('bmImpErr').textContent = (res && res.error) || 'Ошибка проверки';
@@ -13790,11 +13790,11 @@ function openBmImportModal(){
         (dryRunReport.errors.length ? '<span class="bmi-result-err">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>') +
       '</div>';
       $('bmiPreview').innerHTML = prevHtml;
-    }).catch(function(err){
+    })).catch(guardAsyncToTab(function(err){
       $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
       $('bmImpErr').textContent = err.message || 'Ошибка связи';
       $('bmImpErr').classList.remove('hidden');
-    });
+    }));
   };
 
   $('btnBmiCommit').onclick = function(){
@@ -13813,7 +13813,7 @@ function openBmImportModal(){
       columnMap: colMap,
       title: $('bmiTitle').value.trim(),
       dataAsOf: $('bmiDataAsOf').value
-    }).then(function(res){
+    }).then(guardAsyncToTab(function(res){
       if(res && res.ok){
         toast('Датасет успешно сохранен!');
         el.remove();
@@ -13823,10 +13823,10 @@ function openBmImportModal(){
         $('bmImpErr').classList.remove('hidden');
         $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
       }
-    }).catch(function(err){
+    })).catch(guardAsyncToTab(function(err){
       $('bmImpErr').textContent = err.message || 'Ошибка связи';
       $('bmImpErr').classList.remove('hidden');
       $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
-    });
+    }));
   };
 }
