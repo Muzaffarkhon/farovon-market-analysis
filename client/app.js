@@ -856,11 +856,11 @@ function openHelp(){
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<ol class="howto">'+
       '<li><b>Откройте своё подразделение</b>Если их несколько — по очереди каждое.</li>'+
-      '<li><b>Шаг 1. Участники рынка</b>По каждой компании нажмите одну из трёх кнопок: '+
-        '«Актуально» — компания релевантна для сравнения, «Не актуально» — нет, '+
-        '«Уточнить» — не уверены. Чего не хватает — добавьте кнопкой «+ Добавить компанию».</li>'+
-      '<li><b>«Уточнить» — это не «проверено»</b>Такие компании остаются в работе '+
-        'и отдельно видны и вам, и HR BP. Вернитесь к ним, когда выясните.</li>'+
+      '<li><b>Шаг 1. Должности и компании</b>Список — должности из штатки. Откройте должность '+
+        'и отметьте компании, с которыми сравниваете по ней оклад. У разных должностей список '+
+        'может отличаться — сравнивать не с кем, оставьте ноль компаний, это тоже нормальный итог.</li>'+
+      '<li><b>«В процессе» — не «заполнена»</b>Пока хотя бы по одной выбранной компании нет данных, '+
+        'должность считается «в процессе». Вернитесь и довнесите оклады.</li>'+
       '<li><b>Шаг 2. Данные по рынку</b>Здесь главное. По должностям, которые знаете, '+
         'внесите оклад, бонусы и льготы в компании-участнике. Неполные данные тоже нужны — '+
         'знаете только оклад, впишите оклад.</li>'+
@@ -913,8 +913,8 @@ function tourSteps(){
     { sel:'#unitsContainer .unit', waitFor:true, title:'Начните с вашего подразделения',
       body:'Нажмите на карточку — внутри два шага: отметить компании и внести данные по рынку.',
       cta:'Открыть подразделение', ctaClicks:true },
-    { sel:'.b-co-actions .seg, .batch-card .seg', waitFor:true, title:'Шаг 1. Отметьте компании',
-      body:'По каждой компании нажмите одну из трёх кнопок: «Актуально» — важна для сравнения, «Не актуально» — нет, «Уточнить» — вернётесь к ней позже.' },
+    { sel:'.pos-grid .pos-edit, .pos-grid [data-open-pos-comp]', waitFor:true, title:'Шаг 1. Компании по должности',
+      body:'Откройте должность и отметьте компании, с которыми сравниваете по ней оклад. Сравнивать не с кем — оставьте пусто, это тоже нормальный итог.' },
     { sel:'.unit-step-tabs .sub-tab:last-child, [data-tab="survey"]', waitFor:true, title:'Шаг 2. Данные по рынку',
       body:'Здесь главное — внесите оклад, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.' },
     { sel:'#btnHelp', title:'Инструкция всегда рядом',
@@ -1511,7 +1511,7 @@ function renderUnits(){
   if(!obSeen()){
     h += '<div class="onboard"><h2>Добро пожаловать в обзор рынка вознаграждений</h2><ol>'+
       '<li>Выберите <b>своё подразделение</b> в списке ниже.</li>'+
-      '<li><b>Шаг 1. Участники рынка</b> — отметьте компании («Актуально» / «Не актуально» / «Уточнить»).</li>'+
+      '<li><b>Шаг 1. Должности и компании</b> — по каждой должности отметьте компании для сравнения.</li>'+
       '<li><b>Шаг 2. Данные по рынку</b> — внесите зарплаты и льготы по должностям.</li>'+
       '<li>Нажмите <b>«Сохранить»</b> внизу экрана.</li>'+
       '</ol><div class="ob-act">'+
@@ -1937,53 +1937,73 @@ function openUnit(unit, backTo){
   var uObj = (S.data.units || []).filter(function(x){ return x.unit === unit; })[0];
   S.added = []; S.removed = []; S.note = (uObj && uObj.note) || ''; S.dirty = false;
 
-  var d = null;
-  if(!S.ro){
-    try{ d = JSON.parse(store.get(LS_DRAFT+unit) || 'null'); }catch(e){ d = null; }
-  }
-  if(!d){ renderUnit(); return; }
+  // Position-first Шаг 1: какие компании выбраны для сравнения по каждой
+  // должности этого подразделения (сервер, не локальный черновик — тот же
+  // источник, что видят все ответственные). Ключ — norm(должность).
+  S.selections = {};
+  loadUnitSelections(unit).then(continueOpenUnit);
 
-  var draftDone = (d.rows||[]).filter(function(r){ return r.actual && r.actual !== 'не проверено'; }).length + (d.added||[]).length;
-  var draftSurveys = (d.surveys||[]).length;
-  var draftTime = d.savedAt ? fmtDateTime(d.savedAt) : '';
-
-  ask({
-    title: 'Продолжить с последнего места?',
-    html: 'В подразделении <b>'+esc(unit)+'</b> сохранён локальный черновик'+(draftTime ? ' от ' + esc(draftTime) : '')+':<br><br>'+
-          '• Проверено компаний: <b>'+draftDone+'</b><br>'+
-          '• Заполнено по рынку: <b>'+draftSurveys+'</b> записей<br><br>'+
-          'Хотите продолжить работу с сохранённого места?',
-    ok: 'Продолжить работу',
-    cancel: 'Начать заново'
-  }).then(function(yes){
-    if(yes){
-      S.rows = d.rows || S.rows;
-      S.added = d.added || [];
-      S.surveys = d.surveys || S.surveys;
-      S.removed = d.removed || [];
-      S.note = d.note || '';
-      S.dirty = true;
-      S.tab = d.tab || 'comp';
-    } else {
-      store.del(LS_DRAFT+unit);
+  function continueOpenUnit(){
+    var d = null;
+    if(!S.ro){
+      try{ d = JSON.parse(store.get(LS_DRAFT+unit) || 'null'); }catch(e){ d = null; }
     }
-    renderUnit();
-  });
+    if(!d){ renderUnit(); return; }
+
+    var draftAdded = (d.added || []).length;
+    var draftSurveys = (d.surveys||[]).length;
+    var draftTime = d.savedAt ? fmtDateTime(d.savedAt) : '';
+
+    ask({
+      title: 'Продолжить с последнего места?',
+      html: 'В подразделении <b>'+esc(unit)+'</b> сохранён локальный черновик'+(draftTime ? ' от ' + esc(draftTime) : '')+':<br><br>'+
+            (draftAdded ? '• Добавлено компаний: <b>'+draftAdded+'</b><br>' : '')+
+            '• Заполнено по рынку: <b>'+draftSurveys+'</b> записей<br><br>'+
+            'Хотите продолжить работу с сохранённого места?',
+      ok: 'Продолжить работу',
+      cancel: 'Начать заново'
+    }).then(function(yes){
+      if(yes){
+        S.rows = d.rows || S.rows;
+        S.added = d.added || [];
+        S.surveys = d.surveys || S.surveys;
+        S.removed = d.removed || [];
+        S.note = d.note || '';
+        S.dirty = true;
+        S.tab = d.tab || 'comp';
+      } else {
+        store.del(LS_DRAFT+unit);
+      }
+      renderUnit();
+    });
+  }
 }
 
-/** Сколько компаний проверено, сколько отложено на уточнение. */
+/** Подгружает выбор компаний по должностям (S.selections) для unit —
+ *  отдельный сервер-side эндпоинт (position_company_selections), не часть
+ *  общего бутстрапа S.data. Ошибка сети не блокирует открытие подразделения —
+ *  просто список выбранных компаний будет пуст, пока не перезагрузят. */
+function loadUnitSelections(unit){
+  return call('apiPositionSelections', S.token, unit, S.editingPeriodId).then(function(res){
+    S.selections = (res && res.ok && res.selections) || {};
+  }).catch(function(){ S.selections = {}; });
+}
+
+/** Статус должностей подразделения (position-first Шаг 1): сколько «не
+ *  начато» / «в процессе» / «заполнено» — то же самое, что считает pos-grid
+ *  на Шаге 2, только сведено к трём числам для бейджа на вкладке. */
 function counts(){
-  var all = S.rows.length + S.added.length;
-  var done = 0, ask = 0;
-  S.rows.forEach(function(r){
-    if(r.actual === 'уточнить') ask++;
-    else if(r.actual && r.actual !== 'не проверено') done++;
+  var G = survGroups();
+  var mc = svMatrixCounts();
+  var done = 0, part = 0, none = 0;
+  G.groups.forEach(function(g){
+    var st = mc.posMap[norm(g.pos)] || { total: 0, filled: 0 };
+    if(st.total === 0) none++;
+    else if(st.filled >= st.total) done++;
+    else part++;
   });
-  S.added.forEach(function(r){
-    if(r.actual === 'уточнить') ask++;
-    else if(r.actual && r.actual !== 'не проверено') done++;
-  });
-  return { all: all, done: done, ask: ask, left: all - done - ask };
+  var all = G.groups.length;
+  return { all: all, done: done, part: part, none: none };
 }
 
 function renderUnit(){
@@ -2000,9 +2020,9 @@ function renderUnit(){
       '<div class="sub-tabs unit-step-tabs">'+
         (inArchiveMode ? '' :
         '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'">'+
-          'Шаг 1. Участники рынка'+
+          'Шаг 1. Должности и компании'+
           ' <span class="badge '+(step1done?'b-active':'b-dim')+'" style="margin-left:4px">'+c.done+'/'+c.all+'</span>'+
-          (c.ask ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">?'+c.ask+' на уточнении</span>' : '')+
+          (c.part ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">'+c.part+' в процессе</span>' : '')+
         '</button>')+
         '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'">'+
           (inArchiveMode ? 'Данные по рынку (архив)' : 'Шаг 2. Данные по рынку')+
@@ -2136,92 +2156,79 @@ function doSaveArchive(){
 }
 
 // ─────────── Вкладка 1: конкуренты ───────────
+/**
+ * Position-first Шаг 1: список должностей штатки подразделения со статусом
+ * (не начата / в процессе / заполнена — считает counts()/svMatrixCounts()).
+ * Клик по должности открывает чек-лист компаний для неё (openPositionCompaniesSheet).
+ */
 function renderTabComp(){
-  var c = counts();
+  var G = survGroups();
+  var mc = svMatrixCounts();
   var h = '';
 
-  var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
-
   var tbHtml = '<div class="search-wrap" style="max-width:240px;width:100%;min-width:160px">'+icBare('search')+
-      '<input id="compSearch" placeholder="Поиск компании в списке…" autocomplete="off"></div>'+
-    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:13px">' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + '</span>'+
-    (!S.ro && S.rows.length > 0 ? '<button type="button" class="btn-ghost toolbar-act" id="btnMarkAllActual" style="font-size:13px;padding:0 8px;min-height:30px;white-space:nowrap">' +
-         (isAllActual ? ic('close', 13) + 'Снять отметку' : ic('check', 13) + 'Отметить все «Актуально»') + '</button>' : '');
+      '<input id="posSearch" placeholder="Найти должность…" autocomplete="off"></div>'+
+    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:13px">' + G.groups.length + ' ' + declOfNum(G.groups.length, ['должность','должности','должностей']) + '</span>';
   var tbSlot = $('unitHeadToolbar');
   if(tbSlot) tbSlot.innerHTML = tbHtml;
 
-  // Отложенные на уточнение показываем отдельно — иначе они теряются в общем списке
-  if(c.ask){
-    h += '<div class="note" id="noteAskClick" style="margin-bottom:10px;cursor:pointer" title="Нажмите, чтобы показать только компании на уточнении">'+
-      ic('warn', 14)+' Требует уточнения: <b>'+c.ask+'</b>. '+
-      'Эти компании не считаются проверенными — нажмите, чтобы показать только их.</div>';
-  }
+  if(!G.groups.length){
+    h += '<div class="empty"><b>Здесь пока пусто</b><br><br>'+
+         'Для этого подразделения штатка не заведена.<br>'+
+         'Добавьте должность кнопкой ниже — она попадёт и в справочник.</div>';
+  } else {
+    h += '<p class="step-hint">'+ic('units', 13)+' По каждой должности отметьте компании, с которыми сравниваете оклад — '+
+         'у разных должностей список компаний может отличаться. Нет с кем сравнивать — так и оставьте, ноль компаний тоже допустимый результат.</p>';
 
-  // Смежная группа
-  var group = currentUnitGroup();
-  if(group && S.data.companiesByGroup && S.data.companiesByGroup[group] && !S.ro){
-    var known = {};
-    S.rows.concat(S.added).forEach(function(r){ known[norm(r.company)] = true; });
-    var groupSuggestions = S.data.companiesByGroup[group].filter(function(c){ return !known[norm(c)]; });
-    if(groupSuggestions.length){
-      h += '<div class="note" style="margin-bottom:10px">Есть на других площадках этой группы, но не добавлены здесь — добавить в один клик:</div>';
-      h += '<div class="chips" style="margin:6px 0 12px">'+
-        groupSuggestions.map(function(c){
-          return '<button type="button" data-add-group-company="'+esc(c)+'">+ '+esc(c)+'</button>';
+    var posDone = 0, posPart = 0, posNone = 0;
+    G.groups.forEach(function(g){
+      var st = mc.posMap[norm(g.pos)] || { total: 0, filled: 0 };
+      if(st.total === 0) posNone++;
+      else if(st.filled >= st.total) posDone++;
+      else posPart++;
+    });
+
+    S.compFilterStatus = S.compFilterStatus || 'all';
+    var stChips = [
+      { id:'all', label:'Все (' + G.groups.length + ')' },
+      { id:'none', label:'Не начата (' + posNone + ')' },
+      (posPart ? { id:'part', label:'В процессе (' + posPart + ')' } : null),
+      (posDone ? { id:'done', label:'Заполнена (' + posDone + ')' } : null)
+    ].filter(Boolean);
+
+    if(G.groups.length > 3){
+      h += '<div class="filter-chips" id="posStatusChips" style="margin:0 0 10px">'+
+        stChips.map(function(ch){
+          var on = (S.compFilterStatus === ch.id) ? ' on' : '';
+          return '<button type="button" class="'+on+'" data-pst="'+ch.id+'">'+esc(ch.label)+'</button>';
         }).join('')+
       '</div>';
     }
+
+    h += '<div class="pos-grid fx-stagger">' + G.groups.map(function(g){
+      var st = mc.posMap[norm(g.pos)] || { total: 0, filled: 0, selCos: [] };
+      var stCode = st.total === 0 ? 'none' : (st.filled >= st.total ? 'done' : 'part');
+      var bClass = stCode === 'done' ? 'pos-badge-ok' : (stCode === 'part' ? 'pos-badge-part' : 'pos-badge-none');
+      var bText = st.total === 0 ? 'не начата' : (st.filled + ' / ' + st.total + ' компаний');
+      var cls = 'pos' + (stCode === 'done' ? ' pos-done' : '');
+
+      var x = '<div class="'+cls+'" data-pos-name="'+esc(g.pos)+'" data-pos-st="'+stCode+'">';
+      x += '<div class="pos-head" data-open-pos-comp="'+esc(g.pos)+'">';
+      x += '<div class="pos-body"><div class="pos-name">'+esc(g.pos)+
+           (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
+      x += '<div class="pos-sub">'+ (st.selCos && st.selCos.length
+            ? esc(st.selCos.slice(0,3).join(', ')) + (st.selCos.length > 3 ? ' и ещё ' + (st.selCos.length-3) : '')
+            : 'компании ещё не выбраны') +'</div></div>';
+      x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
+      x += '<button type="button" class="btn-ghost pos-edit" data-open-pos-comp="'+esc(g.pos)+'">'+
+             ic('pencil', 14) + (st.total ? 'Компании' : 'Выбрать') + '</button>';
+      x += '</div></div>';
+      return x;
+    }).join('') + '</div>';
   }
-
-  var isAllActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
-
-  h += '<div class="card batch-card-wrap fill-card">';
-
-  h += '<div class="batch-card-header fill-card-hd">';
-  h += '<b>Компании подразделения</b>';
-  h += '<span>Проверьте участников рынка (' + S.rows.length + ' ' + declOfNum(S.rows.length, ['компания','компании','компаний']) + ')</span>';
-  h += '</div>';
-
-  var countAllComp = S.rows.length;
-  var countAct = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'актуально'; }).length;
-  var countAsk = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'уточнить'; }).length;
-  var countNotAct = S.rows.filter(function(r){ return (r.actual || '').toLowerCase() === 'не актуально'; }).length;
-  var countUnchecked = Math.max(0, countAllComp - countAct - countAsk - countNotAct);
-
-  S.compFilterActual = S.compFilterActual || 'all';
-
-  var compChips = [
-    { id:'all', label:'Все (' + countAllComp + ')' },
-    { id:'актуально', label:'Актуально (' + countAct + ')' },
-    (countAsk ? { id:'уточнить', label:'На уточнении (' + countAsk + ')' } : null),
-    { id:'не проверено', label:'Не проверено (' + countUnchecked + ')' },
-    (countNotAct ? { id:'не актуально', label:'Не актуально (' + countNotAct + ')' } : null)
-  ].filter(Boolean);
-
-  if(countAllComp > 3){
-    h += '<div class="filter-chips" id="compStatusChips" style="padding:10px 16px 4px">'+
-      compChips.map(function(ch){
-        var on = (S.compFilterActual === ch.id) ? ' on' : '';
-        return '<button type="button" class="'+on+'" data-cact="'+ch.id+'">'+esc(ch.label)+'</button>';
-      }).join('')+
-    '</div>';
-  }
-
-  h += '<div class="co-list-scroll">';
-  h += '<div id="rows" class="batch-list" style="margin:4px 0">';
-  h += S.rows.map(function(r,i){ return rowCard(r, i, false); }).join('') ||
-       '<div class="empty">Список пуст</div>';
-  h += '</div>';
-
-  if(S.added.length){
-    h += '<div class="sec-title" style="margin:10px 0 4px">Добавленные компании</div><div id="adds" class="batch-list" style="margin:4px 0">';
-    h += S.added.map(function(r,i){ return rowCard(r, i, true); }).join('');
-    h += '</div>';
-  } else { h += '<div id="adds" class="batch-list" style="margin:0"></div>'; }
-  h += '</div>';
 
   if(!S.ro){
-    h += '<button id="btnAdd" class="btn-line" style="margin-top:8px;min-height:34px;font-size:13.5px;border-style:dashed;width:100%">+ Добавить компанию</button>';
+    h += '<button id="btnAddPos" class="btn-line" style="margin-top:14px">+ Должность, которой нет в списке</button>';
   }
 
   h += '<div style="margin-top:14px">';
@@ -2230,213 +2237,37 @@ function renderTabComp(){
        (S.ro?' disabled':'')+'>'+esc(S.note)+'</textarea>';
   h += '</div>';
 
-  // Кнопка «Перейти к шагу 2» живёт в нижней липкой панели (#bar) и управляется
-  // в renderBar(). Раньше здесь была её копия с тем же id="btnNext" — дубль id,
-  // не был подключён к обработчику и наезжал на липкую панель снизу.
-
-  h += '</div>';
-
   $('tabBody').innerHTML = h;
-  bindRows();
   $('unitNote').oninput = function(){ S.note = this.value; markDirty(); };
-  if($('btnAdd')) $('btnAdd').onclick = openAddSheet;
+  if($('btnAddPos')) $('btnAddPos').onclick = function(){ openCustomPositionSheet(true); };
 
-  if($('btnMarkAllActual')){
-    $('btnMarkAllActual').onclick = function(){
-      var allCurrentlyActual = S.rows.length > 0 && S.rows.every(function(r){ return r.actual === 'актуально'; });
-      if(allCurrentlyActual){
-        S.rows.forEach(function(r){ r.actual = 'не проверено'; });
-        markDirty();
-        renderUnit();
-        toast('Отметки со всех компаний сняты');
-      } else {
-        S.rows.forEach(function(r){ r.actual = 'актуально'; });
-        markDirty();
-        renderUnit();
-        toast('Все компании (' + S.rows.length + ' шт.) отмечены как «Актуально»', 'ok');
-      }
-    };
-  }
-
-  $('tabBody').querySelectorAll('button[data-add-group-company]').forEach(function(btn){
-    btn.onclick = function(){
-      S.added.push({
-        id:'', unit:S.unit, company:this.dataset.addGroupCompany, type:'', prio:'',
-        seg:'', region:'', note:'', status:'', src:'', actual:'актуально'
-      });
-      markDirty();
-      renderUnit();
-      toast('Компания добавлена. Не забудьте сохранить.');
-    };
-  });
-
-  function applyCompFilter(){
-    var q = norm($('compSearch') ? $('compSearch').value : '');
-    var filterSt = S.compFilterActual || 'all';
-    $('rows').querySelectorAll('.batch-card').forEach(function(node){
-      var r = S.rows[+node.dataset.i] || {};
-      var act = (r.actual || 'не проверено').toLowerCase();
-      var matchSt = (filterSt === 'all') ||
-                    (filterSt === act) ||
-                    (filterSt === 'не проверено' && act !== 'актуально' && act !== 'не актуально' && act !== 'уточнить');
-      var hit = matchSt && (!q || norm(r.company).indexOf(q) >= 0 ||
-                norm(r.seg).indexOf(q) >= 0 || norm(r.region).indexOf(q) >= 0);
-      node.classList.toggle('hidden', !hit);
+  function applyPosFilter(){
+    var q = norm($('posSearch') ? $('posSearch').value : '');
+    var fSt = S.compFilterStatus || 'all';
+    $('tabBody').querySelectorAll('.pos-grid > .pos').forEach(function(node){
+      var pName = norm(node.dataset.posName || '');
+      var pSt = node.dataset.posSt || 'none';
+      var matchSt = (fSt === 'all') || (fSt === pSt);
+      var matchQ = !q || pName.indexOf(q) >= 0;
+      node.classList.toggle('hidden', !(matchSt && matchQ));
     });
   }
-
-  if($('compStatusChips')){
-    $('compStatusChips').querySelectorAll('button[data-cact]').forEach(function(btn){
+  if($('posSearch')) $('posSearch').oninput = applyPosFilter;
+  if($('posStatusChips')){
+    $('posStatusChips').querySelectorAll('button[data-pst]').forEach(function(btn){
       btn.onclick = function(){
-        S.compFilterActual = this.dataset.cact;
-        $('compStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b === btn); });
-        applyCompFilter();
+        S.compFilterStatus = this.dataset.pst;
+        $('posStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b === btn); });
+        applyPosFilter();
       };
     });
   }
+  applyPosFilter();
 
-  if($('noteAskClick')){
-    $('noteAskClick').onclick = function(){
-      S.compFilterActual = 'уточнить';
-      if($('compStatusChips')){
-        $('compStatusChips').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.cact === 'уточнить'); });
-      }
-      applyCompFilter();
-    };
-  }
-
-  if($('compSearch')){
-    $('compSearch').oninput = applyCompFilter;
-  }
-  applyCompFilter();
-}
-
-/**
- * Строка занята другим ответственным (см. isOwnedByOther на сервере —
- * та же граница, здесь только для UI). Пока не защищено сервером — это
- * просто более честный интерфейс, реальная блокировка проверяется при
- * сохранении и в списке заблокированных из ответа save().
- */
-function isLockedForMe(owner){
-  if(!owner) return false;
-  var role = S.data.user.role;
-  if(role === 'admin' || role === 'cb') return false;
-  var mine = String(S.data.user.fio || S.data.user.login || '').trim().toLowerCase();
-  return String(owner).trim().toLowerCase() !== mine;
-}
-
-function rowCard(r, i, isNew){
-  var st = r.actual === 'актуально' ? 'st-yes'
-         : r.actual === 'не актуально' ? 'st-no'
-         : r.actual === 'уточнить' ? 'st-ask' : '';
-  var meta = [r.seg, r.region].filter(String).join(' · ');
-  var name = r.company || '(название не заполнено в таблице)';
-  var locked = isLockedForMe(r.by);
-  var isDone = r.actual && r.actual !== 'не проверено';
-
-  var h = '<div class="batch-card '+(isDone?'is-filled ':'')+st+(locked?' row-locked':'')+'" data-i="'+i+'">';
-  h += '<div class="batch-card-inner">';
-  
-  h += '<div class="b-co-left">';
-  h += '<div class="batch-co-title">' + ic('units', 13) + '<b>' + esc(name) + '</b>' + (isNew?' <span class="pill p-ok">новая</span>':'') + '</div>';
-  if(meta) h += '<span class="b-co-meta">· ' + esc(meta) + '</span>';
-  if(locked) h += '<span class="b-co-lock">' + ic('lock',11) + esc(r.by) + '</span>';
-  if(r.note) h += '<span class="b-co-note" title="' + esc(r.note) + '">' + ic('pencil', 11) + esc(r.note) + '</span>';
-  h += '<button type="button" class="btn-more-chip" data-act="more" title="Параметры">' + ic('wrench', 11) + '<span>Параметры</span><span class="b-arr">' + ic('chevron', 10) + '</span></button>';
-  h += '</div>';
-
-  h += '<div class="b-co-actions">';
-  h += '<div class="seg">';
-  h += [['актуально','Актуально'],['не актуально','Не актуально'],['уточнить','Уточнить']].map(function(pair){
-    var v = pair[0], lbl = pair[1];
-    return '<button data-act="actual" data-v="'+v+'"'+(r.actual===v?' class="on"':'')+
-      ((S.ro||locked)?' disabled':'')+'>'+lbl+'</button>';
-  }).join('') + '</div>';
-  h += '</div>';
-
-  h += '</div>';
-
-  h += '<div class="more hidden batch-more-panel">';
-  h += '<div style="font-size:12.5px;color:var(--muted);margin:4px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Тип компании</div>';
-  h += chips('type', S.data.ref.types, r.type, false);
-  h += '<div style="font-size:12.5px;color:var(--muted);margin:8px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em">Приоритет</div>';
-  h += chips('prio', S.data.ref.priorities, r.prio, false);
-  h += '<label class="lbl" style="margin-top:8px">Комментарий'+
-       (r.actual === 'уточнить' ? ' — что именно уточнить' : '')+'</label>';
-  h += '<textarea data-act="note" placeholder="'+
-       (r.actual === 'уточнить' ? 'Что нужно выяснить и у кого' : 'Почему важен / что учесть')+
-       '"'+((S.ro||locked)?' disabled':'')+'>'+esc(r.note||'')+'</textarea>';
-  h += '</div></div>';
-  return h;
-}
-
-function bindRows(){
-  ['rows','adds'].forEach(function(zone){
-    var box = $(zone);
-    if(!box) return;
-    box.addEventListener('click', function(e){
-      var b = e.target.closest('button');
-      if(!b) return;
-      var card = b.closest('.batch-card');
-      if(!card) return;
-      var arr = zone === 'rows' ? S.rows : S.added;
-      var r = arr[+card.dataset.i];
-      var act = b.dataset.act;
-
-      if(act === 'more'){
-        var m = card.querySelector('.more');
-        var closed = m.classList.toggle('hidden');
-        b.classList.toggle('open', !closed);
-        return;
-      }
-      if(S.ro || card.classList.contains('row-locked')) return;
-      if(act === 'actual'){
-        r.actual = (r.actual === b.dataset.v) ? 'не проверено' : b.dataset.v;
-        card.className = 'batch-card ' + (r.actual && r.actual !== 'не проверено' ? 'is-filled ' : '') +
-          (r.actual==='актуально'?'st-yes':r.actual==='не актуально'?'st-no':r.actual==='уточнить'?'st-ask':'');
-        card.querySelectorAll('.seg button').forEach(function(x){
-          x.classList.toggle('on', x.dataset.v === r.actual);
-        });
-
-        // Обновляем бейдж статуса в заголовке карточки
-        var stTag = r.actual === 'актуально'
-          ? '<span class="batch-st-tag ok">' + ic('check', 11) + 'Актуально</span>'
-          : r.actual === 'не актуально'
-            ? '<span class="batch-st-tag none" style="color:var(--no);background:var(--no-soft)">' + ic('close', 11) + 'Не актуально</span>'
-            : r.actual === 'уточнить'
-              ? '<span class="batch-st-tag none" style="color:var(--warn);background:var(--warn-soft)">' + ic('warn', 11) + 'Уточнить</span>'
-              : '<span class="batch-st-tag none">' + ic('clock', 11) + 'Не проверено</span>';
-        var hdTag = card.querySelector('.batch-st-tag');
-        if(hdTag) hdTag.outerHTML = stTag;
-
-        markDirty();
-        updateProgress();
-      }
-    });
-
-    box.addEventListener('input', function(e){
-      if(e.target.dataset.act === 'note'){
-        var card = e.target.closest('.batch-card');
-        var arr = zone === 'rows' ? S.rows : S.added;
-        arr[+card.dataset.i].note = e.target.value;
-        markDirty();
-      }
-    });
-
-    box.addEventListener('click', function(e){
-      var chip = e.target.closest('.chips button');
-      if(!chip) return;
-      var card = chip.closest('.batch-card');
-      var arr = zone === 'rows' ? S.rows : S.added;
-      var r = arr[+card.dataset.i];
-      var act = chip.dataset.act, v = chip.dataset.v;
-      r[act] = (r[act] === v) ? '' : v;
-      chip.parentNode.querySelectorAll('button').forEach(function(x){
-        x.classList.toggle('on', x.dataset.v === r[act]);
-      });
-      markDirty();
-    });
-  });
+  $('tabBody').onclick = function(e){
+    var trigger = e.target.closest('[data-open-pos-comp]');
+    if(trigger){ openPositionCompaniesSheet(trigger.dataset.openPosComp); }
+  };
 }
 
 // ─────────── Вкладка 2: данные по рынку ───────────
@@ -2518,66 +2349,127 @@ function money(r){
   return s + (r.cur ? ' ' + r.cur : '') + (r.payPer ? ' ' + r.payPer : '');
 }
 
-/** Список актуальных компаний текущего подразделения (с шага 1).
- *  В смежной группе — общий список компаний всех площадок группы. */
-function getUnitActualCompanies(){
-  var grp = currentUnitGroup();
-  if(grp && S.data.companiesByGroup && (S.data.companiesByGroup[grp] || []).length){
-    return S.data.companiesByGroup[grp].slice();
+/** Компании, отмеченные релевантными для сравнения по КОНКРЕТНОЙ должности
+ *  (position-first Шаг 1, S.selections — с сервера, position_company_selections).
+ *  Ноль компаний — валидный результат («для этой должности рынок не сравниваем»). */
+function selectionsForPos(posName){
+  var k = norm(posName);
+  var keys = Object.keys(S.selections || {});
+  for(var i=0;i<keys.length;i++){
+    if(norm(keys[i]) === k) return (S.selections[keys[i]] || []).slice();
   }
-  var cos = [];
-  var seen = {};
-  // Компании с отметкой «актуально» или «уточнить»
-  S.rows.concat(S.added).forEach(function(r){
-    var c = (r.company || '').trim();
-    if(!c) return;
-    if(r.actual === 'актуально' || r.actual === 'уточнить'){
-      if(!seen[norm(c)]){
-        seen[norm(c)] = true;
-        cos.push(c);
-      }
-    }
-  });
-  // Если отметки ещё не проставлены, берём все компании подразделения кроме «не актуально»
-  if(!cos.length){
-    S.rows.concat(S.added).forEach(function(r){
-      var c = (r.company || '').trim();
-      if(!c || r.actual === 'не актуально') return;
-      if(!seen[norm(c)]){
-        seen[norm(c)] = true;
-        cos.push(c);
-      }
-    });
-  }
-  return cos;
+  return [];
 }
 
-/** Расчёт матрицы N x M: (Актуальные компании) x (Должности штатки) */
+/**
+ * Порядок компаний-кандидатов в чек-листе Шага 1 — по релевантности, не
+ * по алфавиту (см. постановку задачи). Прямой связи «должность → сегмент»
+ * в модели данных нет (должности вроде «Бухгалтер»/«Юрист» слишком общие,
+ * чтобы гадать по названию), поэтому берём косвенный признак — сегменты,
+ * в которых у ЭТОГО подразделения уже есть свои конкуренты (competitors,
+ * S.rows/S.added): это и есть отрасль, в которой реально работает
+ * подразделение. Сортировка:
+ *  1) компании из сегмента(ов), уже встречающихся среди своих конкурентов —
+ *     внутри группы по competitors.prio (справочник S.data.ref.priorities
+ *     задаёт порядок «высокий → низкий», тот же, что в чипах при добавлении
+ *     конкурента);
+ *  2) все остальные компании — тоже по prio;
+ *  3) при равенстве — по алфавиту.
+ * Сегмент и prio берём из собственных competitors подразделения (там они
+ * есть); для компаний из общего справочника холдинга, которые ещё не
+ * заведены конкурентом этого подразделения, segment есть (S.data.companies
+ * .seg), а prio — нет (в dictionary_companies такого поля нет), поэтому у
+ * них ранг приоритета — «ниже всех заданных», не отбрасываем и не гадаем. */
+function sortCompanyPoolByRelevance(pool){
+  var priorities = (S.data.ref && S.data.ref.priorities && S.data.ref.priorities.length)
+    ? S.data.ref.priorities : ['высокий', 'средний', 'низкий'];
+  var prioRank = {};
+  priorities.forEach(function(p, i){ prioRank[norm(p)] = i; });
+  var worstRank = priorities.length; // нет приоритета — идёт последним внутри своей группы
+
+  var segByName = {}; var prioByName = {};
+  (S.data.companies || []).forEach(function(c){
+    if(c && c.name) segByName[norm(c.name)] = c.seg || '';
+  });
+  // Свои конкуренты подразделения — источник истины по сегменту/приоритету
+  // ЭТОЙ компании для ЭТОГО подразделения, перекрывает общий справочник.
+  var ownSegments = {};
+  S.rows.concat(S.added).forEach(function(r){
+    if(!r || !r.company) return;
+    var k = norm(r.company);
+    if(r.segment) segByName[k] = r.segment;
+    if(r.prio) prioByName[k] = r.prio;
+    if(r.segment) ownSegments[norm(r.segment)] = true;
+  });
+
+  function rankOf(name){
+    var k = norm(name);
+    var seg = segByName[k] || '';
+    var inOwnSegment = seg && ownSegments[norm(seg)];
+    var pr = prioByName[k] || '';
+    var pRank = prioRank[norm(pr)] != null ? prioRank[norm(pr)] : worstRank;
+    return { group: inOwnSegment ? 0 : 1, pRank: pRank };
+  }
+
+  return pool.slice().sort(function(a, b){
+    var ra = rankOf(a), rb = rankOf(b);
+    if(ra.group !== rb.group) return ra.group - rb.group;
+    if(ra.pRank !== rb.pRank) return ra.pRank - rb.pRank;
+    return a.localeCompare(b, 'ru');
+  });
+}
+
+/** Пул компаний-кандидатов для чек-листа должности: свои компании
+ *  подразделения (S.rows/S.added, источник — competitors) плюс общий
+ *  справочник холдинга (S.data.companies) — тот же источник, что уже
+ *  используется и в этом пикере. В смежной группе — плюс компании всех
+ *  площадок группы, чтобы не заводить одну и ту же компанию по новой на
+ *  каждой площадке. */
+function unitCompanyPool(){
+  var seen = {}; var pool = [];
+  function add(name){
+    var c = String(name || '').trim();
+    if(!c) return;
+    var k = norm(c);
+    if(seen[k]) return;
+    seen[k] = true;
+    pool.push(c);
+  }
+  S.rows.concat(S.added).forEach(function(r){ add(r.company); });
+  var grp = currentUnitGroup();
+  if(grp && S.data.companiesByGroup && S.data.companiesByGroup[grp]){
+    S.data.companiesByGroup[grp].forEach(add);
+  }
+  (S.data.companies || []).forEach(function(c){ add(c.name); });
+  return pool.sort(function(a,b){ return a.localeCompare(b, 'ru'); });
+}
+
+/** Расчёт матрицы: по каждой должности штатки — сколько выбранных для неё
+ *  компаний уже закрыто данными (position-first: у каждой должности свой,
+ *  а не общий на весь unit, список компаний). */
 function svMatrixCounts(){
   var G = survGroups();
-  var actualCos = getUnitActualCompanies();
   var totalPositions = G.groups.length;
-  var totalCos = actualCos.length;
-  var totalSlots = totalPositions * totalCos;
 
   var filledCount = 0;
+  var totalSlots = 0;
   var posMap = {};
   G.groups.forEach(function(g){
-    posMap[norm(g.pos)] = { total: totalCos, filled: 0, cosFilled: {} };
+    var selCos = selectionsForPos(g.pos);
+    var entry = { total: selCos.length, filled: 0, cosFilled: {}, selCos: selCos };
+    posMap[norm(g.pos)] = entry;
+    totalSlots += selCos.length;
   });
 
   S.surveys.forEach(function(s){
     var posKey = norm(s.posOur);
     var coKey = norm(s.company);
     var isFilled = !!(s.payFrom || s.payTo || s.bonSize || (s.benefits && s.benefits.length) || s.extra || s.note);
-    if(isFilled){
-      if(posMap[posKey]){
-        if(!posMap[posKey].cosFilled[coKey]){
-          posMap[posKey].cosFilled[coKey] = true;
-          posMap[posKey].filled++;
-          filledCount++;
-        }
-      } else {
+    var entry = posMap[posKey];
+    if(isFilled && entry && entry.selCos.some(function(c){ return norm(c) === coKey; })){
+      if(!entry.cosFilled[coKey]){
+        entry.cosFilled[coKey] = true;
+        entry.filled++;
         filledCount++;
       }
     }
@@ -2586,14 +2478,23 @@ function svMatrixCounts(){
   var pct = totalSlots > 0 ? Math.min(100, Math.round((filledCount / totalSlots) * 100)) : (filledCount > 0 ? 100 : 0);
 
   return {
-    actualCos: actualCos,
-    totalCos: totalCos,
     totalPositions: totalPositions,
     totalSlots: totalSlots,
     filledCount: filledCount,
     pct: pct,
     posMap: posMap
   };
+}
+
+/** Статус должности (position-first): не начата / в процессе / заполнена.
+ *  Ноль выбранных компаний — валидный итог, но не «заполнена» и не
+ *  «в процессе» — это «не начата» (см. постановку задачи). */
+function posStatus(posName){
+  var mc = svMatrixCounts();
+  var e = mc.posMap[norm(posName)] || { total: 0, filled: 0 };
+  if(e.total === 0) return 'none';
+  if(e.filled >= e.total) return 'done';
+  return 'part';
 }
 
 /** Подпись на вкладке шага 2: матрица X из Y карточек */
@@ -2658,7 +2559,7 @@ function renderTabSurvey(){
     G.groups.forEach(function(g){
       var pInfo = mc.posMap[norm(g.pos)];
       var filled = pInfo ? pInfo.filled : g.items.length;
-      var total = pInfo ? pInfo.total : mc.totalCos;
+      var total = pInfo ? pInfo.total : 0;
       var isAll = total > 0 && filled >= total;
       var isPart = filled > 0 && !isAll;
       if(isAll) posDoneCount++;
@@ -2690,7 +2591,7 @@ function renderTabSurvey(){
     h += '<div class="pos-grid fx-stagger">' + G.groups.map(function(g, gi){
       var pInfo = mc.posMap[norm(g.pos)];
       var filled = pInfo ? pInfo.filled : g.items.length;
-      var total = pInfo ? pInfo.total : mc.totalCos;
+      var total = pInfo ? pInfo.total : 0;
       var isAll = total > 0 && filled >= total;
       var isPart = filled > 0 && !isAll;
       var bClass = isAll ? 'pos-badge-ok' : (isPart ? 'pos-badge-part' : 'pos-badge-none');
@@ -2756,7 +2657,158 @@ function renderTabSurvey(){
   if($('btnAddSv')) $('btnAddSv').onclick = function(){ openCustomPositionSheet(); };
 }
 
-function openCustomPositionSheet(){
+/**
+ * Position-first Шаг 1: чек-лист компаний для ОДНОЙ должности. Список
+ * кандидатов — unitCompanyPool() (компании подразделения + общий справочник
+ * холдинга). Сохранение уходит сразу на сервер (не ждёт общей кнопки
+ * «Сохранить») — своя пара unit+должность, свой разнос на смежную группу.
+ */
+function openPositionCompaniesSheet(posName){
+  var pool = unitCompanyPool();
+  var current = selectionsForPos(posName);
+  var nameByNorm = {};
+  pool.forEach(function(c){ nameByNorm[norm(c)] = c; });
+  current.forEach(function(c){
+    if(!nameByNorm[norm(c)]){ nameByNorm[norm(c)] = c; pool.push(c); }
+  });
+  pool = sortCompanyPoolByRelevance(pool);
+
+  var normCurrent = {};
+  current.forEach(function(c){ normCurrent[norm(c)] = true; });
+  var picked = {};
+  Object.keys(normCurrent).forEach(function(k){ picked[k] = true; });
+
+  var el = document.createElement('div');
+  el.className = 'sheet';
+
+  function renderList(filterQ){
+    var q = norm(filterQ || '');
+    var filtered = pool.filter(function(c){ return !q || norm(c).indexOf(q) >= 0; });
+    if(!filtered.length) return '<div class="empty">Ничего не найдено</div>';
+    return filtered.map(function(c){
+      var k = norm(c);
+      return '<label style="display:flex;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid var(--line)">'+
+        '<input type="checkbox" data-co="'+esc(c)+'"'+(picked[k]?' checked':'')+(S.ro?' disabled':'')+'>'+
+        '<span>'+esc(c)+'</span></label>';
+    }).join('');
+  }
+
+  el.innerHTML = '<div class="sheet-in">'+
+    '<div class="sheet-hd sheet-hd--step1">'+
+      '<div><span class="step-pill step-pill--1">'+ic('units', 12)+'Шаг 1 · Компании</span>'+
+      '<b>Компании для сравнения — «'+esc(posName)+'»</b></div>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<p class="step-hint" style="margin:0 0 10px">Отметьте компании, с которыми сравниваете оклад по этой должности. '+
+    'Ноль компаний — тоже допустимый результат, если сравнивать не с кем.</p>'+
+    '<div class="search-wrap" style="margin:0 0 10px">'+icBare('search')+
+      '<input id="posCoSearch" placeholder="Найти компанию…" autocomplete="off"></div>'+
+    '<div id="posCoList" style="max-height:46vh;overflow:auto">'+renderList('')+'</div>'+
+    (S.ro ? '' :
+      '<div style="display:flex;gap:6px;margin-top:10px">'+
+        '<input id="posCoNewName" placeholder="Название новой компании" autocomplete="off" style="flex:1">'+
+        '<button id="posCoAdd" class="btn-line" type="button">+ Добавить</button>'+
+      '</div>')+
+    '<div style="height:14px"></div>'+
+    (S.ro ? '' : '<button id="posCoSave" class="btn-primary">Сохранить список компаний</button>')+
+  '</div>';
+  document.body.appendChild(el);
+
+  el.querySelector('#posCoList').addEventListener('change', function(e){
+    var cb = e.target.closest('input[type=checkbox]');
+    if(!cb) return;
+    var k = norm(cb.dataset.co);
+    if(cb.checked) picked[k] = true; else delete picked[k];
+  });
+
+  el.querySelector('#posCoSearch').oninput = function(){
+    el.querySelector('#posCoList').innerHTML = renderList(this.value);
+  };
+
+  var addBtn = el.querySelector('#posCoAdd');
+  if(addBtn){
+    addBtn.onclick = function(){
+      var inp = el.querySelector('#posCoNewName');
+      var name = (inp.value || '').trim();
+      if(!name){ toast('Введите название компании'); return; }
+      if(pool.some(function(c){ return norm(c) === norm(name); })){
+        picked[norm(name)] = true;
+        inp.value = '';
+        el.querySelector('#posCoList').innerHTML = renderList(el.querySelector('#posCoSearch').value);
+        toast('Такая компания уже есть в списке — отмечена');
+        return;
+      }
+      addBtn.disabled = true;
+      call('apiAddDictionary', S.token, 'companies', name).then(function(res){
+        addBtn.disabled = false;
+        if(!res || !res.ok){ toast((res && res.error) || 'Не удалось добавить компанию', 'no'); return; }
+        nameByNorm[norm(name)] = name;
+        pool.push(name);
+        pool = sortCompanyPoolByRelevance(pool);
+        picked[norm(name)] = true;
+        if(S.data.companies && !S.data.companies.some(function(c){ return norm(c.name) === norm(name); })){
+          S.data.companies.push({ name: name, seg:'', region:'' });
+        }
+        inp.value = '';
+        el.querySelector('#posCoList').innerHTML = renderList(el.querySelector('#posCoSearch').value);
+        toast('Компания добавлена в справочник и отмечена');
+      }).catch(function(){
+        addBtn.disabled = false;
+        toast('Нет связи с сервером', 'no');
+      });
+    };
+  }
+
+  function isDirty(){
+    return Object.keys(picked).sort().join('|') !== Object.keys(normCurrent).sort().join('|');
+  }
+  el.addEventListener('click', function(e){
+    if(e.target === el || e.target.dataset.x){
+      if(!isDirty()){ el.remove(); return; }
+      confirmDiscard().then(function(yes){ if(yes) el.remove(); });
+    }
+  });
+
+  var saveBtn = el.querySelector('#posCoSave');
+  if(saveBtn){
+    saveBtn.onclick = function(){
+      var companies = Object.keys(picked).map(function(k){ return nameByNorm[k] || k; });
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Сохраняем…';
+      var grp = currentUnitGroup();
+      call('apiSavePositionSelection', S.token, {
+        unit: S.unit, posOur: posName, companies: companies,
+        groupKey: grp || '', periodId: S.editingPeriodId
+      }).then(function(res){
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Сохранить список компаний';
+        if(!res || !res.ok){ toast((res && res.error) || 'Не удалось сохранить список компаний', 'no'); return; }
+
+        var keys = Object.keys(S.selections || {});
+        var existingKey = keys.filter(function(k2){ return norm(k2) === norm(posName); })[0];
+        if(existingKey) delete S.selections[existingKey];
+        S.selections[posName] = companies;
+
+        el.remove();
+        renderUnit();
+        if(!companies.length){
+          toast('Для этой должности не выбрано ни одной компании для сравнения', 'no');
+        } else {
+          toast('Список компаний сохранён (' + companies.length + ')', 'ok');
+          openBatchSurveySheet(posName);
+        }
+      }).catch(function(){
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Сохранить список компаний';
+        toast('Нет связи с сервером', 'no');
+      });
+    };
+  }
+}
+
+/** toCompanies=true — после выбора должности сразу открыть чек-лист компаний
+ *  (со Шага 1); иначе — прямо ввод данных (со Шага 2, должность уже с выбранными
+ *  компаниями либо без них — ввод такой должности просто ничего не покажет). */
+function openCustomPositionSheet(toCompanies){
   openPicker({
     title: 'Добавить должность',
     list: function(){ return S.data.positions || []; },
@@ -2765,7 +2817,8 @@ function openCustomPositionSheet(){
     addUnit: S.unit,
     onPick: function(posName){
       if(!posName) return;
-      openBatchSurveySheet(posName);
+      if(toCompanies) openPositionCompaniesSheet(posName);
+      else openBatchSurveySheet(posName);
     }
   });
 }
@@ -2775,8 +2828,13 @@ function openCustomPositionSheet(){
  * для выбранной должности, позволяя заполнить всё в один заход.
  */
 function openBatchSurveySheet(posName){
-  var actualCos = getUnitActualCompanies();
-  // Добавляем также любые компании, которые уже были сохранены для этой должности
+  // position-first: список компаний для ЭТОЙ должности — из S.selections
+  // (Шаг 1), а не общий на весь unit. В архивном режиме своего чек-листа нет
+  // (Шаг 1 недоступен для архивных лет) — там компании только из уже
+  // сохранённых анкет самого архивного периода, S.selections (текущий период)
+  // не смешиваем. Плюс в обычном режиме — любые компании, по которым данные
+  // уже когда-то сохранены, чтобы существующие записи не «терялись» из вида.
+  var actualCos = S.editingPeriodId ? [] : selectionsForPos(posName);
   S.surveys.forEach(function(s){
     if(norm(s.posOur) === norm(posName) && s.company){
       if(!actualCos.some(function(c){ return norm(c) === norm(s.company); })){
@@ -2786,7 +2844,14 @@ function openBatchSurveySheet(posName){
   });
 
   if(!actualCos.length){
-    toast('Сначала добавьте компании на Шаге 1');
+    // Ноль компаний — валидный результат (см. openPositionCompaniesSheet), а
+    // не ошибка: раньше здесь автоматически открывался чек-лист Шага 1 —
+    // при повторном клике на ту же должность из Шага 2 это выглядело как
+    // зацикленное «выберите хотя бы одну компанию», из которого нельзя было
+    // просто выйти («если на первом шаге не заполнил, опять та картина»).
+    // Теперь просто предупреждаем и остаёмся на списке должностей — выбрать
+    // компании можно явным действием («Компании»/«Выбрать» на Шаге 1).
+    toast('Для этой должности не выбрано ни одной компании для сравнения — откройте «Шаг 1» и отметьте компании, если сравнивать есть с кем');
     return;
   }
 
@@ -3063,8 +3128,9 @@ function openBatchSurveySheet(posName){
     }).join('');
 
     el.innerHTML = '<div class="sheet-in batch-sheet'+(wide ? ' batch-sheet--wide' : '')+'">'+
-      '<div class="sheet-hd">'+
+      '<div class="sheet-hd sheet-hd--step2">'+
         '<div>'+
+          '<span class="step-pill step-pill--2">'+ic('wallet', 12)+'Шаг 2 · Оклады</span>'+
           '<b>Должность: '+esc(posName)+'</b>'+
           '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
         '</div>'+
@@ -3618,12 +3684,12 @@ function updateProgress(){
 
   if(S.tab === 'comp'){
     $('progT').textContent = c.done + ' из ' + c.all;
-    if(c.ask){
+    if(c.part){
       $('progS').className = 'ask';
-      $('progS').textContent = 'уточнить: ' + c.ask;
+      $('progS').textContent = 'в процессе: ' + c.part;
     } else {
       $('progS').className = '';
-      $('progS').textContent = (c.all && c.done === c.all) ? 'всё проверено' : 'проверено компаний';
+      $('progS').textContent = (c.all && c.done === c.all) ? 'всё заполнено' : 'должностей заполнено';
     }
   } else {
     var mc = svMatrixCounts();
@@ -3648,8 +3714,8 @@ function updateProgress(){
   var t2 = document.querySelector('.tabs button[data-tab="survey"]');
   if(t1){
     t1.innerHTML = '<div class="tab-top-row"><span class="tab-step-lbl">ШАГ 1'+(c.all > 0 && c.done === c.all ? ' ✓' : '')+'</span>'+
-      (c.ask ? '<span class="tab-ask-tag">?'+c.ask+' на уточнении</span>' : '')+'</div>'+
-      '<div class="tab-main-row"><span class="tab-title">Участники рынка</span><span class="tab-count">'+c.done+'/'+c.all+'</span></div>';
+      (c.part ? '<span class="tab-ask-tag">'+c.part+' в процессе</span>' : '')+'</div>'+
+      '<div class="tab-main-row"><span class="tab-title">Должности и компании</span><span class="tab-count">'+c.done+'/'+c.all+'</span></div>';
     t1.classList.toggle('done', c.all > 0 && c.done === c.all);
   }
   if(t2){
@@ -3665,7 +3731,7 @@ function updateProgress(){
       nextBtn.textContent = 'Перейти к шагу 2: Оклады →';
       nextBtn.onclick = function(){ S.tab = 'survey'; renderUnit(); };
     } else {
-      nextBtn.textContent = '← Назад к шагу 1: Конкуренты';
+      nextBtn.textContent = '← Назад к шагу 1: Должности';
       nextBtn.onclick = function(){ S.tab = 'comp'; renderUnit(); };
     }
   }
@@ -3809,12 +3875,12 @@ function save(submit){
 
   var c = counts();
   var q = null;
-  if(c.left){
-    q = { html: 'Не отмечено компаний: <b>'+c.left+'</b>.' +
-                (c.ask ? '\nЕщё <b>'+c.ask+'</b> отложено на уточнение — они тоже не считаются проверенными.' : '') };
-  } else if(c.ask){
-    q = { html: 'Компаний на уточнении: <b>'+c.ask+'</b>.\n' +
-                'Они не считаются проверенными — вопрос по ним ещё открыт.' };
+  if(c.none){
+    q = { html: 'Должностей без выбранных компаний: <b>'+c.none+'</b>.' +
+                (c.part ? '\nЕщё <b>'+c.part+'</b> в процессе — компании выбраны, но данные внесены не по всем.' : '') };
+  } else if(c.part){
+    q = { html: 'Должностей в процессе: <b>'+c.part+'</b>.\n' +
+                'Компании выбраны, но данные внесены не по всем — считать это готовым?' };
   }
   if(!q){ doSave(true); return; }
 
@@ -3934,7 +4000,7 @@ function doSave(submit){
         var after = counts();
         u.total = after.all;
         u.done = after.done;
-        u.ask = after.ask;
+        u.ask = 0;
       }
       u.surveys = sentSurveys.length;
       u.note = sentNote;
@@ -12545,6 +12611,14 @@ function openProgress(){
   $('bar').classList.add('hidden');
   $('body').onclick = null;
   $('body').innerHTML = '<div class="sp"><i></i> Считаем…</div>';
+  // guardAsyncToTab: без неё $('body') внутри этого .then резолвится по ТОЙ
+  // вкладке, что активна в момент прихода ответа сервера, а не в момент
+  // запроса — если пока apiDashboard считал, пользователь успел уйти в другую
+  // вкладку (например, сохранил анкету и WorkspaceTabs.notifyDataChange фоново
+  // дёрнул openProgress() в неактивной вкладке «Сводка по подразделениям»),
+  // эта сводка дорисовывалась поверх ЧУЖОЙ, уже активной вкладки (гонка
+  // вкладок — тот же класс бага, что и в openAdminPanel/openBenchmarks выше,
+  // только про DOM-запись из отложенного колбэка, а не про S.*).
   call('apiDashboard', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){ $('body').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка')+'</div>'; return; }
     if(r.period) S.data.period = r.period;

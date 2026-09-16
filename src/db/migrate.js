@@ -640,6 +640,59 @@ async function migrate() {
   await seedGradingPositionHints();
   await unifyGradingCriteria();
   await seedSupportChat();
+  await createPositionCompanySelections();
+  await cleanupLegacySurveyTestData();
+}
+
+/**
+ * Position-first Шаг 1 (2026-09-15): выбор компаний для сравнения теперь
+ * делается не «на весь unit» (competitors.actual), а отдельно для каждой
+ * должности — таблица position_company_selections. competitors и
+ * dictionary_companies остаются источником списка компаний для чек-листа,
+ * сама colonка actual больше не используется системой, но не удаляется
+ * (её данные подчищает отдельная, самая последняя миграция —
+ * cleanupLegacySurveyTestData ниже, и только когда её явно включат).
+ */
+async function createPositionCompanySelections() {
+  await run(`CREATE TABLE IF NOT EXISTS position_company_selections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    period_id INTEGER REFERENCES periods(id),
+    pos_our TEXT NOT NULL,
+    company TEXT NOT NULL,
+    selected_by TEXT,
+    selected_at DATETIME,
+    UNIQUE(unit, period_id, pos_our, company)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_position_company_selections_unit ON position_company_selections(unit, period_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_position_company_selections_pos ON position_company_selections(unit, period_id, pos_our)');
+  console.log('🔧 Миграция: таблица выбора компаний по должностям (position_company_selections) создана');
+}
+
+/**
+ * ПОСЛЕДНИЙ шаг перехода на position-first Шаг 1 (см. постановку задачи
+ * 2026-09-15): surveys и competitors на момент перехода содержат только
+ * тестовые данные — очищаем их, чтобы подразделения заполняли обзор заново
+ * уже в новой модели. Данные период (periods), справочники (dictionary_*),
+ * оргструктура (divisions) и пользователи не трогаются.
+ *
+ * Отключено по умолчанию (RUN_SURVEY_TEST_DATA_CLEANUP не выставлен) — это
+ * шаг, который выполняется один раз и вручную, после того как весь остальной
+ * функционал (схема, бэкенд, фронт, дашборды) выкачен и проверен на всех
+ * окружениях. Инструкция по запуску — см. RUN_SURVEY_TEST_DATA_CLEANUP ниже.
+ */
+async function cleanupLegacySurveyTestData() {
+  const MIGRATION_NAME = '20260915_cleanup_legacy_survey_test_data';
+  if (String(process.env.RUN_SURVEY_TEST_DATA_CLEANUP || '') !== '1') return;
+
+  const applied = await queryOne('SELECT name FROM schema_migrations WHERE name = ?', [MIGRATION_NAME]);
+  if (applied) return;
+
+  await run("DELETE FROM surveys");
+  await run("DELETE FROM competitors");
+  await run("DELETE FROM position_company_selections");
+  await run('INSERT INTO schema_migrations (name) VALUES (?)', [MIGRATION_NAME]);
+  console.log('🔧 Миграция: тестовые данные surveys/competitors/position_company_selections удалены (переход на position-first Шаг 1)');
 }
 
 /**

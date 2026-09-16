@@ -28,6 +28,9 @@ data/local.db-shm
 *.zip
 *.log
 
+# Agent worktrees (local scratch, not project content)
+.claude/worktrees/
+
 # OS / IDE files
 .DS_Store
 Thumbs.db

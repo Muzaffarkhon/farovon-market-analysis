@@ -332,19 +332,28 @@ async function handleStatus(chatId) {
   }
 
   const placeholders = unitsList.map(() => '?').join(',');
-  const comps = await queryAll(`SELECT actual FROM competitors WHERE unit IN (${placeholders})`, unitsList);
   // Только текущий год сбора — тот же счётчик, что показывает приложение
   // (см. dashboardController.getHRBPDashboard); без этого бот считал бы
   // анкеты всех лет сразу и не совпадал бы с тем, что видно в самом приложении.
   const currentPeriod = await getActivePeriod();
+  // Position-first Шаг 1: выбор компаний по должности (заменяет прежний
+  // унитарный на весь unit флаг competitors.actual) — «проверено» теперь
+  // значит «по этой паре должность×компания уже внесены данные по рынку».
+  const sels = await queryAll(
+    `SELECT unit, pos_our, company FROM position_company_selections WHERE unit IN (${placeholders}) AND period_id = ?`,
+    [...unitsList, currentPeriod ? currentPeriod.id : null]);
   const survs = await queryAll(
-    `SELECT id FROM surveys WHERE state != 'удалена' AND unit IN (${placeholders}) AND period_id = ?`,
+    `SELECT pos_our, company, pay_from, pay_to FROM surveys WHERE state != 'удалена' AND unit IN (${placeholders}) AND period_id = ?`,
     [...unitsList, currentPeriod ? currentPeriod.id : null]);
 
+  const normPos = (v) => String(v == null ? '' : v).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+  const filledKeys = new Set();
+  survs.forEach(s => {
+    if (Number(s.pay_from) > 0 || Number(s.pay_to) > 0) filledKeys.add(`${normPos(s.pos_our)}|${normPos(s.company)}`);
+  });
   let done = 0;
-  comps.forEach(c => {
-    const act = (c.actual || '').toLowerCase();
-    if (act === 'актуально' || act === 'не актуально') done++;
+  sels.forEach(s => {
+    if (filledKeys.has(`${normPos(s.pos_our)}|${normPos(s.company)}`)) done++;
   });
 
   const unitLines = unitsList.slice(0, 10).map(u => '• ' + u).join('\n') +
@@ -353,7 +362,7 @@ async function handleStatus(chatId) {
   await sendTelegramMessage(chatId,
     `📊 <b>${escHtml(user.fio)}</b>\n\n` +
     `Подразделений: <b>${unitsList.length}</b>\n` +
-    `Участников рынка: <b>${done}/${comps.length}</b> проверено\n` +
+    `Участников рынка: <b>${done}/${sels.length}</b> проверено\n` +
     `Записей по должностям: <b>${survs.length}</b>\n\n${unitLines}`);
 }
 

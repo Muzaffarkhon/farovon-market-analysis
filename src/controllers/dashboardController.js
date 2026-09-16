@@ -78,14 +78,16 @@ exports.getCBDashboard = async (req, res) => {
 exports.getHRBPDashboard = async (req, res) => {
   try {
     const periodRaw = await getActivePeriod();
-    const [divisions, competitorsRaw, surveys, staffing] = await Promise.all([
+    const [divisions, selectionsRaw, surveys, staffing] = await Promise.all([
       queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions'),
-      queryAll('SELECT unit, company, actual, updated_at FROM competitors'),
-      queryAll("SELECT unit, pos_our, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
+      // Position-first Шаг 1: выбор компаний по должности (заменяет прежний
+      // унитарный на весь unit флаг competitors.actual), period-scoped.
+      queryAll('SELECT unit, pos_our, company, selected_at FROM position_company_selections WHERE period_id = ?', [periodRaw ? periodRaw.id : null]),
+      queryAll("SELECT unit, pos_our, company, pay_from, pay_to, created_at FROM surveys WHERE state != 'удалена' AND period_id = ?", [periodRaw ? periodRaw.id : null]),
       queryAll('SELECT unit, position FROM unit_positions').catch(() => []),
     ]);
     // ООО / ҶДММ исключены из обзора рынка (см. services/companyFilter).
-    const competitors = competitorsRaw.filter(c => !isHiddenCompany(c.company));
+    const selections = selectionsRaw.filter(c => !isHiddenCompany(c.company));
 
     // Должности по подразделению: знаменатель — штатка (unit_positions),
     // числитель — сколько из этих должностей уже закрыто рынком (есть хотя бы
@@ -103,15 +105,24 @@ exports.getHRBPDashboard = async (req, res) => {
       if (pm && pm.set.has(p)) pm.filled.add(p);
     });
 
+    // «total/done» теперь считаются по парам «должность × компания», отмеченным
+    // релевантными для сравнения (position_company_selections), а не по флагу
+    // competitors.actual на всю компанию сразу. «ask» (унитарное «уточнить»)
+    // концептуально исчез вместе со старым Шагом 1 — оставлен нулём в ответе,
+    // чтобы не ломать форму данных для фронта.
+    const filledKeys = new Set();
+    surveys.forEach(s => {
+      if (Number(s.pay_from) > 0 || Number(s.pay_to) > 0) {
+        filledKeys.add(`${s.unit}|${normPos(s.pos_our)}|${normPos(s.company)}`);
+      }
+    });
     const compMap = {};
     const lastMap = {};
-    competitors.forEach(c => {
+    selections.forEach(c => {
       if (!compMap[c.unit]) compMap[c.unit] = { total: 0, done: 0, ask: 0 };
       compMap[c.unit].total++;
-      const act = (c.actual || '').toLowerCase();
-      if (act === 'актуально' || act === 'не актуально') compMap[c.unit].done++;
-      else if (act === 'уточнить') compMap[c.unit].ask++;
-      if (c.updated_at && (!lastMap[c.unit] || c.updated_at > lastMap[c.unit])) lastMap[c.unit] = c.updated_at;
+      if (filledKeys.has(`${c.unit}|${normPos(c.pos_our)}|${normPos(c.company)}`)) compMap[c.unit].done++;
+      if (c.selected_at && (!lastMap[c.unit] || c.selected_at > lastMap[c.unit])) lastMap[c.unit] = c.selected_at;
     });
 
     const survMap = {};
@@ -150,26 +161,26 @@ exports.getHRBPDashboard = async (req, res) => {
     out.sort((a, b) => (a.done / (a.total || 1)) - (b.done / (b.total || 1)));
 
     // Уникальные компании в видимых пользователю подразделениях — построчная
-    // сумма total/done/ask по отделам многократно считает одну и ту же компанию
-    // («Далерон» висит на 130 отделах). «проверено» — все связи компании
-    // актуально/не актуально; «на уточнении» — хоть одна связь «уточнить».
+    // сумма total/done по отделам многократно считает одну и ту же компанию
+    // («Далерон» висит на 130 отделах). «проверено» — у компании есть хотя бы
+    // одна пара «должность × компания» с уже внесёнными данными по рынку.
+    // «На уточнении» — концепция унитарного Шага 1 (competitors.actual),
+    // упразднена вместе с ним; marketAskCompanies оставлен нулём ради
+    // обратной совместимости формы ответа.
     const visibleUnits = new Set(out.map(r => r.unit));
     const compByName = new Map();
-    competitors.forEach(c => {
+    selections.forEach(c => {
       if (!visibleUnits.has(c.unit)) return;
       const name = String(c.company || '').trim().toLowerCase();
       if (!name) return;
-      const act = (c.actual || '').toLowerCase();
       let e = compByName.get(name);
-      if (!e) { e = { allChecked: true, anyAsk: false }; compByName.set(name, e); }
-      if (act === 'уточнить') { e.anyAsk = true; e.allChecked = false; }
-      else if (act !== 'актуально' && act !== 'не актуально') { e.allChecked = false; }
+      if (!e) { e = { anyDone: false }; compByName.set(name, e); }
+      if (filledKeys.has(`${c.unit}|${normPos(c.pos_our)}|${normPos(c.company)}`)) e.anyDone = true;
     });
     let marketCompaniesDone = 0;
-    let marketAskCompanies = 0;
+    const marketAskCompanies = 0;
     compByName.forEach(e => {
-      if (e.allChecked) marketCompaniesDone++;
-      if (e.anyAsk) marketAskCompanies++;
+      if (e.anyDone) marketCompaniesDone++;
     });
     const marketCompanies = compByName.size;
 

@@ -20,6 +20,12 @@ function toMonthly(value, hourly) {
   return (hourly && value > 0) ? Math.round(value * HOURS_PER_MONTH) : value;
 }
 
+/** Нормализация должности/компании для сопоставления position_company_selections
+ * с surveys (то же самое, что norm() в surveyController.js/фронте). */
+function normPos(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+}
+
 // ─── Переменная часть (премии) ──────────────────────────────────────────────
 // В сборе данных по компании теперь несколько видов премии сразу:
 // surveys.bonuses = JSON '[{type,size,per}]'. Колонки bon_* держат первый вид
@@ -264,12 +270,16 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   const viewingPeriodId = resolveDashboardPeriodId(filters.period, currentPeriodId);
 
   // Параллельный запуск всех запросов к БД в 1 сетевом раунде
-  const [divisionsRaw, competitors, surveys, posDict] = await Promise.all([
+  const [divisionsRaw, positionSelections, surveys, posDict] = await Promise.all([
     // region добавлена миграцией; на не мигрированной базе колонки может не быть.
     queryAll("SELECT num, dir, unit, head, resp, hrbp, COALESCE(region,'') AS region FROM divisions")
       .catch(() => queryAll('SELECT num, dir, unit, head, resp, hrbp FROM divisions')
         .then(rows => rows.map(r => ({ ...r, region: '' })))),
-    queryAll('SELECT unit, actual FROM competitors'),
+    // Position-first Шаг 1: выбор компаний по должности (заменяет прежний
+    // унитарный на весь unit флаг competitors.actual). period-scoped, как surveys.
+    viewingPeriodId
+      ? queryAll('SELECT unit, pos_our, company FROM position_company_selections WHERE period_id = ?', [viewingPeriodId])
+      : queryAll('SELECT unit, pos_our, company FROM position_company_selections'),
     viewingPeriodId
       ? queryAll("SELECT * FROM surveys WHERE state != 'удалена' AND period_id = ?", [viewingPeriodId])
       : queryAll("SELECT * FROM surveys WHERE state != 'удалена'"),
@@ -312,16 +322,23 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     };
   });
 
-  // 2. Конкуренты
-  competitors.forEach(c => {
-    if (unitMap[c.unit]) {
-      unitMap[c.unit].totalComp++;
-      const act = (c.actual || '').toLowerCase();
-      if (act === 'актуально' || act === 'не актуально') {
-        unitMap[c.unit].doneComp++;
-      } else if (act === 'уточнить') {
-        unitMap[c.unit].askComp++;
-      }
+  // 2. Выбор компаний по должностям (position-first Шаг 1). totalComp — сколько
+  // пар «должность × компания» отмечено релевантными для сравнения; doneComp —
+  // сколько из них уже закрыто реальными данными (surveys с окладом).
+  // askComp больше не существует (унитарный флаг «уточнить» упразднён вместе
+  // с competitors.actual) — оставлен нулём ради обратной совместимости формы
+  // ответа для фронта, который его больше не показывает.
+  const filledSurveyKeys = new Set();
+  surveys.forEach(s => {
+    if (Number(s.pay_from) > 0 || Number(s.pay_to) > 0) {
+      filledSurveyKeys.add(`${s.unit}|${normPos(s.pos_our)}|${normPos(s.company)}`);
+    }
+  });
+  positionSelections.forEach(sel => {
+    if (unitMap[sel.unit]) {
+      unitMap[sel.unit].totalComp++;
+      const key = `${sel.unit}|${normPos(sel.pos_our)}|${normPos(sel.company)}`;
+      if (filledSurveyKeys.has(key)) unitMap[sel.unit].doneComp++;
     }
   });
 
