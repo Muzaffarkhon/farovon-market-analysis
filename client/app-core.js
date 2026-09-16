@@ -1855,6 +1855,8 @@ var API_ROUTES = {
   apiAdminPositionUsage: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'position_usage' } }); },
   // args: [token, keepName, mergeNamesArray]
   apiAdminMergePositions: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'merge_positions', keep:args[1], merge:args[2] } }); },
+  // args: [token, 'companies'|'positions']
+  apiAdminFindSimilarNames: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'find_similar_names', kind:args[1] } }); },
   // Импорт файла опроса зарплат. args: [token, csvText, dryRun, dupAction]
   apiAdminImportSurvey: function(args){ return fetchJson('/api/admin/import-survey', { method:'POST', token:args[0], body:{ csv:args[1], dryRun:args[2], dupAction:args[3] } }); },
   // Импорт справочника сотрудников (выгрузка 1С). args: [token, csvText, dryRun]

@@ -1520,6 +1520,91 @@ async function undoDistribute(confirm) {
   return { message: `Раздача отменена. Удалено строк: ${n}.` };
 }
 
+/**
+ * Схожесть двух строк (0..1) через расстояние Левенштейна — используется,
+ * чтобы находить кандидатов в дубли для подсказки админу (кнопка «Похожие
+ * названия»); финальное решение объединять или нет всегда за человеком.
+ */
+function stringSimilarity(a, b) {
+  a = String(a || ''); b = String(b || '');
+  const m = a.length, n = b.length;
+  if (!m || !n) return m === n ? 1 : 0;
+  const dp = new Array(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = tmp;
+    }
+  }
+  return 1 - dp[n] / Math.max(m, n);
+}
+
+// Юр. форма (ООО/ЗАО/ҶДММ/...) и хвост в скобках («Душанбе», «ГП» и т.п.) не
+// делают компанию другой — но и молча стирать их из реальных названий нельзя,
+// поэтому нормализация только для сравнения, не для отображения.
+function normalizeCompanyName(s) {
+  let x = String(s || '').trim();
+  x = x.replace(/^(ҶДММ|ООО|ОАО|ЗАО|ЧП|СП|ЧДММ|ҶСП)\s*/i, '');
+  x = x.replace(/^[«"']+|[»"']+$/g, '');
+  x = x.replace(/\s*\([^)]*\)\s*$/, '');
+  x = x.toLowerCase().replace(/ё/g, 'е');
+  x = x.replace(/[^a-zа-я0-9 ]/g, '');
+  return x.replace(/\s+/g, ' ').trim();
+}
+
+function normalizePositionName(s) {
+  let x = String(s || '').trim().toLowerCase().replace(/ё/g, 'е');
+  x = x.replace(/[^a-zа-я0-9 -]/g, '');
+  return x.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * items: [{name, ...}]. Возвращает кандидатов в дубли: сначала точные
+ * совпадения после нормализации (надёжные), потом похожие по написанию —
+ * либо высокий коэффициент Левенштейна, либо одно название целиком входит
+ * в другое (как "Амид" в "Амид групп"). Ограничено 80 парами, чтобы не
+ * заваливать админа списком из сотен ложных срабатываний.
+ */
+function findSimilarNames(items, normalizeFn, threshold, useContains) {
+  const byNorm = new Map();
+  items.forEach(it => {
+    const norm = normalizeFn(it.name);
+    if (!norm) return;
+    if (!byNorm.has(norm)) byNorm.set(norm, []);
+    byNorm.get(norm).push(it.name);
+  });
+
+  const pairs = [];
+  for (const names of byNorm.values()) {
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        pairs.push({ a: names[i], b: names[j], ratio: 1, reason: 'exact' });
+      }
+    }
+  }
+
+  // "Вхождение одной строки в другую" надёжно ловит юр.лица («Амид» в «Амид
+  // групп»), но у должностей общее базовое слово+уточнение — это НЕ дубль
+  // («Инженер» входит в «Главный инженер» и в «Инженер ПТО» одновременно, но
+  // это три разные должности), поэтому для должностей эта проверка выключена.
+  const uniqNorms = Array.from(byNorm.keys());
+  for (let i = 0; i < uniqNorms.length; i++) {
+    for (let j = i + 1; j < uniqNorms.length; j++) {
+      const a = uniqNorms[i], b = uniqNorms[j];
+      const contains = useContains && a.length > 2 && b.length > 2 && (a.includes(b) || b.includes(a));
+      const ratio = contains ? Math.max(stringSimilarity(a, b), 0.8) : stringSimilarity(a, b);
+      if (ratio >= threshold) {
+        pairs.push({ a: byNorm.get(a)[0], b: byNorm.get(b)[0], ratio, reason: contains ? 'contains' : 'fuzzy' });
+      }
+    }
+  }
+  return pairs.sort((x, y) => y.ratio - x.ratio).slice(0, 80);
+}
+
 exports.runMaintenance = async (req, res) => {
   const { taskType, confirm } = req.body;
 
@@ -1800,6 +1885,28 @@ exports.runMaintenance = async (req, res) => {
       message = `Объединено написаний должности: ${mergeList.length} (${mergeList.join(', ')}) → «${keep}». ` +
         `Обновлено: анкет зарплат ${totalSurv}, выбора компаний по должностям ${totalSel}, штатных пар «должность × отдел» ${totalUnit}. ` +
         `Удалено дублей из справочника: ${removedDict}.`;
+
+    } else if (taskType === 'find_similar_names') {
+      // Подсказка «что стоит проверить на дубли» — не меняет данные, только
+      // предлагает кандидатов на основе реального справочника компаний/
+      // должностей. Решение объединять — за человеком (кнопки объединения
+      // рядом).
+      const kind = req.body.kind === 'positions' ? 'positions' : 'companies';
+      if (kind === 'companies') {
+        const rows = await queryAll('SELECT name, segment, region FROM dictionary_companies');
+        const infoByName = {};
+        rows.forEach(r => { infoByName[r.name] = { segment: r.segment || '', region: r.region || '' }; });
+        const pairs = findSimilarNames(rows, normalizeCompanyName, 0.72, true)
+          .map(p => ({ ...p, aInfo: infoByName[p.a] || {}, bInfo: infoByName[p.b] || {} }));
+        return res.json({ ok: true, kind, pairs });
+      } else {
+        const rows = await queryAll('SELECT name, dirs FROM dictionary_positions');
+        const infoByName = {};
+        rows.forEach(r => { infoByName[r.name] = { dirs: r.dirs || '' }; });
+        const pairs = findSimilarNames(rows, normalizePositionName, 0.78, false)
+          .map(p => ({ ...p, aInfo: infoByName[p.a] || {}, bInfo: infoByName[p.b] || {} }));
+        return res.json({ ok: true, kind, pairs });
+      }
 
     } else if (taskType === 'get_locks') {
       const compLocks = await queryAll(`
