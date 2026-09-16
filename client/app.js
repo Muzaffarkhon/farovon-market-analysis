@@ -11429,13 +11429,6 @@ function renderAdminTools(){
       acts: '<button class="btn-primary" onclick="openMergePositionsModal()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('merge', 13)+'<span>Объединить дубли…</span></button>'
     },
     {
-      id: 'find_similar_names',
-      icon: 'search',
-      title: 'Похожие названия — что проверить',
-      desc: 'Сканирует справочники компаний и должностей и подсказывает пары, которые ПОХОЖИ друг на друга по написанию. Это не готовые дубли — только список для проверки: часть окажется одной и той же записью, часть — просто похожими, но разными.',
-      acts: '<button class="btn-line" onclick="openSimilarNamesModal()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('search', 13)+'<span>Найти похожие…</span></button>'
-    },
-    {
       id: 'fix_links',
       icon: 'link',
       title: 'Проверка привязки к оргструктуре',
@@ -12003,6 +11996,7 @@ function openMergeCompaniesModal(presetNames){
 
   var allCompanies = [];
   var checked = {}; // name -> true
+  var similarMap = {}; // name -> [похожие названия]
 
   function renderFooter(){
     var names = Object.keys(checked).filter(function(n){ return checked[n]; });
@@ -12060,9 +12054,13 @@ function openMergeCompaniesModal(presetNames){
     var h = '<div class="tblwrap" style="max-height:340px;margin-bottom:0"><table class="co-tbl">'+
       '<thead><tr><th style="width:28px"></th><th>Компания</th><th class="num">Участников рынка</th><th class="num">Анкет</th><th>Справочник</th></tr></thead><tbody>';
     list.forEach(function(c){
+      var sims = (similarMap[c.name] || []).filter(function(n){ return n !== c.name; });
+      var simsHtml = sims.length ? '<div style="font-size:11.5px;margin-top:2px;color:var(--muted)">похоже: '+
+        sims.map(function(s){ return '<a href="#" data-suggest-name="'+esc(s)+'" data-suggest-for="'+esc(c.name)+'" style="color:var(--accent)">'+esc(s)+'</a>'; }).join(', ')+
+      '</div>' : '';
       h += '<tr>'+
         '<td><input type="checkbox" data-comp-name="'+esc(c.name)+'"'+(checked[c.name] ? ' checked' : '')+'></td>'+
-        '<td><b>'+esc(c.name)+'</b>'+(c.segment ? '<div style="color:var(--muted);font-size:12px">'+esc(c.segment)+(c.region ? ' · '+esc(c.region) : '')+'</div>' : '')+'</td>'+
+        '<td><b>'+esc(c.name)+'</b>'+(c.segment ? '<div style="color:var(--muted);font-size:12px">'+esc(c.segment)+(c.region ? ' · '+esc(c.region) : '')+'</div>' : '')+simsHtml+'</td>'+
         '<td class="num">'+(c.competitors||0)+'</td>'+
         '<td class="num">'+(c.surveys||0)+'</td>'+
         '<td>'+(c.inDictionary ? ic('check',12) : '<span style="color:var(--muted)">—</span>')+'</td>'+
@@ -12076,10 +12074,30 @@ function openMergeCompaniesModal(presetNames){
         renderFooter();
       };
     });
+    $('mergeCompBody').querySelectorAll('a[data-suggest-name]').forEach(function(a){
+      a.onclick = function(e){
+        e.preventDefault();
+        checked[this.dataset.suggestFor] = true;
+        checked[this.dataset.suggestName] = true;
+        renderList($('mergeCompSearch').value);
+        renderFooter();
+      };
+    });
   }
 
   function load(){
-    call('apiAdminCompanyUsage', S.token).then(guardAsyncToTab(function(r){
+    Promise.all([
+      call('apiAdminCompanyUsage', S.token),
+      call('apiAdminFindSimilarNames', S.token, 'companies')
+    ]).then(guardAsyncToTab(function(results){
+      var r = results[0];
+      var simRes = results[1];
+      if(simRes && simRes.ok){
+        (simRes.pairs || []).forEach(function(p){
+          (similarMap[p.a] = similarMap[p.a] || []).push(p.b);
+          (similarMap[p.b] = similarMap[p.b] || []).push(p.a);
+        });
+      }
       if(!r || !r.ok){
         $('mergeCompBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
         return;
@@ -12120,6 +12138,7 @@ function openMergePositionsModal(presetNames){
 
   var allPositions = [];
   var checked = {}; // name -> true
+  var similarMap = {}; // name -> [похожие названия]
 
   function renderFooter(){
     var names = Object.keys(checked).filter(function(n){ return checked[n]; });
@@ -12176,9 +12195,13 @@ function openMergePositionsModal(presetNames){
     var h = '<div class="tblwrap" style="max-height:340px;margin-bottom:0"><table class="co-tbl">'+
       '<thead><tr><th style="width:28px"></th><th>Должность</th><th class="num">Анкет</th><th class="num">В штатке</th><th class="num">Выбор компаний</th><th>Справочник</th></tr></thead><tbody>';
     list.forEach(function(p){
+      var sims = (similarMap[p.name] || []).filter(function(n){ return n !== p.name; });
+      var simsHtml = sims.length ? '<div style="font-size:11.5px;margin-top:2px;color:var(--muted)">похоже: '+
+        sims.map(function(s){ return '<a href="#" data-suggest-name="'+esc(s)+'" data-suggest-for="'+esc(p.name)+'" style="color:var(--accent)">'+esc(s)+'</a>'; }).join(', ')+
+      '</div>' : '';
       h += '<tr>'+
         '<td><input type="checkbox" data-pos-name="'+esc(p.name)+'"'+(checked[p.name] ? ' checked' : '')+'></td>'+
-        '<td><b>'+esc(p.name)+'</b></td>'+
+        '<td><b>'+esc(p.name)+'</b>'+simsHtml+'</td>'+
         '<td class="num">'+(p.surveys||0)+'</td>'+
         '<td class="num">'+(p.unitPositions||0)+'</td>'+
         '<td class="num">'+(p.selections||0)+'</td>'+
@@ -12193,10 +12216,30 @@ function openMergePositionsModal(presetNames){
         renderFooter();
       };
     });
+    $('mergePosBody').querySelectorAll('a[data-suggest-name]').forEach(function(a){
+      a.onclick = function(e){
+        e.preventDefault();
+        checked[this.dataset.suggestFor] = true;
+        checked[this.dataset.suggestName] = true;
+        renderList($('mergePosSearch').value);
+        renderFooter();
+      };
+    });
   }
 
   function load(){
-    call('apiAdminPositionUsage', S.token).then(guardAsyncToTab(function(r){
+    Promise.all([
+      call('apiAdminPositionUsage', S.token),
+      call('apiAdminFindSimilarNames', S.token, 'positions')
+    ]).then(guardAsyncToTab(function(results){
+      var r = results[0];
+      var simRes = results[1];
+      if(simRes && simRes.ok){
+        (simRes.pairs || []).forEach(function(p){
+          (similarMap[p.a] = similarMap[p.a] || []).push(p.b);
+          (similarMap[p.b] = similarMap[p.b] || []).push(p.a);
+        });
+      }
       if(!r || !r.ok){
         $('mergePosBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
         return;
@@ -12214,88 +12257,6 @@ function openMergePositionsModal(presetNames){
   }
   $('mergePosSearch').oninput = function(){ renderList(this.value); };
   load();
-}
-
-function openSimilarNamesModal(){
-  if(document.getElementById('similarNamesBody')) return; // уже открыто
-  var el = document.createElement('div');
-  el.className = 'sheet';
-  el.innerHTML = '<div class="sheet-in um-modal" style="max-width:720px">'+
-    '<div class="sheet-hd"><b>'+ic('search', 16)+'Похожие названия — что проверить</b>'+
-      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<div style="padding:8px 0 10px;color:var(--muted);font-size:13.5px;line-height:1.4">'+
-      'Это не список готовых дублей, а подсказка: пары названий, которые ПОХОЖИ по написанию. '+
-      'Проверяйте смысл — «Опт мука» и «Мукомольное пр-во» похожи по буквам, но это разные вещи; '+
-      'а «Амид» и «Амид групп» — одно и то же. Решение и объединение — вручную, кнопкой рядом с парой.'+
-    '</div>'+
-    '<div style="display:flex;gap:6px;margin-bottom:10px">'+
-      '<button class="btn-line" data-similar-tab="companies" style="flex:1;min-height:30px;font-size:13px">Компании</button>'+
-      '<button class="btn-line" data-similar-tab="positions" style="flex:1;min-height:30px;font-size:13px">Должности</button>'+
-    '</div>'+
-    '<div id="similarNamesBody"><div class="sp"><i></i> Ищем похожие названия…</div></div>'+
-  '</div>';
-  document.body.appendChild(el);
-  guardClose(el, function(){ return false; });
-
-  var currentKind = 'companies';
-
-  function reasonLabel(r){
-    if(r === 'exact') return 'написано почти одинаково';
-    if(r === 'contains') return 'одно название входит в другое';
-    return 'похожее написание';
-  }
-
-  function render(r){
-    if(!r || !r.ok){
-      $('similarNamesBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
-      return;
-    }
-    var pairs = r.pairs || [];
-    if(!pairs.length){
-      $('similarNamesBody').innerHTML = '<div class="empty" style="padding:24px;text-align:center;color:var(--muted)">Похожих названий не нашли.</div>';
-      return;
-    }
-    var isComp = currentKind === 'companies';
-    var h = '<div class="tblwrap" style="max-height:420px;margin-bottom:0"><table class="co-tbl">'+
-      '<thead><tr><th>Вариант 1</th><th>Вариант 2</th><th class="num">Схожесть</th><th>Причина</th><th></th></tr></thead><tbody>';
-    pairs.forEach(function(p){
-      var aExtra = isComp ? [p.aInfo && p.aInfo.segment, p.aInfo && p.aInfo.region].filter(Boolean).join(' · ') : '';
-      var bExtra = isComp ? [p.bInfo && p.bInfo.segment, p.bInfo && p.bInfo.region].filter(Boolean).join(' · ') : '';
-      h += '<tr>'+
-        '<td><b>'+esc(p.a)+'</b>'+(aExtra ? '<div style="color:var(--muted);font-size:12px">'+esc(aExtra)+'</div>' : '')+'</td>'+
-        '<td><b>'+esc(p.b)+'</b>'+(bExtra ? '<div style="color:var(--muted);font-size:12px">'+esc(bExtra)+'</div>' : '')+'</td>'+
-        '<td class="num">'+Math.round((p.ratio||0)*100)+'%</td>'+
-        '<td style="color:var(--muted);font-size:12.5px">'+esc(reasonLabel(p.reason))+'</td>'+
-        '<td><button class="btn-line" style="min-height:26px;padding:0 8px;font-size:12px;white-space:nowrap" data-similar-merge="'+esc(p.a)+'|||'+esc(p.b)+'">Объединить…</button></td>'+
-      '</tr>';
-    });
-    h += '</tbody></table></div>';
-    $('similarNamesBody').innerHTML = h;
-    $('similarNamesBody').querySelectorAll('button[data-similar-merge]').forEach(function(btn){
-      btn.onclick = function(){
-        var names = this.dataset.similarMerge.split('|||');
-        el.querySelector('button[data-x]').click();
-        if(isComp) openMergeCompaniesModal(names); else openMergePositionsModal(names);
-      };
-    });
-  }
-
-  function load(kind){
-    currentKind = kind;
-    el.querySelectorAll('button[data-similar-tab]').forEach(function(btn){
-      btn.className = btn.dataset.similarTab === kind ? 'btn-primary' : 'btn-line';
-      btn.style.flex = '1'; btn.style.minHeight = '30px'; btn.style.fontSize = '13px';
-    });
-    $('similarNamesBody').innerHTML = '<div class="sp"><i></i> Ищем похожие названия…</div>';
-    call('apiAdminFindSimilarNames', S.token, kind).then(guardAsyncToTab(render))
-      .catch(guardAsyncToTab(function(){
-        $('similarNamesBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
-      }));
-  }
-  el.querySelectorAll('button[data-similar-tab]').forEach(function(btn){
-    btn.onclick = function(){ load(this.dataset.similarTab); };
-  });
-  load('companies');
 }
 
 function openLocksModal(){
