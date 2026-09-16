@@ -1557,7 +1557,13 @@ function normalizeCompanyName(s) {
 }
 
 function normalizePositionName(s) {
-  let x = String(s || '').trim().toLowerCase().replace(/ё/g, 'е');
+  let x = String(s || '').trim();
+  // Хвост в скобках у должности почти всегда уточнение вроде "(мобилный)",
+  // а не другая роль — в отличие от компаний, где "(ГП)" бывает отдельным
+  // юрлицом. Без этого «Складчик-продовец(мобилный)» и «Складчик-продавец»
+  // не находились похожими из-за разницы в длине строки.
+  x = x.replace(/\s*\([^)]*\)\s*$/, '');
+  x = x.toLowerCase().replace(/ё/g, 'е');
   x = x.replace(/[^a-zа-я0-9 -]/g, '');
   return x.replace(/\s+/g, ' ').trim();
 }
@@ -1903,7 +1909,7 @@ exports.runMaintenance = async (req, res) => {
         const rows = await queryAll('SELECT name, dirs FROM dictionary_positions');
         const infoByName = {};
         rows.forEach(r => { infoByName[r.name] = { dirs: r.dirs || '' }; });
-        const pairs = findSimilarNames(rows, normalizePositionName, 0.78, false)
+        const pairs = findSimilarNames(rows, normalizePositionName, 0.75, false)
           .map(p => ({ ...p, aInfo: infoByName[p.a] || {}, bInfo: infoByName[p.b] || {} }));
         return res.json({ ok: true, kind, pairs });
       }
