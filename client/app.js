@@ -221,7 +221,7 @@ function navModel(){
   if(hasCap('grading:factors')) grSubs.push({ key:'gradingFactors', label:'Анкеты оценки', icon:'book', run:function(){ openAdminPanel('gradingFactors'); } });
   if(hasCap('grading:blocks')) grSubs.push({ key:'gradingBlocks', label:'Блоки грейдирования', icon:'units', run:function(){ openAdminPanel('gradingBlocks'); } });
   if(grSubs.length){
-    primary.push({ key:'grading', label:'Грейдинг', icon:'grades',
+    primary.push({ key:'grading', label:'Оценка должностей', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
       // Клик по самому «Грейдингу» (не по под-вкладке из стрелочки) всегда ведёт
       // на главную «Оценка должностей» — а не туда, где случайно остались в
@@ -1803,7 +1803,7 @@ function crumbTrail(title){
     }
     // Переехали в подраздел «Грейдинга» в навигации — крошка должна вести туда же.
     if(S.adminTab === 'gradingFactors' || S.adminTab === 'gradingBlocks'){
-      return [ { label:'Грейдинг', go:function(){ openGrading('assess'); } }, { label: title || 'Раздел' } ];
+      return [ { label:'Оценка должностей', go:function(){ openGrading('assess'); } }, { label: title || 'Раздел' } ];
     }
     // Раньше «Администрирование» тут было немым текстом — попав вглубь любого
     // раздела админки (Оргструктура, Период сбора, Роли и т.д.), некуда было
