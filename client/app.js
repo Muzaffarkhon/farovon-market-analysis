@@ -221,12 +221,8 @@ function navModel(){
   if(hasCap('grading:factors')) grSubs.push({ key:'gradingFactors', label:'Анкеты оценки', icon:'book', run:function(){ openAdminPanel('gradingFactors'); } });
   if(hasCap('grading:blocks')) grSubs.push({ key:'gradingBlocks', label:'Блоки грейдирования', icon:'units', run:function(){ openAdminPanel('gradingBlocks'); } });
   if(grSubs.length){
-    // Короче, чем «Грейдирование должностей» — с плашкой «New» рядом длинная
-    // подпись в рельсе обрезалась ещё сильнее, чем без неё. «Грейдирование»
-    // тоже задевало плашку буквально на 8px — «Грейдинг» помещается целиком.
     primary.push({ key:'grading', label:'Грейдинг', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
-      badgeNew:true,
       // Клик по самому «Грейдингу» (не по под-вкладке из стрелочки) всегда ведёт
       // на главную «Оценка должностей» — а не туда, где случайно остались в
       // прошлый раз (openGrading() без аргумента помнит последнюю вкладку,
@@ -238,11 +234,8 @@ function navModel(){
       { key:'keyrisk:list', label:'Ключевые сотрудники', icon:'risk', run:function(){ openKeyRisks('list'); } },
       { key:'keyrisk:heat', label:'Тепловая карта рисков', icon:'target', run:function(){ openKeyRisks('heat'); } }
     ];
-    // Короче, чем «Риски ключевого персонала» — с плашкой «New» не помещалось
-    // (проверено по ширине, как и с «Грейдингом» выше).
-    primary.push({ key:'keyrisk', label:'Риски штата', icon:'risk',
+    primary.push({ key:'keyrisk', label:'Оценка сотрудника', icon:'risk',
       active:mkActive('keyrisk'), inTabs:true, subsections:krSubs, submenu:krSubs,
-      badgeNew:true,
       // Та же логика, что и у «Грейдинга» выше: клик по разделу — всегда на
       // главную «Ключевые сотрудники», а не на последнюю открытую вкладку.
       run:function(){ openKeyRisks('list'); } });
@@ -339,7 +332,7 @@ function navModel(){
     // админка, держать их тут отдельной подписью было костылём.
     // Короче, чем «Чат поддержки» — с плашкой «New» полная подпись не
     // помещалась в рельс/пункт меню и обрезалась многоточием сильнее, чем
-    // «Поддержка» (тот же приём, что и с «Грейдинг»/«Риски штата» выше).
+    // «Поддержка» (тот же приём, что и с «Грейдинг»/«Оценка сотрудника» выше).
     // Внутри самого раздела (шапка, крошки) по-прежнему «Чат поддержки».
     { key:'support', atab:'support', label:'Поддержка', icon:'chat', cap:'support:manage' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
@@ -7128,7 +7121,7 @@ function openUserModal(login){
         '<input id="umPosition" value="'+esc(u?(u.position||''):'')+'" placeholder="Например: Бухгалтер" maxlength="200">'+
       '</div>'+
     '</div>'+
-    '<p class="step-hint" style="margin:2px 0 0">Должность подставляется автоматически при выборе этого человека в анкете незаменимости («Риски штата»).</p>'+
+    '<p class="step-hint" style="margin:2px 0 0">Должность подставляется автоматически при выборе этого человека в анкете незаменимости («Оценка сотрудника»).</p>'+
     (isEdit ? '' :
       '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
       '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
@@ -10985,7 +10978,7 @@ function removeStaffDictItem(it){
   if(!it) return;
   ask({
     title: 'Удалить «' + it.fio + '»?',
-    html: 'Запись пропадёт из справочника сотрудников и из выпадающего списка «ФИО» в анкете «Риски штата».',
+    html: 'Запись пропадёт из справочника сотрудников и из выпадающего списка «ФИО» в анкете «Оценка сотрудника».',
     ok: 'Удалить',
     danger: true
   }).then(function(yes){
@@ -11325,7 +11318,7 @@ function renderAdminTools(){
       icon: 'users',
       accent: true,
       title: 'Импорт справочника сотрудников',
-      desc: 'Загрузка полного штата (ФИО + подразделение + должность) из выгрузки 1С — источник для выпадающего списка «ФИО» в анкете «Риски штата». Полностью заменяет прежний снимок.',
+      desc: 'Загрузка полного штата (ФИО + подразделение + должность) из выгрузки 1С — источник для выпадающего списка «ФИО» в анкете «Оценка сотрудника». Полностью заменяет прежний снимок.',
       acts: '<button class="btn-primary" onclick="importStaffDirectoryFile()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('download', 13)+'<span>Выбрать файл…</span></button>'
     },
     {
@@ -11859,7 +11852,7 @@ function showStaffDirectoryImportReport(fileName, csv, res){
         kpi('к загрузке', r.rowsPrepared, '')+
         kpi('подразделений', r.units, r.unmatchedUnits.length ? ('не сопоставлено '+r.unmatchedUnits.length) : '')+
       '</div>'+
-      '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Загрузка полностью заменит текущий справочник сотрудников (использует выпадающий список «ФИО» в анкете «Риски штата»).</div>';
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Загрузка полностью заменит текущий справочник сотрудников (использует выпадающий список «ФИО» в анкете «Оценка сотрудника»).</div>';
 
   if(r.unmatchedUnits && r.unmatchedUnits.length){
     h += '<details style="margin-bottom:10px" open><summary style="cursor:pointer;font-size:13.5px;color:var(--muted)">'+

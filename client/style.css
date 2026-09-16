@@ -3535,7 +3535,7 @@ label.lbl {
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.08em !important;
-  color: var(--muted) !important;
+  color: var(--text) !important;
   cursor: pointer;
   border-radius: 0 !important;
   transition: background 0.15s ease, color 0.15s ease;
@@ -4635,7 +4635,7 @@ label.lbl {
 .co-tbl th {
   position: relative; /* якорь для ::before-ручки изменения ширины */
   background: var(--card-2);
-  color: var(--muted);
+  color: var(--text);
   font-weight: 700;
   font-size: 11.5px;
   text-transform: uppercase;
