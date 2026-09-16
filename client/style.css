@@ -10950,6 +10950,17 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .gr-factor-summary.gr-factor-summary--card {
   grid-template-columns: 220px minmax(0, 1fr);
 }
+/* Карточка просмотра — модалка не длинный список, места на полный текст
+   ответа хватает: показываем целиком с переносом вместо многоточия
+   (правило .gr-factor-chosen span:last-child ниже — только для списков). */
+.gr-factor-summary--card .gr-factor-chosen {
+  align-items: flex-start;
+}
+.gr-factor-summary--card .gr-factor-chosen span:last-child {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+}
 .gr-factor-summary .gr-factor-hd .badge { flex: none; }
 .gr-factor-chosen {
   display: flex;
