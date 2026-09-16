@@ -848,7 +848,9 @@ var ICONS = {
   risk: '<circle cx="9.5" cy="8" r="3.3" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19.5c.6-3.3 3-5.2 6-5.2 1 0 2 .2 2.8.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 10.5v5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="18" cy="19" r="1.05" fill="currentColor"/>',
   // Чат поддержки — облако с хвостиком, отличимо от «Журнала действий»
   // (планшет) и «Роли и доступы» (щит).
-  chat: '<path d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8A2.5 2.5 0 0117.5 16H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'
+  chat: '<path d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8A2.5 2.5 0 0117.5 16H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  // Объединение дублей компаний — две ветки сходятся в одну (git-merge).
+  merge: '<circle cx="6" cy="6" r="2.3" stroke="currentColor" stroke-width="1.9"/><circle cx="6" cy="18" r="2.3" stroke="currentColor" stroke-width="1.9"/><circle cx="18" cy="18" r="2.3" stroke="currentColor" stroke-width="1.9"/><path d="M6 8.3V13a3 3 0 003 3h6.7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 12V8.3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
 };
 /** Иконка для инлайн-текста (кнопка/пункт меню): с отступом справа и выравниванием по базовой линии. */
 function ic(name, size){
@@ -1847,6 +1849,9 @@ var API_ROUTES = {
   // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
   apiAdminRunMaintenanceConfirm: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1], confirm:true } }); },
   apiAdminGetLocks: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'get_locks' } }); },
+  apiAdminCompanyUsage: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'company_usage' } }); },
+  // args: [token, keepName, mergeNamesArray]
+  apiAdminMergeCompanies: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'merge_companies', keep:args[1], merge:args[2] } }); },
   // Импорт файла опроса зарплат. args: [token, csvText, dryRun, dupAction]
   apiAdminImportSurvey: function(args){ return fetchJson('/api/admin/import-survey', { method:'POST', token:args[0], body:{ csv:args[1], dryRun:args[2], dupAction:args[3] } }); },
   // Импорт справочника сотрудников (выгрузка 1С). args: [token, csvText, dryRun]
