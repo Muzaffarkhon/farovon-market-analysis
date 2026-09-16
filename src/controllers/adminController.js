@@ -1636,6 +1636,20 @@ exports.runMaintenance = async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Не выбраны компании для объединения' });
       }
 
+      // Сегменты дублей не теряем: собираем все уникальные значения segment/
+      // region (у основной карточки и у каждого дубля) и после объединения
+      // записываем их в основную карточку через запятую — вместо того чтобы
+      // взять только один вариант и выбросить остальные.
+      const dictRows = await queryAll(
+        `SELECT name, segment, region FROM dictionary_companies WHERE name IN (${[keep, ...mergeList].map(() => '?').join(',')})`,
+        [keep, ...mergeList]
+      );
+      const joinUnique = (parts) => Array.from(new Set(
+        parts.flatMap(p => String(p || '').split(',').map(s => s.trim()).filter(Boolean))
+      )).join(', ');
+      const mergedSegment = joinUnique(dictRows.map(r => r.segment));
+      const mergedRegion = joinUnique(dictRows.map(r => r.region));
+
       let totalComp = 0, totalSurv = 0, totalSel = 0, totalBench = 0, removedDict = 0;
       for (const dup of mergeList) {
         const rComp = await run('UPDATE competitors SET company = ? WHERE company = ?', [keep, dup]);
@@ -1663,24 +1677,16 @@ exports.runMaintenance = async (req, res) => {
         const rBench = await run('UPDATE benchmark_rows SET company = ? WHERE company = ?', [keep, dup]);
         totalBench += rBench.rowsAffected || 0;
 
-        // Переносим сегмент/регион дубля в основную карточку, если там пусто,
-        // и убираем карточку дубля из справочника.
-        await run(
-          `UPDATE dictionary_companies SET
-             segment = COALESCE(NULLIF(TRIM(segment), ''), (SELECT segment FROM dictionary_companies WHERE name = ?)),
-             region  = COALESCE(NULLIF(TRIM(region), ''),  (SELECT region  FROM dictionary_companies WHERE name = ?))
-           WHERE name = ?`,
-          [dup, dup, keep]
-        );
         const rDict = await run('DELETE FROM dictionary_companies WHERE name = ?', [dup]);
         removedDict += rDict.rowsAffected || 0;
       }
       await run('INSERT OR IGNORE INTO dictionary_companies (name) VALUES (?)', [keep]);
+      await run('UPDATE dictionary_companies SET segment = ?, region = ? WHERE name = ?', [mergedSegment, mergedRegion, keep]);
 
       message = `Объединено написаний: ${mergeList.length} (${mergeList.join(', ')}) → «${keep}». ` +
         `Обновлено: участников рынка ${totalComp}, анкет зарплат ${totalSurv}, выбора компаний по должностям ${totalSel}` +
         (totalBench ? `, строк бенчмарков ${totalBench}` : '') +
-        `. Удалено дублей из справочника: ${removedDict}.`;
+        `. Удалено дублей из справочника: ${removedDict}. Сегменты сохранены: «${mergedSegment}».`;
 
     } else if (taskType === 'get_locks') {
       const compLocks = await queryAll(`
