@@ -11968,6 +11968,7 @@ function showStaffDirectoryImportReport(fileName, csv, res){
 }
 
 function openMergeCompaniesModal(){
+  if(document.getElementById('mergeCompBody')) return; // уже открыто — не плодим дубли при повторном клике
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in um-modal" style="max-width:680px">'+
