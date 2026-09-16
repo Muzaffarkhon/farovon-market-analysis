@@ -1591,6 +1591,97 @@ exports.runMaintenance = async (req, res) => {
       const r = await sendMassReminder(req.user.fio);
       message = `Напоминания успешно отправлены: ${r.sent} сотрудникам.`;
 
+    } else if (taskType === 'company_usage') {
+      // Список компаний "как они реально записаны" (без нормализации регистра)
+      // с числом использований — чтобы в админке было видно варианты написания
+      // одной и той же компании (напр. "Амид" / "Амид групп") и выбрать, какие
+      // объединить.
+      const [compCounts, survCounts, dictRows] = await Promise.all([
+        queryAll("SELECT company, COUNT(*) AS n FROM competitors WHERE TRIM(COALESCE(company,'')) <> '' GROUP BY company"),
+        queryAll("SELECT company, COUNT(*) AS n FROM surveys WHERE TRIM(COALESCE(company,'')) <> '' GROUP BY company"),
+        queryAll('SELECT name, segment, region FROM dictionary_companies')
+      ]);
+      const map = {};
+      const ensure = (name) => {
+        if (!map[name]) map[name] = { name, competitors: 0, surveys: 0, inDictionary: false, segment: '', region: '' };
+        return map[name];
+      };
+      compCounts.forEach(r => { ensure(r.company).competitors = r.n; });
+      survCounts.forEach(r => { ensure(r.company).surveys = r.n; });
+      dictRows.forEach(r => {
+        const e = ensure(r.name);
+        e.inDictionary = true;
+        e.segment = r.segment || '';
+        e.region = r.region || '';
+      });
+      const companies = Object.values(map)
+        .map(e => ({ ...e, total: e.competitors + e.surveys }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru'));
+      return res.json({ ok: true, companies });
+
+    } else if (taskType === 'merge_companies') {
+      // Объединяет несколько написаний одной компании в одно "основное".
+      // Переносит все упоминания во всех таблицах, где хранится название
+      // компании, на основное имя и убирает дубли из справочника.
+      const keep = String(req.body.keep || '').trim();
+      const mergeList = Array.from(new Set(
+        (Array.isArray(req.body.merge) ? req.body.merge : [])
+          .map(s => String(s || '').trim())
+          .filter(s => s && s !== keep)
+      ));
+      if (!keep) {
+        return res.status(400).json({ ok: false, error: 'Не указана основная компания' });
+      }
+      if (!mergeList.length) {
+        return res.status(400).json({ ok: false, error: 'Не выбраны компании для объединения' });
+      }
+
+      let totalComp = 0, totalSurv = 0, totalSel = 0, totalBench = 0, removedDict = 0;
+      for (const dup of mergeList) {
+        const rComp = await run('UPDATE competitors SET company = ? WHERE company = ?', [keep, dup]);
+        totalComp += rComp.rowsAffected || 0;
+
+        const rSurv = await run('UPDATE surveys SET company = ? WHERE company = ?', [keep, dup]);
+        totalSurv += rSurv.rowsAffected || 0;
+
+        // UNIQUE(unit, period_id, pos_our, company): если по этой же должности
+        // основная компания уже выбрана — убираем дублирующую строку с
+        // "дублем" вместо переименования (иначе будет конфликт уникальности).
+        await run(
+          `DELETE FROM position_company_selections WHERE company = ? AND EXISTS (
+             SELECT 1 FROM position_company_selections p2
+             WHERE p2.unit = position_company_selections.unit
+               AND p2.period_id = position_company_selections.period_id
+               AND p2.pos_our = position_company_selections.pos_our
+               AND p2.company = ?
+           )`,
+          [dup, keep]
+        );
+        const rSel = await run('UPDATE position_company_selections SET company = ? WHERE company = ?', [keep, dup]);
+        totalSel += rSel.rowsAffected || 0;
+
+        const rBench = await run('UPDATE benchmark_rows SET company = ? WHERE company = ?', [keep, dup]);
+        totalBench += rBench.rowsAffected || 0;
+
+        // Переносим сегмент/регион дубля в основную карточку, если там пусто,
+        // и убираем карточку дубля из справочника.
+        await run(
+          `UPDATE dictionary_companies SET
+             segment = COALESCE(NULLIF(TRIM(segment), ''), (SELECT segment FROM dictionary_companies WHERE name = ?)),
+             region  = COALESCE(NULLIF(TRIM(region), ''),  (SELECT region  FROM dictionary_companies WHERE name = ?))
+           WHERE name = ?`,
+          [dup, dup, keep]
+        );
+        const rDict = await run('DELETE FROM dictionary_companies WHERE name = ?', [dup]);
+        removedDict += rDict.rowsAffected || 0;
+      }
+      await run('INSERT OR IGNORE INTO dictionary_companies (name) VALUES (?)', [keep]);
+
+      message = `Объединено написаний: ${mergeList.length} (${mergeList.join(', ')}) → «${keep}». ` +
+        `Обновлено: участников рынка ${totalComp}, анкет зарплат ${totalSurv}, выбора компаний по должностям ${totalSel}` +
+        (totalBench ? `, строк бенчмарков ${totalBench}` : '') +
+        `. Удалено дублей из справочника: ${removedDict}.`;
+
     } else if (taskType === 'get_locks') {
       const compLocks = await queryAll(`
         SELECT TRIM(updated_by) AS owner, COUNT(*) AS n 

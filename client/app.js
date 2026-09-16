@@ -11413,6 +11413,14 @@ function renderAdminTools(){
       acts: '<button class="btn-line" onclick="runMaintenanceTool(\'clean_segments\', \'Нормализация справочника компаний\')" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('wrench', 13)+'<span>Нормализовать</span></button>'
     },
     {
+      id: 'merge_companies',
+      icon: 'merge',
+      accent: true,
+      title: 'Объединение дублей компаний',
+      desc: 'Компания записана по-разному («Амид» / «Амид групп» / «Группа компаний Амид»)? Выберите варианты и основное имя — система сама переименует компанию во всех участниках рынка, анкетах зарплат и справочнике.',
+      acts: '<button class="btn-primary" onclick="openMergeCompaniesModal()" style="min-height:32px;font-size:13px;padding:0 14px;white-space:nowrap">'+ic('merge', 13)+'<span>Объединить дубли…</span></button>'
+    },
+    {
       id: 'fix_links',
       icon: 'link',
       title: 'Проверка привязки к оргструктуре',
@@ -11957,6 +11965,117 @@ function showStaffDirectoryImportReport(fileName, csv, res){
       toast('Нет связи с сервером', 'no');
     });
   };
+}
+
+function openMergeCompaniesModal(){
+  var el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = '<div class="sheet-in um-modal" style="max-width:680px">'+
+    '<div class="sheet-hd"><b>'+ic('merge', 16)+'Объединение дублей компаний</b>'+
+      '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
+    '<div style="padding:8px 0 10px;color:var(--muted);font-size:13.5px;line-height:1.4">'+
+      'Отметьте варианты написания одной и той же компании, затем внизу выберите, какое название сделать основным. '+
+      'Система переименует компанию во всех участниках рынка, анкетах зарплат, выборе компаний по должностям и справочнике.'+
+    '</div>'+
+    '<input id="mergeCompSearch" type="text" placeholder="Поиск по названию…" style="width:100%;margin-bottom:8px;height:34px">'+
+    '<div id="mergeCompBody"><div class="sp"><i></i> Загрузка списка компаний…</div></div>'+
+    '<div id="mergeCompFooter"></div>'+
+  '</div>';
+  document.body.appendChild(el);
+  guardClose(el, function(){ return false; });
+
+  var allCompanies = [];
+  var checked = {}; // name -> true
+
+  function renderFooter(){
+    var names = Object.keys(checked).filter(function(n){ return checked[n]; });
+    var foot = $('mergeCompFooter');
+    if(names.length < 2){
+      foot.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Отметьте минимум 2 варианта написания, чтобы объединить.</div>';
+      return;
+    }
+    // по умолчанию основной — тот, у кого больше суммарных упоминаний
+    var byName = {};
+    allCompanies.forEach(function(c){ byName[c.name] = c; });
+    var sorted = names.slice().sort(function(a,b){ return (byName[b].total||0) - (byName[a].total||0); });
+    var opts = sorted.map(function(n){
+      var c = byName[n] || { competitors:0, surveys:0 };
+      return '<option value="'+esc(n)+'">'+esc(n)+' (участников рынка: '+c.competitors+', анкет: '+c.surveys+')</option>';
+    }).join('');
+    foot.innerHTML = '<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:6px">'+
+      '<div style="font-size:13.5px;margin-bottom:6px">Выбрано вариантов: <b>'+names.length+'</b>. Сделать основным:</div>'+
+      '<select id="mergeKeepSelect" style="width:100%;margin-bottom:10px;height:34px">'+opts+'</select>'+
+      '<button class="btn-primary" id="btnDoMerge" style="width:100%;min-height:34px">'+ic('merge',13)+'<span>Объединить '+names.length+' → 1</span></button>'+
+    '</div>';
+    $('btnDoMerge').onclick = function(){
+      var keep = $('mergeKeepSelect').value;
+      var merge = names.filter(function(n){ return n !== keep; });
+      ask({
+        title: 'Объединить компании?',
+        html: 'Варианты: <b>'+merge.map(esc).join('</b>, <b>')+'</b><br>станут называться: <b>'+esc(keep)+'</b>.'+
+          '<br><br>Изменятся все упоминания в участниках рынка, анкетах зарплат и справочнике компаний. Действие необратимо.',
+        ok: 'Объединить',
+        danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        toast('Объединяем…');
+        call('apiAdminMergeCompanies', S.token, keep, merge).then(function(res){
+          if(res && res.ok){
+            ask({ title:'Готово', html: esc(res.message), ok:'Понятно' });
+            checked = {};
+            load();
+            quietRefresh();
+          } else {
+            toast((res && res.error) || 'Ошибка выполнения', 'no');
+          }
+        }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+      });
+    };
+  }
+
+  function renderList(filterText){
+    var q = (filterText||'').trim().toLowerCase();
+    var list = allCompanies.filter(function(c){ return !q || c.name.toLowerCase().indexOf(q) !== -1; });
+    if(!list.length){
+      $('mergeCompBody').innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:var(--muted)">Ничего не найдено</div>';
+      return;
+    }
+    var h = '<div class="tblwrap" style="max-height:340px;margin-bottom:0"><table class="co-tbl">'+
+      '<thead><tr><th style="width:28px"></th><th>Компания</th><th class="num">Участников рынка</th><th class="num">Анкет</th><th>Справочник</th></tr></thead><tbody>';
+    list.forEach(function(c){
+      h += '<tr>'+
+        '<td><input type="checkbox" data-comp-name="'+esc(c.name)+'"'+(checked[c.name] ? ' checked' : '')+'></td>'+
+        '<td><b>'+esc(c.name)+'</b>'+(c.segment ? '<div style="color:var(--muted);font-size:12px">'+esc(c.segment)+(c.region ? ' · '+esc(c.region) : '')+'</div>' : '')+'</td>'+
+        '<td class="num">'+(c.competitors||0)+'</td>'+
+        '<td class="num">'+(c.surveys||0)+'</td>'+
+        '<td>'+(c.inDictionary ? ic('check',12) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+      '</tr>';
+    });
+    h += '</tbody></table></div>';
+    $('mergeCompBody').innerHTML = h;
+    $('mergeCompBody').querySelectorAll('input[data-comp-name]').forEach(function(cb){
+      cb.onchange = function(){
+        checked[this.dataset.compName] = this.checked;
+        renderFooter();
+      };
+    });
+  }
+
+  function load(){
+    call('apiAdminCompanyUsage', S.token).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok){
+        $('mergeCompBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки')+'</div>';
+        return;
+      }
+      allCompanies = r.companies || [];
+      renderList($('mergeCompSearch') ? $('mergeCompSearch').value : '');
+      renderFooter();
+    })).catch(guardAsyncToTab(function(){
+      $('mergeCompBody').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    }));
+  }
+  $('mergeCompSearch').oninput = function(){ renderList(this.value); };
+  load();
 }
 
 function openLocksModal(){
