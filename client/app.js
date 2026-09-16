@@ -6203,12 +6203,18 @@ function drawAdminGradingCommittee(){
   [].forEach.call(box.querySelectorAll('.gb-force'), function(btn){
     btn.onclick = function(){
       var jobTitle = btn.getAttribute('data-job');
-      if(!confirm('Подвести итог по «'+jobTitle+'» на основе уже сданных заявок? Отсутствующих экспертов учесть не получится.')) return;
-      call('apiAdminGradingCommitteeFinalize', S.token, { block: S.gbBlock, job_title: jobTitle }).then(function(r){
-        if(!r || !r.ok){ toast((r && r.error) || 'Не удалось подвести итог', 'error'); return; }
-        toast('Уровень '+r.gradeLevel+' (балл '+r.weightedScore+')', 'success');
-        loadAdminGradingCommittee();
-      }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      ask({
+        title: 'Подвести итог?',
+        html: 'Подвести итог по «'+esc(jobTitle)+'» на основе уже сданных заявок? Отсутствующих экспертов учесть не получится.',
+        ok: 'Подвести итог', cancel: 'Отмена'
+      }).then(guardAsyncToTab(function(yes){
+        if(!yes) return;
+        call('apiAdminGradingCommitteeFinalize', S.token, { block: S.gbBlock, job_title: jobTitle }).then(guardAsyncToTab(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось подвести итог', 'error'); return; }
+          toast('Уровень '+r.gradeLevel+' (балл '+r.weightedScore+')', 'success');
+          loadAdminGradingCommittee();
+        })).catch(guardAsyncToTab(function(){ toast('Нет связи с сервером', 'error'); }));
+      }));
     };
   });
 }
