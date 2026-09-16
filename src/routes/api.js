@@ -14,6 +14,7 @@ const benchmarkController = require('../controllers/benchmarkController');
 const liveController = require('../controllers/liveController');
 const gradingController = require('../controllers/gradingController');
 const supportController = require('../controllers/supportController');
+const myServiceController = require('../controllers/myServiceController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -207,5 +208,16 @@ router.post('/admin/support/link-employee', requireCapability('support:manage'),
 router.get('/admin/support/quick-replies', requireCapability('support:manage'), supportController.listQuickReplies);
 router.post('/admin/support/quick-replies', requireCapability('support:manage'), supportController.saveQuickReply);
 router.post('/admin/support/quick-replies/delete', requireCapability('support:manage'), supportController.deleteQuickReply);
+router.post('/admin/support/faq', requireCapability('support:manage'), supportController.saveFaq);
+router.post('/admin/support/faq/delete', requireCapability('support:manage'), supportController.deleteFaq);
+
+// «Поддержка» глазами самого сотрудника — доступно любому вошедшему в
+// систему (authMiddleware выше), без capability: своя переписка, не чужая.
+router.get('/support/my/threads', myServiceController.myThreads);
+router.get('/support/my/threads/:id', myServiceController.myThread);
+router.post('/support/my/start', myServiceController.myStart);
+router.post('/support/my/reply', myServiceController.myReply);
+router.get('/support/my/unread-count', myServiceController.myUnreadCount);
+router.get('/support/faq', myServiceController.faqList);
 
 module.exports = router;

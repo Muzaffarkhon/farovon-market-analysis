@@ -249,6 +249,15 @@ function navModel(){
       active:mkActive('dept_assign'), inTabs:false, run:function(){ openDeptAssign(); } });
   }
 
+  // «Поддержка» глазами самого сотрудника — написать вопрос прямо на сайте,
+  // увидеть свои обращения и FAQ. Доступно вообще всем ролям (не путать с
+  // admin-only 'support' в adminAll ниже — это админский инбокс переписки,
+  // разные разделы с разным набором прав).
+  primary.push({ key:'mysupport', label:'Поддержка', icon:'chat',
+    active:mkActive('mysupport'), inTabs:true,
+    run:function(){ switchView('mysupport'); },
+    badgeCount: S.mySupportUnreadCount || 0 });
+
   var usersSubs = [
     {
       key: 'admin:users',
@@ -504,7 +513,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.74')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.75')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -539,7 +548,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.74')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.75')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -570,6 +579,7 @@ function switchView(v){
   else if(v === 'admin') openAdminPanel();
   else if(v === 'progress') openProgress();
   else if(v === 'dept_assign') openDeptAssign();
+  else if(v === 'mysupport') openMySupport();
 }
 
 /**
@@ -599,7 +609,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.74')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.75')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -629,7 +639,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.74')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.75')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1103,6 +1113,8 @@ function onLoaded(data){
   S.ro = !!(data.period && data.period.state === 'закрыт' && data.user.role !== 'hrbp' && !isElevated);
 
   refreshSupportUnreadBadge();
+  refreshMySupportBadge();
+  startMySupBadgePoll();
 
   restoreNavState();
 
@@ -1218,6 +1230,7 @@ function renderCurrentView(){
   else if(S.appView === 'progress') openProgress();
   else if(S.appView === 'dept_assign') openDeptAssign();
   else if(S.appView === 'admin') openAdminPanel();
+  else if(S.appView === 'mysupport') openMySupport();
   else renderUnits();
   try { restoreViewScroll(); } catch(e){}
 }
@@ -6355,8 +6368,18 @@ function renderAdminSupport(){
   // раз в 8с) и так обновляет переписку бесшовно; полная перерисовка сюда
   // же ещё и от общего live-обновления (раз в 20-90с) добавляла бы вспышку
   // «Загрузка...» поверх уже открытого чата.
-  if(!$('supBox') || !S.supThreads){
-    $('adminContent').innerHTML = '<div id="supBox">' + skTable() + '</div>';
+  //
+  // Список и переписка — два постоянных блока (.sup-list-col/.sup-detail-col),
+  // не полная замена друг друга: на широком экране видно оба разом (инбокс
+  // в две колонки), на узком CSS прячет один из них по классу
+  // .sup-split--open (см. style.css) — список ИЛИ переписка, с кнопкой
+  // «Все треды», как было раньше.
+  if(!$('supListCol')){
+    $('adminContent').innerHTML =
+      '<div class="sup-split" id="supSplit">'+
+        '<div class="sup-list-col" id="supListCol">'+skTable()+'</div>'+
+        '<div class="sup-detail-col" id="supDetailCol"><div class="sup-empty-detail muted">Выберите обращение слева</div></div>'+
+      '</div>';
   }
   loadAdminSupportThreads();
   startSupPoll();
@@ -6383,6 +6406,14 @@ function supPollTick(){
     stopSupPoll();
     return;
   }
+  // Список слева обновляем всегда (видно и рядом с открытой перепиской — две
+  // колонки на широком экране), переписку справа — только если открыта.
+  call('apiAdminSupportThreads', S.token).then(guardAsyncToTab(function(r){
+    if(!r || !r.ok) return;
+    S.supThreads = r.rows || [];
+    drawAdminSupportList();
+  })).catch(function(){});
+
   if(S.supOpenThread){
     var openId = S.supOpenThread;
     call('apiAdminSupportThread', S.token, openId).then(guardAsyncToTab(function(r){
@@ -6399,13 +6430,6 @@ function supPollTick(){
         if(draft && input2) input2.value = draft;
       }
     })).catch(function(){});
-  } else {
-    call('apiAdminSupportThreads', S.token).then(guardAsyncToTab(function(r){
-      if(!r || !r.ok) return;
-      if(S.supOpenThread) return; // успели открыть тред, пока грузился список
-      S.supThreads = r.rows || [];
-      drawAdminSupport();
-    })).catch(function(){});
   }
   refreshSupportUnreadBadge();
 }
@@ -6413,13 +6437,13 @@ function supPollTick(){
 function loadAdminSupportThreads(){
   call('apiAdminSupportThreads', S.token).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
-      $('supBox').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить чат поддержки')+'</div>';
+      $('supListCol').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить чат поддержки')+'</div>';
       return;
     }
     S.supThreads = r.rows || [];
-    drawAdminSupport();
+    drawAdminSupportList();
   })).catch(guardAsyncToTab(function(){
-    $('supBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+    $('supListCol').innerHTML = '<div class="err">Нет связи с сервером</div>';
   }));
 }
 
@@ -6435,36 +6459,42 @@ function refreshSupportUnreadBadge(){
   })).catch(function(){});
 }
 
-function drawAdminSupport(){
-  var box = $('supBox');
+/** Показать список ИЛИ переписку на узком экране (на широком CSS держит
+ *  обе колонки видимыми одновременно — класс здесь ни на что не влияет). */
+function setSupSplitOpen(open){
+  var split = $('supSplit');
+  if(split) split.classList.toggle('sup-split--open', !!open);
+}
+
+function drawAdminSupportList(){
+  var box = $('supListCol');
   if(!box) return;
 
-  if(S.supOpenThread){
-    drawAdminSupportThread();
-    return;
-  }
-
   var rows = S.supThreads || [];
-  var h = '<div class="muted sup-note">Гости, которых бот не смог опознать сам, пишут сюда через кнопку «Написать администратору» — ответ уходит им обратно в тот же чат Telegram.</div>'+
+  var h = '<div class="muted sup-note">Гости, которых бот не смог опознать сам, и сотрудники, написавшие прямо на сайте — всё здесь, в одном списке.</div>'+
     '<div class="sup-guest-quick-hd">Вопросы гостю в Telegram (кнопки при открытии чата)</div>'+
-    '<div class="sup-quick" id="supGuestQuick"></div>';
+    '<div class="sup-quick" id="supGuestQuick"></div>'+
+    '<div class="sup-guest-quick-hd">FAQ для сотрудников (раздел «Поддержка»)</div>'+
+    '<div class="sup-faq-admin" id="supFaqAdmin"></div>';
 
   if(!rows.length){
     h += '<div class="empty">Пока никто не писал в чат поддержки</div>';
     box.innerHTML = h;
     renderQuickReplyManager('supGuestQuick', 'guest', null);
+    renderFaqManager('supFaqAdmin');
     return;
   }
 
   h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl"><thead><tr>'+
-    '<th>Гость</th><th>Телефон</th><th>Последнее сообщение</th><th>Когда</th><th>Статус</th><th></th>'+
+    '<th>Кто</th><th>Последнее сообщение</th><th>Когда</th><th>Статус</th><th></th>'+
     '</tr></thead><tbody>'+
     rows.map(function(t, i){
       var preview = esc(t.last_body || '').slice(0, 80);
       var fromUs = t.last_direction === 'out';
-      return '<tr class="'+(t.unread_count ? 'sup-row-unread' : '')+'">'+
-        '<td><b>'+(t.linked_fio ? esc(t.linked_fio) : ('Гость #'+t.id))+'</b></td>'+
-        '<td>'+esc(t.phone || '—')+'</td>'+
+      var whoLabel = t.linked_fio ? esc(t.linked_fio) : (t.source === 'web' ? 'Сотрудник #'+t.id : 'Гость #'+t.id);
+      return '<tr class="'+(t.unread_count ? 'sup-row-unread' : '')+(S.supOpenThread === t.id ? ' sup-row-active' : '')+'">'+
+        '<td><b>'+whoLabel+'</b>'+(t.source === 'web' ? ' <span class="badge">сайт</span>' : '')+
+          (t.topic ? '<div class="muted sup-row-topic">'+esc(t.topic)+'</div>' : '')+'</td>'+
         '<td>'+(fromUs ? '<span class="muted">Вы: </span>' : '')+preview+(t.last_body && t.last_body.length > 80 ? '…' : '')+'</td>'+
         '<td class="muted">'+esc(fmtDateTime(t.last_message_at))+'</td>'+
         '<td>'+(t.status === 'open'
@@ -6479,6 +6509,7 @@ function drawAdminSupport(){
 
   box.innerHTML = h;
   renderQuickReplyManager('supGuestQuick', 'guest', null);
+  renderFaqManager('supFaqAdmin');
   [].forEach.call(box.querySelectorAll('.sup-open'), function(btn){
     btn.onclick = function(){
       var row = rows[parseInt(btn.getAttribute('data-i'), 10)];
@@ -6490,18 +6521,21 @@ function drawAdminSupport(){
 }
 
 function loadAdminSupportThread(id){
-  var box = $('supBox');
+  var box = $('supDetailCol');
   if(box) box.innerHTML = skTable();
+  setSupSplitOpen(true);
   call('apiAdminSupportThread', S.token, id).then(guardAsyncToTab(function(r){
     if(!r || !r.ok){
       toast((r && r.error) || 'Не удалось открыть переписку', 'error');
       S.supOpenThread = null;
-      drawAdminSupport();
+      setSupSplitOpen(false);
+      drawAdminSupportList();
       return;
     }
     S.supCurThread = r.thread;
     S.supCurMessages = r.messages || [];
     drawAdminSupportThread();
+    drawAdminSupportList(); // подсветить активную строку и снять её из непрочитанных
     // Сервер уже пометил входящие треда прочитанными — обновляем бейдж сразу,
     // не дожидаясь следующего тика автообновления (иначе «висит» до 8 сек).
     refreshSupportUnreadBadge();
@@ -6509,24 +6543,29 @@ function loadAdminSupportThread(id){
 }
 
 function drawAdminSupportThread(){
-  var box = $('supBox');
+  var box = $('supDetailCol');
   if(!box) return;
   var thread = S.supCurThread;
   var messages = S.supCurMessages || [];
-  if(!thread){ drawAdminSupport(); return; }
+  if(!thread) return;
+  var isWeb = thread.source === 'web';
 
   var h = '<div class="sup-thread-hd">'+
       '<button class="btn-ghost sup-back">'+icBare('chevron', 16)+'Все треды</button>'+
-      '<b>'+(thread.linked_fio ? esc(thread.linked_fio) : ('Гость #'+thread.id))+'</b>'+
+      '<b>'+(thread.linked_fio ? esc(thread.linked_fio) : (isWeb ? 'Сотрудник #'+thread.id : 'Гость #'+thread.id))+'</b>'+
       (thread.phone ? '<span class="muted">'+esc(thread.phone)+'</span>' : '')+
+      (thread.topic ? '<span class="muted">'+esc(thread.topic)+'</span>' : '')+
       (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
-      '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>'+
-      '<button class="btn-line btn-danger sup-close">Закрыть диалог</button>'+
+      // Привязка к сотруднику имеет смысл только для гостя Telegram-бота —
+      // у веб-треда личность и так известна с самого начала (user_id).
+      (isWeb ? '' : '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>')+
+      '<button class="btn-line btn-danger sup-close" style="'+(isWeb ? 'margin-left:auto' : '')+'">Закрыть диалог</button>'+
     '</div>'+
-    '<div class="sup-link-panel" id="supLinkPanel" hidden>'+
-      '<input id="supLinkSearch" placeholder="Поиск сотрудника по ФИО…" maxlength="80">'+
-      '<div class="sup-link-results" id="supLinkResults"></div>'+
-    '</div>'+
+    (isWeb ? '' :
+      '<div class="sup-link-panel" id="supLinkPanel" hidden>'+
+        '<input id="supLinkSearch" placeholder="Поиск сотрудника по ФИО…" maxlength="80">'+
+        '<div class="sup-link-results" id="supLinkResults"></div>'+
+      '</div>')+
     '<div class="sup-msgs">'+
       (messages.length ? messages.map(function(m){
         var out = m.direction === 'out';
@@ -6543,13 +6582,16 @@ function drawAdminSupportThread(){
     '</div>';
 
   box.innerHTML = h;
-  box.querySelector('.sup-back').onclick = function(){
+  var closeDetail = function(){
     S.supOpenThread = null;
     S.supCurThread = null;
     S.supCurMessages = null;
+    setSupSplitOpen(false);
+    box.innerHTML = '<div class="sup-empty-detail muted">Выберите обращение слева</div>';
     loadAdminSupportThreads();
     refreshSupportUnreadBadge();
   };
+  box.querySelector('.sup-back').onclick = closeDetail;
   box.querySelector('.sup-close').onclick = function(){
     ask({
       title: 'Закрыть диалог?',
@@ -6560,20 +6602,19 @@ function drawAdminSupportThread(){
       call('apiAdminSupportClose', S.token, { thread_id: thread.id }).then(function(r){
         if(!r || !r.ok){ toast((r && r.error) || 'Не удалось закрыть', 'error'); return; }
         toast('Диалог закрыт', 'success');
-        S.supOpenThread = null;
-        S.supCurThread = null;
-        S.supCurMessages = null;
-        loadAdminSupportThreads();
-        refreshSupportUnreadBadge();
+        closeDetail();
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
     });
   };
-  box.querySelector('.sup-link-toggle').onclick = function(){
-    var panel = $('supLinkPanel');
-    panel.hidden = !panel.hidden;
-    if(!panel.hidden){ $('supLinkSearch').value = ''; $('supLinkSearch').focus(); renderSupLinkResults(thread, ''); }
-  };
-  $('supLinkSearch').oninput = function(){ renderSupLinkResults(thread, this.value); };
+  var linkToggle = box.querySelector('.sup-link-toggle');
+  if(linkToggle){
+    linkToggle.onclick = function(){
+      var panel = $('supLinkPanel');
+      panel.hidden = !panel.hidden;
+      if(!panel.hidden){ $('supLinkSearch').value = ''; $('supLinkSearch').focus(); renderSupLinkResults(thread, ''); }
+    };
+    $('supLinkSearch').oninput = function(){ renderSupLinkResults(thread, this.value); };
+  }
   renderQuickReplyManager('supQuick', 'admin', 'supReplyText');
 
   var msgsEl = box.querySelector('.sup-msgs');
@@ -6722,6 +6763,99 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
   });
 }
 
+/**
+ * FAQ для раздела «Поддержка» (сотрудник видит готовые ответы, прежде чем
+ * писать самому). Тот же приём, что и у quick-reply-менеджера выше —
+ * список свёрнут в чипы-превью, карандаш разворачивает форму правки.
+ */
+function loadFaqCache(cb){
+  if(S.faqCache){ cb(S.faqCache); return; }
+  call('apiSupportFaq', S.token).then(function(r){
+    S.faqCache = (r && r.ok) ? (r.rows || []) : [];
+    cb(S.faqCache);
+  }).catch(function(){ cb([]); });
+}
+
+function renderFaqManager(containerId){
+  var box = $(containerId);
+  if(!box) return;
+  loadFaqCache(function(rows){
+    var editing = !!S.faqEditing;
+    box.innerHTML =
+      '<div class="sup-quick-row">'+
+        rows.map(function(r){
+          var short = r.question.length > 60 ? r.question.slice(0, 60) + '…' : r.question;
+          return '<span class="sup-quick-chip" style="cursor:default" title="'+esc(r.answer)+'">'+esc(short)+'</span>';
+        }).join('')+
+        '<button type="button" class="sup-quick-edit-toggle" title="Изменить FAQ">'+icBare('pencil', 14)+'</button>'+
+      '</div>'+
+      (editing ? (
+        '<div class="sup-quick-edit">'+
+          rows.map(function(r){
+            return '<div class="sup-quick-edit-row" data-id="'+r.id+'">'+
+              '<input class="sup-quick-edit-text" value="'+esc(r.question)+'" maxlength="300" placeholder="Вопрос">'+
+              '<textarea class="sup-quick-edit-answer" maxlength="4000" placeholder="Ответ">'+esc(r.answer)+'</textarea>'+
+              '<button type="button" class="btn-icon sup-quick-del" aria-label="Удалить">'+icBare('trash', 14)+'</button>'+
+            '</div>';
+          }).join('')+
+          '<div class="sup-quick-edit-row sup-quick-add">'+
+            '<input class="sup-quick-edit-text" placeholder="Новый вопрос…" maxlength="300">'+
+            '<textarea class="sup-quick-edit-answer" maxlength="4000" placeholder="Ответ"></textarea>'+
+            '<button type="button" class="btn-line">Добавить</button>'+
+          '</div>'+
+        '</div>'
+      ) : '');
+
+    var toggleBtn = box.querySelector('.sup-quick-edit-toggle');
+    if(toggleBtn) toggleBtn.onclick = function(){
+      S.faqEditing = !editing;
+      renderFaqManager(containerId);
+    };
+    if(!editing) return;
+
+    var reload = function(){ S.faqCache = null; renderFaqManager(containerId); };
+
+    [].forEach.call(box.querySelectorAll('.sup-quick-edit-row[data-id]'), function(rowEl){
+      var id = +rowEl.getAttribute('data-id');
+      var qEl = rowEl.querySelector('.sup-quick-edit-text');
+      var aEl = rowEl.querySelector('.sup-quick-edit-answer');
+      var saveRow = function(){
+        var question = qEl.value.trim();
+        var answer = aEl.value.trim();
+        if(!question || !answer) return;
+        call('apiAdminSupportSaveFaq', S.token, { id: id, question: question, answer: answer }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось сохранить', 'error'); return; }
+          reload();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+      qEl.onchange = saveRow;
+      aEl.onchange = saveRow;
+      rowEl.querySelector('.sup-quick-del').onclick = function(){
+        call('apiAdminSupportDeleteFaq', S.token, { id: id }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось удалить', 'error'); return; }
+          reload();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+    });
+
+    var addRow = box.querySelector('.sup-quick-add');
+    if(addRow){
+      var addQ = addRow.querySelector('.sup-quick-edit-text');
+      var addA = addRow.querySelector('.sup-quick-edit-answer');
+      var doAdd = function(){
+        var question = (addQ.value || '').trim();
+        var answer = (addA.value || '').trim();
+        if(!question || !answer) return;
+        call('apiAdminSupportSaveFaq', S.token, { question: question, answer: answer }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось добавить', 'error'); return; }
+          reload();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      };
+      addRow.querySelector('.btn-line').onclick = doAdd;
+    }
+  });
+}
+
 /** Список сотрудников для панели «Привязать к сотруднику» — грузится один раз
  *  и переиспользуется, список меняется редко, а тред могут открывать часто. */
 function loadSupUsersCache(cb){
@@ -6766,6 +6900,321 @@ function renderSupLinkResults(thread, q){
       };
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════════
+// РАЗДЕЛ «Поддержка» ГЛАЗАМИ САМОГО СОТРУДНИКА (не путать с админским
+// инбоксом выше) — написать вопрос прямо на сайте, увидеть свои обращения
+// и ответы, посмотреть FAQ. Доступно любой роли (см. navModel()).
+// Переиспользует ту же переписку-«чат» (.sup-msg/.sup-msgs и т.п.), что и
+// админский инбокс — визуально те же пузырьки сообщений.
+// ═══════════════════════════════════════════════════════════
+
+var MY_SUPPORT_TOPICS = [
+  'Вопрос по работе с приложением',
+  'Ошибка в данных или расчётах',
+  'Проблема с доступом (логин, пароль, Telegram)',
+  'Другое'
+];
+
+function openMySupport(){
+  if(window.WorkspaceTabs && WorkspaceTabs.openTab && !WorkspaceTabs.isInsideTabRun){
+    WorkspaceTabs.openTab({
+      key: 'mysupport',
+      title: 'Поддержка',
+      icon: 'chat',
+      state: { appView: 'mysupport', unit: null },
+      run: function(){ openMySupport(); }
+    });
+    return;
+  }
+  S.appView = 'mysupport';
+  S.unit = null;
+  saveNavState();
+  renderTopNav();
+  S.backTo = null;
+  setTop('Поддержка', '', false);
+  $('bar').classList.add('hidden');
+  $('body').onclick = null;
+  $('body').innerHTML = '<div id="mySupBox">'+skTable()+'</div>';
+
+  if(S.mySupOpenThread) loadMySupportThread(S.mySupOpenThread);
+  else loadMySupportHome();
+
+  startMySupPoll();
+}
+
+function loadMySupportHome(){
+  Promise.all([
+    call('apiSupportFaq', S.token).catch(function(){ return null; }),
+    call('apiMySupportThreads', S.token).catch(function(){ return null; })
+  ]).then(function(results){
+    var faqRes = results[0], threadsRes = results[1];
+    S.myFaq = (faqRes && faqRes.ok) ? (faqRes.rows || []) : [];
+    S.myThreads = (threadsRes && threadsRes.ok) ? (threadsRes.rows || []) : [];
+    drawMySupportHome();
+  });
+}
+
+function drawMySupportHome(){
+  var box = $('mySupBox');
+  if(!box || S.mySupOpenThread) return;
+
+  var faq = S.myFaq || [];
+  var threads = S.myThreads || [];
+
+  var h = '<div class="my-sup-intro muted">Есть вопрос — сначала загляните в частые вопросы ниже, если не нашли ответ — напишите нам, ответим здесь же.</div>';
+
+  if(faq.length){
+    h += '<div class="sup-guest-quick-hd">Частые вопросы</div>'+
+      '<div class="my-faq-list">'+
+        faq.map(function(f, i){
+          return '<div class="my-faq-item">'+
+            '<button type="button" class="my-faq-q" data-i="'+i+'">'+
+              '<span>'+esc(f.question)+'</span>'+icBare('chevron', 16)+
+            '</button>'+
+            '<div class="my-faq-a" id="myFaqA'+i+'" hidden>'+esc(f.answer)+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+  }
+
+  // S.mySupFormOpen переживает фоновую перерисовку (см. mySupPollTick,
+  // раз в 8с) — без этого открытую форму сносило первым же тиком автообновления.
+  var formOpen = !!S.mySupFormOpen;
+  h += '<div class="sup-guest-quick-hd">Мои обращения</div>'+
+    '<button type="button" class="btn'+(formOpen ? ' hidden' : '')+'" id="mySupStartBtn">'+icBare('plus', 16)+'Написать в поддержку</button>'+
+    '<div class="my-sup-form'+(formOpen ? '' : ' hidden')+'" id="mySupForm">'+
+      '<select id="mySupTopic">'+MY_SUPPORT_TOPICS.map(function(t){ return '<option value="'+esc(t)+'">'+esc(t)+'</option>'; }).join('')+'</select>'+
+      '<textarea id="mySupText" maxlength="2000" placeholder="Опишите вопрос…" rows="3">'+esc(S.mySupDraft || '')+'</textarea>'+
+      '<div class="my-sup-form-actions">'+
+        '<button type="button" class="btn-line" id="mySupCancelBtn">Отмена</button>'+
+        '<button type="button" class="btn" id="mySupSendBtn">Отправить</button>'+
+      '</div>'+
+    '</div>';
+
+  if(threads.length){
+    h += '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl"><thead><tr>'+
+      '<th>Тема</th><th>Последнее сообщение</th><th>Когда</th><th>Статус</th><th></th>'+
+      '</tr></thead><tbody>'+
+      threads.map(function(t, i){
+        var preview = esc(t.last_body || '').slice(0, 80);
+        var fromMe = t.last_direction === 'in';
+        return '<tr class="'+(t.unread_count ? 'sup-row-unread' : '')+'">'+
+          '<td>'+esc(t.topic || 'Без темы')+'</td>'+
+          '<td>'+(fromMe ? '<span class="muted">Вы: </span>' : '')+preview+(t.last_body && t.last_body.length > 80 ? '…' : '')+'</td>'+
+          '<td class="muted">'+esc(fmtDateTime(t.last_message_at))+'</td>'+
+          '<td>'+(t.status === 'open'
+            ? '<span class="badge b-active">открыт</span>'
+            : '<span class="badge">закрыт</span>')+
+            (t.unread_count ? ' <span class="nav-badge-count sup-unread-cell">'+t.unread_count+'</span>' : '')+
+          '</td>'+
+          '<td><button class="btn-line my-sup-open" data-i="'+i+'">Открыть</button></td>'+
+        '</tr>';
+      }).join('')+
+      '</tbody></table></div>';
+  } else {
+    h += '<div class="empty">Пока нет обращений</div>';
+  }
+
+  box.innerHTML = h;
+
+  [].forEach.call(box.querySelectorAll('.my-faq-q'), function(btn){
+    btn.onclick = function(){
+      var a = $('myFaqA' + btn.getAttribute('data-i'));
+      if(a) a.hidden = !a.hidden;
+      btn.classList.toggle('is-open', a && !a.hidden);
+    };
+  });
+
+  $('mySupStartBtn').onclick = function(){
+    S.mySupFormOpen = true;
+    $('mySupForm').classList.remove('hidden');
+    $('mySupStartBtn').classList.add('hidden');
+    $('mySupText').focus();
+  };
+  $('mySupCancelBtn').onclick = function(){
+    S.mySupFormOpen = false;
+    S.mySupDraft = '';
+    $('mySupForm').classList.add('hidden');
+    $('mySupStartBtn').classList.remove('hidden');
+    $('mySupText').value = '';
+  };
+  // Черновик сохраняем в S — иначе фоновый тик автообновления (mySupPollTick)
+  // перерисует форму пустой, даже с formOpen=true.
+  $('mySupText').oninput = function(){ S.mySupDraft = this.value; };
+  $('mySupSendBtn').onclick = function(){
+    var topic = $('mySupTopic').value;
+    var text = $('mySupText').value.trim();
+    if(!text){ toast('Опишите вопрос', 'warn'); return; }
+    var btn = $('mySupSendBtn');
+    btn.disabled = true;
+    call('apiMySupportStart', S.token, { topic: topic, text: text }).then(function(r){
+      btn.disabled = false;
+      if(!r || !r.ok){ toast((r && r.error) || 'Не удалось отправить', 'error'); return; }
+      toast('Отправлено, скоро ответим', 'success');
+      S.mySupFormOpen = false;
+      S.mySupDraft = '';
+      loadMySupportHome();
+    }).catch(function(){ btn.disabled = false; toast('Нет связи с сервером', 'error'); });
+  };
+  [].forEach.call(box.querySelectorAll('.my-sup-open'), function(btn){
+    btn.onclick = function(){
+      var row = threads[parseInt(btn.getAttribute('data-i'), 10)];
+      if(!row) return;
+      S.mySupOpenThread = row.id;
+      loadMySupportThread(row.id);
+    };
+  });
+}
+
+function loadMySupportThread(id){
+  var box = $('mySupBox');
+  if(box) box.innerHTML = skTable();
+  call('apiMySupportThread', S.token, id).then(guardAsyncToTab(function(r){
+    if(!r || !r.ok){
+      toast((r && r.error) || 'Не удалось открыть обращение', 'error');
+      S.mySupOpenThread = null;
+      loadMySupportHome();
+      return;
+    }
+    S.myCurThread = r.thread;
+    S.myCurMessages = r.messages || [];
+    drawMySupportThread();
+    refreshMySupportBadge();
+  })).catch(function(){ toast('Нет связи с сервером', 'error'); });
+}
+
+function drawMySupportThread(){
+  var box = $('mySupBox');
+  if(!box) return;
+  var thread = S.myCurThread;
+  var messages = S.myCurMessages || [];
+  if(!thread) return;
+
+  var h = '<div class="sup-thread-hd">'+
+      '<button class="btn-ghost my-sup-back">'+icBare('chevron', 16)+'Мои обращения</button>'+
+      '<b>'+esc(thread.topic || 'Обращение #'+thread.id)+'</b>'+
+      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
+    '</div>'+
+    '<div class="sup-msgs">'+
+      (messages.length ? messages.map(function(m){
+        // Здесь «мы» — сам сотрудник, поэтому направление зеркальное
+        // относительно админского вида: 'in' (написал сотрудник) — справа.
+        var mine = m.direction === 'in';
+        return '<div class="sup-msg '+(mine ? 'sup-msg-out' : 'sup-msg-in')+'">'+
+          '<div class="sup-msg-body">'+esc(m.body)+'</div>'+
+          '<div class="sup-msg-meta">'+(!mine ? 'Поддержка · ' : '')+esc(fmtDateTime(m.created_at))+'</div>'+
+        '</div>';
+      }).join('') : '<div class="muted" style="padding:10px 2px">Сообщений пока нет</div>')+
+    '</div>'+
+    '<div class="sup-reply">'+
+      '<input id="mySupReplyText" placeholder="Ваше сообщение…" maxlength="2000">'+
+      '<button class="btn" id="mySupReplyBtn">Отправить</button>'+
+    '</div>';
+
+  box.innerHTML = h;
+  box.querySelector('.my-sup-back').onclick = function(){
+    S.mySupOpenThread = null;
+    S.myCurThread = null;
+    S.myCurMessages = null;
+    loadMySupportHome();
+  };
+  var msgsEl = box.querySelector('.sup-msgs');
+  if(msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
+
+  var sendMsg = function(){
+    var input = $('mySupReplyText');
+    var text = (input.value || '').trim();
+    if(!text) return;
+    var btn = $('mySupReplyBtn');
+    btn.disabled = true;
+    call('apiMySupportReply', S.token, { thread_id: thread.id, text: text }).then(function(r){
+      btn.disabled = false;
+      if(!r || !r.ok){ toast((r && r.error) || 'Не удалось отправить', 'error'); return; }
+      input.value = '';
+      loadMySupportThread(thread.id);
+    }).catch(function(){ btn.disabled = false; toast('Нет связи с сервером', 'error'); });
+  };
+  $('mySupReplyBtn').onclick = sendMsg;
+  $('mySupReplyText').onkeydown = function(e){
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); }
+  };
+}
+
+/** Поллинг раздела, пока он открыт — тот же приём, что и у админского
+ *  инбокса (supPollTick), раз в 8с, останавливается сам при уходе. */
+var mySupPollTimer = null;
+function startMySupPoll(){
+  if(mySupPollTimer) return;
+  mySupPollTimer = setInterval(mySupPollTick, 8000);
+}
+function stopMySupPoll(){
+  if(mySupPollTimer){ clearInterval(mySupPollTimer); mySupPollTimer = null; }
+}
+function mySupPollTick(){
+  if(document.visibilityState !== 'visible' || !S.token || S.appView !== 'mysupport'){
+    stopMySupPoll();
+    return;
+  }
+  if(S.mySupOpenThread){
+    var openId = S.mySupOpenThread;
+    call('apiMySupportThread', S.token, openId).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok) return;
+      if(S.mySupOpenThread !== openId) return;
+      var prevLen = (S.myCurMessages || []).length;
+      S.myCurThread = r.thread;
+      S.myCurMessages = r.messages || [];
+      if((r.messages || []).length !== prevLen){
+        var input = $('mySupReplyText');
+        var draft = input ? input.value : '';
+        drawMySupportThread();
+        var input2 = $('mySupReplyText');
+        if(draft && input2) input2.value = draft;
+      }
+    })).catch(function(){});
+  } else {
+    call('apiMySupportThreads', S.token).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok) return;
+      if(S.mySupOpenThread) return;
+      S.myThreads = r.rows || [];
+      drawMySupportHome();
+    })).catch(function(){});
+  }
+  refreshMySupportBadge();
+}
+
+/**
+ * Бейдж пункта меню + «баннер» о новом ответе поддержки. Баннер — это
+ * действующий toast с кнопкой «Открыть» (см. opts.action в toast()),
+ * показывается только в момент, когда счётчик ВЫРОС по сравнению с прошлой
+ * проверкой (не на каждую перезагрузку страницы, иначе надоедает).
+ */
+function refreshMySupportBadge(){
+  call('apiMySupportUnreadCount', S.token).then(guardAsyncToTab(function(r){
+    if(!r || !r.ok) return;
+    var prev = S.mySupportUnreadCount || 0;
+    S.mySupportUnreadCount = r.count || 0;
+    renderNav();
+    if(S.mySupportUnreadCount > prev && S.appView !== 'mysupport'){
+      toast('Поддержка ответила на ваше обращение', 'success', {
+        duration: 0,
+        action: { label: 'Открыть', run: function(){ switchView('mysupport'); } }
+      });
+    }
+  })).catch(function(){});
+}
+
+// Лёгкий периодический опрос счётчика — независимо от того, открыт ли сам
+// раздел «Поддержка» (иначе баннер увидят только те, кто и так в разделе).
+var mySupBadgeTimer = null;
+function startMySupBadgePoll(){
+  if(mySupBadgeTimer) return;
+  mySupBadgeTimer = setInterval(function(){
+    if(document.visibilityState !== 'visible' || !S.token) return;
+    if(S.appView === 'mysupport') return; // там и так свой поллинг (mySupPollTick)
+    refreshMySupportBadge();
+  }, 45000);
 }
 
 // ─── Вкладка: Пользователи ───

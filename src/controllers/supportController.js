@@ -64,8 +64,12 @@ async function reply(req, res) {
     const thread = await supportChat.getThread(id);
     if (!thread) return fail(res, 'Тред не найден', 404);
 
-    const sent = await sendTelegramMessage(thread.telegram_chat_id, escHtml(text));
-    if (!sent) return fail(res, 'Не удалось отправить сообщение в Telegram — возможно, человек заблокировал бота');
+    // Веб-тред — сотрудник читает ответ на сайте (баннер о новом сообщении),
+    // в Telegram отправлять нечего: telegram_chat_id там синтетический.
+    if (thread.source !== 'web') {
+      const sent = await sendTelegramMessage(thread.telegram_chat_id, escHtml(text));
+      if (!sent) return fail(res, 'Не удалось отправить сообщение в Telegram — возможно, человек заблокировал бота');
+    }
 
     await supportChat.saveOutgoingMessage(id, text, req.user.login);
     return res.json({ ok: true, message: 'Отправлено' });
@@ -180,7 +184,37 @@ async function deleteQuickReply(req, res) {
   }
 }
 
+/** FAQ — админка (управление). Публичное чтение см. myServiceController.listFaq. */
+async function saveFaq(req, res) {
+  try {
+    const id = req.body && req.body.id ? parseInt(req.body.id, 10) : null;
+    const question = String((req.body && req.body.question) || '').trim();
+    const answer = String((req.body && req.body.answer) || '').trim();
+    if (!question) return fail(res, 'Введите вопрос');
+    if (!answer) return fail(res, 'Введите ответ');
+    if (question.length > 300) return fail(res, 'Слишком длинный вопрос');
+    if (answer.length > 4000) return fail(res, 'Слишком длинный ответ');
+
+    const row = await supportChat.saveFaq(id, question, answer);
+    return res.json({ ok: true, id: row.id });
+  } catch (err) {
+    return handleError(res, err, 'supportSaveFaq');
+  }
+}
+
+async function deleteFaq(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректный вопрос');
+    await supportChat.deleteFaq(id);
+    return res.json({ ok: true });
+  } catch (err) {
+    return handleError(res, err, 'supportDeleteFaq');
+  }
+}
+
 module.exports = {
   listThreads, getThread, reply, close, unreadCount, linkEmployee,
-  listQuickReplies, saveQuickReply, deleteQuickReply
+  listQuickReplies, saveQuickReply, deleteQuickReply,
+  saveFaq, deleteFaq
 };

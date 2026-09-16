@@ -640,6 +640,7 @@ async function migrate() {
   await seedGradingPositionHints();
   await unifyGradingCriteria();
   await seedSupportChat();
+  await extendSupportChatWeb();
   await createPositionCompanySelections();
   await cleanupLegacySurveyTestData();
 }
@@ -854,6 +855,43 @@ async function seedSupportChat() {
   }
 
   console.log('🔧 Миграция: схема чата поддержки Telegram-бота создана');
+}
+
+/**
+ * Веб-канал поддержки (перенесено из «Фаровон Кафетерий»): вошедший в
+ * систему сотрудник пишет прямо на сайте, а не через Telegram-бота — личность
+ * уже известна (user_id), поэтому в отличие от гостя бота никого привязывать
+ * не нужно. telegram_chat_id у таких тредов — синтетический (`web-<id>-...`),
+ * чтобы не трогать существующее ограничение NOT NULL UNIQUE на колонке; в
+ * реальный Telegram ничего не уходит, admin.reply() определяет канал по
+ * support_threads.source и для web просто сохраняет ответ без отправки в бота.
+ *
+ * read_at_user — отдельный от read_at счётчик: read_at считает непрочитанные
+ * ВХОДЯЩИЕ (для админки), read_at_user — непрочитанные ИСХОДЯЩИЕ ответы
+ * админа (для баннера у самого сотрудника). Раздельно, чтобы прочтение одной
+ * стороной не гасило счётчик другой.
+ *
+ * support_faq — вопрос-ответ, которым управляет администратор; отдельная
+ * таблица, не quick_replies (те — заготовки текста для ответа/кнопки, а не
+ * публичная справка).
+ */
+async function extendSupportChatWeb() {
+  await ensureColumn('support_threads', 'source', "TEXT NOT NULL DEFAULT 'telegram'");
+  await ensureColumn('support_threads', 'user_id', 'INTEGER REFERENCES users(id)');
+  await ensureColumn('support_threads', 'topic', 'TEXT');
+  await ensureColumn('support_messages', 'read_at_user', 'DATETIME');
+  await run('CREATE INDEX IF NOT EXISTS idx_support_threads_user ON support_threads(user_id, source)');
+
+  await run(`CREATE TABLE IF NOT EXISTS support_faq (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  console.log('🔧 Миграция: веб-канал поддержки (свои обращения, FAQ) добавлен');
 }
 
 /**

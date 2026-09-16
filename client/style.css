@@ -11290,6 +11290,66 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .sup-link-row:hover { background: var(--hover, var(--card)); }
 .sup-link-row .muted { margin-left: auto; font-size: 12px; }
+
+/* ─── Админка → «Чат поддержки», инбокс в две колонки ─── */
+.sup-split { display: flex; gap: 16px; align-items: flex-start; }
+.sup-list-col { flex: 0 0 380px; min-width: 300px; max-width: 420px; }
+.sup-detail-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.sup-empty-detail { padding: 30px 10px; text-align: center; }
+.sup-row-active td { background: var(--accent-soft); }
+.sup-row-topic { font-size: 11.5px; margin-top: 2px; }
+@media (max-width: 860px) {
+  .sup-split { display: block; }
+  .sup-split.sup-split--open .sup-list-col { display: none; }
+  .sup-split:not(.sup-split--open) .sup-detail-col { display: none; }
+  .sup-detail-col { border: none; padding: 0; background: none; }
+}
+
+/* ─── Раздел «Поддержка» глазами сотрудника ─── */
+.my-sup-intro { margin-bottom: 12px; font-size: 13px; line-height: 1.45; }
+.my-faq-list { margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.my-faq-item + .my-faq-item { border-top: 1px solid var(--line); }
+.my-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: var(--card);
+}
+.my-faq-q:hover { background: var(--card-2); }
+.my-faq-q svg { flex: 0 0 auto; transition: transform 0.15s ease; }
+.my-faq-q.is-open svg { transform: rotate(90deg); }
+.my-faq-a {
+  padding: 0 14px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+.my-sup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 16px;
+  padding: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.my-sup-form textarea { resize: vertical; }
+.my-sup-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .gr-opts {
   display: flex;
   flex-direction: column;

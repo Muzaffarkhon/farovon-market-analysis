@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.74';
+var APP_VERSION = window.APP_VERSION || 'v2.5.75';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1827,6 +1827,15 @@ var API_ROUTES = {
   apiAdminSupportQuickReplies: function(args){ return fetchJson('/api/admin/support/quick-replies?audience='+encodeURIComponent(args[1] || 'admin'), { method:'GET', token:args[0] }); },
   apiAdminSupportSaveQuickReply: function(args){ return fetchJson('/api/admin/support/quick-replies', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminSupportDeleteQuickReply: function(args){ return fetchJson('/api/admin/support/quick-replies/delete', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminSupportSaveFaq: function(args){ return fetchJson('/api/admin/support/faq', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminSupportDeleteFaq: function(args){ return fetchJson('/api/admin/support/faq/delete', { method:'POST', token:args[0], body:args[1] }); },
+  // «Поддержка» глазами сотрудника — своя переписка, не админский инбокс.
+  apiMySupportThreads: function(args){ return fetchJson('/api/support/my/threads', { method:'GET', token:args[0] }); },
+  apiMySupportThread: function(args){ return fetchJson('/api/support/my/threads/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiMySupportStart: function(args){ return fetchJson('/api/support/my/start', { method:'POST', token:args[0], body:args[1] }); },
+  apiMySupportReply: function(args){ return fetchJson('/api/support/my/reply', { method:'POST', token:args[0], body:args[1] }); },
+  apiMySupportUnreadCount: function(args){ return fetchJson('/api/support/my/unread-count', { method:'GET', token:args[0] }); },
+  apiSupportFaq: function(args){ return fetchJson('/api/support/faq', { method:'GET', token:args[0] }); },
   apiGradingPositions: function(args){ return fetchJson('/api/grading/positions' + (args[1] ? '?block=' + encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiGradingEvaluate: function(args){ return fetchJson('/api/grading/evaluate', { method:'POST', token:args[0], body:args[1] }); },
   apiGradingStats: function(args){ return fetchJson('/api/grading/stats', { method:'GET', token:args[0] }); },

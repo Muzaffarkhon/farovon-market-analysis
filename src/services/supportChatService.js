@@ -64,15 +64,19 @@ async function saveIncomingMessage(threadId, body) {
 // Так работает не только сразу после «Привязать к сотруднику», но и если
 // человека узнали раньше через /start или по номеру в самом боте — тред
 // всё равно покажет реальное имя, а не «Гость #N».
+// web-тред — сотрудник уже вошёл в систему, имя берём напрямую по user_id;
+// telegram-тред — по текущему владельцу этого telegram_chat_id (см. коммент
+// у linkEmployee ниже — так работает даже без ручной привязки).
 const LINKED_FIO_JOIN = `
-  LEFT JOIN users lu ON lu.telegram_chat_id = t.telegram_chat_id
-    AND lu.archived_at IS NULL AND lu.active = 1
+  LEFT JOIN users lu ON
+    (t.source = 'web' AND lu.id = t.user_id)
+    OR (t.source != 'web' AND lu.telegram_chat_id = t.telegram_chat_id AND lu.archived_at IS NULL AND lu.active = 1)
 `;
 
 /** Список тредов для админки — сначала с непрочитанным, затем по свежести. */
 async function listThreads() {
   return queryAll(`
-    SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.last_message_at, t.created_at,
+    SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.source, t.topic, t.last_message_at, t.created_at,
       lu.fio AS linked_fio,
       (SELECT body FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
       (SELECT direction FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_direction,
@@ -203,9 +207,88 @@ async function deleteQuickReply(id) {
   await run('DELETE FROM support_quick_replies WHERE id = ?', [id]);
 }
 
+// ─── Веб-канал: сотрудник пишет прямо на сайте (не через Telegram-бота) ───
+// Личность уже известна (вошёл в систему), поэтому в отличие от гостя бота
+// никого привязывать не нужно — тред сразу принадлежит user_id.
+
+/** Один тред на одну тему — новая тема всегда новый тред, старые не переиспользуются. */
+async function createWebThread(userId, topic, text) {
+  const chatId = 'web-' + userId + '-' + Date.now();
+  const res = await run(
+    "INSERT INTO support_threads (telegram_chat_id, status, source, user_id, topic) VALUES (?, 'open', 'web', ?, ?)",
+    [chatId, userId, topic || null]
+  );
+  const threadId = Number(res.lastInsertRowid || res.insertId || 0);
+  await run("INSERT INTO support_messages (thread_id, direction, body) VALUES (?, 'in', ?)", [threadId, text]);
+  return threadId;
+}
+
+/** Свои обращения сотрудника — только source='web' и только его собственные (user_id). */
+async function listMyThreads(userId) {
+  return queryAll(`
+    SELECT t.id, t.topic, t.status, t.last_message_at, t.created_at,
+      (SELECT body FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
+      (SELECT direction FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_direction,
+      (SELECT COUNT(*) FROM support_messages m WHERE m.thread_id = t.id AND m.direction = 'out' AND m.read_at_user IS NULL) AS unread_count
+    FROM support_threads t
+    WHERE t.user_id = ? AND t.source = 'web'
+    ORDER BY t.last_message_at DESC
+  `, [userId]);
+}
+
+/** Принадлежность треда проверяется тут же (WHERE user_id) — не отдельным
+ *  запросом, чтобы нельзя было подсмотреть чужой тред, подставив id в URL. */
+async function getMyThread(userId, threadId) {
+  const thread = await queryOne("SELECT * FROM support_threads WHERE id = ? AND user_id = ? AND source = 'web'", [threadId, userId]);
+  if (!thread) return null;
+  const messages = await queryAll('SELECT * FROM support_messages WHERE thread_id = ? ORDER BY created_at ASC', [threadId]);
+  await run("UPDATE support_messages SET read_at_user = CURRENT_TIMESTAMP WHERE thread_id = ? AND direction = 'out' AND read_at_user IS NULL", [threadId]);
+  return { thread, messages };
+}
+
+/** Сотрудник дописывает в свой уже открытый тред (переоткрывает закрытый). */
+async function saveOwnMessage(userId, threadId, text) {
+  const thread = await queryOne("SELECT id FROM support_threads WHERE id = ? AND user_id = ? AND source = 'web'", [threadId, userId]);
+  if (!thread) throw new Error('Тред не найден');
+  await run("INSERT INTO support_messages (thread_id, direction, body) VALUES (?, 'in', ?)", [threadId, text]);
+  await run("UPDATE support_threads SET last_message_at = CURRENT_TIMESTAMP, status = 'open' WHERE id = ?", [threadId]);
+}
+
+/** Для баннера «есть новый ответ поддержки» — считает по всем своим тредам разом. */
+async function countMyUnread(userId) {
+  const row = await queryOne(`
+    SELECT COUNT(*) AS n FROM support_messages m
+    JOIN support_threads t ON t.id = m.thread_id
+    WHERE t.user_id = ? AND t.source = 'web' AND m.direction = 'out' AND m.read_at_user IS NULL
+  `, [userId]);
+  return (row && row.n) || 0;
+}
+
+// ─── FAQ: вопрос-ответ, которым управляет администратор ───
+
+async function listFaq() {
+  return queryAll('SELECT id, question, answer FROM support_faq ORDER BY sort_order ASC, id ASC');
+}
+
+async function saveFaq(id, question, answer) {
+  if (id) {
+    await run('UPDATE support_faq SET question = ?, answer = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [question, answer, id]);
+    return { id };
+  }
+  const row = await queryOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM support_faq');
+  const res = await run('INSERT INTO support_faq (question, answer, sort_order) VALUES (?, ?, ?)', [question, answer, row.next]);
+  return { id: Number(res.lastInsertRowid || res.insertId || 0) };
+}
+
+async function deleteFaq(id) {
+  await run('DELETE FROM support_faq WHERE id = ?', [id]);
+}
+
 module.exports = {
   getOrCreateThread, findThreadByChatId, saveIncomingMessage,
   listThreads, countUnreadThreads, getThread, getMessages,
   saveOutgoingMessage, closeThread, linkEmployee, markThreadRead,
-  listQuickReplies, saveQuickReply, deleteQuickReply
+  listQuickReplies, saveQuickReply, deleteQuickReply,
+  createWebThread, listMyThreads, getMyThread, saveOwnMessage, countMyUnread,
+  listFaq, saveFaq, deleteFaq
 };

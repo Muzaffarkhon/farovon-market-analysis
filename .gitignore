@@ -49,3 +49,5 @@ graphify-out/
 # Scratch: одноразовые скрипты разбора / проверки данных, не для репозитория
 scratch/
 .obsidian/
+.vercel
+.env*
