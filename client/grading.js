@@ -508,12 +508,15 @@ function openCommitteeBreakdown(row){
     if(!subs.length){
       html += '<div class="empty">Заявок пока нет</div>';
     } else {
-      html += '<div class="tblwrap"><table class="co-tbl"><thead><tr><th>Фактор</th>'+
+      var weights = (GR.factors && GR.factors.weights) || [];
+      html += '<div class="tblwrap"><table class="co-tbl" data-no-smart-filter="true"><thead><tr><th>Фактор</th>'+
         subs.map(function(s){ return '<th>'+esc(s.evaluator_fio)+'</th>'; }).join('')+
         '</tr></thead><tbody>'+
         factors.map(function(fac, fi){
           var key = 'factor_' + (fi + 1);
-          return '<tr><td><b>'+esc(fac.code || ('Ф'+(fi+1)))+'</b><div class="muted" style="font-size:11.5px">'+esc(fac.title)+'</div></td>'+
+          var w = weights[fi];
+          var wLabel = (w != null) ? ' <span class="muted" style="font-weight:400">(вес '+Math.round(w * 100)+'%)</span>' : '';
+          return '<tr><td><b>'+esc(fac.code || ('Ф'+(fi+1)))+wLabel+'</b><div class="muted" style="font-size:11.5px">'+esc(fac.title)+'</div></td>'+
             subs.map(function(s){
               var val = s[key];
               if(val == null) return '<td class="muted">—</td>';
@@ -522,6 +525,11 @@ function openCommitteeBreakdown(row){
             }).join('')+
           '</tr>';
         }).join('')+
+        '<tr class="gr-committee-total"><td><b>Итоговый балл</b></td>'+
+        subs.map(function(s){
+          return '<td><b>'+(s.weighted_score != null ? esc(String(s.weighted_score)) : '—')+'</b></td>';
+        }).join('')+
+        '</tr>'+
         '</tbody></table></div>';
     }
 
