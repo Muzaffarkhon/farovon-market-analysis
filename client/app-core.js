@@ -2943,7 +2943,7 @@ function navRenderBtn(it, cls){
   var badgeNew = it.badgeNew ? '<span class="nav-badge-new">New</span>' : '';
   // Счётчик непрочитанного (сейчас только «Чат поддержки») — тот же вид
   // плашки, что и «New», просто с числом вместо текста.
-  var badgeCount = it.badgeCount ? '<span class="nav-badge-new nav-badge-count">'+(it.badgeCount > 99 ? '99+' : it.badgeCount)+'</span>' : '';
+  var badgeCount = it.badgeCount ? '<span class="nav-badge-count">'+(it.badgeCount > 99 ? '99+' : it.badgeCount)+'</span>' : '';
 
   if(cls === 'rail-item'){
     var caret = hasSub

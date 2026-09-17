@@ -747,6 +747,7 @@ body.has-bar .wrap {
     box-sizing: border-box;
     flex: none;
     align-self: center;
+    margin-left: auto;
     min-width: 14px;
     height: 14px;
     max-height: 14px;
@@ -3880,6 +3881,16 @@ label.lbl {
     background: #dc2626;
     overflow: hidden;
     text-indent: -999px;
+  }
+
+  /* Счётчик непрочитанного на нижней полосе — та же идея (в угол вкладки,
+     компактно), но, в отличие от плашки «New» выше, число внутри должно
+     оставаться видимым, а не прятаться text-indent'ом. */
+  #topNav .nav-btn .nav-badge-count {
+    position: absolute;
+    top: 1px;
+    right: 14%;
+    margin-left: 0;
   }
 
   body.has-topnav .wrap {
