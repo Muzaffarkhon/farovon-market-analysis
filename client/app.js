@@ -6007,10 +6007,16 @@ function drawGradingFactors(){
       '<input class="gf-title" value="'+esc(f.title || '')+'" maxlength="300">'+
       '<label class="lbl">Пояснение под вопросом (необязательно)</label>'+
       '<input class="gf-help" value="'+esc(f.help || '')+'" maxlength="1000">'+
-      '<label class="lbl">Варианты ответа</label>'+
+      '<label class="lbl">Варианты ответа'+(cur === 'position' ? ' (ниже — эталон-должность для этого уровня, необязательно)' : '')+'</label>'+
       (f.options || []).map(function(o, oi){
+        var example = (f.examples || [])[oi];
         return '<div class="gf-opt"><span class="gf-score">'+(oi + 1)+'</span>'+
-          '<input class="gf-option" data-score="'+(oi + 1)+'" value="'+esc(o || '')+'" maxlength="1000"></div>';
+          '<div class="gf-opt-fields">'+
+            '<input class="gf-option" data-score="'+(oi + 1)+'" value="'+esc(o || '')+'" maxlength="1000">'+
+            (cur === 'position'
+              ? '<input class="gf-example" data-score="'+(oi + 1)+'" placeholder="Эталон-должность, например «Кассир, оператор линии»" value="'+esc(example || '')+'" maxlength="300">'
+              : '')+
+          '</div></div>';
       }).join('')+
       '<div class="gf-acts">'+
         '<button class="btn gf-save">'+(curDir ? 'Сохранить для направления' : 'Сохранить')+'</button>'+
@@ -6078,7 +6084,8 @@ function saveGradingFactor(card){
     dir: S.gradingDir || '',
     title: card.querySelector('.gf-title').value,
     help: card.querySelector('.gf-help').value,
-    options: [].map.call(card.querySelectorAll('.gf-option'), function(inp){ return inp.value; })
+    options: [].map.call(card.querySelectorAll('.gf-option'), function(inp){ return inp.value; }),
+    examples: [].map.call(card.querySelectorAll('.gf-example'), function(inp){ return inp.value; })
   };
 
   call('apiGradingFactorSave', S.token, body).then(function(r){

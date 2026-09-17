@@ -705,12 +705,17 @@ function drawGradeForm(){
     h += '<div class="gr-factor gr-factor--open">'+
       '<div class="gr-factor-hd">'+title+
         '<span class="badge">вес '+Math.round(w * 100)+'%</span></div>'+
-      (fac.help ? '<div class="muted gr-help">'+esc(fac.help)+'</div>' : '')+
+      (fac.help ? '<div class="gr-help">'+esc(fac.help)+'</div>' : '')+
       '<div class="gr-opts">'+
         (fac.options || []).map(function(o, oi){
           var ov = oi + 1;
+          var example = (fac.examples || [])[oi];
           return '<button class="gr-opt'+(val === ov ? ' on' : '')+'" data-f="'+i+'" data-v="'+ov+'">'+
-            '<span class="gr-score">'+ov+'</span><span>'+esc(o)+'</span></button>';
+            '<span class="gr-score">'+ov+'</span>'+
+            '<span class="gr-opt-body">'+
+              '<span class="gr-opt-text">'+esc(o)+'</span>'+
+              (example ? '<span class="gr-opt-example">Например: '+esc(example)+'</span>' : '')+
+            '</span></button>';
         }).join('')+
       '</div>'+
     '</div>';

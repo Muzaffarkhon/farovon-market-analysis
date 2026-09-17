@@ -33,11 +33,13 @@ async function ensureColumn(table, column, definition) {
 async function seedFactors(scope, list) {
   for (let i = 0; i < list.length; i++) {
     const f = list[i];
+    const examples = f.examples || ['', '', '', '', ''];
     await run(
       `INSERT OR IGNORE INTO grading_factors
-         (scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by)
-       VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 'исходная форма')`,
-      [scope, i + 1, f.code, f.title, f.help || '', ...f.options]
+         (scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5,
+          example_1, example_2, example_3, example_4, example_5, updated_by)
+       VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'исходная форма')`,
+      [scope, i + 1, f.code, f.title, f.help || '', ...f.options, ...examples]
     );
   }
 }
@@ -466,6 +468,17 @@ async function migrate() {
   // Базы, созданные до появления разреза по направлениям, доводим до нового
   // вида: колонка dir и уникальность по тройке (анкета, вопрос, направление).
   await upgradeGradingFactorsToDirs();
+
+  // Эталон-должность на каждый уровень (2026-09-17) — раньше жила припиской
+  // в скобках внутри текста варианта и терялась при чтении; теперь отдельные
+  // колонки, как у option_1..5. Только у анкеты грейдирования должностей
+  // осмысленна, но добавляем всем строкам сразу — NULL для risk безвреден.
+  await ensureColumn('grading_factors', 'example_1', 'TEXT');
+  await ensureColumn('grading_factors', 'example_2', 'TEXT');
+  await ensureColumn('grading_factors', 'example_3', 'TEXT');
+  await ensureColumn('grading_factors', 'example_4', 'TEXT');
+  await ensureColumn('grading_factors', 'example_5', 'TEXT');
+
   await seedFactors('position', CRITERIA);
   await seedFactors('risk', RISK_FACTORS);
 

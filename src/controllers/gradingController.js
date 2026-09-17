@@ -110,6 +110,7 @@ async function saveFactor(req, res) {
       title: body.title,
       help: body.help,
       options: body.options,
+      examples: body.examples,
       updatedBy: req.user.fio || req.user.login
     });
 
