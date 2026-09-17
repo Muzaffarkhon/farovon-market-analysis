@@ -655,6 +655,7 @@ async function migrate() {
   await addSeventhGradingFactor();
   await seedSupportChat();
   await extendSupportChatWeb();
+  await addSupportThreadArchive();
   await createPositionCompanySelections();
   await cleanupLegacySurveyTestData();
 }
@@ -984,6 +985,18 @@ async function extendSupportChatWeb() {
   )`);
 
   console.log('🔧 Миграция: веб-канал поддержки (свои обращения, FAQ) добавлен');
+}
+
+/**
+ * Архив и удаление обращений в чате поддержки (2026-09-17, только админ):
+ * «Закрыть» — не пропадает из общего списка, просто сотрудник и админ
+ * больше не могут писать, диалог сам переоткроется новым сообщением.
+ * «Архив» — тот же принцип, что и archived_at у users: тред скрывается из
+ * рабочего списка (не мешает), но данные остаются и его можно вернуть
+ * обратно. «Удалить» — физически стирает тред и переписку, без возврата.
+ */
+async function addSupportThreadArchive() {
+  await ensureColumn('support_threads', 'archived_at', 'DATETIME');
 }
 
 /**

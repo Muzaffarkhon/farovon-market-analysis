@@ -6494,6 +6494,7 @@ function renderSupSearchBar(){
   var box = $('supSearchBar');
   if(!box) return;
   var f = S.supFilters || {};
+  var isAdmin = S.data && S.data.user && S.data.user.role === 'admin';
   var activeCount = ['status', 'reply', 'login', 'unread'].filter(function(k){ return f[k]; }).length;
 
   box.innerHTML =
@@ -6504,6 +6505,14 @@ function renderSupSearchBar(){
     '<button type="button" class="btn-line sup-filters-toggle" id="supFiltersToggle">'+
       icBare('filter', 14)+'Фильтры'+(activeCount ? ' <span class="nav-badge-count">'+activeCount+'</span>' : '')+
     '</button>'+
+    // Архив — свой переключатель, а не пункт общей панели фильтров: пока
+    // включён, список показывает ТОЛЬКО архивные обращения (см. серверный
+    // listThreads — архивные и так исключены из обычного списка по умолчанию).
+    (isAdmin
+      ? '<button type="button" class="btn-line'+(f.archived === 'yes' ? ' on' : '')+'" id="supArchiveToggle">'+
+          icBare('archive', 14)+(f.archived === 'yes' ? 'К рабочему списку' : 'Архив')+
+        '</button>'
+      : '')+
     '<div class="sup-filters-panel'+(S.supFiltersPanelOpen ? '' : ' hidden')+'" id="supFiltersPanel">'+
       '<label><input type="radio" name="supFStatus" value="" '+(!f.status ? 'checked' : '')+'> Все статусы</label>'+
       '<label><input type="radio" name="supFStatus" value="open" '+(f.status === 'open' ? 'checked' : '')+'> Открытые</label>'+
@@ -6514,6 +6523,17 @@ function renderSupSearchBar(){
       '<label><input type="checkbox" id="supFUnread" '+(f.unread === 'yes' ? 'checked' : '')+'> Только непрочитанные</label>'+
     '</div>'+
     (f.q || activeCount ? '<button type="button" class="btn-ghost sup-filters-reset" id="supFiltersReset">Сбросить</button>' : '');
+
+  var archiveToggle = $('supArchiveToggle');
+  if(archiveToggle){
+    archiveToggle.onclick = function(){
+      S.supFilters = S.supFilters || {};
+      if(S.supFilters.archived === 'yes') delete S.supFilters.archived;
+      else S.supFilters.archived = 'yes';
+      renderSupSearchBar();
+      loadAdminSupportThreads();
+    };
+  }
 
   $('supSearchForm').onsubmit = function(e){
     e.preventDefault();
@@ -6569,7 +6589,10 @@ function drawAdminSupportList(){
   var h = '<p class="muted sup-total-count">Диалогов: '+rows.length+'</p>';
 
   if(!rows.length){
-    h += '<div class="empty">'+((S.supFilters && (S.supFilters.q || S.supFilters.status || S.supFilters.reply || S.supFilters.login || S.supFilters.unread)) ? 'Ничего не найдено' : 'Пока никто не писал в чат поддержки')+'</div>';
+    h += '<div class="empty">'+
+      (S.supFilters && S.supFilters.archived === 'yes' ? 'Архив пуст'
+        : (S.supFilters && (S.supFilters.q || S.supFilters.status || S.supFilters.reply || S.supFilters.login || S.supFilters.unread)) ? 'Ничего не найдено' : 'Пока никто не писал в чат поддержки')+
+    '</div>';
     rowsBox.innerHTML = h;
     return;
   }
@@ -6672,6 +6695,12 @@ function drawAdminSupportThread(){
       // у веб-треда личность и так известна с самого начала (user_id).
       (isWeb ? '' : '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>')+
       '<button class="btn-line btn-danger sup-close" style="'+(isWeb ? 'margin-left:auto' : '')+'">Закрыть диалог</button>'+
+      // Архив/удаление — необратимее «Закрыть», поэтому только системный
+      // админ (см. requireRoles('admin') на роутах /admin/support/archive и /delete).
+      (S.data && S.data.user && S.data.user.role === 'admin'
+        ? '<button class="btn-line sup-archive">'+(thread.archived_at ? 'Вернуть из архива' : 'Архив')+'</button>'+
+          '<button class="btn-line btn-danger sup-delete">Удалить</button>'
+        : '')+
     '</div>'+
     (isWeb ? '' :
       '<div class="sup-link-panel" id="supLinkPanel" hidden>'+
@@ -6718,6 +6747,40 @@ function drawAdminSupportThread(){
       }).catch(function(){ toast('Нет связи с сервером', 'error'); });
     });
   };
+  var archiveBtn = box.querySelector('.sup-archive');
+  if(archiveBtn){
+    archiveBtn.onclick = function(){
+      var toArchive = !thread.archived_at;
+      var action = toArchive
+        ? { api:'apiAdminSupportArchive', title:'Перенести в архив?', html:'Обращение пропадёт из рабочего списка, но не удалится — его можно будет вернуть обратно.', ok:'В архив', doneMsg:'Обращение перенесено в архив' }
+        : { api:'apiAdminSupportUnarchive', title:'Вернуть из архива?', html:'Обращение снова появится в рабочем списке.', ok:'Вернуть', doneMsg:'Обращение возвращено из архива' };
+      ask({ title: action.title, html: action.html, ok: action.ok, cancel: 'Отмена' }).then(function(yes){
+        if(!yes) return;
+        call(action.api, S.token, { thread_id: thread.id }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось выполнить', 'error'); return; }
+          toast(action.doneMsg, 'success');
+          closeDetail();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      });
+    };
+  }
+  var deleteBtn = box.querySelector('.sup-delete');
+  if(deleteBtn){
+    deleteBtn.onclick = function(){
+      ask({
+        title: 'Удалить обращение безвозвратно?',
+        html: 'Вся переписка по «'+esc(thread.linked_fio || (isWeb ? 'Сотрудник #'+thread.id : 'Гость #'+thread.id))+'» будет стёрта — восстановить будет нельзя. Если нужно просто убрать из списка — используйте «Архив».',
+        ok: 'Удалить', cancel: 'Отмена', danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiAdminSupportDelete', S.token, { thread_id: thread.id }).then(function(r){
+          if(!r || !r.ok){ toast((r && r.error) || 'Не удалось удалить', 'error'); return; }
+          toast('Обращение удалено', 'success');
+          closeDetail();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      });
+    };
+  }
   var linkToggle = box.querySelector('.sup-link-toggle');
   if(linkToggle){
     linkToggle.onclick = function(){
