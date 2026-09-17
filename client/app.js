@@ -6584,10 +6584,10 @@ function drawAdminSupportList(){
             (t.unread_count ? '<span class="nav-badge-count">'+t.unread_count+'</span>' : '')+
           '</div>'+
           '<div class="sup-row-tags">'+
-            '<span class="badge '+(t.source === 'web' ? 'b-active' : '')+'">'+(t.source === 'web' ? 'сайт' : 'Telegram')+'</span>'+
-            (t.topic ? '<span class="badge">'+esc(t.topic)+'</span>' : '')+
-            (t.status === 'closed' ? '<span class="badge">закрыт</span>' : '')+
-            (t.source !== 'web' && !t.linked_fio ? '<span class="badge">нет привязки</span>' : '')+
+            '<span class="badge '+(t.source === 'web' ? 'b-active' : 'b-user')+'">'+(t.source === 'web' ? 'сайт' : 'Telegram')+'</span>'+
+            (t.topic ? '<span class="badge b-user">'+esc(t.topic)+'</span>' : '')+
+            (t.status === 'closed' ? '<span class="badge b-blocked">закрыт</span>' : '')+
+            (t.source !== 'web' && !t.linked_fio ? '<span class="badge b-user">нет привязки</span>' : '')+
             (t.matched_in_message_only ? '<span class="sup-row-matched">найдено в переписке</span>' : '')+
           '</div>'+
         '</div>'+
@@ -6660,7 +6660,7 @@ function drawAdminSupportThread(){
       '<b>'+(thread.linked_fio ? esc(thread.linked_fio) : (isWeb ? 'Сотрудник #'+thread.id : 'Гость #'+thread.id))+'</b>'+
       (thread.phone ? '<span class="muted">'+esc(thread.phone)+'</span>' : '')+
       (thread.topic ? '<span class="muted">'+esc(thread.topic)+'</span>' : '')+
-      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
+      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge b-blocked">закрыт</span>')+
       // Привязка к сотруднику имеет смысл только для гостя Telegram-бота —
       // у веб-треда личность и так известна с самого начала (user_id).
       (isWeb ? '' : '<button class="btn-line sup-link-toggle" style="margin-left:auto">Привязать к сотруднику</button>')+
@@ -7139,7 +7139,7 @@ function drawMySupportHome(){
           '<td class="muted">'+esc(fmtDateTime(t.last_message_at))+'</td>'+
           '<td>'+(t.status === 'open'
             ? '<span class="badge b-active">открыт</span>'
-            : '<span class="badge">закрыт</span>')+
+            : '<span class="badge b-blocked">закрыт</span>')+
             (t.unread_count ? ' <span class="nav-badge-count sup-unread-cell">'+t.unread_count+'</span>' : '')+
           '</td>'+
           '<td><button class="btn-line my-sup-open" data-i="'+i+'">Открыть</button></td>'+
@@ -7228,7 +7228,7 @@ function drawMySupportThread(){
   var h = '<div class="sup-thread-hd">'+
       '<button class="btn-ghost my-sup-back">'+icBare('chevron', 16)+'Мои обращения</button>'+
       '<b>'+esc(thread.topic || 'Обращение #'+thread.id)+'</b>'+
-      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge">закрыт</span>')+
+      (thread.status === 'open' ? '<span class="badge b-active">открыт</span>' : '<span class="badge b-blocked">закрыт</span>')+
     '</div>'+
     '<div class="sup-msgs">'+
       (messages.length ? messages.map(function(m){

@@ -11417,6 +11417,12 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);
   color: var(--text);
+  /* Карточка — это <a href="#"> (нужен клик всей строкой), а не <button>,
+     как остальные кликабельные списки в проекте — глобального сброса
+     подчёркивания у ссылок в таблице стилей нет, поэтому его нужно снять
+     здесь явно, иначе браузер по умолчанию подчёркивает и красит текст
+     внутри всей карточки (имя, превью сообщения, дату, бейджи). */
+  text-decoration: none;
 }
 .sup-row-card:hover { background: var(--card-2); }
 .sup-row-active { background: var(--accent-soft); }
