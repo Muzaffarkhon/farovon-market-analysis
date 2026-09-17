@@ -2205,6 +2205,76 @@ function askText(opts){
   });
 }
 
+/**
+ * Диалог открытия/правки периода сбора: название + даты (+ статус, если
+ * showState). Тот же паттерн модалки, что у ask()/askText() выше.
+ * opts = { title, html, value (название), from, to, placeholder, state,
+ *          showState, ok }
+ * Возвращает { name, from, to, state } либо null, если отменили.
+ */
+function askPeriodDates(opts){
+  return new Promise(function(resolve){
+    var el = document.createElement('div');
+    el.className = 'sheet sheet--dialog';
+    el.innerHTML = '<div class="sheet-in dlg">'+
+      '<b class="dlg-t">'+esc(opts.title || '')+'</b>'+
+      (opts.html ? '<p class="dlg-x">'+opts.html+'</p>' : '<div style="height:12px"></div>')+
+      '<label class="lbl">Название периода</label>'+
+      '<input class="dlg-in" id="dlgPName" value="'+esc(opts.value || '')+'" '+
+        'placeholder="'+esc(opts.placeholder || 'Название периода')+'" maxlength="200">'+
+      '<div style="display:flex;gap:8px;margin-top:8px">'+
+        '<div style="flex:1"><label class="lbl">Дата начала</label>'+
+          '<input type="date" class="dlg-in" id="dlgPFrom" value="'+esc(opts.from || '')+'"></div>'+
+        '<div style="flex:1"><label class="lbl">Дата окончания</label>'+
+          '<input type="date" class="dlg-in" id="dlgPTo" value="'+esc(opts.to || '')+'"></div>'+
+      '</div>'+
+      (opts.showState
+        ? '<label class="lbl">Статус</label>'+
+          '<select class="dlg-in" id="dlgPState">'+
+            '<option value="открыт"'+(opts.state !== 'закрыт' ? ' selected' : '')+'>Открыт</option>'+
+            '<option value="закрыт"'+(opts.state === 'закрыт' ? ' selected' : '')+'>Закрыт</option>'+
+          '</select>'
+        : '')+
+      '<div class="dlg-a">'+
+        '<button type="button" data-v="0">Отмена</button>'+
+        '<button type="button" data-v="1" class="btn-primary">'+esc(opts.ok || 'Готово')+'</button>'+
+      '</div></div>';
+    document.body.appendChild(el);
+
+    var nameInp = el.querySelector('#dlgPName');
+    var fromInp = el.querySelector('#dlgPFrom');
+    var toInp = el.querySelector('#dlgPTo');
+    var stateSel = el.querySelector('#dlgPState');
+
+    var collect = function(){
+      return {
+        name: nameInp.value.trim(),
+        from: fromInp.value || '',
+        to: toInp.value || '',
+        state: stateSel ? stateSel.value : undefined
+      };
+    };
+
+    var done = function(v){
+      if(!el.parentNode) return;
+      document.removeEventListener('keydown', onKey, true);
+      el.remove();
+      resolve(v);
+    };
+    var onKey = function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); done(null); }
+      else if(e.key === 'Enter' && e.target.tagName !== 'SELECT'){ e.preventDefault(); done(collect()); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    el.addEventListener('click', function(e){
+      if(e.target === el){ done(null); return; }
+      var b = e.target.closest('button[data-v]');
+      if(b) done(b.dataset.v === '1' ? collect() : null);
+    });
+    setTimeout(function(){ try{ nameInp.focus(); nameInp.select(); }catch(e){} }, 60);
+  });
+}
+
 /** Короткая обёртка: «есть несохранённые правки — продолжить?». */
 function askDirty(action){
   return ask({
