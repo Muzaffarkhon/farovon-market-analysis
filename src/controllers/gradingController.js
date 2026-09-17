@@ -206,7 +206,7 @@ async function getPositions(req, res) {
              COUNT(DISTINCT ga.unit) AS unit_count,
              COALESCE(SUM(up.staff_count), 0) AS staff_count,
              e.id AS evaluation_id,
-             e.factor_1, e.factor_2, e.factor_3, e.factor_4, e.factor_5, e.factor_6,
+             e.factor_1, e.factor_2, e.factor_3, e.factor_4, e.factor_5, e.factor_6, e.factor_7,
              e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at,
              COALESCE(cs.submitted_count, 0) AS submitted_count
       FROM grading_block_assignments ga
@@ -247,7 +247,7 @@ async function getPositions(req, res) {
     // ответы сюда никогда не попадают.
     if (committeeSize.n) {
       const own = await queryAll(
-        'SELECT job_title, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, notes FROM grading_committee_evaluations WHERE block_key = ? AND evaluator_login = ?',
+        'SELECT job_title, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, notes FROM grading_committee_evaluations WHERE block_key = ? AND evaluator_login = ?',
         [block, req.user.login]
       );
       const ownByTitle = new Map(own.map(o => [o.job_title, o]));
@@ -301,21 +301,21 @@ async function evaluate(req, res) {
     if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
 
     const result = evaluatePosition(factors);
-    const [f1, f2, f3, f4, f5, f6] = result.factors;
+    const [f1, f2, f3, f4, f5, f6, f7] = result.factors;
 
     const committeeSize = await queryOne(
       'SELECT COUNT(*) AS n FROM grading_committee_members WHERE block_key = ?', [block]
     );
 
     if (committeeSize.n > 0) {
-      return await evaluateAsCommittee(req, res, { block, jobTitle, unit: assigned.unit, result, f1, f2, f3, f4, f5, f6, notes, committeeSize: committeeSize.n });
+      return await evaluateAsCommittee(req, res, { block, jobTitle, unit: assigned.unit, result, f1, f2, f3, f4, f5, f6, f7, notes, committeeSize: committeeSize.n });
     }
 
     await run(`
       INSERT INTO job_evaluations
-        (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6,
+        (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7,
          weighted_score, grade_level, evaluated_by, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(block_key, job_title) DO UPDATE SET
         factor_1 = excluded.factor_1,
         factor_2 = excluded.factor_2,
@@ -323,13 +323,14 @@ async function evaluate(req, res) {
         factor_4 = excluded.factor_4,
         factor_5 = excluded.factor_5,
         factor_6 = excluded.factor_6,
+        factor_7 = excluded.factor_7,
         weighted_score = excluded.weighted_score,
         grade_level = excluded.grade_level,
         evaluated_by = excluded.evaluated_by,
         notes = excluded.notes,
         updated_at = CURRENT_TIMESTAMP
     `, [
-      block, jobTitle, assigned.unit, f1, f2, f3, f4, f5, f6,
+      block, jobTitle, assigned.unit, f1, f2, f3, f4, f5, f6, f7,
       result.weightedScore, result.gradeLevel, req.user.fio || req.user.login, notes || null
     ]);
 
@@ -347,7 +348,7 @@ async function evaluate(req, res) {
 
 /** Слепая заявка одного члена комиссии; при последней — подводит итог. */
 async function evaluateAsCommittee(req, res, ctx) {
-  const { block, jobTitle, unit, result, f1, f2, f3, f4, f5, f6, notes, committeeSize } = ctx;
+  const { block, jobTitle, unit, result, f1, f2, f3, f4, f5, f6, f7, notes, committeeSize } = ctx;
 
   const member = await queryOne(
     'SELECT 1 AS ok FROM grading_committee_members WHERE block_key = ? AND user_login = ?',
@@ -370,8 +371,8 @@ async function evaluateAsCommittee(req, res, ctx) {
 
   await run(`
     INSERT INTO grading_committee_evaluations
-      (block_key, job_title, evaluator_login, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, weighted_score, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (block_key, job_title, evaluator_login, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, weighted_score, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(block_key, job_title, evaluator_login) DO UPDATE SET
       factor_1 = excluded.factor_1,
       factor_2 = excluded.factor_2,
@@ -379,10 +380,11 @@ async function evaluateAsCommittee(req, res, ctx) {
       factor_4 = excluded.factor_4,
       factor_5 = excluded.factor_5,
       factor_6 = excluded.factor_6,
+      factor_7 = excluded.factor_7,
       weighted_score = excluded.weighted_score,
       notes = excluded.notes,
       submitted_at = CURRENT_TIMESTAMP
-  `, [block, jobTitle, req.user.login, f1, f2, f3, f4, f5, f6, result.weightedScore, notes || null]);
+  `, [block, jobTitle, req.user.login, f1, f2, f3, f4, f5, f6, f7, result.weightedScore, notes || null]);
 
   await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
     req.user.login,
@@ -391,7 +393,7 @@ async function evaluateAsCommittee(req, res, ctx) {
   ]);
 
   const submissions = await queryAll(
-    'SELECT evaluator_login, weighted_score, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
+    'SELECT evaluator_login, weighted_score, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
     [block, jobTitle]
   );
 
@@ -424,7 +426,7 @@ async function finalizeCommitteeResult(block, jobTitle, unit, submissions, actor
   ) / 100;
   const finalGrade = calcGrade(avgScore);
 
-  // Средний балл по каждому вопросу отдельно — factor_1..6 в job_evaluations
+  // Средний балл по каждому вопросу отдельно — factor_1..7 в job_evaluations
   // NOT NULL, а единого «правильного» ответа у комиссии нет, только среднее.
   const avgFactor = idx => {
     const values = submissions.map(s => s[`factor_${idx}`]).filter(v => v != null);
@@ -437,6 +439,7 @@ async function finalizeCommitteeResult(block, jobTitle, unit, submissions, actor
   const avgF4 = avgFactor(4);
   const avgF5 = avgFactor(5);
   const avgF6 = avgFactor(6);
+  const avgF7 = avgFactor(7);
 
   const evaluators = await queryAll(
     `SELECT fio, login FROM users WHERE login IN (${submissions.map(() => '?').join(',')})`,
@@ -447,19 +450,20 @@ async function finalizeCommitteeResult(block, jobTitle, unit, submissions, actor
 
   await run(`
     INSERT INTO job_evaluations
-      (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6,
+      (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7,
        weighted_score, grade_level, evaluated_by, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
     ON CONFLICT(block_key, job_title) DO UPDATE SET
       factor_1 = excluded.factor_1, factor_2 = excluded.factor_2,
       factor_3 = excluded.factor_3, factor_4 = excluded.factor_4,
       factor_5 = excluded.factor_5, factor_6 = excluded.factor_6,
+      factor_7 = excluded.factor_7,
       weighted_score = excluded.weighted_score,
       grade_level = excluded.grade_level,
       evaluated_by = excluded.evaluated_by,
       notes = NULL,
       updated_at = CURRENT_TIMESTAMP
-  `, [block, jobTitle, unit, avgF1, avgF2, avgF3, avgF4, avgF5, avgF6, avgScore, finalGrade, evaluatedBy]);
+  `, [block, jobTitle, unit, avgF1, avgF2, avgF3, avgF4, avgF5, avgF6, avgF7, avgScore, finalGrade, evaluatedBy]);
 
   await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
     actorLogin,
@@ -489,7 +493,7 @@ async function forceFinalizeCommittee(req, res) {
     if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
 
     const submissions = await queryAll(
-      'SELECT evaluator_login, weighted_score, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
+      'SELECT evaluator_login, weighted_score, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7 FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
       [block, jobTitle]
     );
     if (!submissions.length) return fail(res, 'По этой должности пока нет ни одной заявки комиссии');
@@ -554,7 +558,7 @@ async function getCommitteeBreakdown(req, res) {
 
     const submissions = await queryAll(`
       SELECT c.evaluator_login, COALESCE(u.fio, c.evaluator_login) AS evaluator_fio,
-             c.factor_1, c.factor_2, c.factor_3, c.factor_4, c.factor_5, c.factor_6,
+             c.factor_1, c.factor_2, c.factor_3, c.factor_4, c.factor_5, c.factor_6, c.factor_7,
              c.weighted_score, c.notes, c.submitted_at
       FROM grading_committee_evaluations c
       LEFT JOIN users u ON u.login = c.evaluator_login
@@ -563,7 +567,7 @@ async function getCommitteeBreakdown(req, res) {
     `, [block, jobTitle]);
 
     const final = await queryOne(
-      'SELECT weighted_score, grade_level, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, evaluated_by FROM job_evaluations WHERE block_key = ? AND job_title = ?',
+      'SELECT weighted_score, grade_level, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, evaluated_by FROM job_evaluations WHERE block_key = ? AND job_title = ?',
       [block, jobTitle]
     );
     const committeeSize = await queryOne(

@@ -639,6 +639,7 @@ async function migrate() {
   await upgradeJobEvaluationsToBlocks();
   await seedGradingPositionHints();
   await unifyGradingCriteria();
+  await addSeventhGradingFactor();
   await seedSupportChat();
   await extendSupportChatWeb();
   await createPositionCompanySelections();
@@ -765,6 +766,84 @@ async function unifyGradingCriteria() {
   await run('INSERT INTO schema_migrations (name) VALUES (?)', [MIGRATION_NAME]);
   console.log('🔧 Миграция: грейдирование переведено на единую анкету из 6 факторов для всей компании ' +
     '(старые оценки должностей удалены, требуется переоценка)');
+}
+
+/**
+ * Методика «Единая система оценки должностей ГК «Фаравон»» (2026-09-17):
+ * добавлен 7-й фактор «Управление людьми и ресурсами», веса и формулировки
+ * всех факторов пересмотрены (см. config/gradingFactors.js), шкала групп
+ * перевёрнута — теперь номер группы растёт вместе со сложностью должности
+ * (1 = Группа I, младший уровень; 5 = Группа V, высшее руководство).
+ *
+ * Тот же приём, что и в unifyGradingCriteria() выше: раз меняется сама
+ * формула (веса + число факторов + направление шкалы), старые баллы
+ * несопоставимы с новыми — переносить их бессмысленно, они физически
+ * удаляются и должности переоцениваются заново по новой анкете.
+ */
+async function addSeventhGradingFactor() {
+  const MIGRATION_NAME = '20260917_seventh_grading_factor';
+  const applied = await queryOne('SELECT name FROM schema_migrations WHERE name = ?', [MIGRATION_NAME]);
+  if (applied) return;
+
+  await run('DROP TABLE IF EXISTS job_evaluations');
+  await run(`CREATE TABLE job_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL REFERENCES grading_blocks(key),
+    job_title TEXT NOT NULL,
+    unit TEXT,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER NOT NULL CHECK(factor_4 BETWEEN 1 AND 5),
+    factor_5 INTEGER NOT NULL CHECK(factor_5 BETWEEN 1 AND 5),
+    factor_6 INTEGER NOT NULL CHECK(factor_6 BETWEEN 1 AND 5),
+    factor_7 INTEGER NOT NULL CHECK(factor_7 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    grade_level INTEGER NOT NULL,
+    evaluated_by TEXT NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_block ON job_evaluations(block_key)');
+  await run('CREATE INDEX IF NOT EXISTS idx_job_eval_title ON job_evaluations(job_title)');
+
+  await run('DROP TABLE IF EXISTS grading_committee_evaluations');
+  await run(`CREATE TABLE grading_committee_evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_key TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    evaluator_login TEXT NOT NULL,
+    factor_1 INTEGER NOT NULL CHECK(factor_1 BETWEEN 1 AND 5),
+    factor_2 INTEGER NOT NULL CHECK(factor_2 BETWEEN 1 AND 5),
+    factor_3 INTEGER NOT NULL CHECK(factor_3 BETWEEN 1 AND 5),
+    factor_4 INTEGER NOT NULL CHECK(factor_4 BETWEEN 1 AND 5),
+    factor_5 INTEGER NOT NULL CHECK(factor_5 BETWEEN 1 AND 5),
+    factor_6 INTEGER NOT NULL CHECK(factor_6 BETWEEN 1 AND 5),
+    factor_7 INTEGER NOT NULL CHECK(factor_7 BETWEEN 1 AND 5),
+    weighted_score REAL NOT NULL,
+    notes TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(block_key, job_title, evaluator_login)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_grading_committee_eval_pair ON grading_committee_evaluations(block_key, job_title)');
+
+  // Старые формулировки анкеты (scope='position') рассчитаны на 6 вопросов —
+  // с новым 7-м фактором количество не совпадает, factorsService не подставит
+  // их автоматически (см. expectedCount в gradingFactorsService.js), но чтобы
+  // не оставлять в базе заведомо неполный, вводящий в заблуждение набор,
+  // подчищаем и его. seedFactors() уже отработал раньше в этом же migrate() —
+  // сеет заново сразу здесь же (а не ждёт следующего рестарта сервера),
+  // иначе до следующего деплоя правка формулировки из админки падала бы с
+  // «вопрос анкеты не найден»: saveFactor() ищет базовую строку (dir=''), а
+  // после DELETE её нет, пока сервер не перезапустится ещё раз.
+  await run("DELETE FROM grading_factors WHERE scope = 'position'");
+  await seedFactors('position', CRITERIA);
+
+  await run('INSERT INTO schema_migrations (name) VALUES (?)', [MIGRATION_NAME]);
+  console.log('🔧 Миграция: добавлен 7-й фактор грейдирования «Управление людьми и ресурсами», ' +
+    'шкала групп пересчитана (старые оценки должностей удалены, требуется переоценка)');
 }
 
 /**
