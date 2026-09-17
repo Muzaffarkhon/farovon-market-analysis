@@ -196,6 +196,7 @@ router.get('/grading/stats', requireCapability('grading:view', 'grading:edit'), 
 router.get('/key-personnel/list', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.listRisks);
 router.get('/key-personnel/unit-employees', requireCapability('keyrisk:edit'), gradingController.unitEmployees);
 router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradingController.evaluateRiskCard);
+router.post('/key-personnel/delete', requireRoles('admin'), gradingController.deleteRisk);
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 
 // ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
@@ -203,6 +204,9 @@ router.get('/admin/support/threads', requireCapability('support:manage'), suppor
 router.get('/admin/support/threads/:id', requireCapability('support:manage'), supportController.getThread);
 router.post('/admin/support/reply', requireCapability('support:manage'), supportController.reply);
 router.post('/admin/support/close', requireCapability('support:manage'), supportController.close);
+router.post('/admin/support/archive', requireRoles('admin'), supportController.archive);
+router.post('/admin/support/unarchive', requireRoles('admin'), supportController.unarchive);
+router.post('/admin/support/delete', requireRoles('admin'), supportController.remove);
 router.get('/admin/support/unread-count', requireCapability('support:manage'), supportController.unreadCount);
 router.post('/admin/support/link-employee', requireCapability('support:manage'), supportController.linkEmployee);
 router.get('/admin/support/quick-replies', requireCapability('support:manage'), supportController.listQuickReplies);

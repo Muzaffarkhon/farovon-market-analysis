@@ -86,7 +86,8 @@ const LINKED_FIO_JOIN = `
 async function listThreads(filters) {
   filters = filters || {};
   let rows = await queryAll(`
-    SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.source, t.topic, t.last_message_at, t.created_at,
+    SELECT t.id, t.telegram_chat_id, t.phone, t.status, t.source, t.topic, t.archived_at,
+      t.last_message_at, t.created_at,
       lu.fio AS linked_fio,
       (SELECT body FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_body,
       (SELECT direction FROM support_messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_direction,
@@ -95,6 +96,10 @@ async function listThreads(filters) {
     ${LINKED_FIO_JOIN}
     ORDER BY (unread_count > 0) DESC, t.last_message_at DESC
   `);
+
+  // По умолчанию архивные не мешают рабочему списку; filters.archived='yes' —
+  // отдельный просмотр самого архива (кнопка «Архив» в админке).
+  rows = filters.archived === 'yes' ? rows.filter(r => r.archived_at) : rows.filter(r => !r.archived_at);
 
   const q = String(filters.q || '').trim();
   if (q) {
@@ -177,6 +182,21 @@ async function saveOutgoingMessage(threadId, body, authorLogin) {
 /** Без подтверждения — не разрушительно, тред просто переоткроется, если гость напишет снова. */
 async function closeThread(threadId) {
   await run('UPDATE support_threads SET status = \'closed\' WHERE id = ?', [threadId]);
+}
+
+/** Скрыть из рабочего списка, не удаляя — обратимо, см. unarchiveThread. */
+async function archiveThread(threadId) {
+  await run('UPDATE support_threads SET archived_at = CURRENT_TIMESTAMP WHERE id = ?', [threadId]);
+}
+
+async function unarchiveThread(threadId) {
+  await run('UPDATE support_threads SET archived_at = NULL WHERE id = ?', [threadId]);
+}
+
+/** Необратимо: стирает тред и всю переписку. Только для админа (см. контроллер). */
+async function deleteThread(threadId) {
+  await run('DELETE FROM support_messages WHERE thread_id = ?', [threadId]);
+  await run('DELETE FROM support_threads WHERE id = ?', [threadId]);
 }
 
 /**
@@ -330,7 +350,7 @@ async function deleteFaq(id) {
 module.exports = {
   getOrCreateThread, findThreadByChatId, saveIncomingMessage,
   listThreads, countUnreadThreads, getThread, getMessages,
-  saveOutgoingMessage, closeThread, linkEmployee, markThreadRead,
+  saveOutgoingMessage, closeThread, archiveThread, unarchiveThread, deleteThread, linkEmployee, markThreadRead,
   listQuickReplies, saveQuickReply, deleteQuickReply,
   createWebThread, listMyThreads, getMyThread, saveOwnMessage, countMyUnread,
   listFaq, saveFaq, deleteFaq

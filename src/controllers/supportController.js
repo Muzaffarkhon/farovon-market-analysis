@@ -32,7 +32,8 @@ async function listThreads(req, res) {
       status: req.query.status,
       reply: req.query.reply,
       login: req.query.login,
-      unread: req.query.unread
+      unread: req.query.unread,
+      archived: req.query.archived
     });
     return res.json({ ok: true, rows });
   } catch (err) {
@@ -96,6 +97,53 @@ async function close(req, res) {
     return res.json({ ok: true, message: 'Диалог закрыт' });
   } catch (err) {
     return handleError(res, err, 'supportClose');
+  }
+}
+
+/** Скрыть тред из рабочего списка (обратимо) — только админ, как и удаление. */
+async function archive(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.thread_id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректный тред');
+
+    const thread = await supportChat.getThread(id);
+    if (!thread) return fail(res, 'Тред не найден', 404);
+
+    await supportChat.archiveThread(id);
+    return res.json({ ok: true, message: 'Обращение перенесено в архив' });
+  } catch (err) {
+    return handleError(res, err, 'supportArchive');
+  }
+}
+
+async function unarchive(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.thread_id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректный тред');
+
+    const thread = await supportChat.getThread(id);
+    if (!thread) return fail(res, 'Тред не найден', 404);
+
+    await supportChat.unarchiveThread(id);
+    return res.json({ ok: true, message: 'Обращение возвращено из архива' });
+  } catch (err) {
+    return handleError(res, err, 'supportUnarchive');
+  }
+}
+
+/** Необратимо стирает тред и переписку — только админ. */
+async function remove(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.thread_id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректный тред');
+
+    const thread = await supportChat.getThread(id);
+    if (!thread) return fail(res, 'Тред не найден', 404);
+
+    await supportChat.deleteThread(id);
+    return res.json({ ok: true, message: 'Обращение удалено' });
+  } catch (err) {
+    return handleError(res, err, 'supportDeleteThread');
   }
 }
 
@@ -220,7 +268,7 @@ async function deleteFaq(req, res) {
 }
 
 module.exports = {
-  listThreads, getThread, reply, close, unreadCount, linkEmployee,
+  listThreads, getThread, reply, close, archive, unarchive, remove, unreadCount, linkEmployee,
   listQuickReplies, saveQuickReply, deleteQuickReply,
   saveFaq, deleteFaq
 };

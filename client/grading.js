@@ -986,7 +986,12 @@ function openRiskViewCard(r){
       '</div>'+
       '<div class="muted" style="font-size:12.5px;margin-top:8px">Оценил: '+esc(r.evaluator_fio || '—')+'</div>'+
     '</div>'+
-    '<div style="display:flex;justify-content:flex-end;margin-top:14px">'+
+    '<div style="display:flex;justify-content:space-between;margin-top:14px">'+
+      // Удаление стирает запись совсем (не «сбросить и переоценить») —
+      // поэтому только системный админ, как и сброс оценки должности.
+      (S.data && S.data.user && S.data.user.role === 'admin'
+        ? '<button class="btn-line btn-danger" id="rvDelete">'+ic('trash',14)+'Удалить</button>'
+        : '<span></span>')+
       '<button class="btn-primary" id="rvEdit">'+ic('pencil',14)+'Изменить</button>'+
     '</div>'+
   '</div>';
@@ -1001,6 +1006,27 @@ function openRiskViewCard(r){
     close();
     openRiskForm(r);
   };
+  var delBtn = el.querySelector('#rvDelete');
+  if(delBtn){
+    delBtn.onclick = function(){
+      ask({
+        title: 'Удалить оценку риска?',
+        html: 'Карточка «'+esc(r.employee_fio)+'» пропадёт из списка ключевых сотрудников безвозвратно. Само подразделение и штатное расписание не затрагиваются.',
+        ok: 'Удалить', cancel: 'Отмена', danger: true
+      }).then(function(yes){
+        if(!yes) return;
+        call('apiKeyRiskDelete', S.token, r.id).then(function(res){
+          if(!res || !res.ok){
+            toast((res && res.error) || 'Не удалось удалить', 'error');
+            return;
+          }
+          toast(res.message || 'Оценка удалена', 'success');
+          close();
+          loadRiskList();
+        }).catch(function(){ toast('Нет связи с сервером', 'error'); });
+      });
+    };
+  }
 }
 
 function loadRiskUnitEmployees(unit){

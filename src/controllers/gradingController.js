@@ -975,6 +975,35 @@ async function getHeatmap(req, res) {
   }
 }
 
+/**
+ * Полное удаление оценки риска незаменимости по сотруднику — не «сбросить»
+ * (как у должностей, где можно переоценить), а стереть строку совсем: если
+ * сотрудник уволился или карточку завели по ошибке, восстанавливать нечего.
+ * Только администратор — необратимо и не привязано к конкретному
+ * подразделению, в отличие от самой анкеты (canUseUnit там).
+ */
+async function deleteRisk(req, res) {
+  try {
+    const id = parseInt(req.body && req.body.id, 10);
+    if (!Number.isInteger(id)) return fail(res, 'Некорректная запись');
+
+    const row = await queryOne('SELECT unit, employee_fio, job_title FROM key_personnel_risks WHERE id = ?', [id]);
+    if (!row) return fail(res, 'Запись не найдена', 404);
+
+    await run('DELETE FROM key_personnel_risks WHERE id = ?', [id]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'удаление оценки риска незаменимости',
+      `${row.unit} / ${row.employee_fio} (${row.job_title})`
+    ]);
+
+    return res.json({ ok: true, message: 'Оценка удалена' });
+  } catch (err) {
+    return handleError(res, err, 'deleteRisk');
+  }
+}
+
 module.exports = {
   getFactors,
   saveFactor,
@@ -996,6 +1025,7 @@ module.exports = {
   listRisks,
   unitEmployees,
   evaluateRiskCard,
+  deleteRisk,
   getHeatmap,
   // экспортируется для тестов границ видимости
   allowedUnits,
