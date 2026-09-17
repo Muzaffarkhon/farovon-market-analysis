@@ -51,6 +51,10 @@ function fromRow(row) {
     title: row.title,
     help: row.help || '',
     options: [row.option_1, row.option_2, row.option_3, row.option_4, row.option_5],
+    // Эталон-должность на каждый уровень (для калибровки между экспертами) —
+    // только у анкеты грейдирования должностей; колонки в базе есть всегда
+    // (см. миграцию), но для risk-анкеты остаются NULL и на выходе — ''.
+    examples: [row.example_1, row.example_2, row.example_3, row.example_4, row.example_5].map(v => v || ''),
     // '' — общая формулировка; иначе видно, что текст переопределён под
     // конкретное направление (в админке это помечается плашкой).
     dir: String(row.dir || ''),
@@ -165,6 +169,12 @@ async function saveFactor(input) {
   if (options.length !== OPTION_COUNT || options.some(o => !o)) {
     throw new GradingError(`Нужно заполнить все ${OPTION_COUNT} вариантов ответа (баллы 1–5)`);
   }
+  // Эталон-пример на уровень — необязателен (не у каждого критерия он
+  // осмыслен), поэтому, в отличие от options, пустые значения допустимы;
+  // недостающие элементы просто дополняются пустой строкой.
+  const examplesRaw = Array.isArray(input.examples) ? input.examples : [];
+  const examples = [];
+  for (let i = 0; i < OPTION_COUNT; i++) examples.push(cleanText(examplesRaw[i], MAX_TITLE));
 
   const dir = await checkDir(input.dir);
   const author = cleanText(input.updatedBy, MAX_TITLE) || 'не указан';
@@ -179,8 +189,9 @@ async function saveFactor(input) {
 
   await run(
     `INSERT INTO grading_factors
-       (scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       (scope, idx, dir, code, title, help, option_1, option_2, option_3, option_4, option_5,
+        example_1, example_2, example_3, example_4, example_5, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(scope, idx, dir) DO UPDATE SET
        title = excluded.title,
        help = excluded.help,
@@ -189,9 +200,14 @@ async function saveFactor(input) {
        option_3 = excluded.option_3,
        option_4 = excluded.option_4,
        option_5 = excluded.option_5,
+       example_1 = excluded.example_1,
+       example_2 = excluded.example_2,
+       example_3 = excluded.example_3,
+       example_4 = excluded.example_4,
+       example_5 = excluded.example_5,
        updated_by = excluded.updated_by,
        updated_at = CURRENT_TIMESTAMP`,
-    [scope, idx, dir, base.code, title, help, ...options, author]
+    [scope, idx, dir, base.code, title, help, ...options, ...examples, author]
   );
 
   invalidate();
@@ -219,7 +235,8 @@ async function resetFactor(scope, idx, dirRaw, updatedBy) {
   const source = list && list[idx - 1];
   if (!source) throw new GradingError('Исходной формулировки для этого вопроса нет');
   return saveFactor({
-    scope, idx, dir: '', title: source.title, help: source.help, options: source.options, updatedBy
+    scope, idx, dir: '', title: source.title, help: source.help, options: source.options,
+    examples: source.examples, updatedBy
   });
 }
 

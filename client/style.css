@@ -10817,7 +10817,7 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .gf-opt {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 6px;
 }
@@ -10834,6 +10834,21 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   background: var(--accent-soft);
   border: 1px solid var(--accent-border);
   color: var(--accent);
+  /* .gf-opt теперь align-items:flex-start (второе поле — эталон — под
+     основным), центрируем кружок по первой строке текста, а не по всей
+     двухстрочной колонке. */
+  margin-top: 3px;
+}
+/* Колонка «текст варианта + эталон-должность под ним» рядом с кружком-баллом. */
+.gf-opt-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.gf-example {
+  font-size: 13px;
 }
 .gf-acts {
   display: flex;
@@ -10930,9 +10945,18 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   border-radius: 8px;
   background: var(--accent-soft);
 }
+/* Это и есть сам вопрос анкеты (маркер: «на кого будем искать замену»
+   и т.п.) — заголовок фактора («К1. Квалификация…») только называет
+   критерий, а что именно оценивать, написано здесь. При 12px и приглушённом
+   цвете (.muted) эта строка терялась между цветной плашкой заголовка и
+   жирными кнопками вариантов — читали заголовок и сразу прыгали к
+   вариантам, не заметив вопрос. Увеличен размер и убрана приглушённость. */
 .gr-help {
-  font-size: 12px;
-  margin-bottom: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 2px 0 10px;
 }
 /* Свёрнутый (уже отвеченный) фактор — компактная строка с итогом выбора
    вместо полного списка вариантов, см. drawGradeForm()/drawRiskForm().
@@ -11417,6 +11441,12 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);
   color: var(--text);
+  /* Карточка — это <a href="#"> (нужен клик всей строкой), а не <button>,
+     как остальные кликабельные списки в проекте — глобального сброса
+     подчёркивания у ссылок в таблице стилей нет, поэтому его нужно снять
+     здесь явно, иначе браузер по умолчанию подчёркивает и красит текст
+     внутри всей карточки (имя, превью сообщения, дату, бейджи). */
+  text-decoration: none;
 }
 .sup-row-card:hover { background: var(--card-2); }
 .sup-row-active { background: var(--accent-soft); }
@@ -11497,7 +11527,7 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 /* Вариант ответа: номер слева — это балл, который получит должность. */
 .gr-opt {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -11525,6 +11555,21 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   font-weight: 600;
   background: var(--card-2);
   border: 1px solid var(--line);
+  /* Кружок с баллом и текст выровнены по верху (.gr-opt: align-items:
+     flex-start) — у варианта теперь может быть вторая строка (эталон-пример),
+     margin-top центрует кружок по первой строке текста, а не по всему блоку. */
+  margin-top: 1px;
+}
+.gr-opt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gr-opt-example {
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--muted);
 }
 .gr-opt.on .gr-score {
   background: var(--accent, #2563eb);
