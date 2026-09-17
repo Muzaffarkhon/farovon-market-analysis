@@ -250,13 +250,16 @@ function navModel(){
   }
 
   // «Поддержка» глазами самого сотрудника — написать вопрос прямо на сайте,
-  // увидеть свои обращения и FAQ. Доступно вообще всем ролям (не путать с
-  // admin-only 'support' в adminAll ниже — это админский инбокс переписки,
-  // разные разделы с разным набором прав).
-  primary.push({ key:'mysupport', label:'Поддержка', icon:'chat',
-    active:mkActive('mysupport'), inTabs:true,
-    run:function(){ switchView('mysupport'); },
-    badgeCount: S.mySupportUnreadCount || 0 });
+  // увидеть свои обращения и FAQ. Задумывалась для рядовых сотрудников —
+  // тем, у кого и так есть админский инбокс (support:manage), незачем писать
+  // самому себе через отдельную форму, они просто отвечают в своём инбоксе
+  // (не путать с admin-only 'support' в adminAll ниже — это он и есть).
+  if(!hasCap('support:manage')){
+    primary.push({ key:'mysupport', label:'Поддержка', icon:'chat',
+      active:mkActive('mysupport'), inTabs:true,
+      run:function(){ switchView('mysupport'); },
+      badgeCount: S.mySupportUnreadCount || 0 });
+  }
 
   var usersSubs = [
     {
