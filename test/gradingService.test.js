@@ -7,50 +7,51 @@ const {
   calcWeightedScore, calcGrade, evaluatePosition, evaluateRisk, GradingError, CRITERIA_WEIGHTS
 } = require('../src/services/gradingService');
 
-test('единая анкета: 6 факторов со своими весами', () => {
-  // 5×0.20 + 4×0.20 + 3×0.20 + 2×0.15 + 2×0.15 + 1×0.10 = 1 + 0.8 + 0.6 + 0.3 + 0.3 + 0.1 = 3.1
-  assert.equal(calcWeightedScore([5, 4, 3, 2, 2, 1]), 3.1);
-  assert.equal(calcGrade(3.1), 4);
+test('единая анкета: 7 факторов со своими весами', () => {
+  // Веса К1..К7 = 0.10, 0.10, 0.15, 0.15, 0.15, 0.15, 0.20 (сумма 100%).
+  // 5×.10 + 4×.10 + 3×.15 + 2×.15 + 2×.15 + 1×.15 + 3×.20 = .5+.4+.45+.3+.3+.15+.6 = 2.7
+  assert.equal(calcWeightedScore([5, 4, 3, 2, 2, 1, 3]), 2.7);
+  assert.equal(calcGrade(2.7), 3);
 });
 
 test('максимум и минимум шкалы', () => {
-  assert.equal(calcWeightedScore([5, 5, 5, 5, 5, 5]), 5);
-  assert.equal(calcGrade(5), 1);
-  assert.equal(calcWeightedScore([1, 1, 1, 1, 1, 1]), 1);
-  // Балл ниже 1.70 — это самый низкий уровень шкалы (5), второго дна нет.
-  assert.equal(calcGrade(1), 5);
+  assert.equal(calcWeightedScore([5, 5, 5, 5, 5, 5, 5]), 5);
+  assert.equal(calcGrade(5), 5);
+  assert.equal(calcWeightedScore([1, 1, 1, 1, 1, 1, 1]), 1);
+  // Балл 1.00 — это самый младший уровень шкалы (Группа I), второго дна нет.
+  assert.equal(calcGrade(1), 1);
 });
 
-test('границы диапазонов попадают в старший уровень', () => {
-  assert.equal(calcGrade(4.60), 1);
-  assert.equal(calcGrade(4.59), 2);
-  assert.equal(calcGrade(4.00), 2);
-  assert.equal(calcGrade(3.99), 3);
-  assert.equal(calcGrade(3.30), 3);
-  assert.equal(calcGrade(2.50), 4);
-  assert.equal(calcGrade(1.70), 5);
-  assert.equal(calcGrade(1.69), 5);
+test('границы диапазонов попадают в старшую (по баллу) группу', () => {
+  assert.equal(calcGrade(4.20), 5);
+  assert.equal(calcGrade(4.19), 4);
+  assert.equal(calcGrade(3.40), 4);
+  assert.equal(calcGrade(3.39), 3);
+  assert.equal(calcGrade(2.60), 3);
+  assert.equal(calcGrade(1.80), 2);
+  assert.equal(calcGrade(1.79), 1);
+  assert.equal(calcGrade(1.00), 1);
 });
 
 test('evaluatePosition считает балл и уровень одним вызовом', () => {
-  const r = evaluatePosition([4, 4, 4, 3, 3, 2]);
-  // 4×0.20 + 4×0.20 + 4×0.20 + 3×0.15 + 3×0.15 + 2×0.10 = 0.8+0.8+0.8+0.45+0.45+0.2 = 3.5
-  assert.equal(r.weightedScore, 3.5);
-  assert.equal(r.gradeLevel, 3);
-  assert.deepEqual(r.factors, [4, 4, 4, 3, 3, 2]);
+  const r = evaluatePosition([4, 4, 4, 3, 3, 2, 4]);
+  // 4×.10 + 4×.10 + 4×.15 + 3×.15 + 3×.15 + 2×.15 + 4×.20 = .4+.4+.6+.45+.45+.3+.8 = 3.4
+  assert.equal(r.weightedScore, 3.4);
+  assert.equal(r.gradeLevel, 4);
+  assert.deepEqual(r.factors, [4, 4, 4, 3, 3, 2, 4]);
 });
 
-test('веса шести факторов складываются в 100%', () => {
+test('веса семи факторов складываются в 100%', () => {
   const sum = CRITERIA_WEIGHTS.reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(sum - 1) < 1e-9);
-  assert.equal(CRITERIA_WEIGHTS.length, 6);
+  assert.equal(CRITERIA_WEIGHTS.length, 7);
 });
 
 test('неверные данные анкеты не проходят', () => {
-  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2]), GradingError);          // пропущен фактор
-  assert.throws(() => calcWeightedScore([5, 4, 6, 2, 2, 1]), GradingError);       // балл вне 1–5
-  assert.throws(() => calcWeightedScore([5, 4, 2.5, 2, 2, 1]), GradingError);     // дробная оценка
-  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2, 1, 1]), GradingError);    // лишний фактор
+  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2, 1]), GradingError);          // пропущен фактор
+  assert.throws(() => calcWeightedScore([5, 4, 6, 2, 2, 1, 1]), GradingError);       // балл вне 1–5
+  assert.throws(() => calcWeightedScore([5, 4, 2.5, 2, 2, 1, 1]), GradingError);     // дробная оценка
+  assert.throws(() => calcWeightedScore([5, 4, 3, 2, 2, 1, 1, 1]), GradingError);    // лишний фактор
 });
 
 test('риск: сумма четырёх факторов и статус', () => {
@@ -108,8 +109,8 @@ test('пользователь без подразделений не получ
 const { CRITERIA, RISK_FACTORS } = require('../src/config/gradingFactors');
 const { RISK_FACTOR_FIELDS } = require('../src/services/gradingService');
 
-test('единая анкета: 6 факторов, у каждого по 5 вариантов ответа', () => {
-  assert.equal(CRITERIA.length, 6);
+test('единая анкета: 7 факторов, у каждого по 5 вариантов ответа', () => {
+  assert.equal(CRITERIA.length, 7);
   CRITERIA.forEach(f => {
     assert.equal(f.options.length, 5, f.code);
     assert.ok(f.title.length > 0, f.code);
@@ -145,9 +146,9 @@ test('правка анкеты: чужая анкета и номер вне д
     () => factorsService.saveFactor({ scope: 'директора', idx: 1, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
     /Неизвестная анкета/
   );
-  // В единой анкете 6 вопросов — седьмого не существует.
+  // В единой анкете 7 вопросов — восьмого не существует.
   await assert.rejects(
-    () => factorsService.saveFactor({ scope: 'position', idx: 7, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
+    () => factorsService.saveFactor({ scope: 'position', idx: 8, title: 'Вопрос', options: ['а', 'б', 'в', 'г', 'д'] }),
     /номер вопроса/
   );
 });
