@@ -513,7 +513,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.76')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.77')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -548,7 +548,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.76')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.77')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -609,7 +609,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.76')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.77')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -639,7 +639,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.76')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.77')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6770,18 +6770,33 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
   var editKey = audience;
   loadSupQuickCache(audience, function(rows){
     var editing = S.supQuickEditing === editKey;
-    var chips = rows.map(function(r){
-      // Чип переносится по словам (см. .sup-quick-chip), поэтому короткие и
-      // средние фразы показываются целиком — режем только совсем длинные,
-      // чтобы не растягивать один чип на полэкрана.
-      var short = r.text.length > 80 ? r.text.slice(0, 80) + '…' : r.text;
-      return '<button type="button" class="sup-quick-chip" data-id="'+r.id+'" title="'+esc(r.text)+'">'+esc(short)+'</button>';
-    }).join('');
 
-    box.innerHTML =
-      '<div class="sup-quick-row">'+chips+
+    // Режим вставки в поле ответа (тред C&B) — сворачиваем фразы в
+    // выпадающий список по наведению (как в «Кафетерий льгот»), чтобы не
+    // занимать строку над полем ввода. Режим настройки (обзор чата, гостю
+    // всё равно нечего тут нажимать) — вообще без превью, только карандаш.
+    var dropdownMode = !!insertTargetId;
+    var chipsRow = dropdownMode ? '' :
+      '<div class="sup-quick-row">'+
+        '<button type="button" class="sup-quick-edit-toggle sup-quick-manage-btn" title="Изменить фразы">'+icBare('pencil', 14)+esc(rows.length ? ' Фразы ('+rows.length+')' : ' Добавить фразы')+'</button>'+
+      '</div>';
+
+    var dropdownBlock = !dropdownMode ? '' :
+      '<div class="sup-quick-wrap" id="'+containerId+'Wrap">'+
+        '<button type="button" class="sup-quick-toggle" id="'+containerId+'ToggleBtn">'+
+          'Быстрые ответы'+icBare('chevron', 12)+
+        '</button>'+
         '<button type="button" class="sup-quick-edit-toggle" title="Изменить фразы">'+icBare('pencil', 14)+'</button>'+
-      '</div>'+
+        (rows.length ? (
+          '<div class="sup-quick-dropdown hidden" id="'+containerId+'Dropdown">'+
+            rows.map(function(r){
+              return '<button type="button" class="sup-quick-dropdown-item" data-id="'+r.id+'">'+esc(r.text)+'</button>';
+            }).join('')+
+          '</div>'
+        ) : '')+
+      '</div>';
+
+    box.innerHTML = chipsRow + dropdownBlock +
       (editing ? (
         '<div class="sup-quick-edit">'+
           rows.map(function(r){
@@ -6803,12 +6818,25 @@ function renderQuickReplyManager(containerId, audience, insertTargetId){
         '</div>'
       ) : '');
 
-    if(insertTargetId){
-      [].forEach.call(box.querySelectorAll('.sup-quick-chip'), function(btn){
+    if(dropdownMode){
+      var wrap = $(containerId+'Wrap');
+      var dropdown = $(containerId+'Dropdown');
+      var toggle = $(containerId+'ToggleBtn');
+      var closeDropdown = function(){ if(dropdown) dropdown.classList.add('hidden'); if(toggle) toggle.classList.remove('is-open'); };
+      var openDropdown = function(){ if(dropdown) dropdown.classList.remove('hidden'); if(toggle) toggle.classList.add('is-open'); };
+      if(wrap && dropdown){
+        // Открытие по наведению — как в «Кафетерий льгот»: увели мышь с
+        // кнопки+списка — список закрылся, без лишнего клика.
+        wrap.onmouseenter = openDropdown;
+        wrap.onmouseleave = closeDropdown;
+      }
+      if(toggle) toggle.onclick = function(){ if(dropdown && dropdown.classList.contains('hidden')) openDropdown(); else closeDropdown(); };
+      [].forEach.call(box.querySelectorAll('.sup-quick-dropdown-item'), function(btn){
         btn.onclick = function(){
           var row = rows.filter(function(r){ return r.id === +btn.getAttribute('data-id'); })[0];
           var input = $(insertTargetId);
           if(row && input){ input.value = row.text; input.focus(); }
+          closeDropdown();
         };
       });
     }
