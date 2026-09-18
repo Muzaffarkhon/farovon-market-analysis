@@ -3909,12 +3909,12 @@ label.lbl {
   body.has-topnav .wrap {
     padding-bottom: 60px;
   }
-
-  /* Всё из меню «⋮» переехало на нижнюю полосу (кнопки «Админка» и «Ещё» —
-     категории с выпадашками). На телефоне троеточие в шапке больше не нужно —
-     убираем, шапке становится просторнее. */
+  /* Кнопка «⋮» в шапке остаётся и на телефоне: открывает полное меню (все
+     разделы, профиль, выход) — дублирует «Ещё» внизу, но пользователи её ищут. */
   body.has-topnav #btnMenu {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
   }
 }
 
@@ -11910,3 +11910,11 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 }
 .bc-row { min-width: 0; }
 .bc-meta { flex: 1 1 0; }
+
+/* Главная: карточки-показатели компактнее (как на телефоне) на любой ширине —
+   раньше на широком экране это были крупные пустоватые плитки. */
+.home-stats { gap: 8px; }
+.home-stat { padding: 8px 12px; border-radius: var(--r-sm, 8px); }
+.home-stat-v { font-size: 18px; }
+.home-stat .home-period-name { font-size: 14px; }
+.home-stat-l, .home-stat-h { font-size: 12px; margin-top: 2px; }
