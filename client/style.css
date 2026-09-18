@@ -12118,3 +12118,29 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
    мельче подписи, а не второй иконкой. */
 .sheet .menu button svg.menu-item-caret,
 .nav-submenu-pop .menu button svg.menu-item-caret { width: 14px; height: 14px; }
+
+/* Список подразделений в карточке пользователя. Раньше высота была намертво
+   135px — при двухстрочных пунктах (название + «Отв: …») в окно влезал один
+   с половиной пункт, и выбирать приходилось через крошечную прокрутку.
+   Теперь высота тянется по экрану, но остаётся в разумных рамках. */
+.um-unit-list {
+  max-height: clamp(200px, 42vh, 460px);
+  min-height: 140px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 6px;
+  padding: 6px;
+}
+/* Пункт списка: подпись «направление · Отв: …» занимала до трёх строк, из-за
+   чего в окно влезало полтора пункта. Держим её в одну строку с многоточием. */
+.um-unit-list .pickrow { padding: 5px 6px; align-items: flex-start; }
+.um-unit-list .pickrow > span { min-width: 0; line-height: 1.25; }
+.um-unit-list .pickrow small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+}
