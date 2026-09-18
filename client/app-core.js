@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.88';
+var APP_VERSION = window.APP_VERSION || 'v2.5.89';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -2119,6 +2119,58 @@ document.addEventListener('keydown', function(e){
     activeInp.blur();
   }
 }, false);
+
+/**
+ * Шаг назад внутри экрана: аппаратная кнопка «назад» на телефоне, жест
+ * «смахнуть от края» и кнопка «назад» браузера закрывают верхнюю открытую
+ * карточку (лист, диалог, меню), а не уводят из приложения. Раньше любая
+ * такая карточка закрывалась только крестиком или клавишей Escape — на
+ * телефоне ни того, ни другого под рукой нет.
+ *
+ * Механика: пока хоть что-то открыто, под это в историю положена одна
+ * запись-заглушка. Нажали «назад» — браузер её снимает, мы в ответ закрываем
+ * верхний слой; если под ним есть ещё один, заглушка кладётся снова. Закрыли
+ * крестиком — снимаем заглушку сами, чтобы история не копилась и следующее
+ * «назад» не срабатывало вхолостую.
+ */
+var OVERLAY_SEL = '.sheet, .menu-scrim';
+var ovArmed = false;   // лежит ли наша запись в истории
+var ovSkipPop = 0;     // popstate от нашего же history.go(-1) — пропустить
+
+function overlayNodes(){ return document.querySelectorAll(OVERLAY_SEL); }
+
+function syncOverlayHistory(){
+  var open = overlayNodes().length > 0;
+  if(open && !ovArmed){
+    ovArmed = true;
+    try { history.pushState({ fvOverlay: true }, ''); } catch(e){ ovArmed = false; }
+  } else if(!open && ovArmed){
+    ovArmed = false;
+    ovSkipPop++;
+    try { history.go(-1); } catch(e){ ovSkipPop--; }
+  }
+}
+
+/** Закрывает карточку её же кнопкой — иначе промис ask()/askText() так и
+ *  останется висеть, и код, который ждёт ответа, не продолжится. */
+function closeOverlayNode(node){
+  var btn = node.querySelector('[data-x]') || node.querySelector('[data-v="0"]');
+  if(btn) btn.click(); else node.remove();
+}
+
+if(window.MutationObserver){
+  new MutationObserver(function(){ syncOverlayHistory(); })
+    .observe(document.body, { childList: true });
+}
+
+window.addEventListener('popstate', function(){
+  if(ovSkipPop > 0){ ovSkipPop--; return; }
+  var nodes = overlayNodes();
+  if(!nodes.length) return;      // ничего не открыто — обычное поведение браузера
+  ovArmed = false;               // запись уже снята самим браузером
+  closeOverlayNode(nodes[nodes.length - 1]);
+  // Остались другие слои — наблюдатель положит заглушку обратно.
+});
 
 /** Иконка в .search-wrap стоит справа и кликабельна — просто фокусирует поле рядом. */
 document.addEventListener('click', function(e){
