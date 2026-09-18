@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.85')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.86')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14066,85 +14066,66 @@ function loadBmInitialData(){
   });
 }
 
+function bmNum(v){ return v ? Number(v).toLocaleString('ru-RU') : '—'; }
+
+/** Строка перцентилей P10…P90 — без коробок: подпись сверху, число под ней. */
+function bmStatStrip(st, tone){
+  st = st || {};
+  var cells = [['P10', st.min || st.p10], ['P25', st.p25], ['P50', st.p50], ['P75', st.p75], ['P90', st.max || st.p90]];
+  return '<div class="bm-stats">' + cells.map(function(c){
+    return '<div class="bm-st' + (c[0] === 'P50' ? ' is-mid ' + (tone || '') : '') + '"><span>' + c[0] + '</span><b>' + bmNum(c[1]) + '</b></div>';
+  }).join('') + '</div>';
+}
+
+/**
+ * Полоса «рынок vs Фаровон»: тонкая шкала, коридор P25–P75, риска P50 и точка
+ * оклада Фаровон. Без плавающих подписей поверх шкалы (на телефоне они
+ * наезжали друг на друга) — значения вынесены в строку-легенду под ней.
+ */
 function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
   stats = stats || {};
-  var p10 = Number(stats.min || stats.p10 || 0);
   var p25 = Number(stats.p25 || 0);
   var p50 = Number(stats.p50 || 0);
   var p75 = Number(stats.p75 || 0);
-  var p90 = Number(stats.max || stats.p90 || 0);
+  var lo = Number(stats.min || stats.p10 || 0);
+  var hi = Number(stats.max || stats.p90 || 0);
   ourFrom = Number(ourFrom || 0);
   ourTo = Number(ourTo || 0);
   ourMid = Number(ourMid || 0);
 
   if(!p50 && !ourMid) return '';
+  var vals = [lo, p25, p50, p75, hi, ourFrom, ourTo, ourMid].filter(function(v){ return v > 0; });
+  if(!vals.length) return '';
 
-  var allVals = [p10, p25, p50, p75, p90, ourFrom, ourTo, ourMid].filter(function(v){ return v > 0; });
-  if(!allVals.length) return '';
+  var minVal = Math.min.apply(null, vals) * 0.9;
+  var maxVal = Math.max.apply(null, vals) * 1.1;
+  var span = (maxVal - minVal) || 1;
+  function pct(v){ return Math.max(0, Math.min(100, ((v - minVal) / span) * 100)); }
 
-  var minVal = Math.min.apply(null, allVals) * 0.85;
-  var maxVal = Math.max.apply(null, allVals) * 1.15;
-  var span = maxVal - minVal;
-  if(span <= 0) span = 1;
-
-  function toPct(v){
-    var pct = ((v - minVal) / span) * 100;
-    return Math.max(0, Math.min(100, pct));
-  }
-
-  var p25Pct = p25 ? toPct(p25) : 0;
-  var p75Pct = p75 ? toPct(p75) : 100;
-  var p50Pct = p50 ? toPct(p50) : 50;
-
-  var ourFromPct = ourFrom ? toPct(ourFrom) : (ourMid ? toPct(ourMid) : 0);
-  var ourToPct = ourTo ? toPct(ourTo) : (ourMid ? toPct(ourMid) : 0);
-  var ourMidPct = ourMid ? toPct(ourMid) : 0;
-
-  // Статус попадания в рынок
-  var statusBadge = '';
+  var badge = '';
   if(ourMid > 0 && p25 > 0 && p75 > 0){
     if(ourMid >= p25 && ourMid <= p75){
-      statusBadge = '<span class="top-period-pill"><span class="top-period-dot"></span> В коридоре рынка (P25–P75)</span>';
+      badge = '<span class="bm-flag is-ok">В коридоре рынка</span>';
     } else if(ourMid < p25){
-      var d = Math.round(((p25 - ourMid) / p25) * 100);
-      statusBadge = '<span class="top-period-pill is-closed"><span class="top-period-dot"></span> Ниже рынка (−' + d + '% от P25)</span>';
+      badge = '<span class="bm-flag is-low">Ниже рынка −' + Math.round(((p25 - ourMid) / p25) * 100) + '% от P25</span>';
     } else {
-      var d = Math.round(((ourMid - p75) / p75) * 100);
-      statusBadge = '<span class="top-period-pill" style="color:var(--warn);border-color:var(--warn-border)"><span class="top-period-dot" style="background:var(--warn)"></span> Выше рынка (+' + d + '% от P75)</span>';
+      badge = '<span class="bm-flag is-high">Выше рынка +' + Math.round(((ourMid - p75) / p75) * 100) + '% от P75</span>';
     }
   }
 
-  return '<div style="margin:8px 0 2px;padding:8px 12px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">' +
-      '<span style="font-size:11px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
-      statusBadge +
-    '</div>' +
-    '<div style="position:relative;height:26px;margin:14px 18px 12px">' +
-      '<div style="position:absolute;left:0;right:0;top:15px;height:6px;background:var(--color-ash);border-radius:3px"></div>' +
-      (p25 && p75 ?
-        '<div style="position:absolute;left:' + p25Pct + '%;width:' + Math.max(3, p75Pct - p25Pct) + '%;top:13px;height:10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:4px" title="Рыночный коридор P25–P75: ' + p25.toLocaleString('ru-RU') + ' – ' + p75.toLocaleString('ru-RU') + '">' +
-        '</div>'
-      : '') +
-      (p50 ?
-        '<div style="position:absolute;left:' + p50Pct + '%;top:5px;width:2px;height:26px;background:var(--accent);transform:translateX(-50%);z-index:2;border-radius:1px">' +
-          '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--color-midnight-ink);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--color-ash);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
-        '</div>'
-      : '') +
-      (ourMid ?
-        (ourFrom && ourTo && ourFrom !== ourTo ?
-          '<div style="position:absolute;left:' + ourFromPct + '%;width:' + Math.max(4, ourToPct - ourFromPct) + '%;top:27px;height:5px;background:var(--ok);border-radius:2px;z-index:3" title="Вилка Фаровон: ' + ourFrom.toLocaleString('ru-RU') + ' – ' + ourTo.toLocaleString('ru-RU') + '">' +
-          '</div>'
-        : '') +
-        '<div style="position:absolute;left:' + ourMidPct + '%;top:18px;width:14px;height:14px;background:var(--ok);border:2px solid #fff;box-shadow:var(--shadow-sm);border-radius:50%;transform:translateX(-50%);z-index:4">' +
-          '<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--ok);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--ok-border);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
-        '</div>'
-      : '') +
-    '</div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-fog);margin-top:16px;border-top:1px dashed var(--color-ash);padding-top:6px;font-feature-settings:\'tnum\' 1">' +
-      '<span>От: ' + Math.round(minVal / 0.85).toLocaleString('ru-RU') + '</span>' +
-      (p25 ? '<span>P25: <b>' + p25.toLocaleString('ru-RU') + '</b></span>' : '') +
-      (p75 ? '<span>P75: <b>' + p75.toLocaleString('ru-RU') + '</b></span>' : '') +
-      '<span>До: ' + Math.round(maxVal / 1.15).toLocaleString('ru-RU') + ' сом.</span>' +
+  var bar = '<div class="bm-bar">' +
+    (p25 && p75 ? '<i class="bm-bar-cor" style="left:' + pct(p25) + '%;width:' + Math.max(2, pct(p75) - pct(p25)) + '%" title="Коридор P25–P75"></i>' : '') +
+    (ourFrom && ourTo && ourFrom !== ourTo ? '<i class="bm-bar-our" style="left:' + pct(ourFrom) + '%;width:' + Math.max(2, pct(ourTo) - pct(ourFrom)) + '%" title="Вилка Фаровон"></i>' : '') +
+    (p50 ? '<i class="bm-bar-p50" style="left:' + pct(p50) + '%" title="P50"></i>' : '') +
+    (ourMid ? '<i class="bm-bar-dot" style="left:' + pct(ourMid) + '%" title="Фаровон"></i>' : '') +
+  '</div>';
+
+  return '<div class="bm-barwrap">' +
+    '<div class="bm-bar-head"><span>Рынок vs Фаровон</span>' + badge + '</div>' +
+    bar +
+    '<div class="bm-bar-legend">' +
+      (p25 && p75 ? '<span><i class="lg lg-cor"></i>Коридор P25–P75: <b>' + bmNum(p25) + ' – ' + bmNum(p75) + '</b></span>' : '') +
+      (ourMid ? '<span><i class="lg lg-our"></i>Фаровон: <b>' + bmNum(ourMid) + '</b>' + (ourFrom && ourTo && ourFrom !== ourTo ? ' <em>(' + bmNum(ourFrom) + ' – ' + bmNum(ourTo) + ')</em>' : '') + '</span>' : '') +
     '</div>' +
   '</div>';
 }
@@ -14283,27 +14264,13 @@ function loadBmCompareDetail(){
     // Внутренний сбор
     var intr = r.internal || {};
     var intrStats = intr.stats || {};
-    var intrRangeBar = renderSalaryRangeBar(intrStats, ourPayFrom, ourPayTo, ourMid);
-
-    sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-        '<div style="display:flex;align-items:center;gap:10px">' +
-          renderSourceBadge('internal') +
-          '<div>' +
-            '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(intr.sourceTitle) + '</b>' +
-            '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">Внутренние анкеты (' + (intr.observationsCount || 0) + ' набл.)</span>' +
-          '</div>' +
-        '</div>' +
-        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
+    sourcesHtml += '<div class="bm-card">' +
+      '<div class="bm-head">' +
+        '<div class="bm-head-l">' + renderSourceBadge('internal') +
+          '<span class="bm-sub">' + esc(intr.sourceTitle || 'Внутренние анкеты') + ' · ' + (intr.observationsCount || 0) + ' набл.</span></div>' +
+        '<div class="bm-head-r">' + (intrStats.p50 ? '<b>' + bmNum(intrStats.p50) + '</b><span>сом. · P50</span>' : '<span class="bm-none">нет данных</span>') + '</div>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-        '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (intrStats.p75 ? intrStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (intrStats.max ? intrStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
-      '</div>' +
-      intrRangeBar +
+      (intrStats.p50 ? bmStatStrip(intrStats, 'tone-acc') + renderSalaryRangeBar(intrStats, ourPayFrom, ourPayTo, ourMid) : '') +
     '</div>';
 
     // Совокупный доход (оклад + переменная часть, приведённая к месяцу).
@@ -14316,35 +14283,20 @@ function loadBmCompareDetail(){
     // Карточку показываем, только если есть хотя бы одна распознанная премия —
     // иначе «Совокупный доход» = «Внутренний сбор», дублирование.
     if(totStats.p50 && totBon > 0){
-      var totP10 = totStats.p10 || totStats.min || 0;
-      var totP90 = totStats.p90 || totStats.max || 0;
       // «+N%» к окладу — только когда премия посчитана у большинства (≥50%);
       // ниже порога один-два бонуса рядом с медианой дают ложный «прирост».
       var totUplift = (totCov >= 0.5 && intrStats.p50 && totStats.p50 > intrStats.p50)
         ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
-      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:10px">' +
-            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
-            '<div>' +
-              '<b style="font-size:15px;color:var(--color-midnight-ink)">Совокупный доход</b>' +
-              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">оклад + переменная часть / мес.</span>' +
-            '</div>' +
-          '</div>' +
-          '<b style="font-size:16px;color:var(--ok);font-feature-settings:\'tnum\' 1">' + totStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' +
+      sourcesHtml += '<div class="bm-card">' +
+        '<div class="bm-head">' +
+          '<div class="bm-head-l"><span class="bm-ic">' + ic('wallet', 14) + '</span><b>Совокупный доход</b>' +
+            '<span class="bm-sub">оклад + переменная часть / мес.</span></div>' +
+          '<div class="bm-head-r"><b class="tone-ok">' + bmNum(totStats.p50) + '</b><span>сом. · P50</span></div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totP10 ? totP10.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (totStats.p25 ? totStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--ok);white-space:nowrap">' + totStats.p50.toLocaleString('ru-RU') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (totStats.p75 ? totStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totP90 ? totP90.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '</div>' +
-        '<div style="font-size:12px;color:var(--color-fog);margin-top:8px;line-height:1.5">' +
-          'По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
+        bmStatStrip(totStats, 'tone-ok') +
+        '<div class="bm-note">По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
           'Премия с суммой учтена у <b>' + totBon + '</b> из ' + totSample + '; у остальных — только оклад' +
-          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') +
-        '</div>' +
+          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') + '</div>' +
       '</div>';
     }
 
@@ -14354,68 +14306,42 @@ function loadBmCompareDetail(){
       var gapHtml = '';
       if(ext.gapPercent != null){
         var isPos = ext.gapPercent >= 0;
-        var col = isPos ? 'var(--ok)' : 'var(--no)';
-        gapHtml = '<span style="font-size:13.5px;font-weight:600;color:' + col + ';font-feature-settings:\'tnum\' 1">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
+        gapHtml = '<span class="bm-gap ' + (isPos ? 'is-pos' : 'is-neg') + '">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + (ext.gapAmount || 0).toLocaleString('ru-RU') + ' сом.)</span>';
       }
-
-      var extRangeBar = ext.hasData ? renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid) : '';
-
-      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:10px">' +
-            renderSourceBadge(ext.sourceKey, ext.isLicensed, ext.sourceTitle) +
-            '<div>' +
-              '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(ext.sourceTitle) + '</b>' +
-              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div style="text-align:right">' +
-            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
-            (gapHtml ? '<br>' + gapHtml : '') +
-          '</div>' +
+      sourcesHtml += '<div class="bm-card">' +
+        '<div class="bm-head">' +
+          '<div class="bm-head-l">' + renderSourceBadge(ext.sourceKey, ext.isLicensed, ext.sourceTitle) +
+            '<span class="bm-sub">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span></div>' +
+          '<div class="bm-head-r">' + (extStats.p50 ? '<b>' + bmNum(extStats.p50) + '</b><span>сом. · P50</span>' : '<span class="bm-none">нет данных</span>') + gapHtml + '</div>' +
         '</div>' +
-        (ext.hasData ?
-          '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-            '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (extStats.p75 ? extStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (extStats.max ? extStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '</div>' +
-          extRangeBar
-        :
-          '<div style="padding:12px;text-align:center;font-size:13.5px;color:var(--color-fog);background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
-            'Нет сопоставленных данных для этой должности. ' +
-            '<button class="btn-ghost" style="padding:2px 8px;font-size:13.5px;color:var(--accent);font-weight:600" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
-          '</div>'
-        ) +
+        (ext.hasData
+          ? bmStatStrip(extStats, 'tone-acc') + renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid)
+          : '<div class="bm-empty">Нет сопоставленных данных для этой должности. ' +
+              '<button class="btn-ghost" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button></div>') +
       '</div>';
     });
 
-    // Сводный Range Bar по композитной медиане рынка
-    var compStats = { p50: comp.compositeMedian };
-    var compositeRangeBar = renderSalaryRangeBar(compStats, ourPayFrom, ourPayTo, ourMid);
+    // Сводка: медиана рынка · Фаровон · разрыв — одной строкой
+    var compRangeBar = renderSalaryRangeBar({ p50: comp.compositeMedian }, ourPayFrom, ourPayTo, ourMid);
+    var gapPill = '';
+    if(comp.compositeGapPercent != null){
+      var gp = comp.compositeGapPercent >= 0;
+      gapPill = '<span class="bm-gap big ' + (gp ? 'is-pos' : 'is-neg') + '">' + (gp ? '+' : '') + comp.compositeGapPercent + '% к рынку' +
+        (comp.compositeGapAmount ? ' · ' + (comp.compositeGapAmount > 0 ? '+' : '') + comp.compositeGapAmount.toLocaleString('ru-RU') + ' сом.' : '') + '</span>';
+    }
 
     d.innerHTML = '<div class="bm-detail-head">' +
         '<span class="bm-detail-head-lbl">Сравнение по должности</span>' +
         '<b>' + shownName + '</b>' +
       '</div>' +
-      '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:12px">' +
-            '<div style="width:36px;height:36px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none">' +
-              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' + ICONS.chart + '</svg>' +
-            '</div>' +
-            '<div>' +
-              '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
-              '<div style="font-size:22px;font-weight:700;color:var(--color-midnight-ink);letter-spacing:-0.02em;margin-top:1px;font-feature-settings:\'tnum\' 1">' +
-                (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div>' + compBadge + '</div>' +
+      '<div class="bm-card bm-summary">' +
+        '<div class="bm-kpis">' +
+          '<div class="bm-kpi"><span>Медиана рынка · ' + (comp.sourcesCount || 0) + ' ' + declOfNum(comp.sourcesCount || 0, ['источник', 'источника', 'источников']) + '</span>' +
+            '<b>' + (comp.compositeMedian ? bmNum(comp.compositeMedian) : '—') + '</b></div>' +
+          '<div class="bm-kpi"><span>Медиана Фаровон</span><b class="tone-ok">' + (ourMid ? bmNum(ourMid) : '—') + '</b></div>' +
+          '<div class="bm-kpi bm-kpi-gap"><span>Разрыв</span>' + (gapPill || '<b>—</b>') + '</div>' +
         '</div>' +
-        compositeRangeBar +
+        compRangeBar +
       '</div>' +
       sourcesHtml;
   }).catch(function(err){
