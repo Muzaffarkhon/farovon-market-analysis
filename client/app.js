@@ -347,7 +347,7 @@ function navModel(){
     // «Поддержка» (тот же приём, что и с «Грейдинг»/«Оценка сотрудника» выше).
     // Внутри самого раздела (шапка, крошки) по-прежнему «Чат поддержки».
     { key:'support', atab:'support', label:'Поддержка', icon:'chat', cap:'support:manage' },
-    { key:'broadcast', atab:'broadcast', label:'Рассылка', icon:'chat', cap:'broadcast:send' },
+    { key:'broadcast', atab:'broadcast', label:'Рассылка', icon:'megaphone', cap:'broadcast:send' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.87')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.87')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.86')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.87')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.86')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.87')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1336,19 +1336,6 @@ function renderHome(){
     navCards.push({ label:'Админка', desc:'Пользователи, оргструктура, справочники, период', icon:'admin', run:function(){ S.adminTab = 'users'; openAdminPanel(); } });
   }
 
-  var nextStep = '';
-  if(!isElevated && periodOpen && mcTotal && mcDone < mcTotal){
-    nextStep = 'Идёт сбор. Проверьте участников рынка и внесите оклады — осталось ' + (mcTotal - mcDone) + '.';
-  } else if(!isElevated && periodOpen){
-    nextStep = 'Участники рынка проверены. Загляните в «Данные по рынку» — не забыты ли оклады по должностям.';
-  } else if(!periodOpen){
-    nextStep = r === 'hrbp'
-      ? 'Период закрыт. Правка вам доступна; открыть период — в «Сводке по HR BP».'
-      : 'Период сбора закрыт — данные доступны для просмотра.';
-  } else if(isElevated){
-    nextStep = 'Период открыт. Незакрытые направления видны в «Отчёте по подразделениям».';
-  }
-
   var firstName = esc(String(u.fio || u.login || '').trim().split(/\s+/)[0] || u.login);
 
   var h = '<div class="home-scroll">';
@@ -1385,10 +1372,6 @@ function renderHome(){
       '<span class="home-card-d">' + esc(c.desc) + '</span>'+
     '</button>';
   }).join('') + '</div>';
-
-  if(nextStep){
-    h += '<div class="info home-hint">' + ic('target', 14) + ' ' + esc(nextStep) + '</div>';
-  }
 
   h += '</div>';
   $('body').innerHTML = h;
@@ -1693,7 +1676,6 @@ function renderGroupCard(x){
         bar2('Участники рынка', x.done, x.total, pct, askPct) +
         bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
       '</div>'+
-      '<div class="u-grp-hint">'+ic('info', 12)+'Заполняется один раз — данные сохранятся во все площадки группы.</div>'+
     '</div>'+
     '<div class="u-chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none">'+ICONS.chevron+'</svg></div>'+
   '</div>';
@@ -2202,9 +2184,6 @@ function renderTabComp(){
          'Для этого подразделения штатка не заведена.<br>'+
          'Добавьте должность кнопкой ниже — она попадёт и в справочник.</div>';
   } else {
-    h += '<p class="step-hint">'+ic('units', 13)+' По каждой должности отметьте компании, с которыми сравниваете оклад — '+
-         'у разных должностей список компаний может отличаться. Нет с кем сравнивать — так и оставьте, ноль компаний тоже допустимый результат.</p>';
-
     var posDone = 0, posPart = 0, posNone = 0;
     G.groups.forEach(function(g){
       var st = mc.posMap[norm(g.pos)] || { total: 0, filled: 0 };
@@ -2573,12 +2552,6 @@ function renderTabSurvey(){
       h += '<div class="fill-progress'+(mc.pct>=100?' is-done':'')+'" style="margin:0 0 14px"><i style="width:' + mc.pct + '%"></i></div>';
     }
 
-    if(currentUnitGroup()){
-      h += '<p class="step-hint">'+ic('units', 13)+' Смежная группа «'+esc(currentUnitGroup())+'»: '+
-           'заполняете один раз — при сохранении данные разложатся во все площадки группы '+
-           '(они различаются только регионом).</p>';
-    }
-
     var posTotalCount = G.groups.length;
     var posDoneCount = 0, posPartCount = 0, posNoneCount = 0;
     G.groups.forEach(function(g){
@@ -2723,8 +2696,6 @@ function openPositionCompaniesSheet(posName){
       '<div><span class="step-pill step-pill--1">'+ic('units', 12)+'Шаг 1 · Компании</span>'+
       '<b>Компании для сравнения — «'+esc(posName)+'»</b></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<p class="step-hint" style="margin:0 0 10px">Отметьте компании, с которыми сравниваете оклад по этой должности. '+
-    'Ноль компаний — тоже допустимый результат, если сравнивать не с кем.</p>'+
     '<div class="search-wrap" style="margin:0 0 10px">'+icBare('search')+
       '<input id="posCoSearch" placeholder="Найти компанию…" autocomplete="off"></div>'+
     '<div id="posCoList" style="max-height:46vh;overflow:auto">'+renderList('')+'</div>'+
@@ -5827,7 +5798,7 @@ function renderAdminPanel(){
     { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
     { id:'gradingBlocks', icon:'units', label:'Блоки грейдирования', cap:'grading:blocks' },
     { id:'support', icon:'chat', label:'Чат поддержки', cap:'support:manage' },
-    { id:'broadcast', icon:'chat', label:'Рассылка', cap:'broadcast:send' },
+    { id:'broadcast', icon:'megaphone', label:'Рассылка', cap:'broadcast:send' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -5981,12 +5952,6 @@ function drawGradingFactors(){
             return '<option value="'+esc(val)+'"'+(val === curDir ? ' selected' : '')+'>'+esc(b.label)+esc(mark)+'</option>';
           }).join(''))+
     '</select>'+
-  '</div>'+
-  '<div class="muted gf-note">'+
-    (curLabel
-      ? 'Правите формулировки для ' + curLabel + '. Вопросы без своей формулировки берут общий текст. '
-      : 'Правите общие формулировки — их видят все, у кого нет своей. ')+
-    'Веса факторов и пороги грейдов одинаковы для всего холдинга, из интерфейса не меняются: иначе уровни перестанут быть сравнимыми между заводами.'+
   '</div>';
 
   var factors = gradingFactorsOf(cur);
@@ -6236,7 +6201,6 @@ function drawAdminGradingCommittee(){
 
   var h = '<div class="gb-committee-hd">'+
       '<b>Комиссия блока «'+esc(grBlockLabelAdmin(S.gbBlock))+'»</b>'+
-      '<span class="gb-committee-hint">Оценивают вслепую, независимо друг от друга — только эти люди смогут оценивать должности этого блока</span>'+
     '</div>'+
     (members.length
       ? '<div class="gb-committee-list">'+members.map(function(m){
@@ -6581,7 +6545,6 @@ function drawAdminSupportList(){
   // renderSupSearchBar). Дальше обновляется только сама лента строк.
   if(!$('supRowsBox')){
     box.innerHTML =
-      '<div class="muted sup-note">Гости, которых бот не смог опознать сам, и сотрудники, написавшие прямо на сайте — всё здесь, в одном списке.</div>'+
       '<div class="sup-search-bar" id="supSearchBar"></div>'+
       '<div class="sup-guest-quick-hd">Вопросы гостю в Telegram (кнопки при открытии чата)</div>'+
       '<div class="sup-quick" id="supGuestQuick"></div>'+
@@ -7177,7 +7140,7 @@ function drawMySupportHome(){
   var faq = S.myFaq || [];
   var threads = S.myThreads || [];
 
-  var h = '<div class="my-sup-intro muted">Есть вопрос — сначала загляните в частые вопросы ниже, если не нашли ответ — напишите нам, ответим здесь же.</div>';
+  var h = '';
 
   if(faq.length){
     h += '<div class="sup-guest-quick-hd">Частые вопросы</div>'+
@@ -7850,10 +7813,6 @@ function openUserModal(login){
         '<input id="umPosition" value="'+esc(u?(u.position||''):'')+'" placeholder="Например: Бухгалтер" maxlength="200">'+
       '</div>'+
     '</div>'+
-    '<p class="step-hint" style="margin:2px 0 0">Должность подставляется автоматически при выборе этого человека в анкете незаменимости («Оценка сотрудника»).</p>'+
-    (isEdit ? '' :
-      '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
-      '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
     '<div style="margin:8px 0 6px">'+
       '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+' '+(adminFieldsLocked?'disabled':'')+'> Пользователь активен</label>'+
     '</div>'+
@@ -10313,8 +10272,6 @@ function openAddDivisionModal(){
     '</div>'+
     '<label class="lbl" style="margin-top:10px">HR BP</label>'+
     '<select id="adHrbp" style="width:100%">'+personOpts()+'</select>'+
-
-    '<p class="step-hint" style="margin:10px 0 0">Регион, смежную группу и подчинение подотделу можно задать после создания — в панели справа.</p>'+
     '<div style="height:14px"></div>'+
     '<button id="adCreate" class="btn-primary">Создать подразделение</button>'+
     '<div style="height:8px"></div>'+
@@ -10485,8 +10442,6 @@ function openAdjacentGroupsModal(){
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in" style="max-width:640px">'+
     '<div class="sheet-hd"><b>Смежные группы площадок</b><button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<p class="step-hint" style="margin:4px 0 14px">Площадки одной группы заполняют рынок один раз — данные сохраняются сразу во все площадки группы (различаются регионом или производственной площадкой).</p>'+
-
     '<div class="lbl" style="margin-bottom:6px">Существующие группы ('+groupKeys.length+')</div>'+
     (groupKeys.length
       ? '<div class="ag-list">'+groupKeys.map(function(k){
@@ -10967,7 +10922,7 @@ function drawDeptAssign(){
   });
 
   var myDir = (S.data.user.units || [])[0] || (divs[0] && divs[0].dir) || '';
-  var h = '<p class="step-hint">Отделы направления «'+esc(myDir)+'». Назначьте ответственного за заполнение обзора рынка — можно выбрать сотрудника с живым поиском прямо в строке или назначить одного на все отделы сразу.</p>';
+  var h = '';
   
   h += '<div class="toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px">'+
@@ -13290,8 +13245,7 @@ function renderUcapDetail(){
     '<div class="r2-title">'+esc(user.fio)+'</div>'+
     '<span class="r2-key">'+esc(user.login)+'</span>'+
     (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все личные ('+granted.length+')</button>' : '')+
-  '</div>'+
-  '<p class="step-hint" style="margin-bottom:14px">Роль: <b>'+esc(roleLabel)+'</b>. Отмеченные и заблокированные права уже есть по роли — ниже можно добавить сверх неё лично для этого сотрудника.</p>';
+  '</div>';
 
   var body = !granted.length && !groups.length
     ? ''
@@ -13388,9 +13342,6 @@ function renderAdminRoles(){
   }).join('');
 
   var mode = d.mode || 'role';
-  var byRoleHint = 'Слева — роли, справа — что роль видит и делает в админке. У «Администратора» доступ всегда полный. Особые полномочия структурных ролей заданы в коде — здесь показаны для справки.';
-  var personalHint = 'Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.';
-
   $('adminContent').innerHTML =
     '<div class="roles2">'+
       '<div class="roles2-bar">'+
@@ -13398,7 +13349,6 @@ function renderAdminRoles(){
           '<button class="seg-btn'+(mode==='role'?' on':'')+'" data-rmode="role">'+ic('shield',14)+' По ролям</button>'+
           '<button class="seg-btn'+(mode==='personal'?' on':'')+'" data-rmode="personal">'+ic('users',14)+' Персонально</button>'+
         '</div>'+
-        '<p class="step-hint roles2-hint">'+(mode==='role' ? byRoleHint : personalHint)+'</p>'+
         (mode==='role'
           ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'
           : '')+
@@ -13446,7 +13396,7 @@ function roleDetailHtml(r, groups){
 
   var note = r.structural
     ? '<div class="r2-note">'+ic('warn',14)+'<span><b>Особые полномочия (заданы в коде):</b> '+esc(r.note)+'</span></div>'
-    : (r.is_protected ? '' : '<div class="r2-note r2-note--plain">'+ic('help',14)+'<span>Своя роль: доступ только по галочкам ниже; область данных \u2014 как у \u00abСотрудника\u00bb (только назначенные подразделения).</span></div>');
+    : '';
 
   var body;
   if(r.key === 'admin'){
@@ -14860,9 +14810,7 @@ function drawBroadcast(){
         '<textarea id="bcText" rows="9" maxlength="3500" placeholder="Что нужно сообщить сотрудникам…">'+esc(b.text)+'</textarea>'+
         '<div class="muted bc-count" id="bcCount"></div>'+
         '<label class="bc-check"><input type="checkbox" id="bcButton"'+(b.button ? ' checked' : '')+'> Кнопка «Открыть «Обзор рынка»» под сообщением</label>'+
-        '<button type="button" class="btn-primary" id="bcSend"></button>'+
-        '<div class="muted bc-note">Сообщение придёт в личный чат бота. Если сотрудник ответит — ответ попадёт в «Чат поддержки». Без привязанного Telegram доставить нельзя'+(notLinked ? ' (сейчас таких: '+notLinked+')' : '')+'.</div>'+
-      '</div>'+
+        '<button type="button" class="btn-primary" id="bcSend"></button>'+      '</div>'+
       '<div class="card bc-people">'+
         '<div class="bc-people-head">'+
           '<input id="bcSearch" placeholder="Имя, логин или подразделение…" value="'+esc(b.q)+'">'+
