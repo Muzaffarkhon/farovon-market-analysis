@@ -657,6 +657,7 @@ async function migrate() {
   await extendSupportChatWeb();
   await addSupportThreadArchive();
   await createPositionCompanySelections();
+  await createBroadcasts();
   await cleanupLegacySurveyTestData();
 }
 
@@ -697,6 +698,37 @@ async function createPositionCompanySelections() {
  * функционал (схема, бэкенд, фронт, дашборды) выкачен и проверен на всех
  * окружениях. Инструкция по запуску — см. RUN_SURVEY_TEST_DATA_CLEANUP ниже.
  */
+/**
+ * Рассылки через Telegram-бота (раздел «Рассылка» в админке): сама рассылка
+ * и построчный статус доставки каждому получателю — по нему считаем отчёт
+ * «доставлено/не доставлено» и находим, кто отвечает на рассылку (см.
+ * telegramController: ответ на свежую рассылку уходит в чат поддержки).
+ */
+async function createBroadcasts() {
+  await run(`CREATE TABLE IF NOT EXISTS broadcasts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_login TEXT NOT NULL,
+    body TEXT NOT NULL,
+    with_button INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 0,
+    sent INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run(`CREATE TABLE IF NOT EXISTS broadcast_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    broadcast_id INTEGER NOT NULL REFERENCES broadcasts(id),
+    user_id INTEGER,
+    fio TEXT,
+    telegram_chat_id TEXT,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending | sent | failed
+    sent_at DATETIME
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_bc ON broadcast_recipients(broadcast_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_chat ON broadcast_recipients(telegram_chat_id, sent_at)');
+  console.log('🔧 Миграция: таблицы рассылок (broadcasts, broadcast_recipients) созданы');
+}
+
 async function cleanupLegacySurveyTestData() {
   const MIGRATION_NAME = '20260915_cleanup_legacy_survey_test_data';
   if (String(process.env.RUN_SURVEY_TEST_DATA_CLEANUP || '') !== '1') return;

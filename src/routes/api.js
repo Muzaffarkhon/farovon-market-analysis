@@ -14,6 +14,7 @@ const benchmarkController = require('../controllers/benchmarkController');
 const liveController = require('../controllers/liveController');
 const gradingController = require('../controllers/gradingController');
 const supportController = require('../controllers/supportController');
+const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
@@ -200,6 +201,10 @@ router.post('/key-personnel/delete', requireRoles('admin'), gradingController.de
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 
 // ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
+router.get('/admin/broadcasts', requireCapability('broadcast:send'), broadcastController.list);
+router.get('/admin/broadcasts/recipients', requireCapability('broadcast:send'), broadcastController.recipients);
+router.get('/admin/broadcasts/:id', requireCapability('broadcast:send'), broadcastController.details);
+router.post('/admin/broadcasts/send', requireCapability('broadcast:send'), broadcastController.send);
 router.get('/admin/support/threads', requireCapability('support:manage'), supportController.listThreads);
 router.get('/admin/support/threads/:id', requireCapability('support:manage'), supportController.getThread);
 router.post('/admin/support/reply', requireCapability('support:manage'), supportController.reply);

@@ -549,6 +549,26 @@ async function processTelegramUpdate(body) {
   if (!text.startsWith('/')) {
     const thread = await supportChat.findThreadByChatId(chatId);
     if (thread) { await handleSupportMessage(chatId, thread, text); return; }
+
+    // Ответ на рассылку: у привязанного сотрудника обычно ещё нет треда, и
+    // без этого его ответ уходил бы в «Не понял команду». Если ему за
+    // последние 3 суток приходила рассылка — открываем тред поддержки и
+    // кладём ответ туда, C&B отвечает из обычного «Чата поддержки».
+    const recent = await queryOne(
+      `SELECT broadcast_id FROM broadcast_recipients
+       WHERE telegram_chat_id = ? AND status = 'sent' AND sent_at > datetime('now', '-3 days')
+       ORDER BY id DESC LIMIT 1`, [String(chatId)]);
+    if (recent) {
+      const { id: threadId, opened } = await supportChat.getOrCreateThread(chatId);
+      await supportChat.saveIncomingMessage(threadId, `↩ Ответ на рассылку #${recent.broadcast_id}:\n${text}`);
+      await sendTelegramMessage(chatId, 'Спасибо, ответ передан администратору — он ответит здесь же.');
+      if (opened) {
+        await notifySupportTeam(
+          `💬 <b>Ответ на рассылку #${recent.broadcast_id}</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`
+        );
+      }
+      return;
+    }
   }
 
   await sendTelegramMessage(chatId, 'Не понял команду.\n\n' + HELP_TEXT);

@@ -11795,3 +11795,25 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   color: var(--muted);
   pointer-events: none;
 }
+
+/* Рассылка */
+.bc-root{display:flex;flex-direction:column;gap:12px;min-height:0}
+.bc-grid{display:grid;grid-template-columns:minmax(280px,2fr) 3fr;gap:12px;min-height:0}
+.bc-compose,.bc-people,.bc-hist{padding:12px;display:flex;flex-direction:column;gap:8px}
+.bc-compose textarea{width:100%;resize:vertical;min-height:140px;font:inherit}
+.bc-count{text-align:right;font-size:12px}
+.bc-check{display:flex;gap:6px;align-items:center;font-size:13px}
+.bc-note{font-size:12px}
+.bc-people-head{display:flex;gap:6px;flex-wrap:wrap}
+.bc-people-head input{flex:1;min-width:160px}
+.bc-list{max-height:340px;overflow:auto;display:flex;flex-direction:column}
+.bc-row{display:flex;gap:8px;align-items:baseline;padding:4px 2px;border-bottom:1px solid rgba(128,128,128,.2);cursor:pointer}
+.bc-fio{font-weight:600;white-space:nowrap}
+.bc-meta{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bc-h{padding:8px 0;border-bottom:1px solid rgba(128,128,128,.2);cursor:pointer}
+.bc-h-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px}
+.bc-h-body{margin-top:4px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.bc-h-det{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.bc-chip{font-size:12px;padding:2px 8px;border-radius:10px;background:rgba(128,128,128,.15)}
+.bc-chip-fail,.bc-fail{color:#d33}
+@media(max-width:760px){.bc-grid{grid-template-columns:1fr}}

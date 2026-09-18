@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.80';
+var APP_VERSION = window.APP_VERSION || 'v2.5.81';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1818,6 +1818,10 @@ var API_ROUTES = {
   apiAdminGradingCommitteeFinalize: function(args){ return fetchJson('/api/admin/grading-committee/finalize', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingResetEvaluation: function(args){ return fetchJson('/api/admin/grading-blocks/reset-evaluation', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingCommitteeBreakdown: function(args){ return fetchJson('/api/admin/grading-blocks/committee-breakdown?block=' + encodeURIComponent(args[1]) + '&job_title=' + encodeURIComponent(args[2]), { method:'GET', token:args[0] }); },
+  apiAdminBroadcastRecipients: function(args){ return fetchJson('/api/admin/broadcasts/recipients', { method:'GET', token:args[0] }); },
+  apiAdminBroadcasts: function(args){ return fetchJson('/api/admin/broadcasts', { method:'GET', token:args[0] }); },
+  apiAdminBroadcast: function(args){ return fetchJson('/api/admin/broadcasts/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiAdminBroadcastSend: function(args){ return fetchJson('/api/admin/broadcasts/send', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminSupportThreads: function(args){
     var f = args[1] || {};
     var qs = Object.keys(f).filter(function(k){ return f[k]; }).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(f[k]); }).join('&');

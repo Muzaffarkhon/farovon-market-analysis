@@ -347,6 +347,7 @@ function navModel(){
     // «Поддержка» (тот же приём, что и с «Грейдинг»/«Оценка сотрудника» выше).
     // Внутри самого раздела (шапка, крошки) по-прежнему «Чат поддержки».
     { key:'support', atab:'support', label:'Поддержка', icon:'chat', cap:'support:manage' },
+    { key:'broadcast', atab:'broadcast', label:'Рассылка', icon:'chat', cap:'broadcast:send' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
@@ -516,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.80')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.81')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -551,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.80')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.81')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -612,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.80')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.81')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -642,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.80')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.81')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -5818,6 +5819,7 @@ function renderAdminPanel(){
     { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
     { id:'gradingBlocks', icon:'units', label:'Блоки грейдирования', cap:'grading:blocks' },
     { id:'support', icon:'chat', label:'Чат поддержки', cap:'support:manage' },
+    { id:'broadcast', icon:'chat', label:'Рассылка', cap:'broadcast:send' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -5879,6 +5881,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'gradingFactors') renderAdminGradingFactors();
   else if(S.adminTab === 'gradingBlocks') renderAdminGradingBlocks();
   else if(S.adminTab === 'support') renderAdminSupport();
+  else if(S.adminTab === 'broadcast') renderAdminBroadcast();
   else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
@@ -14854,4 +14857,178 @@ function openBmImportModal(){
       $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
     }));
   };
+}
+
+
+// ─── Вкладка: Рассылка (Telegram-бот) ───
+// Слева — текст и отправка, справа — кому (фильтры по роли/подразделению/имени
+// и галочки), ниже — история с отчётом о доставке.
+function bcRoleLabel(r){ return (typeof ROLE_LABELS_RU !== 'undefined' && ROLE_LABELS_RU[r]) || r; }
+
+function renderAdminBroadcast(){
+  S.bc = S.bc || { rows:null, sel:{}, q:'', role:'', text:'', button:true, hist:null, open:null };
+  if(!$('bcRoot')){
+    $('adminContent').innerHTML = '<div id="bcRoot" class="bc-root">'+skTable()+'</div>';
+  }
+  Promise.all([
+    call('apiAdminBroadcastRecipients', S.token),
+    call('apiAdminBroadcasts', S.token)
+  ]).then(guardAsyncToTab(function(res){
+    var r = res[0], h = res[1];
+    if(!r || !r.ok){
+      $('bcRoot').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить получателей')+'</div>';
+      return;
+    }
+    S.bc.rows = r.rows || [];
+    S.bc.totalActive = r.totalActive || 0;
+    S.bc.hist = (h && h.ok) ? (h.rows || []) : [];
+    drawBroadcast();
+  })).catch(guardAsyncToTab(function(){
+    $('bcRoot').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  }));
+}
+
+function bcVisibleRows(){
+  var b = S.bc, q = (b.q || '').toLowerCase();
+  return b.rows.filter(function(u){
+    if(b.role && u.role !== b.role) return false;
+    if(!q) return true;
+    return (u.fio || '').toLowerCase().indexOf(q) >= 0 ||
+           (u.login || '').toLowerCase().indexOf(q) >= 0 ||
+           (u.units || '').toLowerCase().indexOf(q) >= 0;
+  });
+}
+
+function bcSelectedIds(){
+  return Object.keys(S.bc.sel).filter(function(k){ return S.bc.sel[k]; }).map(Number);
+}
+
+function drawBroadcast(){
+  var b = S.bc, root = $('bcRoot');
+  if(!root) return;
+  var roles = [];
+  b.rows.forEach(function(u){ if(roles.indexOf(u.role) < 0) roles.push(u.role); });
+  var notLinked = Math.max(0, (b.totalActive || 0) - b.rows.length);
+
+  root.innerHTML =
+    '<div class="bc-grid">'+
+      '<div class="card bc-compose">'+
+        '<label class="lbl" for="bcText">Текст сообщения</label>'+
+        '<textarea id="bcText" rows="9" maxlength="3500" placeholder="Что нужно сообщить сотрудникам…">'+esc(b.text)+'</textarea>'+
+        '<div class="muted bc-count" id="bcCount"></div>'+
+        '<label class="bc-check"><input type="checkbox" id="bcButton"'+(b.button ? ' checked' : '')+'> Кнопка «Открыть «Обзор рынка»» под сообщением</label>'+
+        '<button type="button" class="btn-primary" id="bcSend"></button>'+
+        '<div class="muted bc-note">Сообщение придёт в личный чат бота. Если сотрудник ответит — ответ попадёт в «Чат поддержки». Без привязанного Telegram доставить нельзя'+(notLinked ? ' (сейчас таких: '+notLinked+')' : '')+'.</div>'+
+      '</div>'+
+      '<div class="card bc-people">'+
+        '<div class="bc-people-head">'+
+          '<input id="bcSearch" placeholder="Имя, логин или подразделение…" value="'+esc(b.q)+'">'+
+          '<button type="button" class="btn-line" id="bcAll">Выбрать показанных</button>'+
+          '<button type="button" class="btn-ghost" id="bcNone">Снять всех</button>'+
+        '</div>'+
+        '<div class="chips bc-roles">'+
+          '<button type="button" data-role=""'+(!b.role ? ' class="on"' : '')+'>Все</button>'+
+          roles.map(function(r){
+            return '<button type="button" data-role="'+esc(r)+'"'+(b.role === r ? ' class="on"' : '')+'>'+esc(bcRoleLabel(r))+'</button>';
+          }).join('')+
+        '</div>'+
+        '<div class="bc-list" id="bcList"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card bc-hist"><b>История рассылок</b><div id="bcHist"></div></div>';
+
+  $('bcText').oninput = function(){ b.text = this.value; bcRefreshMeta(); };
+  $('bcButton').onchange = function(){ b.button = this.checked; };
+  $('bcSearch').oninput = function(){ b.q = this.value; bcDrawList(); };
+  $('bcAll').onclick = function(){ bcVisibleRows().forEach(function(u){ b.sel[u.id] = true; }); bcDrawList(); };
+  $('bcNone').onclick = function(){ b.sel = {}; bcDrawList(); };
+  root.querySelectorAll('.bc-roles button').forEach(function(btn){
+    btn.onclick = function(){ b.role = btn.getAttribute('data-role') || ''; drawBroadcast(); };
+  });
+  $('bcSend').onclick = bcSend;
+  bcDrawList();
+  bcDrawHist();
+}
+
+function bcRefreshMeta(){
+  var b = S.bc, n = bcSelectedIds().length;
+  if($('bcCount')) $('bcCount').textContent = (b.text || '').length + ' / 3500';
+  var btn = $('bcSend');
+  if(btn){
+    btn.textContent = n ? 'Отправить ('+n+')' : 'Выберите получателей';
+    btn.disabled = !n || !(b.text || '').trim();
+  }
+}
+
+function bcDrawList(){
+  var b = S.bc, rows = bcVisibleRows();
+  $('bcList').innerHTML = rows.length ? rows.map(function(u){
+    return '<label class="bc-row"><input type="checkbox" data-id="'+u.id+'"'+(b.sel[u.id] ? ' checked' : '')+'>'+
+      '<span class="bc-fio">'+esc(u.fio)+'</span>'+
+      '<span class="muted bc-meta">'+esc(bcRoleLabel(u.role))+(u.units ? ' · '+esc(u.units) : '')+'</span></label>';
+  }).join('') : '<div class="empty">Никого не найдено</div>';
+  $('bcList').querySelectorAll('input[data-id]').forEach(function(cb){
+    cb.onchange = function(){ b.sel[cb.getAttribute('data-id')] = cb.checked; bcRefreshMeta(); };
+  });
+  bcRefreshMeta();
+}
+
+function bcDrawHist(){
+  var h = S.bc.hist || [], box = $('bcHist');
+  if(!box) return;
+  if(!h.length){ box.innerHTML = '<div class="empty">Рассылок пока не было</div>'; return; }
+  box.innerHTML = h.map(function(x){
+    var open = S.bc.open === x.id;
+    return '<div class="bc-h" data-id="'+x.id+'">'+
+      '<div class="bc-h-top"><span>#'+x.id+' · '+esc(fmtDateTime(x.created_at))+' · '+esc(x.author_login)+'</span>'+
+      '<span class="bc-h-stat">Доставлено '+x.sent+' из '+x.total+(x.failed ? ' · <b class="bc-fail">не дошло '+x.failed+'</b>' : '')+'</span></div>'+
+      '<div class="bc-h-body">'+esc(x.body)+'</div>'+
+      (open ? '<div class="bc-h-det" id="bcDet'+x.id+'">Загрузка…</div>' : '')+
+    '</div>';
+  }).join('');
+  box.querySelectorAll('.bc-h').forEach(function(el){
+    el.onclick = function(){
+      var id = Number(el.getAttribute('data-id'));
+      S.bc.open = S.bc.open === id ? null : id;
+      bcDrawHist();
+    };
+  });
+  if(S.bc.open) bcLoadDetails(S.bc.open);
+}
+
+function bcLoadDetails(id){
+  call('apiAdminBroadcast', S.token, id).then(guardAsyncToTab(function(r){
+    var el = $('bcDet'+id);
+    if(!el) return;
+    if(!r || !r.ok){ el.textContent = (r && r.error) || 'Не удалось загрузить'; return; }
+    el.innerHTML = (r.recipients || []).map(function(u){
+      return '<span class="bc-chip'+(u.status === 'sent' ? '' : ' bc-chip-fail')+'">'+esc(u.fio)+(u.status === 'sent' ? '' : ' — не доставлено')+'</span>';
+    }).join('');
+  })).catch(function(){});
+}
+
+function bcSend(){
+  var b = S.bc, ids = bcSelectedIds();
+  if(!ids.length || !(b.text || '').trim()) return;
+  ask({
+    title: 'Отправить рассылку?',
+    html: 'Сообщение получат <b>'+ids.length+'</b> чел. Отменить отправку после нажатия нельзя.',
+    ok: 'Отправить'
+  }).then(function(yes){
+    if(!yes) return;
+    $('bcSend').disabled = true;
+    call('apiAdminBroadcastSend', S.token, { body:b.text, withButton:b.button, userIds:ids }).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok){
+        toast((r && r.error) || 'Не удалось отправить', 'err');
+        bcRefreshMeta();
+        return;
+      }
+      toast('Доставлено '+r.sent+' из '+r.total+(r.failed ? ', не дошло: '+r.failed : ''), r.failed ? 'warn' : 'ok');
+      b.text = ''; b.sel = {}; b.open = r.id;
+      renderAdminBroadcast();
+    })).catch(guardAsyncToTab(function(){
+      toast('Нет связи с сервером — проверьте историю, рассылка могла уйти', 'err');
+      bcRefreshMeta();
+    }));
+  });
 }
