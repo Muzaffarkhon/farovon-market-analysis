@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.84')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.84')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.84')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.85')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.84')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.85')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -13752,7 +13752,7 @@ function openProgress(){
       if(!box) return;
 
       if(S.dashSumTab === 'dirs'){
-        var dh = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        var dh = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin sum-dirs-tbl">'+
           '<thead><tr><th>Направление</th><th class="num">Готовность</th><th class="num">Подразделений</th><th class="num">Заполнено связей</th></tr></thead><tbody>';
         dh += dirBars.map(function(d){
           var isDone = d.pct >= 100;
@@ -13819,7 +13819,7 @@ function openProgress(){
         $('dashSumCount').innerHTML = tblCount(rows.length, r.rows.length,
           ['подразделение', 'подразделения', 'подразделений']);
       }
-      var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+      var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin sum-units-tbl">'+
         '<thead><tr><th>Подразделение</th><th>Ответственный</th><th class="num">Компании</th>'+
         '<th class="num">Уточнить</th><th class="num">Должности</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
       t += rows.length ? rows.map(function(x){
@@ -13831,7 +13831,7 @@ function openProgress(){
         var pcls = pt===0 ? 'p-no' : (pf>=pt ? 'p-ok' : (pf>0 ? 'p-mid' : 'p-no'));
         var posCell = pt===0 ? '—' : '<span class="pill '+pcls+'">'+pf+'/'+pt+'</span>';
         return '<tr class="dash-row" data-u="'+esc(x.unit)+'" style="cursor:pointer">'+
-          '<td><b>'+esc(x.unit)+'</b></td><td>'+esc(x.resp)+'</td>'+
+          '<td><b>'+esc(x.unit)+'</b>'+(x.resp ? '<div class="sum-resp">'+esc(x.resp)+'</div>' : '')+'</td><td class="sum-resp-col">'+esc(x.resp)+'</td>'+
           '<td class="num"><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
           '<td class="num">'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
           '<td class="num">'+posCell+'</td>'+
