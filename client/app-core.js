@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.87';
+var APP_VERSION = window.APP_VERSION || 'v2.5.88';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -3041,9 +3041,15 @@ function navRenderBtn(it, cls){
   var caretPhone = (cls === 'nav-btn' && hasSub)
     ? '<svg class="nav-btn-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>'
     : '';
+  // Пункт меню («Пользователи», «Справочники») тоже может вести не на экран,
+  // а на свой список подразделов — без стрелки вправо это неотличимо от
+  // обычного перехода, и человек не знает, что там есть что-то ещё.
+  var caretMenu = (cls === 'menu-item' && hasSub)
+    ? '<svg class="menu-item-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+    : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+badgeCount+'</button>';
+    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+badgeCount+caretMenu+'</button>';
 }
 
 var activeRailDropdown = null;

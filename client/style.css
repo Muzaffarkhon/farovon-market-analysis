@@ -12103,3 +12103,18 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
    прокручиваемые блоки (overflow ≠ visible) по-прежнему могут быть ниже
    содержимого — для них «auto» сводится к нулю. */
 .workspace-pane > * { min-height: auto; }
+
+/* Стрелка вправо у пункта меню, который ведёт не на экран, а на свой список
+   подразделов (например «Пользователи», «Справочники»). */
+.menu-item-caret {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  flex: none;
+  color: var(--subtle, #64748b);
+}
+.menu button.on .menu-item-caret { color: var(--accent); }
+/* Перебиваем общий размер иконок пункта меню (16px) — стрелка должна быть
+   мельче подписи, а не второй иконкой. */
+.sheet .menu button svg.menu-item-caret,
+.nav-submenu-pop .menu button svg.menu-item-caret { width: 14px; height: 14px; }
