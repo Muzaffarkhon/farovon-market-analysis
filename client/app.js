@@ -201,7 +201,7 @@ function navModel(){
       { key:'benchmarks:mapping', label:'Сопоставление должностей', icon:'link', run:function(){ openBenchmarks('mapping'); } },
       { key:'benchmarks:datasets', label:'Источники и датасеты', icon:'archive', run:function(){ openBenchmarks('datasets'); } }
     ];
-    primary.push({ key:'benchmarks', label:'Бенчмаркинг', icon:'chart',
+    primary.push({ key:'benchmarks', label:'Бенчмаркинг', tabLabel:'Бенчмарк', icon:'chart',
       active:mkActive('benchmarks'), inTabs:true, subsections:bmSubs, submenu:bmSubs,
       run:function(){ switchView('benchmarks'); } });
   }
@@ -221,7 +221,7 @@ function navModel(){
   if(hasCap('grading:factors')) grSubs.push({ key:'gradingFactors', label:'Анкеты оценки', icon:'book', run:function(){ openAdminPanel('gradingFactors'); } });
   if(hasCap('grading:blocks')) grSubs.push({ key:'gradingBlocks', label:'Блоки грейдирования', icon:'units', run:function(){ openAdminPanel('gradingBlocks'); } });
   if(grSubs.length){
-    primary.push({ key:'grading', label:'Оценка должностей', icon:'grades',
+    primary.push({ key:'grading', label:'Оценка должностей', tabLabel:'Грейды', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
       // Клик по самому «Грейдингу» (не по под-вкладке из стрелочки) всегда ведёт
       // на главную «Оценка должностей» — а не туда, где случайно остались в
@@ -234,7 +234,7 @@ function navModel(){
       { key:'keyrisk:list', label:'Ключевые сотрудники', icon:'risk', run:function(){ openKeyRisks('list'); } },
       { key:'keyrisk:heat', label:'Тепловая карта рисков', icon:'target', run:function(){ openKeyRisks('heat'); } }
     ];
-    primary.push({ key:'keyrisk', label:'Оценка сотрудника', icon:'risk',
+    primary.push({ key:'keyrisk', label:'Оценка сотрудника', tabLabel:'Сотрудник', icon:'risk',
       active:mkActive('keyrisk'), inTabs:true, subsections:krSubs, submenu:krSubs,
       // Та же логика, что и у «Грейдинга» выше: клик по разделу — всегда на
       // главную «Ключевые сотрудники», а не на последнюю открытую вкладку.
@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.82')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.83')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.82')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.83')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.82')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.83')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.82')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.83')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14888,6 +14888,15 @@ function renderAdminBroadcast(){
   }));
 }
 
+// У HR BP закреплены десятки подразделений — целиком в строку списка они
+// растягивали страницу вширь. Показываем первое и «ещё N»; поиск по-прежнему
+// идёт по полному списку.
+function bcUnitsShort(units){
+  var list = String(units || '').split(';').map(function(s){ return s.trim(); }).filter(Boolean);
+  if(!list.length) return '';
+  return ' · ' + esc(list[0]) + (list.length > 1 ? ' <b>+ещё ' + (list.length - 1) + '</b>' : '');
+}
+
 function bcVisibleRows(){
   var b = S.bc, q = (b.q || '').toLowerCase();
   return b.rows.filter(function(u){
@@ -14965,7 +14974,7 @@ function bcDrawList(){
   $('bcList').innerHTML = rows.length ? rows.map(function(u){
     return '<label class="bc-row"><input type="checkbox" data-id="'+u.id+'"'+(b.sel[u.id] ? ' checked' : '')+'>'+
       '<span class="bc-fio">'+esc(u.fio)+'</span>'+
-      '<span class="muted bc-meta">'+esc(bcRoleLabel(u.role))+(u.units ? ' · '+esc(u.units) : '')+'</span></label>';
+      '<span class="muted bc-meta">'+esc(bcRoleLabel(u.role))+bcUnitsShort(u.units)+'</span></label>';
   }).join('') : '<div class="empty">Никого не найдено</div>';
   $('bcList').querySelectorAll('input[data-id]').forEach(function(cb){
     cb.onchange = function(){ b.sel[cb.getAttribute('data-id')] = cb.checked; bcRefreshMeta(); };

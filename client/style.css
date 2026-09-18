@@ -106,6 +106,10 @@
   /* Высота видимой области за вычетом экранной клавиатуры. Обновляется из JS
      по visualViewport (см. app-core.js). Фолбэк — обычная высота окна. */
   --vvh: 100vh;
+  /* Высота окна для каркаса: на телефоне 100vh включает область под адресной
+     строкой/панелью Telegram, из-за чего низ интерфейса обрезался; 100dvh —
+     реально видимая высота. */
+  --app-h: 100vh;
 
   font-size: 15px;
 }
@@ -347,7 +351,7 @@ h3,
 /* ─── Каркас приложения (#app) ─── */
 #app {
   display: flex;
-  height: 100vh;
+  height: var(--app-h);
   width: 100vw;
   overflow: hidden;
   background: var(--bg);
@@ -454,8 +458,8 @@ h3,
    остаются на месте. */
 #app {
   display: flex;
-  height: 100vh;
-  max-height: 100vh;
+  height: var(--app-h);
+  max-height: var(--app-h);
   overflow: hidden;
 }
 
@@ -463,8 +467,8 @@ h3,
   flex: 1;
   min-width: 0;
   min-height: 0;
-  height: 100vh;
-  max-height: 100vh;
+  height: var(--app-h);
+  max-height: var(--app-h);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -477,8 +481,8 @@ h3,
   margin: 0;
   padding: 0 12px 6px 12px;
   min-height: 0;
-  height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
-  max-height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
+  height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
+  max-height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -523,7 +527,7 @@ body.has-bar .wrap {
      так, чтобы шапка карточки + список + «Добавить» + комментарий + запас под
      фиксированную нижнюю панель ровно помещались в .wrap — прокручивается
      только список, без второй прокрутки .wrap и без пустоты под ним. */
-  max-height: calc(100vh - 386px);
+  max-height: calc(var(--app-h) - 386px);
   min-height: 180px;
   overflow-y: auto;
   padding-right: 6px;
@@ -555,7 +559,7 @@ body.has-bar .wrap {
     display: flex;
     flex-direction: column;
     width: 256px;
-    height: 100vh;
+    height: var(--app-h);
     flex: none;
     border-right: 1px solid var(--color-ash);
     background: var(--color-canvas-white);
@@ -997,8 +1001,8 @@ body.has-bar .wrap {
     margin: 0;
     padding: 0 16px 12px 16px;
     min-height: 0;
-    height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
-    max-height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
+    height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
+    max-height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1851,7 +1855,7 @@ label.lbl {
     max-width: none;
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    min-height: var(--app-h);
     display: grid;
     grid-template-columns: 7fr 5fr;
     align-items: stretch;
@@ -3436,7 +3440,7 @@ label.lbl {
   background: var(--card);
   width: 100%;
   /* --vvh (из app-core.js) = высота за вычетом экранной клавиатуры; при
-     закрытой клавиатуре равна 100vh, поэтому обычно ограничение даёт 90vh. */
+     закрытой клавиатуре равна var(--app-h), поэтому обычно ограничение даёт 90vh. */
   max-height: min(90vh, calc(var(--vvh) - 24px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -3652,7 +3656,7 @@ label.lbl {
   z-index: 66;
   width: 280px;
   max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 80px);
+  max-height: calc(var(--app-h) - 80px);
   overflow-y: auto;
   background: var(--card);
   border: 1px solid var(--line);
@@ -4909,7 +4913,7 @@ label.lbl {
 .smart-filter-popover {
   width: 740px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 80px);
+  max-height: calc(var(--app-h) - 80px);
   display: flex;
   flex-direction: column;
   background: var(--card);
@@ -6092,7 +6096,7 @@ label.lbl {
    (326 подразделений, 110 пользователей, журнал аудита) скроллятся внутри
    себя с закреплённой шапкой, а короткие остаются как были. */
 .tblwrap {
-  max-height: calc(100vh - 120px);
+  max-height: calc(var(--app-h) - 120px);
   overflow-y: auto;
 }
 
@@ -6802,9 +6806,9 @@ label.lbl {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  height: calc(100vh - 110px) !important;
-  min-height: calc(100vh - 110px) !important;
-  max-height: calc(100vh - 110px) !important;
+  height: calc(var(--app-h) - 110px) !important;
+  min-height: calc(var(--app-h) - 110px) !important;
+  max-height: calc(var(--app-h) - 110px) !important;
   overflow-y: auto;
   overflow-x: auto;
   margin-bottom: 0;
@@ -6812,19 +6816,19 @@ label.lbl {
 }
 
 #dictBox .tblwrap--page {
-  height: calc(100vh - 140px) !important;
-  min-height: calc(100vh - 140px) !important;
-  max-height: calc(100vh - 140px) !important;
+  height: calc(var(--app-h) - 140px) !important;
+  min-height: calc(var(--app-h) - 140px) !important;
+  max-height: calc(var(--app-h) - 140px) !important;
 }
 
 /* «Сводка по подразделениям»: над таблицей ещё шапка периода + строка вкладок
-   с поиском. При 100vh-140 всё вместе не влезало в .wrap (у него overflow-y:
+   с поиском. При var(--app-h)-140 всё вместе не влезало в .wrap (у него overflow-y:
    auto) — прокручивался сам .wrap и уносил вкладки «По подразделениям / По
    направлениям» вверх. Отдаём таблице ровно то, что остаётся. */
 #dashSumTabBody .tblwrap--page {
-  height: calc(100vh - 166px) !important;
-  min-height: calc(100vh - 166px) !important;
-  max-height: calc(100vh - 166px) !important;
+  height: calc(var(--app-h) - 166px) !important;
+  min-height: calc(var(--app-h) - 166px) !important;
+  max-height: calc(var(--app-h) - 166px) !important;
 }
 
 @media (max-width: 700px) {
@@ -7138,8 +7142,8 @@ html.compact {
 
 .compact .wrap {
   padding: 0 12px 12px 12px;
-  height: calc(100vh - 48px);
-  max-height: calc(100vh - 48px);
+  height: calc(var(--app-h) - 48px);
+  max-height: calc(var(--app-h) - 48px);
   flex: 1;
   box-sizing: border-box;
   /* overflow сюда НЕ ставим: этот блок идёт в файле позже базового .wrap и с
@@ -8916,7 +8920,7 @@ html.compact {
   box-shadow: var(--shadow-sm);
 }
 /* ─── Конструктор ролей и доступов (вкладка «Роли и доступы») ─── */
-.roles2 { display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 0; }
+.roles2 { display: flex; flex-direction: column; height: calc(var(--app-h) - 120px); min-height: 0; }
 .roles2-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; flex-shrink: 0; }
 /* min-width: 0 на обеих колонках — без него grid-элемент не сжимается
    уже своего содержимого (тот же баг, что у flex): длинное ФИО или
@@ -11816,4 +11820,93 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .bc-h-det{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
 .bc-chip{font-size:12px;padding:2px 8px;border-radius:10px;background:rgba(128,128,128,.15)}
 .bc-chip-fail,.bc-fail{color:#d33}
-@media(max-width:760px){.bc-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.bc-grid{grid-template-columns:minmax(0,1fr)}}
+.bc-compose,.bc-people,.bc-hist{min-width:0}
+.bc-compose textarea{box-sizing:border-box}
+
+/* Реальная высота видимой области на телефоне (без области под адресной
+   строкой браузера/панелью Telegram) — см. --app-h в :root. */
+@supports (height: 100dvh) {
+  :root { --app-h: 100dvh; }
+}
+
+/* Нижняя панель телефона: все разделы должны помещаться в ширину экрана,
+   а не уезжать за край (раньше подпись nowrap раздувала кнопки, и видна была
+   только половина). Кнопки равной ширины, подпись мельче, шеврон — над
+   иконкой, а не в потоке после текста. */
+@media (max-width: 640px) {
+  #topNav.nav-tabs { padding-left: 2px; padding-right: 2px; }
+  #topNav .nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 1px;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+  }
+  #topNav .nav-btn > span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #topNav .nav-btn .nav-btn-caret {
+    position: absolute;
+    top: 6px;
+    right: 12%;
+    margin: 0 !important;
+    width: 8px !important;
+    height: 8px !important;
+  }
+}
+
+/* Телефон: нижняя панель навигации — fixed поверх области контента. Рабочая
+   область (.workspace-pane) уходила под неё до самого низа, и последние
+   элементы (кнопки, итоги) были не видны и недосягаемы: запас 60px у .wrap
+   перебивался .has-workspace-tabs { padding:0 !important }. Отступ снизу
+   переносим на сам прокручиваемый контейнер. */
+@media (max-width: 640px) {
+  body.has-topnav .workspace-pane {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Телефон: шапка «Оргструктуры» не помещалась в ширину (заголовок + поиск +
+   кнопки в одну строку уезжали за край) — переносим, поле поиска тянем на
+   всю строку, отступы и заголовок компактнее. */
+@media (max-width: 640px) {
+  .org-tree-header-bar { flex-wrap: wrap; padding: 6px 8px; gap: 6px; }
+  .org-tree-header-left { flex-wrap: wrap; gap: 6px; width: 100%; min-width: 0; }
+  .org-tree-search-wrap { flex: 1 1 100%; min-width: 0; padding: 3px 10px; }
+  .org-tree-search-wrap input { width: 100%; min-width: 0; font-size: 13px; }
+  .org-top-pill-title { font-size: 14px; }
+  .org-toolbar-btns { gap: 4px; width: 100%; }
+}
+
+/* Рассылка: колонка прокручивается вся целиком, карточки не сжимаются и не
+   наезжают друг на друга (раньше overflow:hidden у #adminContent резал низ). */
+#adminContent:has(> .bc-root) { overflow-y: auto; }
+.bc-root { flex: 0 0 auto; }
+.bc-root > * { flex-shrink: 0; }
+
+/* Телефон: любой раздел админки может оказаться выше экрана — даём ему
+   прокрутку, а не обрезание (раньше её включали только для отдельных
+   раскладок через :has(...), остальные разделы молча обрезались). */
+@media (max-width: 640px) {
+  #adminContent { overflow-y: auto; }
+}
+@media (max-width: 640px) {
+  .bc-row { flex-wrap: wrap; row-gap: 0; }
+  .bc-fio { white-space: normal; min-width: 0; }
+  .bc-list { overflow-x: hidden; }
+}
+
+/* Телефон: в таблицах справочников ячейка с бейджами («Направления»)
+   переносила каждый бейдж на новую строку в узкой колонке, и строка вырастала
+   до 130+ px — экран был из пары строк. Держим в одну строку (таблица
+   прокручивается вбок) и делаем ячейки плотнее. */
+@media (max-width: 640px) {
+  .co-tbl td:has(.badge) { white-space: nowrap; }
+  .co-tbl td, .co-tbl th { padding-top: 5px; padding-bottom: 5px; }
+}
+.bc-row { min-width: 0; }
+.bc-meta { flex: 1 1 0; }
