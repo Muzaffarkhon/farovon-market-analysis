@@ -21,6 +21,7 @@ const HELP_TEXT = 'Доступные команды:\n' +
   '/status — мои подразделения и прогресс заполнения\n' +
   '/unlink — отвязать этот Telegram от аккаунта\n' +
   '/link — привязать по номеру телефона\n' +
+  '/support — написать в чат поддержки\n' +
   '/help — этот список';
 
 /** Пользователь запрашивает ссылку для привязки своего Telegram — одноразовый токен
@@ -520,7 +521,10 @@ async function processTelegramUpdate(body) {
   if (/^\/(login|creds|password|pass|dostup)\b/i.test(text)) { await handleLogin(chatId); return; }
   if (/^\/status\b/i.test(text)) { await handleStatus(chatId); return; }
   if (/^\/unlink\b/i.test(text)) { await handleUnlink(chatId); return; }
-  if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT); return; }
+  if (/^\/support\b/i.test(text)) { await openSupportThreadForGuest(chatId); return; }
+  // Под списком команд — кнопка чата поддержки, чтобы привязанному сотруднику
+  // не приходилось помнить /support.
+  if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT, SUPPORT_KEYBOARD); return; }
 
   // Та же кнопка «Написать администратору», но текстовая (на CONTACT_KEYBOARD,
   // видна ещё до попытки распознать номер) — не текст в переписку, а
