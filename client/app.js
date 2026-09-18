@@ -6406,7 +6406,7 @@ function renderAdminSupport(){
 var supPollTimer = null;
 function startSupPoll(){
   if(supPollTimer) return;
-  supPollTimer = setInterval(supPollTick, 8000);
+  supPollTimer = setInterval(supPollTick, 20000);
 }
 function stopSupPoll(){
   if(supPollTimer){ clearInterval(supPollTimer); supPollTimer = null; }
@@ -7350,7 +7350,7 @@ function drawMySupportThread(){
 var mySupPollTimer = null;
 function startMySupPoll(){
   if(mySupPollTimer) return;
-  mySupPollTimer = setInterval(mySupPollTick, 8000);
+  mySupPollTimer = setInterval(mySupPollTick, 20000);
 }
 function stopMySupPoll(){
   if(mySupPollTimer){ clearInterval(mySupPollTimer); mySupPollTimer = null; }
