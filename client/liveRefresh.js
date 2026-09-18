@@ -10,8 +10,8 @@
 // Токен сессии кладём в заголовок Authorization через общий fetchJson
 // (см. app-core.js) — тот же путь, что у остальных вызовов API.
 (function(){
-  var POLL_MS = 20000;      // основной интервал опроса
-  var FALLBACK_MS = 90000;  // страховочная перерисовка, даже если подпись «не изменилась»
+  var POLL_MS = 45000;      // основной интервал опроса
+  var FALLBACK_MS = 180000; // страховочная перерисовка, даже если подпись «не изменилась»
   var stopped = false;
   var lastSig = null;
   var polling = false;
