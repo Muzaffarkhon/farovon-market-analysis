@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.94')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.94')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.94')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.93')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.94')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14581,10 +14581,9 @@ function wireBmPositionWeights(r){
   var eff = function(x){ return cur[x.key] != null ? cur[x.key] : x.g; };
 
   function shares(){
-    var sum = list.reduce(function(a, x){ return a + eff(x); }, 0);
+    var byKey = {}; list.forEach(function(x){ byKey[x.key] = x; });
+    bmwPaint(box, list.map(function(x){ return x.key; }), function(k){ return eff(byKey[k]); });
     list.forEach(function(x){
-      var v = box.querySelector('[data-pw-v="' + x.key + '"]');
-      if(v) v.textContent = eff(x) ? (sum ? Math.round(eff(x) / sum * 100) : 0) + '%' : 'не входит';
       var t = box.querySelector('[data-pw-t="' + x.key + '"]');
       if(t) t.textContent = cur[x.key] != null ? 'по должности' : 'общий вес';
       var rs = box.querySelector('[data-pw-reset="' + x.key + '"]');
@@ -14593,10 +14592,12 @@ function wireBmPositionWeights(r){
   }
   function open(){
     box.innerHTML = '<div class="bmw bmw--pos">' +
-      list.map(function(x){
+      '<div class="bmw-sub" style="margin:0 0 2px">Свои веса только для этой должности. Остальные должности используют общий вес источника.</div>' +
+      bmwStack(list.map(function(x){ return x.key; })) +
+      list.map(function(x, i){
         return '<div class="bmw-row">' +
-          '<span class="bmw-name">' + esc(x.title) + ' <em class="bmw-tag" data-pw-t="' + esc(x.key) + '"></em></span>' +
-          '<input type="range" min="0" max="100" step="5" value="' + eff(x) + '" data-pw="' + esc(x.key) + '">' +
+          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(x.title) + ' <em class="bmw-tag" data-pw-t="' + esc(x.key) + '"></em></span>' +
+          '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + eff(x) + '" data-pw="' + esc(x.key) + '">' +
           '<span class="bmw-v"><span data-pw-v="' + esc(x.key) + '"></span>' +
             '<button type="button" class="btn-ghost bmw-reset" data-pw-reset="' + esc(x.key) + '" title="Вернуть общий вес источника">' + icBare('close', 11) + '</button></span>' +
         '</div>';
@@ -14632,6 +14633,33 @@ function wireBmPositionWeights(r){
   btn.onclick = function(){ if(box.innerHTML) { box.innerHTML = ''; btn.classList.remove('on'); } else open(); };
 }
 
+/** Оттенок акцента для источника по порядковому номеру — чтобы у сегмента
+ *  полосы долей и точки у названия был один цвет без отдельной легенды. */
+function bmwTone(i){
+  var pct = [100, 68, 46, 30, 20, 14][i % 6];
+  return 'color-mix(in srgb, var(--accent) ' + pct + '%, var(--card))';
+}
+
+/** Полоса долей + подписи справа + заливка ползунков. keys — порядок источников. */
+function bmwPaint(root, keys, weightOf){
+  var sum = keys.reduce(function(a, k){ return a + weightOf(k); }, 0);
+  keys.forEach(function(k, i){
+    var w = weightOf(k), share = (w && sum) ? Math.round(w / sum * 100) : 0;
+    var v = root.querySelector('[data-bmw-v="' + k + '"], [data-pw-v="' + k + '"]');
+    if(v) v.textContent = w ? share + '%' : 'не входит';
+    var seg = root.querySelector('[data-bmw-seg="' + k + '"]');
+    if(seg) seg.style.width = (w && sum ? w / sum * 100 : 0) + '%';
+    var inp = root.querySelector('input[data-bmw="' + k + '"], input[data-pw="' + k + '"]');
+    if(inp) inp.style.setProperty('--p', w + '%');
+  });
+}
+
+function bmwStack(keys){
+  return '<div class="bmw-stack">' + keys.map(function(k, i){
+    return '<i data-bmw-seg="' + esc(k) + '" style="background:' + bmwTone(i) + '"></i>';
+  }).join('') + '</div>';
+}
+
 function renderBmWeights(datasets){
   var box = $('bmWeights');
   if(!box) return;
@@ -14643,23 +14671,20 @@ function renderBmWeights(datasets){
   var cur = {};
   list.forEach(function(src){ cur[src.key] = src.weight != null ? Number(src.weight) : 100; });
 
+  var keys = list.map(function(src){ return src.key; });
   // Доли пересчитываем подписями, а не перерисовкой блока — иначе ползунок
   // пересоздавался бы под пальцем посреди перетаскивания.
-  function shares(){
-    var sum = list.reduce(function(a, src){ return a + cur[src.key]; }, 0);
-    box.querySelectorAll('[data-bmw-v]').forEach(function(el){
-      var w = cur[el.dataset.bmwV];
-      el.textContent = w ? (sum ? Math.round(w / sum * 100) : 0) + '%' : 'не входит';
-    });
-  }
+  function shares(){ bmwPaint(box, keys, function(k){ return cur[k]; }); }
   function draw(){
     box.innerHTML = '<div class="bm-card bmw">' +
-      '<div class="bmw-hd"><b>Веса источников в сводной ставке</b>' +
+      '<div class="bmw-hd"><div><b>Веса источников в сводной ставке</b>' +
+        '<span class="bmw-sub">Чем выше вес, тем больше источник влияет на сводную. Действует на все должности.</span></div>' +
         (canEdit ? '<button type="button" class="btn-primary" id="bmwSave">Сохранить</button>' : '') + '</div>' +
-      list.map(function(src){
+      bmwStack(keys) +
+      list.map(function(src, i){
         return '<div class="bmw-row">' +
-          '<span class="bmw-name">' + esc(src.title) + '</span>' +
-          '<input type="range" min="0" max="100" step="5" value="' + cur[src.key] + '" data-bmw="' + esc(src.key) + '"' + (canEdit ? '' : ' disabled') + '>' +
+          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(src.title) + '</span>' +
+          '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + cur[src.key] + '" data-bmw="' + esc(src.key) + '"' + (canEdit ? '' : ' disabled') + '>' +
           '<span class="bmw-v" data-bmw-v="' + esc(src.key) + '"></span>' +
         '</div>';
       }).join('') +

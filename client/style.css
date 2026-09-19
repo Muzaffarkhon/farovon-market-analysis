@@ -12237,3 +12237,34 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .bmc-w .bmc-posw { display: block; width: max-content; margin: 2px 0 0; }
 @media (max-width: 640px) { .bmc-w .bmc-posw { margin-left: auto; } }
 .bmw-row input[type=range] { border: 0; background: transparent; box-shadow: none; padding: 0; min-height: 0; height: 22px; }
+
+/* ═══ Веса источников: аккуратный вид вместо стандартных ползунков ═══ */
+.bmw { gap: 6px; }
+.bmw-hd { align-items: flex-start; }
+.bmw-hd > div { min-width: 0; }
+.bmw-sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.bmw-stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin: 6px 0 4px; }
+.bmw-stack i { display: block; height: 100%; min-width: 0; transition: width .12s ease; }
+.bmw-stack i + i { box-shadow: inset 1px 0 0 var(--card); }
+.bmw-row { grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 84px; gap: 12px; padding: 3px 0; }
+.bmw-name { display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 500; }
+.bmw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.bmw-v { font-weight: 600; color: var(--text); }
+.bmw--pos .bmw-name { font-weight: 400; }
+
+/* Ползунок: тонкая дорожка с заливкой до значения и небольшой бегунок */
+.bmw-range { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0; padding: 0; border: 0; background: transparent !important; box-shadow: none; cursor: pointer; --p: 100%; }
+.bmw-range:focus { outline: none; }
+.bmw-range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) 0, var(--accent) var(--p), var(--line) var(--p), var(--line) 100%); }
+.bmw-range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
+.bmw-range::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+.bmw-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); box-shadow: 0 1px 2px rgba(15,23,42,.18); }
+.bmw-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); box-shadow: 0 1px 2px rgba(15,23,42,.18); }
+.bmw-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+.bmw-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+.bmw-range:disabled { cursor: default; opacity: .55; }
+
+@media (max-width: 640px) {
+  .bmw-row { grid-template-columns: minmax(0, 1fr) 72px; row-gap: 0; }
+  .bmw-row .bmw-range { grid-column: 1 / -1; grid-row: 2; }
+}
