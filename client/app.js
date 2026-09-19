@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.100')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.101')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.100')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.101')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.100')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.101')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.100')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.101')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14666,6 +14666,8 @@ function renderBmDatasets(){
           '<div>' +
             '<b style="font-size:15.5px;color:var(--color-midnight-ink)">' + esc(d.title) + '</b><br>' +
             '<span style="font-size:13px;color:var(--color-fog)">Источник: ' + esc(d.source_title) + ' · Отчёт: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+            (d.orig_currency ? '<span style="font-size:12.5px;color:var(--muted)">Исходная валюта: ' + esc(d.orig_currency) + ' → сомони по курсу ' + esc(String(Number(d.fx_rate).toPrecision(4))) + (d.fx_date ? ' на ' + esc(d.fx_date) : '') + '</span>' : '') +
+            (d.methodology ? '<span style="font-size:12.5px;color:var(--muted)">' + esc(d.methodology) + '</span>' : '') +
           '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
@@ -15018,131 +15020,411 @@ function openBmAddSourceModal(editKey){
   };
 }
 
+/**
+ * Загрузка датасета обзора зарплат. Файл (Excel .xlsx или CSV) или вставка
+ * таблицы → выбор листа → колонки подбираются по заголовкам (можно поправить)
+ * → валюта с онлайн-курсом к сомони → предпросмотр сумм в сомони → импорт.
+ * В базу значения попадают уже в сомони: сравнение по должности валюты не
+ * пересчитывает.
+ */
+var BMI_FIELDS = [
+  { key:'posLabel', label:'Должность', req:true,  re:/должност|наименование|position|названия строк/i },
+  { key:'region',   label:'Регион',                re:/регион|region|страна/i },
+  { key:'grade',    label:'Уровень',               re:/уровень|grade|level/i },
+  { key:'code',     label:'Код',                   re:/^код$|^code$|код должн/i },
+  { key:'p10',      label:'P10 (нижний дециль)',   re:/нижний дециль|p10|10%/i },
+  { key:'p25',      label:'P25 (1-й квартиль)',    re:/1-й квартиль|первый квартиль|p25|25%/i },
+  { key:'p50',      label:'P50 (медиана)',         re:/медиана|p50|median|50%/i },
+  { key:'p75',      label:'P75 (3-й квартиль)',    re:/3-й квартиль|третий квартиль|p75|75%/i },
+  { key:'p90',      label:'P90 (верхний дециль)',  re:/верхний дециль|p90|90%/i },
+  { key:'min',      label:'Минимум',               re:/минимум|^min|_min/i },
+  { key:'max',      label:'Максимум',              re:/максимум|^max|_max/i },
+  { key:'avg',      label:'Среднее',               re:/среднее|average|^avg|mean/i },
+  { key:'sampleN',  label:'Число работников (N)',  re:/^n\*|число работников|sample|^n$/i }
+];
+var BMI_RAW_FIELDS = [
+  { key:'posLabel', label:'Должность', req:true, re:/должност|наименование|position/i },
+  { key:'value',    label:'Сумма (оклад)', req:true, re:/оклад|зарплат|сумма|price|value/i },
+  { key:'region',   label:'Регион', re:/регион|region/i },
+  { key:'company',  label:'Компания', re:/компани|company/i }
+];
+
+function bmiColLetter(i){ var s = ''; i++; while(i > 0){ var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+function bmiNum(v){
+  if(v == null) return 0;
+  var t = String(v).replace(/[\s ]+/g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(t);
+  return isNaN(n) ? 0 : n;
+}
+function bmiParseDelimited(text){
+  var lines = String(text || '').split(/\r?\n/).filter(function(l){ return l.trim(); });
+  if(!lines.length) return [];
+  var f = lines[0], tab = (f.match(/\t/g) || []).length, semi = (f.match(/;/g) || []).length, comma = (f.match(/,/g) || []).length;
+  var d = ',';
+  if(tab && tab >= semi && tab >= comma) d = '\t'; else if(semi && semi >= comma) d = ';';
+  return lines.map(function(line){
+    var out = [], cur = '', q = false;
+    for(var i = 0; i < line.length; i++){
+      var c = line[i];
+      if(c === '"') q = !q;
+      else if(c === d && !q){ out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  });
+}
+function bmiFmt(v){ return v ? Math.round(v).toLocaleString('ru-RU') : '—'; }
+
 function openBmImportModal(){
   var el = document.createElement('div');
   el.className = 'sheet';
 
   var srcOptions = bmVisibleSources().filter(function(s){ return s.key !== 'internal'; }).map(function(s){
-    return '<option value="' + s.key + '">' + esc(s.title) + '</option>';
+    return '<option value="' + esc(s.key) + '" data-cur="' + esc(s.default_currency || 'сомони') + '">' + esc(s.title) + '</option>';
   }).join('');
 
+  var st = { fileB64: null, fileName: '', grid: [], fields: BMI_FIELDS, map: {}, headerRow: 0, dataStart: 1, fx: { rate: 1, code: 'TJS', date: '' }, report: null };
+
   el.innerHTML = '<div class="sheet-in bmi-modal">' +
-    '<div class="sheet-hd"><b>Загрузка датасета обзора заработных плат</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div class="sheet-hd"><b>Загрузка датасета</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
     '<div id="bmImpErr" class="err hidden"></div>' +
     '<div class="bmi-grid">' +
-      '<div>' +
-        '<label class="lbl">Источник</label>' +
-        '<select id="bmiSource">' + srcOptions + '</select>' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Название датасета</label>' +
-        '<input id="bmiTitle" placeholder="B1 Salary Survey 2026">' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Режим данных</label>' +
-        '<select id="bmiMode">' +
-          '<option value="percentiles">Готовые перцентили (P25/P50/P75)</option>' +
-          '<option value="raw_vacancies">Сырые вакансии/точки данных</option>' +
-        '</select>' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Дата актуальности данных</label>' +
-        '<input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '">' +
-      '</div>' +
+      '<div><label class="lbl">Источник</label><select id="bmiSource">' + srcOptions + '</select></div>' +
+      '<div><label class="lbl">Название датасета</label><input id="bmiTitle" placeholder="B1 Salary Survey 2026"></div>' +
+      '<div><label class="lbl">Режим данных</label><select id="bmiMode">' +
+        '<option value="percentiles">Готовые перцентили (P25/P50/P75…)</option>' +
+        '<option value="raw_vacancies">Сырые вакансии / точки данных</option></select></div>' +
+      '<div><label class="lbl">Дата актуальности данных</label><input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
     '</div>' +
-    '<label class="lbl bmi-lbl">Вставьте данные (таблица CSV / TSV из Excel или PDF):</label>' +
-    '<textarea id="bmiText" class="bmi-text" rows="6" placeholder="Должность,P25,P50,P75\nГлавный бухгалтер,8000,12000,16000"></textarea>' +
+    '<div class="bmi-drop" id="bmiDrop">' +
+      '<input type="file" id="bmiFile" accept=".xlsx,.csv,.tsv,.txt" hidden>' +
+      '<div class="bmi-drop-t">' + ic('archive', 18) + '<b id="bmiDropName">Выберите файл или перетащите его сюда</b></div>' +
+      '<div class="bmi-drop-s">Excel (.xlsx) или CSV. Либо <a href="#" id="bmiPasteLink">вставьте таблицу текстом</a></div>' +
+    '</div>' +
+    '<textarea id="bmiText" class="bmi-text hidden" rows="5" placeholder="Должность;P25;P50;P75&#10;Главный бухгалтер;8000;12000;16000"></textarea>' +
+    '<div id="bmiSetup" class="bmi-setup hidden"></div>' +
     '<div id="bmiPreview" class="bmi-preview-slot"></div>' +
     '<div class="bmi-acts">' +
       '<button class="btn-ghost" data-x="1">Отмена</button>' +
-      '<button class="btn-line" id="btnBmiDryRun">' + ic('search', 14) + 'Проверить без записи</button>' +
+      '<button class="btn-line" id="btnBmiDryRun" disabled>' + ic('search', 14) + 'Проверить без записи</button>' +
       '<button class="btn-primary" id="btnBmiCommit" disabled>Импортировать в базу</button>' +
     '</div>' +
   '</div>';
-
   document.body.appendChild(el);
 
-  var dryRunReport = null;
+  function showErr(t){ var e = $('bmImpErr'); if(!e) return; e.textContent = t || ''; e.classList.toggle('hidden', !t); }
+  el.onclick = function(e){ if(e.target.dataset.x || e.target === el){ el.remove(); return; } };
 
-  el.onclick = function(e){
-    if(e.target.dataset.x || e.target === el){ el.remove(); return; }
+  // ── чтение файла ──
+  function readFileAsBase64(file, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var bytes = new Uint8Array(fr.result), bin = '', chunk = 0x8000;
+      for(var i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      cb(btoa(bin));
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function takeFile(file){
+    if(!file) return;
+    showErr('');
+    st.fileName = file.name;
+    $('bmiDropName').textContent = file.name;
+    if(/\.xlsx$/i.test(file.name)){
+      readFileAsBase64(file, function(b64){
+        st.fileB64 = b64;
+        call('apiBenchmarkXlsxSheets', S.token, b64).then(guardAsyncToTab(function(res){
+          if(!res || !res.ok){ showErr((res && res.error) || 'Не удалось прочитать файл'); return; }
+          if(!$('bmiTitle').value) $('bmiTitle').value = file.name.replace(/\.xlsx$/i, '');
+          setup(res.sheets);
+        })).catch(function(){ showErr('Нет связи с сервером'); });
+      });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ st.fileB64 = null; st.grid = bmiParseDelimited(fr.result); if(!$('bmiTitle').value) $('bmiTitle').value = file.name.replace(/\.[^.]+$/, ''); setup(null); };
+      fr.readAsText(file, 'utf-8');
+    }
+  }
+  $('bmiDrop').onclick = function(e){ if(e.target.id === 'bmiPasteLink') return; $('bmiFile').click(); };
+  $('bmiFile').onchange = function(){ takeFile(this.files[0]); };
+  $('bmiDrop').ondragover = function(e){ e.preventDefault(); this.classList.add('is-over'); };
+  $('bmiDrop').ondragleave = function(){ this.classList.remove('is-over'); };
+  $('bmiDrop').ondrop = function(e){ e.preventDefault(); this.classList.remove('is-over'); takeFile(e.dataTransfer.files[0]); };
+  $('bmiPasteLink').onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    $('bmiText').classList.toggle('hidden');
+  };
+  $('bmiText').oninput = function(){
+    st.fileB64 = null;
+    st.grid = bmiParseDelimited(this.value);
+    if(st.grid.length) setup(null);
   };
 
-  $('btnBmiDryRun').onclick = function(){
-    var text = $('bmiText').value.trim();
-    if(!text){ toast('Вставьте текст таблицы'); return; }
+  // ── настройка: лист, заголовки, колонки, валюта ──
+  function currentFields(){ return $('bmiMode').value === 'raw_vacancies' ? BMI_RAW_FIELDS : BMI_FIELDS; }
 
-    var mode = $('bmiMode').value;
-    var colMap = mode === 'percentiles' ?
-      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
-      { posLabel:0, value:1, region:2, company:3 };
-
-    $('btnBmiDryRun').disabled = true; $('btnBmiDryRun').textContent = 'Проверка…';
-    $('bmImpErr').classList.add('hidden');
-
-    call('apiBenchmarkDryRun', S.token, {
-      sourceKey: $('bmiSource').value,
-      text: text,
-      mode: mode,
-      columnMap: colMap,
-      title: $('bmiTitle').value.trim(),
-      dataAsOf: $('bmiDataAsOf').value
-    }).then(guardAsyncToTab(function(res){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
-      if(!res || !res.ok){
-        $('bmImpErr').textContent = (res && res.error) || 'Ошибка проверки';
-        $('bmImpErr').classList.remove('hidden');
-        return;
+  function detect(){
+    var fields = currentFields(), grid = st.grid;
+    // Заголовок — строка среди первых 12 с наибольшим числом совпадений с названиями полей.
+    var best = 0, bestHits = -1;
+    for(var r = 0; r < Math.min(12, grid.length); r++){
+      var hits = 0;
+      (grid[r] || []).forEach(function(c){
+        var t = String(c || '');
+        if(t && fields.some(function(f){ return f.re.test(t); })) hits++;
+      });
+      if(hits > bestHits){ bestHits = hits; best = r; }
+    }
+    st.headerRow = best;
+    st.dataStart = best + 1;
+    var width = 0; grid.slice(0, 40).forEach(function(r){ if(r && r.length > width) width = r.length; });
+    st.width = width;
+    // Подпись колонки: слова из строк заголовка над данными (группа + название показателя).
+    st.colTitles = [];
+    for(var c = 0; c < width; c++){
+      var parts = [];
+      for(var r2 = Math.max(0, best - 2); r2 <= best + 1 && r2 < grid.length; r2++){
+        var t2 = String((grid[r2] || [])[c] || '').replace(/\s+/g, ' ').trim();
+        if(t2 && parts.indexOf(t2) < 0 && !/^-?[\d\s.,]+$/.test(t2)) parts.push(t2);
       }
+      st.colTitles[c] = parts.join(' · ');
+    }
+    st.map = {};
+    // Название колонки может стоять в любой из строк рядом с заголовком
+    // (группа «Ежемесячная заработная плата» выше, «Медиана» ниже) — проверяем их все.
+    var hdrRows = [];
+    for(var hr = Math.max(0, best - 2); hr <= Math.min(grid.length - 1, best + 1); hr++) hdrRows.push(hr);
+    fields.forEach(function(f){
+      for(var c2 = 0; c2 < width; c2++){
+        var taken = Object.keys(st.map).some(function(k){ return st.map[k] === c2; });
+        if(taken) continue;
+        var hit = hdrRows.some(function(hr2){
+          var own = String((grid[hr2] || [])[c2] || '').replace(/s+/g, ' ').trim();
+          return own && !/^-?[ds.,]+$/.test(own) && f.re.test(own);
+        });
+        if(hit){ st.map[f.key] = c2; return; }
+      }
+    });
+  }
 
-      dryRunReport = res.report;
+  function colOptions(sel){
+    var o = '<option value="">— нет —</option>';
+    for(var c = 0; c < st.width; c++){
+      var t = st.colTitles[c] ? ' · ' + st.colTitles[c].slice(0, 42) : '';
+      o += '<option value="' + c + '"' + (sel === c ? ' selected' : '') + '>' + bmiColLetter(c) + t + '</option>';
+    }
+    return o;
+  }
+
+  function setup(sheets){
+    var box = $('bmiSetup');
+    box.classList.remove('hidden');
+    var sheetHtml = sheets
+      ? '<div><label class="lbl">Лист</label><select id="bmiSheet">' + sheets.map(function(n){ return '<option>' + esc(n) + '</option>'; }).join('') + '</select></div>'
+      : '';
+    box.innerHTML = '<div class="bmi-row3">' + sheetHtml +
+      '<div><label class="lbl">Данные начинаются со строки №</label><input type="number" id="bmiStart" min="1" value="1"></div>' +
+      '<div><label class="lbl">Валюта в файле</label><select id="bmiCur"></select></div>' +
+    '</div>' +
+    '<div id="bmiFxLine" class="bmi-fx"></div>' +
+    '<div id="bmiMapBox"></div>' +
+    '<div id="bmiOpts" class="bmi-opts"></div>';
+    var cur = $('bmiCur');
+    cur.innerHTML = '<option value="TJS">Сомони (TJS)</option><option value="USD">Доллар США (USD)</option><option value="EUR">Евро (EUR)</option>' +
+      '<option value="RUB">Российский рубль (RUB)</option><option value="UZS">Узбекский сум (UZS)</option><option value="KZT">Казахстанский тенге (KZT)</option><option value="CNY">Китайский юань (CNY)</option>';
+    cur.onchange = loadFx;
+    var sh = $('bmiSheet');
+    if(sh) sh.onchange = function(){ loadGrid(this.value); };
+    $('bmiStart').oninput = function(){ st.dataStart = Math.max(0, (parseInt(this.value, 10) || 1) - 1); refresh(); };
+    if(sheets){ loadGrid(sheets[0]); } else { afterGrid(); }
+    loadFx();
+  }
+
+  function loadGrid(name){
+    call('apiBenchmarkXlsxGrid', S.token, st.fileB64, name).then(guardAsyncToTab(function(res){
+      if(!res || !res.ok){ showErr((res && res.error) || 'Не удалось прочитать лист'); return; }
+      st.grid = res.rows || [];
+      afterGrid();
+    })).catch(function(){ showErr('Нет связи с сервером'); });
+  }
+
+  function afterGrid(){
+    detect();
+    $('bmiStart').value = st.dataStart + 1;
+    drawMap();
+    refresh();
+  }
+
+  function drawMap(){
+    var fields = currentFields();
+    var h = '<div class="bmi-map">';
+    fields.forEach(function(f){
+      h += '<label class="bmi-map-i"><span>' + esc(f.label) + (f.req ? ' *' : '') + '</span>' +
+        '<select data-f="' + f.key + '">' + colOptions(st.map[f.key]) + '</select></label>';
+    });
+    h += '</div>';
+    $('bmiMapBox').innerHTML = h;
+    $('bmiMapBox').querySelectorAll('select[data-f]').forEach(function(s){
+      s.onchange = function(){ if(this.value === '') delete st.map[this.dataset.f]; else st.map[this.dataset.f] = Number(this.value); refresh(); };
+    });
+  }
+
+  function loadFx(){
+    var code = $('bmiCur').value;
+    var line = $('bmiFxLine');
+    if(code === 'TJS'){ st.fx = { rate: 1, code: 'TJS', date: '' }; line.innerHTML = ''; refresh(); return; }
+    line.innerHTML = '<span class="bmi-fx-load">Загружаю курс…</span>';
+    call('apiBenchmarkFx', S.token, code).then(guardAsyncToTab(function(res){
+      if(!res || !res.ok){
+        st.fx = { rate: 0, code: code, date: '' };
+        line.innerHTML = '<span class="bmi-fx-err">' + esc((res && res.error) || 'Курс недоступен') + '</span>';
+        refresh(); return;
+      }
+      st.fx = { rate: res.rate, code: code, date: res.date };
+      var r = res.rate;
+      var shown = r < 0.01 ? r.toLocaleString('ru-RU', { maximumSignificantDigits: 4 }) : r.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+      line.innerHTML = '<span>1 ' + esc(code) + ' = <b>' + shown + '</b> сомони</span>' +
+        '<span class="bmi-fx-s">онлайн-курс на ' + esc(res.date) + (res.stale ? ' · сервис недоступен, последний сохранённый' : '') + '</span>' +
+        '<button type="button" class="btn-ghost bmi-fx-b" id="bmiFxRe">Обновить</button>';
+      var re = $('bmiFxRe'); if(re) re.onclick = loadFx;
+      refresh();
+    })).catch(function(){ line.innerHTML = '<span class="bmi-fx-err">Нет связи с сервером</span>'; });
+  }
+
+  // ── таблица для отправки и предпросмотр ──
+  function options(){
+    return { avgAsMedian: !!($('bmiAvg') && $('bmiAvg').checked), midAsMedian: !!($('bmiMid') && $('bmiMid').checked) };
+  }
+
+  function buildRows(){
+    var mode = $('bmiMode').value, map = st.map, out = [];
+    var o = options();
+    for(var r = st.dataStart; r < st.grid.length; r++){
+      var row = st.grid[r] || [];
+      var label = map.posLabel != null ? String(row[map.posLabel] || '').replace(/\s+/g, ' ').trim() : '';
+      if(!label) continue;
+      var v = function(k){ return map[k] != null ? row[map[k]] : ''; };
+      if(mode === 'raw_vacancies'){
+        if(bmiNum(v('value')) <= 0) continue;
+        out.push({ label: label, region: v('region'), value: bmiNum(v('value')), company: v('company') });
+        continue;
+      }
+      var s = { label: label, region: v('region'), grade: v('grade'), code: v('code'),
+        p10: bmiNum(v('p10')), p25: bmiNum(v('p25')), p50: bmiNum(v('p50')), p75: bmiNum(v('p75')), p90: bmiNum(v('p90')),
+        min: bmiNum(v('min')), max: bmiNum(v('max')), avg: bmiNum(v('avg')), n: bmiNum(v('sampleN')) };
+      if(!s.p50 && o.avgAsMedian && s.avg) s.p50 = s.avg;
+      if(!s.p50 && o.midAsMedian && s.min && s.max) s.p50 = (s.min + s.max) / 2;
+      if(!s.p50) continue;
+      out.push(s);
+    }
+    return out;
+  }
+
+  function csvOf(rows){
+    var q = function(x){ return String(x == null ? '' : x).replace(/[;"\r\n]+/g, ' ').trim(); };
+    var mode = $('bmiMode').value;
+    if(mode === 'raw_vacancies'){
+      return ['Должность;Сумма;Регион;Компания'].concat(rows.map(function(r){ return [q(r.label), r.value, q(r.region), q(r.company)].join(';'); })).join('\n');
+    }
+    var n = function(x){ return x ? String(x) : ''; };
+    return ['Регион;Уровень;Код;Должность;P10;P25;P50;P75;P90;Мин;Макс;Среднее;N'].concat(rows.map(function(r){
+      return [q(r.region), q(r.grade), q(r.code), q(r.label), n(r.p10), n(r.p25), n(r.p50), n(r.p75), n(r.p90), n(r.min), n(r.max), n(r.avg), r.n ? Math.round(r.n) : ''].join(';');
+    })).join('\n');
+  }
+  var PCT_MAP = { region:0, grade:1, code:2, posLabel:3, p10:4, p25:5, p50:6, p75:7, p90:8, min:9, max:10, avg:11, sampleN:12 };
+  var RAW_MAP = { posLabel:0, value:1, region:2, company:3 };
+
+  function methodologyNote(){
+    var o = options(), notes = [];
+    if(o.avgAsMedian && st.map.p50 == null) notes.push('P50 принят равным среднему значению (в источнике медианы нет)');
+    if(o.midAsMedian && st.map.p50 == null) notes.push('P50 принят серединой между минимумом и максимумом (в источнике медианы нет)');
+    return notes.join('; ');
+  }
+
+  function refresh(){
+    st.report = null;
+    $('btnBmiCommit').disabled = true;
+    var mode = $('bmiMode').value;
+    var opts = $('bmiOpts');
+    if(opts){
+      var showOpts = mode === 'percentiles' && st.map.p50 == null;
+      opts.innerHTML = showOpts
+        ? '<label class="bmi-chk"><input type="checkbox" id="bmiAvg"' + (st.avgOn ? ' checked' : '') + '> В файле нет медианы — принять <b>среднее</b> за P50</label>' +
+          '<label class="bmi-chk"><input type="checkbox" id="bmiMid"' + (st.midOn ? ' checked' : '') + '> …или принять за P50 <b>середину между минимумом и максимумом</b></label>'
+        : '';
+      var a = $('bmiAvg'), m = $('bmiMid');
+      if(a) a.onchange = function(){ st.avgOn = this.checked; if(this.checked && m){ m.checked = false; st.midOn = false; } refresh(); };
+      if(m) m.onchange = function(){ st.midOn = this.checked; if(this.checked && a){ a.checked = false; st.avgOn = false; } refresh(); };
+    }
+    var rows = buildRows();
+    var ok = rows.length > 0 && (st.fx.rate > 0);
+    $('btnBmiDryRun').disabled = !ok;
+    var rate = st.fx.rate || 1, cur = st.fx.code;
+    var head = mode === 'raw_vacancies'
+      ? '<th>Должность</th><th class="num">Сумма</th>' + (cur !== 'TJS' ? '<th class="num">В сомони</th>' : '')
+      : '<th>Должность</th><th class="num">P25</th><th class="num">P50</th><th class="num">P75</th>' + (cur !== 'TJS' ? '<th class="num bmi-tjs">P50 в сомони</th>' : '');
+    var body = rows.slice(0, 6).map(function(r){
+      if(mode === 'raw_vacancies') return '<tr><td>' + esc(r.label) + '</td><td class="num">' + bmiFmt(r.value) + '</td>' + (cur !== 'TJS' ? '<td class="num bmi-tjs">' + bmiFmt(r.value * rate) + '</td>' : '') + '</tr>';
+      return '<tr><td>' + esc(r.label) + '</td><td class="num">' + bmiFmt(r.p25) + '</td><td class="num">' + bmiFmt(r.p50) + '</td><td class="num">' + bmiFmt(r.p75) + '</td>' +
+        (cur !== 'TJS' ? '<td class="num bmi-tjs">' + bmiFmt(r.p50 * rate) + '</td>' : '') + '</tr>';
+    }).join('');
+    $('bmiPreview').innerHTML = st.grid.length
+      ? '<div class="bmi-prev"><div class="bmi-prev-h"><b>' + rows.length + '</b> ' + declOfNum(rows.length, ['строка', 'строки', 'строк']) + ' с данными' +
+          (cur !== 'TJS' ? ' · суммы пересчитываются в сомони' : '') + '</div>' +
+          (rows.length ? '<table class="bmi-tbl"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>' : '<div class="bmi-empty">Не найдено строк с данными — проверьте колонки и номер первой строки.</div>') +
+        '</div>'
+      : '';
+  }
+
+  $('bmiMode').onchange = function(){ if(st.grid.length){ detect(); drawMap(); } refresh(); };
+
+  function payload(){
+    var rows = buildRows(), mode = $('bmiMode').value;
+    return {
+      sourceKey: $('bmiSource').value,
+      text: csvOf(rows),
+      mode: mode,
+      columnMap: mode === 'raw_vacancies' ? RAW_MAP : PCT_MAP,
+      currency: st.fx.code === 'TJS' ? 'сомони' : st.fx.code,
+      fxRate: st.fx.rate || 1,
+      title: $('bmiTitle').value.trim(),
+      dataAsOf: $('bmiDataAsOf').value,
+      methodology: methodologyNote()
+    };
+  }
+
+  $('btnBmiDryRun').onclick = function(){
+    var b = this; b.disabled = true; b.textContent = 'Проверка…'; showErr('');
+    call('apiBenchmarkDryRun', S.token, payload()).then(guardAsyncToTab(function(res){
+      b.disabled = false; b.innerHTML = ic('search', 14) + 'Проверить без записи';
+      if(!res || !res.ok){ showErr((res && res.error) || 'Ошибка проверки'); return; }
+      st.report = res.report;
       $('btnBmiCommit').disabled = false;
-
-      var prevHtml = '<div class="bmi-result">' +
-        '<b>Результат проверки:</b> Найдено ' + dryRunReport.validRows + ' валидных строк. Новых должностей для источника: ' + dryRunReport.newPositionsCount + '<br>' +
-        (dryRunReport.errors.length ? '<span class="bmi-result-err">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>') +
-      '</div>';
-      $('bmiPreview').innerHTML = prevHtml;
+      var r = res.report;
+      var box = document.createElement('div');
+      box.className = 'bmi-result';
+      box.innerHTML = '<b>Результат проверки:</b> ' + r.validRows + ' валидных строк, новых должностей: ' + r.newPositionsCount + '. ' +
+        (r.errors.length ? '<span class="bmi-result-err">Ошибок: ' + r.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>');
+      var old = $('bmiPreview').querySelector('.bmi-result'); if(old) old.remove();
+      $('bmiPreview').appendChild(box);
     })).catch(guardAsyncToTab(function(err){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
-      $('bmImpErr').textContent = err.message || 'Ошибка связи';
-      $('bmImpErr').classList.remove('hidden');
+      b.disabled = false; b.innerHTML = ic('search', 14) + 'Проверить без записи';
+      showErr(err.message || 'Ошибка связи');
     }));
   };
 
   $('btnBmiCommit').onclick = function(){
-    var text = $('bmiText').value.trim();
-    var mode = $('bmiMode').value;
-    var colMap = mode === 'percentiles' ?
-      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
-      { posLabel:0, value:1, region:2, company:3 };
-
-    $('btnBmiCommit').disabled = true; $('btnBmiCommit').textContent = 'Импортируем…';
-
-    call('apiBenchmarkCommit', S.token, {
-      sourceKey: $('bmiSource').value,
-      text: text,
-      mode: mode,
-      columnMap: colMap,
-      title: $('bmiTitle').value.trim(),
-      dataAsOf: $('bmiDataAsOf').value
-    }).then(guardAsyncToTab(function(res){
-      if(res && res.ok){
-        toast('Датасет успешно сохранен!');
-        el.remove();
-        renderBmDatasets();
-      } else {
-        $('bmImpErr').textContent = (res && res.error) || 'Ошибка сохранения';
-        $('bmImpErr').classList.remove('hidden');
-        $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
-      }
+    var b = this; b.disabled = true; b.textContent = 'Импортируем…';
+    call('apiBenchmarkCommit', S.token, payload()).then(guardAsyncToTab(function(res){
+      if(res && res.ok){ toast('Датасет сохранён'); el.remove(); renderBmDatasets(); }
+      else { showErr((res && res.error) || 'Ошибка сохранения'); b.disabled = false; b.textContent = 'Импортировать в базу'; }
     })).catch(guardAsyncToTab(function(err){
-      $('bmImpErr').textContent = err.message || 'Ошибка связи';
-      $('bmImpErr').classList.remove('hidden');
-      $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
+      showErr(err.message || 'Ошибка связи'); b.disabled = false; b.textContent = 'Импортировать в базу';
     }));
   };
 }
+
 
 
 // ─── Вкладка: Рассылка (Telegram-бот) ───

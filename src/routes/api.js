@@ -163,6 +163,9 @@ router.get('/benchmarks/mappings', requireCapability('benchmarks:view'), benchma
 router.get('/benchmarks/suggest-mappings/:sourceKey', requireCapability('benchmarks:map'), benchmarkController.suggestMappings);
 router.post('/benchmarks/mappings', requireCapability('benchmarks:map'), benchmarkController.saveMapping);
 router.post('/benchmarks/mappings/:id/delete', requireCapability('benchmarks:map'), benchmarkController.deleteMapping);
+router.get('/benchmarks/fx', requireCapability('benchmarks:import'), benchmarkController.getFxRate);
+router.post('/benchmarks/import/xlsx-sheets', requireCapability('benchmarks:import'), benchmarkController.xlsxSheets);
+router.post('/benchmarks/import/xlsx-grid', requireCapability('benchmarks:import'), benchmarkController.xlsxGrid);
 router.post('/benchmarks/import/dry-run', requireCapability('benchmarks:import'), benchmarkController.dryRunImport);
 router.post('/benchmarks/import/commit', requireCapability('benchmarks:import'), benchmarkController.commitImport);
 router.get('/benchmarks/compare', requireCapability('benchmarks:view'), benchmarkController.compare);

@@ -383,6 +383,11 @@ async function migrate() {
   // Скрытый источник не показывается в списках и не участвует в сводной ставке;
   // его датасеты и сопоставления остаются в базе.
   await ensureColumn('data_sources', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
+  // Датасет, загруженный в другой валюте, хранится уже в сомони; здесь — исходная
+  // валюта и курс, по которому пересчитали (чтобы было видно, откуда цифры).
+  await ensureColumn('benchmark_datasets', 'orig_currency', 'TEXT');
+  await ensureColumn('benchmark_datasets', 'fx_rate', 'REAL');
+  await ensureColumn('benchmark_datasets', 'fx_date', 'TEXT');
   // Вес источника для конкретной должности — перекрывает общий вес источника
   // (data_sources.weight) только по ней. Нет строки — действует общий вес.
   await run(`CREATE TABLE IF NOT EXISTS position_source_weights (

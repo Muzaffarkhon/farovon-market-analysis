@@ -160,7 +160,8 @@ app.use(compression());
 const jsonSmall = express.json({ limit: '512kb' });
 const jsonLarge = express.json({ limit: '15mb' });
 app.use((req, res, next) => {
-  if (req.path === '/api/admin/import-survey') return jsonLarge(req, res, next);
+  if (req.path === '/api/admin/import-survey' || req.path === '/api/benchmarks/import/xlsx-sheets' ||
+      req.path === '/api/benchmarks/import/xlsx-grid') return jsonLarge(req, res, next);
   return jsonSmall(req, res, next);
 });
 app.use(express.urlencoded({ extended: true, limit: '512kb' }));

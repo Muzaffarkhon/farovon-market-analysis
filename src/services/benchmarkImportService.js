@@ -51,7 +51,10 @@ class BenchmarkImportService {
   /**
    * Dry-run предпросмотр импорта данных
    */
-  async dryRun({ sourceKey, text, mode = 'percentiles', columnMap = {}, currency = 'сомони', reportDate = '', dataAsOf = '', title = '' }) {
+  async dryRun({ sourceKey, text, mode = 'percentiles', columnMap = {}, currency = 'сомони', reportDate = '', dataAsOf = '', title = '', fxRate = 1 }) {
+    // fxRate — сколько сомони в одной единице исходной валюты (1 для сомони).
+    const k = Number(fxRate) > 0 ? Number(fxRate) : 1;
+    const conv = v => Math.round(v * k * 100) / 100;
     const source = await queryOne('SELECT * FROM data_sources WHERE key = ?', [sourceKey]);
     if (!source) {
       throw new Error(`Источник данных "${sourceKey}" не найден`);
@@ -120,6 +123,9 @@ class BenchmarkImportService {
             p25,
             p50,
             p75,
+            p25Tjs: conv(p25),
+            p50Tjs: conv(p50),
+            p75Tjs: conv(p75),
             sampleN,
             currency
           });
@@ -141,6 +147,7 @@ class BenchmarkImportService {
             region,
             grade,
             value: val,
+            valueTjs: conv(val),
             currency
           });
         }
@@ -168,8 +175,13 @@ class BenchmarkImportService {
   /**
    * Выполнение импорта и сохранение датасета в БД
    */
-  async commit({ sourceKey, text, mode = 'percentiles', columnMap = {}, currency = 'сомони', reportDate = '', dataAsOf = '', title = '', user = null }) {
-    const dry = await this.dryRun({ sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title });
+  async commit({ sourceKey, text, mode = 'percentiles', columnMap = {}, currency = 'сомони', reportDate = '', dataAsOf = '', title = '', user = null, fxRate = 1, fxDate = '', methodology = '' }) {
+    const dry = await this.dryRun({ sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, fxRate });
+    // Всё хранится в сомони — сравнение по должности валюты не пересчитывает.
+    const k = Number(fxRate) > 0 ? Number(fxRate) : 1;
+    const conv = v => (v > 0 ? Math.round(v * k * 100) / 100 : 0);
+    const origCurrency = k !== 1 ? currency : null;
+    const storedCurrency = 'сомони';
     if (dry.validRows === 0) {
       throw new Error('В файле нет валидных строк для импорта');
     }
@@ -186,9 +198,10 @@ class BenchmarkImportService {
     // 1. Создаем датасет
     const datasetTitle = title || `${dry.source.title} (${dataAsOf || new Date().toISOString().slice(0, 10)})`;
     const datasetRes = await run(`
-      INSERT INTO benchmark_datasets (source_key, title, report_date, data_as_of, currency, uploaded_by, state, row_count)
-      VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
-    `, [sourceKey, datasetTitle, reportDate || null, dataAsOf || null, currency, user ? (user.fio || user.login) : 'admin', dry.validRows]);
+      INSERT INTO benchmark_datasets (source_key, title, report_date, data_as_of, currency, uploaded_by, state, row_count, orig_currency, fx_rate, fx_date, methodology)
+      VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
+    `, [sourceKey, datasetTitle, reportDate || null, dataAsOf || null, storedCurrency, user ? (user.fio || user.login) : 'admin', dry.validRows,
+        origCurrency, origCurrency ? k : null, origCurrency ? (fxDate || null) : null, methodology || null]);
 
     const datasetId = Number(datasetRes.lastInsertRowid || datasetRes.insertId || 0);
 
@@ -217,31 +230,31 @@ class BenchmarkImportService {
       const industry = industryColIdx >= 0 ? (row[industryColIdx] || '').trim() : null;
 
       if (mode === 'percentiles') {
-        const p10 = parseNumber(columnMap.p10 != null ? row[columnMap.p10] : 0);
-        const p25 = parseNumber(columnMap.p25 != null ? row[columnMap.p25] : 0);
-        const p50 = parseNumber(columnMap.p50 != null ? row[columnMap.p50] : (columnMap.avg != null ? row[columnMap.avg] : 0));
-        const p75 = parseNumber(columnMap.p75 != null ? row[columnMap.p75] : 0);
-        const p90 = parseNumber(columnMap.p90 != null ? row[columnMap.p90] : 0);
-        const minVal = parseNumber(columnMap.min != null ? row[columnMap.min] : 0);
-        const maxVal = parseNumber(columnMap.max != null ? row[columnMap.max] : 0);
-        const avgVal = parseNumber(columnMap.avg != null ? row[columnMap.avg] : 0);
+        const p10 = conv(parseNumber(columnMap.p10 != null ? row[columnMap.p10] : 0));
+        const p25 = conv(parseNumber(columnMap.p25 != null ? row[columnMap.p25] : 0));
+        const p50 = conv(parseNumber(columnMap.p50 != null ? row[columnMap.p50] : (columnMap.avg != null ? row[columnMap.avg] : 0)));
+        const p75 = conv(parseNumber(columnMap.p75 != null ? row[columnMap.p75] : 0));
+        const p90 = conv(parseNumber(columnMap.p90 != null ? row[columnMap.p90] : 0));
+        const minVal = conv(parseNumber(columnMap.min != null ? row[columnMap.min] : 0));
+        const maxVal = conv(parseNumber(columnMap.max != null ? row[columnMap.max] : 0));
+        const avgVal = conv(parseNumber(columnMap.avg != null ? row[columnMap.avg] : 0));
         const sampleN = columnMap.sampleN != null ? parseInt(parseNumber(row[columnMap.sampleN])) || 1 : 1;
 
-        if (p50 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'p50', p50, sampleN] });
-        if (p25 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'p25', p25, sampleN] });
-        if (p75 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'p75', p75, sampleN] });
-        if (p10 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'p10', p10, sampleN] });
-        if (p90 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'p90', p90, sampleN] });
-        if (minVal > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'min', minVal, sampleN] });
-        if (maxVal > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'max', maxVal, sampleN] });
-        if (avgVal > 0 && avgVal !== p50) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, currency, 'avg', avgVal, sampleN] });
+        if (p50 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'p50', p50, sampleN] });
+        if (p25 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'p25', p25, sampleN] });
+        if (p75 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'p75', p75, sampleN] });
+        if (p10 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'p10', p10, sampleN] });
+        if (p90 > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'p90', p90, sampleN] });
+        if (minVal > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'min', minVal, sampleN] });
+        if (maxVal > 0) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'max', maxVal, sampleN] });
+        if (avgVal > 0 && avgVal !== p50) stmts.push({ sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'avg', avgVal, sampleN] });
       } else {
-        const val = parseNumber(columnMap.value != null ? row[columnMap.value] : (columnMap.payFrom != null ? row[columnMap.payFrom] : 0));
+        const val = conv(parseNumber(columnMap.value != null ? row[columnMap.value] : (columnMap.payFrom != null ? row[columnMap.payFrom] : 0)));
         const company = columnMap.company != null ? (row[columnMap.company] || '').trim() : null;
         if (val > 0) {
           stmts.push({
             sql: 'INSERT INTO benchmark_rows (dataset_id, source_position_id, region, industry, grade, currency, stat_type, value, sample_n, company) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)',
-            args: [datasetId, sourcePosId, region, industry, grade, currency, 'point', val, company]
+            args: [datasetId, sourcePosId, region, industry, grade, storedCurrency, 'point', val, company]
           });
         }
       }
