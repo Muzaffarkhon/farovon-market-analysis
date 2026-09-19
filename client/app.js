@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.99')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.99')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.99')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.98')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.99')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -8438,18 +8438,15 @@ function renderAdminDivisions(){
   function orgToolbarBtns(view){
     var adjN = new Set((S.adminDivs || []).map(function(x){ return String(x.group_key || '').trim(); }).filter(Boolean)).size;
     return '<div class="org-toolbar-btns">'+
-      '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
-      '<button class="btn-line" id="btnAdjGroups" style="gap:5px" title="Смежные группы площадок">'+
-        ic('link', 13) + '<span class="lbl-long">Смежные группы</span><span class="lbl-short">Группы</span>' + (adjN ? ' ('+adjN+')' : '')+
-      '</button>'+
-      '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
-      (hasCap('dictionary:view') ?
-        '<button class="btn-line" id="btnOrgToDict" title="Добавить, скрыть или удалить подразделение — в справочнике">' + ic('book', 13) + '<span class="lbl-long">Справочник подразделений</span><span class="lbl-short">Справочник</span>' + (hiddenN ? ' (' + hiddenN + ')' : '') + '</button>'
-        : '')+
+      '<div class="org-seg" role="group" aria-label="Вид">'+
+        '<button class="org-seg-b' + (view === 'tree' ? ' on' : '') + '" id="btnOrgTree">' + ic('units', 13) + '<span>Схема</span></button>'+
+        '<button class="org-seg-b' + (view === 'table' ? ' on' : '') + '" id="btnOrgTable">' + ic('book', 13) + '<span>Таблица</span></button>'+
+      '</div>'+
       ((S.myUndoStack && S.myUndoStack.length) ?
         '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
           ic('undo', 13) + ' Отменить</button>'
         : '')+
+      '<button class="btn-line org-more" id="btnOrgMore" title="Смежные группы, справочник подразделений" aria-label="Ещё" data-adj="' + adjN + '" data-hid="' + hiddenN + '">' + icBare('more', 16) + '</button>'+
     '</div>';
   }
 
@@ -9108,7 +9105,7 @@ function renderAdminDivisions(){
             icBare('search', 14)+
             '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'">'+
           '</div>'+
-          '<div style="font-size:13px;color:var(--muted);margin-left:6px">'+tblCount(collapsedRows.length, (S.adminDivs || []).length, ['позиция', 'позиции', 'позиций'])+'</div>'+
+          '<div class="org-count" title="Показано подразделений и направлений"><b>'+collapsedRows.length+'</b>'+(collapsedRows.length !== (S.adminDivs || []).length ? ' из '+(S.adminDivs || []).length : '')+'</div>'+
         '</div>'+
         orgToolbarBtns('table')+
       '</div>'+
@@ -9203,10 +9200,13 @@ function renderAdminDivisions(){
   if(btnTable) btnTable.onclick = function(){ S.adminDivsView = 'table'; saveNavState(); renderAdminDivisions(); };
   var btnUndo = $('btnOrgUndo');
   if(btnUndo) btnUndo.onclick = popUndo;
-  var btnAdjG = $('btnAdjGroups');
-  if(btnAdjG) btnAdjG.onclick = openAdjacentGroupsModal;
-  var btnOrgDict = $('btnOrgToDict');
-  if(btnOrgDict) btnOrgDict.onclick = function(){ openAdminPanel('dict', 'units'); };
+  var btnOrgMore = $('btnOrgMore');
+  if(btnOrgMore) btnOrgMore.onclick = function(e){
+    var adjN2 = Number(this.dataset.adj) || 0, hidN2 = Number(this.dataset.hid) || 0;
+    var items = [{ label: 'Смежные группы' + (adjN2 ? ' (' + adjN2 + ')' : ''), icon: 'link', run: openAdjacentGroupsModal }];
+    if(hasCap('dictionary:view')) items.push({ label: 'Справочник подразделений' + (hidN2 ? ' · скрыто ' + hidN2 : ''), icon: 'book', run: function(){ openAdminPanel('dict', 'units'); } });
+    openOverflowMenu(e, items);
+  };
 
   // Конструктор: смена направления через выпадающий список
   var selChangeDir = $('selChangeDir');
