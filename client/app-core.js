@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.96';
+var APP_VERSION = window.APP_VERSION || 'v2.5.97';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1893,6 +1893,7 @@ var API_ROUTES = {
   apiBenchmarkSources: function(args){ return fetchJson('/api/benchmarks/sources', { method:'GET', token:args[0] }); },
   apiBenchmarkSetPositionWeights: function(args){ return fetchJson('/api/benchmarks/position-weights', { method:'POST', token:args[0], body:{ positionId:args[1], weights:args[2] } }); },
   apiBenchmarkSetWeights: function(args){ return fetchJson('/api/benchmarks/sources/weights', { method:'POST', token:args[0], body:{ weights:args[1] } }); },
+  apiBenchmarkUpdateSource: function(args){ return fetchJson('/api/benchmarks/source-update', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkCreateSource: function(args){ return fetchJson('/api/benchmarks/sources', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkDatasets: function(args){ return fetchJson('/api/benchmarks/datasets' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiBenchmarkPositions: function(args){ return fetchJson('/api/benchmarks/positions/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },

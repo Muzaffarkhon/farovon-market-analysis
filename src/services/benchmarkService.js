@@ -70,7 +70,7 @@ class BenchmarkService {
    * Получить список всех источников данных
    */
   async getSources() {
-    return await queryAll('SELECT key, title, kind, is_licensed, default_currency, notes, COALESCE(weight, 100) AS weight FROM data_sources ORDER BY key');
+    return await queryAll('SELECT key, title, kind, is_licensed, default_currency, notes, COALESCE(weight, 100) AS weight, COALESCE(hidden, 0) AS hidden FROM data_sources ORDER BY key');
   }
 
   /**
@@ -137,6 +137,30 @@ class BenchmarkService {
       [cleanKey, title.trim(), kind || 'consultancy', isLicensed ? 1 : 0, defaultCurrency || 'сомони', notes || '']
     );
     return await queryOne('SELECT * FROM data_sources WHERE key = ?', [cleanKey]);
+  }
+
+  /**
+   * Изменить источник: название, тип, валюту, лицензию, примечание, скрытие.
+   * Код источника не меняется. «Внутренний сбор» править и скрывать нельзя.
+   */
+  async updateSource(key, patch) {
+    const src = await queryOne('SELECT key FROM data_sources WHERE key = ?', [String(key || '')]);
+    if (!src) throw new Error('Источник не найден');
+    if (src.key === 'internal') throw new Error('Внутренний сбор нельзя изменить или скрыть');
+    const sets = [];
+    const args = [];
+    if (patch.title !== undefined) {
+      const t = String(patch.title || '').trim();
+      if (!t) throw new Error('Название источника не может быть пустым');
+      sets.push('title = ?'); args.push(t);
+    }
+    if (patch.kind !== undefined) { sets.push('kind = ?'); args.push(String(patch.kind || 'consultancy')); }
+    if (patch.defaultCurrency !== undefined) { sets.push('default_currency = ?'); args.push(String(patch.defaultCurrency || 'сомони')); }
+    if (patch.isLicensed !== undefined) { sets.push('is_licensed = ?'); args.push(patch.isLicensed ? 1 : 0); }
+    if (patch.notes !== undefined) { sets.push('notes = ?'); args.push(String(patch.notes || '')); }
+    if (patch.hidden !== undefined) { sets.push('hidden = ?'); args.push(patch.hidden ? 1 : 0); }
+    if (sets.length) await run('UPDATE data_sources SET ' + sets.join(', ') + ' WHERE key = ?', [...args, src.key]);
+    return await queryOne('SELECT key, title, kind, is_licensed, default_currency, notes, COALESCE(weight, 100) AS weight, COALESCE(hidden, 0) AS hidden FROM data_sources WHERE key = ?', [src.key]);
   }
 
   /**
@@ -338,7 +362,7 @@ class BenchmarkService {
       FROM position_map pm
       JOIN source_positions sp ON pm.source_position_id = sp.id
       JOIN data_sources ds ON sp.source_key = ds.key
-      WHERE pm.dict_position_id = ?
+      WHERE pm.dict_position_id = ? AND COALESCE(ds.hidden, 0) = 0
     `, [dictPosId]);
 
     const externalBenchmarks = [];

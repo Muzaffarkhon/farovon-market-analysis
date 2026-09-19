@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.96')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.97')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14008,6 +14008,11 @@ function switchBmTab(tab){
   openBenchmarks(tab);
 }
 
+/** Источники без скрытых — для списков выбора и блока весов. */
+function bmVisibleSources(){
+  return (BM_STATE.sources || []).filter(function(s){ return !s.hidden; });
+}
+
 function loadBmInitialData(){
   Promise.all([
     call('apiBenchmarkSources', S.token).catch(function(){ return { sources:[] }; }),
@@ -14346,7 +14351,7 @@ function renderBmMapping(){
   var c = $('bmContent');
   if(!c) return;
 
-  var srcOpts = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+  var srcOpts = bmVisibleSources().filter(function(s){ return s.key !== 'internal'; }).map(function(s){
     return '<option value="' + s.key + '" ' + (s.key === BM_STATE.selectedSourceKey ? 'selected' : '') + '>' + esc(s.title) + '</option>';
   }).join('');
 
@@ -14495,6 +14500,7 @@ function renderBmDatasets(){
     '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div><span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
     '<div style="display:flex;gap:8px">' +
+      '<button class="btn-line" id="btnBmSrcMgr" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('settings', 14) + 'Источники</button>' +
       '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
       '<button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button>' +
     '</div>' +
@@ -14502,7 +14508,8 @@ function renderBmDatasets(){
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
 
   $('btnBmUpload').onclick = openBmImportModal;
-  $('btnBmAddSource').onclick = openBmAddSourceModal;
+  $('btnBmAddSource').onclick = function(){ openBmAddSourceModal(); };
+  $('btnBmSrcMgr').onclick = openBmSourcesMgr;
 
   call('apiBenchmarkDatasets', S.token).then(guardAsyncToTab(function(res){
     var list = (res && res.datasets) || [];
@@ -14667,7 +14674,7 @@ function renderBmWeights(datasets){
   if(!box) return;
   var withData = { internal: true };
   (datasets || []).forEach(function(d){ withData[d.source_key] = true; });
-  var list = (BM_STATE.sources || []).filter(function(src){ return withData[src.key]; });
+  var list = bmVisibleSources().filter(function(src){ return withData[src.key]; });
   if(!list.length){ box.innerHTML = ''; return; }
   var canEdit = hasCap('benchmarks:import');
   var cur = {};
@@ -14713,11 +14720,56 @@ function renderBmWeights(datasets){
   draw();
 }
 
-function openBmAddSourceModal(){
+var BM_KIND_LABEL = { consultancy: 'Консалтинг', jobsite: 'Джоб-борд', official: 'Статистика', direct: 'Опрос / партнёры' };
+
+/** Окно «Источники»: изменить название и тип, скрыть или вернуть источник. */
+function openBmSourcesMgr(){
+  var old = document.getElementById('bmSrcMgr'); if(old) old.remove();
+  var el = document.createElement('div');
+  el.className = 'sheet'; el.id = 'bmSrcMgr';
+  function draw(){
+    var list = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; });
+    el.innerHTML = '<div class="sheet-in bms-mgr">' +
+      '<div class="sheet-hd"><b>Источники данных</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+      '<div class="bms-list">' + list.map(function(s){
+        return '<div class="bms-row' + (s.hidden ? ' is-hidden' : '') + '">' +
+          '<div class="bms-name"><b>' + esc(s.title) + '</b>' +
+            '<small>' + esc(BM_KIND_LABEL[s.kind] || s.kind || '') + (s.is_licensed ? ' · лицензия' : '') + (s.hidden ? ' · скрыт' : '') + '</small></div>' +
+          '<button class="btn-line" data-edit="' + esc(s.key) + '">Изменить</button>' +
+          '<button class="btn-ghost" data-hide="' + esc(s.key) + '">' + (s.hidden ? 'Показать' : 'Скрыть') + '</button>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="bms-note">Скрытый источник пропадает из списков и не входит в сводную ставку. Загруженные данные сохраняются, источник можно вернуть.</div>' +
+    '</div>';
+    el.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick = function(){ openBmAddSourceModal(b.dataset.edit); }; });
+    el.querySelectorAll('[data-hide]').forEach(function(b){
+      b.onclick = function(){
+        var s = (BM_STATE.sources || []).filter(function(x){ return x.key === b.dataset.hide; })[0];
+        b.disabled = true;
+        call('apiBenchmarkUpdateSource', S.token, { key: s.key, hidden: !s.hidden }).then(function(res){
+          if(!res || !res.ok){ toast((res && res.error) || 'Не удалось изменить источник', 'err'); b.disabled = false; return; }
+          s.hidden = res.source.hidden ? 1 : 0;
+          toast(s.hidden ? 'Источник скрыт' : 'Источник снова показан');
+          draw();
+          if(BM_STATE.tab === 'datasets') renderBmDatasets();
+        }).catch(function(){ toast('Нет связи с сервером', 'err'); b.disabled = false; });
+      };
+    });
+  }
+  el.onclick = function(e){ if(e.target.dataset.x || e.target === el) el.remove(); };
+  document.body.appendChild(el);
+  draw();
+  call('apiBenchmarkSources', S.token).then(function(res){
+    if(res && res.sources){ BM_STATE.sources = res.sources; if(el.isConnected) draw(); }
+  });
+}
+
+function openBmAddSourceModal(editKey){
+  var editSrc = editKey ? (BM_STATE.sources || []).filter(function(x){ return x.key === editKey; })[0] : null;
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in" style="max-width:560px">' +
-    '<div class="sheet-hd"><b>Добавить новый источник данных рынка</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div class="sheet-hd"><b>' + (editSrc ? 'Изменить источник' : 'Добавить новый источник данных рынка') + '</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
     '<div id="bmsErr" class="err hidden" style="margin-top:8px"></div>' +
     '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px">' +
       '<div>' +
@@ -14726,7 +14778,7 @@ function openBmAddSourceModal(){
       '</div>' +
       '<div>' +
         '<label class="lbl">Уникальный код источника (латиницей)</label>' +
-        '<input id="bmsKey" placeholder="Например: kpmg">' +
+        '<input id="bmsKey" placeholder="Например: kpmg"' + (editSrc ? ' disabled' : '') + '>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div>' +
@@ -14759,11 +14811,20 @@ function openBmAddSourceModal(){
     '</div>' +
     '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
       '<button class="btn-ghost" data-x="1">Отмена</button>' +
-      '<button class="btn-primary" id="btnBmsSave">Сохранить источник</button>' +
+      '<button class="btn-primary" id="btnBmsSave">' + (editSrc ? 'Сохранить' : 'Сохранить источник') + '</button>' +
     '</div>' +
   '</div>';
 
   document.body.appendChild(el);
+
+  if(editSrc){
+    el.querySelector('#bmsTitle').value = editSrc.title || '';
+    el.querySelector('#bmsKey').value = editSrc.key;
+    el.querySelector('#bmsKind').value = editSrc.kind || 'consultancy';
+    el.querySelector('#bmsCurr').value = editSrc.default_currency || 'сомони';
+    el.querySelector('#bmsLic').checked = !!editSrc.is_licensed;
+    el.querySelector('#bmsNotes').value = editSrc.notes || '';
+  }
 
   el.onclick = function(e){
     if(e.target.dataset.x || e.target === el){ el.remove(); return; }
@@ -14771,7 +14832,7 @@ function openBmAddSourceModal(){
 
   el.querySelector('#bmsTitle').oninput = function(){
     var keyIn = el.querySelector('#bmsKey');
-    if(!keyIn.value || keyIn.dataset.autofilled){
+    if(!editSrc && (!keyIn.value || keyIn.dataset.autofilled)){
       keyIn.value = this.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '_').slice(0, 25);
       keyIn.dataset.autofilled = '1';
     }
@@ -14795,7 +14856,7 @@ function openBmAddSourceModal(){
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохранение…';
 
-    call('apiBenchmarkCreateSource', S.token, {
+    call(editSrc ? 'apiBenchmarkUpdateSource' : 'apiBenchmarkCreateSource', S.token, {
       title: title,
       key: key,
       kind: kind,
@@ -14804,13 +14865,15 @@ function openBmAddSourceModal(){
       notes: notes
     }).then(function(res){
       if(res && res.ok){
-        toast('Источник «' + title + '» успешно добавлен!');
+        toast(editSrc ? 'Источник «' + title + '» сохранён' : 'Источник «' + title + '» успешно добавлен!');
         el.remove();
         loadBmInitialData();
+        var mgr = document.getElementById('bmSrcMgr'); if(mgr) mgr.remove();
+        if(editSrc) setTimeout(function(){ if(BM_STATE.tab === 'datasets') renderBmDatasets(); }, 400);
       } else {
         errEl.textContent = (res && res.error) || 'Ошибка сохранения';
         errEl.classList.remove('hidden');
-        btn.disabled = false; btn.textContent = 'Сохранить источник';
+        btn.disabled = false; btn.textContent = editSrc ? 'Сохранить' : 'Сохранить источник';
       }
     }).catch(function(err){
       errEl.textContent = err.message || 'Ошибка сети';
@@ -14824,7 +14887,7 @@ function openBmImportModal(){
   var el = document.createElement('div');
   el.className = 'sheet';
 
-  var srcOptions = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+  var srcOptions = bmVisibleSources().filter(function(s){ return s.key !== 'internal'; }).map(function(s){
     return '<option value="' + s.key + '">' + esc(s.title) + '</option>';
   }).join('');
 

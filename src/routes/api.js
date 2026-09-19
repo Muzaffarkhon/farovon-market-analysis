@@ -151,6 +151,7 @@ router.post('/admin/user-capabilities', requireRoles('admin'), adminController.s
 // ─── Мультиисточниковый бенчмаркинг вознаграждений ───
 router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);
 router.post('/benchmarks/sources', requireCapability('benchmarks:import'), benchmarkController.createSource);
+router.post('/benchmarks/source-update', requireCapability('benchmarks:import'), benchmarkController.updateSource);
 router.post('/benchmarks/sources/weights', requireCapability('benchmarks:import'), benchmarkController.setSourceWeights);
 router.post('/benchmarks/position-weights', requireCapability('benchmarks:import'), benchmarkController.setPositionWeights);
 router.get('/benchmarks/datasets', requireCapability('benchmarks:view'), benchmarkController.getDatasets);

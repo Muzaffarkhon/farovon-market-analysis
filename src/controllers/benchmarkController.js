@@ -44,6 +44,21 @@ exports.createSource = async (req, res) => {
   }
 };
 
+exports.updateSource = async (req, res) => {
+  try {
+    const b = req.body || {};
+    const source = await benchmarkService.updateSource(b.key, {
+      title: b.title, kind: b.kind, defaultCurrency: b.defaultCurrency,
+      isLicensed: b.isLicensed, notes: b.notes, hidden: b.hidden
+    });
+    res.json({ ok: true, source });
+  } catch (err) {
+    if (/не найден|нельзя|пустым/.test(err.message)) return res.status(400).json({ ok: false, error: err.message });
+    console.error('updateSource error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось изменить источник' });
+  }
+};
+
 exports.getDatasets = async (req, res) => {
   try {
     const { sourceKey, state } = req.query;

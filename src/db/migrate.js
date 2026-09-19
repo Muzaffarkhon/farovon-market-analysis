@@ -377,6 +377,9 @@ async function migrate() {
   // источник, действует на все должности. У всех по умолчанию одинаковый —
   // тогда сводная совпадает с прежним простым средним.
   await ensureColumn('data_sources', 'weight', 'INTEGER NOT NULL DEFAULT 100');
+  // Скрытый источник не показывается в списках и не участвует в сводной ставке;
+  // его датасеты и сопоставления остаются в базе.
+  await ensureColumn('data_sources', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
   // Вес источника для конкретной должности — перекрывает общий вес источника
   // (data_sources.weight) только по ней. Нет строки — действует общий вес.
   await run(`CREATE TABLE IF NOT EXISTS position_source_weights (

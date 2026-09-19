@@ -12335,3 +12335,14 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   .bmr-hd { font-size: 10px; letter-spacing: 0; }
   .bmr-src small { white-space: normal; }
 }
+
+/* Окно «Источники» */
+.bms-mgr { max-width: 560px; }
+.bms-list { display: flex; flex-direction: column; margin-top: 8px; }
+.bms-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.bms-name { display: flex; flex-direction: column; min-width: 0; }
+.bms-name b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bms-name small { font-size: 12px; color: var(--muted); }
+.bms-row.is-hidden .bms-name b { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.bms-row .btn-line, .bms-row .btn-ghost { width: auto; min-height: 30px; padding: 0 12px; font-size: 13px; }
+.bms-note { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
