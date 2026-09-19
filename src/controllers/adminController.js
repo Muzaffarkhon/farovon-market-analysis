@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { queryAll, queryOne, run, batch } = require('../db/database');
+const { divisionUsage } = require('../services/divisionUsage');
 const { getActivePeriod, resolvePeriodAction } = require('../services/periodService');
 const { suggestAdjacentGroups, detectRegion } = require('../services/adjacentGroups');
 const { sendMassReminder } = require('../services/telegramService');
@@ -891,6 +892,52 @@ exports.createDivision = async (req, res) => {
   } catch (err) {
     console.error('createDivision error:', err && err.message ? err.message : err);
     res.status(500).json({ ok: false, error: 'Ошибка создания подразделения' });
+  }
+};
+
+exports.setDivisionHidden = async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'cb') {
+    return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
+  }
+  const unit = String((req.body && req.body.unit) || '').trim();
+  const hidden = req.body && req.body.hidden ? 1 : 0;
+  try {
+    const d = await queryOne('SELECT unit FROM divisions WHERE unit = ?', [unit]);
+    if (!d) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
+    await run('UPDATE divisions SET is_hidden = ?, updated_at = CURRENT_TIMESTAMP WHERE unit = ?', [hidden, unit]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, hidden ? 'скрыто подразделение' : 'возвращено подразделение', 'Подразделение: ' + unit
+    ]);
+    res.json({ ok: true, unit, hidden });
+  } catch (err) {
+    console.error('setDivisionHidden error:', err && err.message ? err.message : err);
+    res.status(500).json({ ok: false, error: 'Не удалось изменить подразделение' });
+  }
+};
+
+exports.deleteDivision = async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'cb') {
+    return res.status(403).json({ ok: false, error: 'Недостаточно прав' });
+  }
+  const unit = String((req.body && req.body.unit) || '').trim();
+  try {
+    const d = await queryOne('SELECT unit FROM divisions WHERE unit = ?', [unit]);
+    if (!d) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
+    const used = await divisionUsage(unit);
+    if (used.length) {
+      return res.status(409).json({
+        ok: false, used,
+        error: 'Подразделение уже используется (' + used.map(u => u.what + ': ' + u.n).join(', ') + '). Удалить нельзя — скройте его.'
+      });
+    }
+    await run('DELETE FROM divisions WHERE unit = ?', [unit]);
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login, 'удалено подразделение', 'Подразделение: ' + unit
+    ]);
+    res.json({ ok: true, unit });
+  } catch (err) {
+    console.error('deleteDivision error:', err && err.message ? err.message : err);
+    res.status(500).json({ ok: false, error: 'Не удалось удалить подразделение' });
   }
 };
 

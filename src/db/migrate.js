@@ -257,6 +257,9 @@ async function migrate() {
   // и флаг участия в C&B обзорах рынка (1 — участвует, 0 — исключено)
   await ensureColumn('divisions', 'org_role', "TEXT DEFAULT 'line'");
   await ensureColumn('divisions', 'is_survey_target', "INTEGER DEFAULT 1");
+  // Скрытое подразделение не показывается в схеме и в выборе для пользователей,
+  // но все его данные (анкеты, история) остаются. Вернуть можно в любой момент.
+  await ensureColumn('divisions', 'is_hidden', 'INTEGER NOT NULL DEFAULT 0');
 
   // Автоматическая инициализация роли 'control' для служб внутреннего аудита
   await run("UPDATE divisions SET org_role = 'control' WHERE (unit LIKE '%аудит%' OR dir LIKE '%аудит%') AND (org_role IS NULL OR org_role = 'line')");

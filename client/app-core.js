@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.97';
+var APP_VERSION = window.APP_VERSION || 'v2.5.98';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1802,6 +1802,8 @@ var API_ROUTES = {
   apiAdminBatchAssignDivision: function(args){ return fetchJson('/api/admin/divisions/batch-assign', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminApplyAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },
+  apiAdminHideDivision: function(args){ return fetchJson('/api/admin/divisions/hide', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminDeleteDivision: function(args){ return fetchJson('/api/admin/divisions/delete', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   // Анкеты оценки: чтение формулировок (раздел оценки) и их правка (админка).
   apiGradingBlocks: function(args){ return fetchJson('/api/grading/blocks', { method:'GET', token:args[0] }); },

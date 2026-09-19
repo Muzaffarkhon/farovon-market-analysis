@@ -158,7 +158,7 @@ async function getUserPayload(user) {
   ] = await Promise.all([
     cached('divisions', async () => {
       try {
-        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions ORDER BY num ASC, unit ASC");
+        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions WHERE COALESCE(is_hidden,0) = 0 ORDER BY num ASC, unit ASC");
       } catch (e) {
         try {
           return (await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions ORDER BY num ASC, unit ASC")).map(d => ({ ...d, survey_note: '' }));

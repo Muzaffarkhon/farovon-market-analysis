@@ -308,6 +308,13 @@ function navModel(){
       run: function(){ openAdminPanel('dict', 'regions'); }
     },
     {
+      key: 'dict:units',
+      label: 'Подразделения',
+      icon: 'units',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'units'; },
+      run: function(){ openAdminPanel('dict', 'units'); }
+    },
+    {
       key: 'dict:staff',
       label: 'Сотрудники',
       icon: 'users',
@@ -517,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.97')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.98')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.97')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.98')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -8419,7 +8426,8 @@ function renderAdminDivisions(){
   var prevScrollLeft = oldVp ? oldVp.scrollLeft : (S.orgScroll ? S.orgScroll.left : null);
   var prevScrollTop = oldVp ? oldVp.scrollTop : (S.orgScroll ? S.orgScroll.top : null);
 
-  var divs = S.adminDivs || [];
+  var hiddenN = (S.adminDivs || []).filter(function(x){ return x && Number(x.is_hidden) === 1; }).length;
+  var divs = (S.adminDivs || []).filter(function(x){ return !(x && Number(x.is_hidden) === 1); });
   var search = (($('divSearch') && $('divSearch').value) ? $('divSearch').value : '').toLowerCase();
   var staffSearch = (($('staffSearch') && $('staffSearch').value) ? $('staffSearch').value : '').toLowerCase();
   var curView = S.adminDivsView || 'tree';
@@ -8432,11 +8440,11 @@ function renderAdminDivisions(){
     return '<div class="org-toolbar-btns">'+
       '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
       '<button class="btn-line" id="btnAdjGroups" style="gap:5px" title="Смежные группы площадок">'+
-        ic('link', 13) + ' Смежные группы' + (adjN ? ' ('+adjN+')' : '')+
+        ic('link', 13) + '<span class="lbl-long">Смежные группы</span><span class="lbl-short">Группы</span>' + (adjN ? ' ('+adjN+')' : '')+
       '</button>'+
       '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
-      (hasCap('divisions:edit') ?
-        '<button class="btn-primary toolbar-act" id="btnAddDivision" title="Создать новое подразделение">+ Добавить подразделение</button>'
+      (hasCap('dictionary:view') ?
+        '<button class="btn-line" id="btnOrgToDict" title="Добавить, скрыть или удалить подразделение — в справочнике">' + ic('book', 13) + '<span class="lbl-long">Справочник подразделений</span><span class="lbl-short">Справочник</span>' + (hiddenN ? ' (' + hiddenN + ')' : '') + '</button>'
         : '')+
       ((S.myUndoStack && S.myUndoStack.length) ?
         '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
@@ -9197,8 +9205,8 @@ function renderAdminDivisions(){
   if(btnUndo) btnUndo.onclick = popUndo;
   var btnAdjG = $('btnAdjGroups');
   if(btnAdjG) btnAdjG.onclick = openAdjacentGroupsModal;
-  var btnAddDiv = $('btnAddDivision');
-  if(btnAddDiv) btnAddDiv.onclick = openAddDivisionModal;
+  var btnOrgDict = $('btnOrgToDict');
+  if(btnOrgDict) btnOrgDict.onclick = function(){ openAdminPanel('dict', 'units'); };
 
   // Конструктор: смена направления через выпадающий список
   var selChangeDir = $('selChangeDir');
@@ -10230,8 +10238,10 @@ function promptAssignStaffToUnit(fio, targetUnit){
 // нельзя — saveDivision только обновляет существующие строки. Минимум —
 // название; направление и ответственные необязательны и дозаполняются в
 // обычной панели справа. См. adminController.createDivision.
-function openAddDivisionModal(){
+function openAddDivisionModal(opts){
+  opts = opts || {};
   var dirs = [];
+  (S.dictDirs || []).forEach(function(d){ d = String(d || '').trim(); if(d && dirs.indexOf(d) < 0) dirs.push(d); });
   (S.adminDivs || []).forEach(function(x){
     var d = String(x.dir || '').trim();
     if(d && dirs.indexOf(d) < 0) dirs.push(d);
@@ -10312,6 +10322,7 @@ function openAddDivisionModal(){
       if(res && res.ok){
         toast('Подразделение «'+name+'» создано', 'ok');
         el.remove();
+        if(opts.onCreated){ opts.onCreated(res); return; }
         // приземлиться на новый отдел, чтобы сразу дозаполнить
         S.selectedOrgNode = { type: 'unit', unit: name, dir: dir };
         if(dir) S.expandedDir = dir;
@@ -11467,6 +11478,7 @@ var DICT_KINDS = [
   { id:'positions', label:'Должности', one:'должность', ttl:'Должность' },
   { id:'segments',  label:'Сегменты',  one:'сегмент',   ttl:'Сегмент' },
   { id:'regions',   label:'Регионы',   one:'регион',    ttl:'Регион' },
+  { id:'units',     label:'Подразделения', one:'подразделение', ttl:'Подразделение' },
   // Только просмотр — записи приходят пачкой через «Сервисные утилиты →
   // Импорт справочника сотрудников», добавлять/править по одной здесь нельзя.
   { id:'staff', label:'Сотрудники', one:'сотрудника', ttl:'Сотрудник', readOnly:true }
@@ -11509,6 +11521,124 @@ function loadDict(){
     drawDict();
   }).catch(function(){
     $('dictBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+/**
+ * Справочник подразделений: единственное место, где подразделения создают,
+ * скрывают и удаляют. Оргструктура остаётся для схемы, переноса и ответственных.
+ * Пустое (нигде не используется) можно удалить; используемое — только скрыть.
+ */
+function drawUnitsDict(){
+  var q = norm(S.dictQ);
+  var canEdit = hasCap('divisions:edit');
+  var all = S.dictItems || [];
+  var showHidden = S.dictUnitsHidden !== false;
+  var items = all.filter(function(it){
+    if(!showHidden && it.hidden) return false;
+    if(!q) return true;
+    return norm(it.name).indexOf(q) >= 0 || norm(it.dir || '').indexOf(q) >= 0;
+  });
+  var hiddenN = all.filter(function(x){ return x.hidden; }).length;
+
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="dictQ" placeholder="Поиск по названию или направлению…" value="'+esc(S.dictQ)+'" autocomplete="off" spellcheck="false"></div>'+
+    (hiddenN ? '<label class="dict-chk"><input type="checkbox" id="dictUnitsShowHidden"'+(showHidden ? ' checked' : '')+'> Показывать скрытые ('+hiddenN+')</label>' : '')+
+    tblCount(items.length, all.length, ['запись', 'записи', 'записей'])+
+    (canEdit ? '<button class="btn-primary toolbar-act" id="dictUnitAdd">+ Добавить подразделение</button>' : '')+
+  '</div>';
+
+  if(!items.length){
+    h += q
+      ? '<div class="empty">Ничего не найдено</div>'
+      : '<div class="empty empty--lg"><span class="empty-ic">'+icBare('units', 40)+'</span><b>Подразделений пока нет</b></div>';
+    $('dictBox').innerHTML = h;
+    bindUnitsDictBar(canEdit);
+    return;
+  }
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+    '<th>Подразделение</th><th>Направление</th><th>Статус</th><th></th>'+
+    '</tr></thead><tbody>'+
+    items.map(function(it){
+      var used = it.used
+        ? '<span class="dict-used" title="'+esc((it.usedParts || []).join(', '))+'">Используется</span>'
+        : '<span class="dict-free">Не используется — можно удалить</span>';
+      return '<tr class="'+(it.hidden ? 'is-hidden-row' : '')+'">'+
+        '<td><b>'+esc(it.name)+'</b>'+(it.parent ? '<small class="dict-sub">в составе «'+esc(it.parent)+'»</small>' : '')+
+          (it.hidden ? ' <span class="dict-badge">скрыто</span>' : '')+'</td>'+
+        '<td>'+(it.dir ? esc(it.dir) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+        '<td>'+used+'</td>'+
+        '<td class="u-acts">'+(canEdit
+          ? '<button class="row-menu-trigger" data-unit-act="'+esc(it.name)+'" title="Действия" aria-label="Действия">'+icBare('more',16)+'</button>'
+          : '')+'</td></tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
+  $('dictBox').innerHTML = h;
+  bindUnitsDictBar(canEdit);
+  $('dictBox').querySelectorAll('button[data-unit-act]').forEach(function(b){
+    b.onclick = function(e){ openUnitsDictActions(e, this.dataset.unitAct); };
+  });
+}
+
+function bindUnitsDictBar(canEdit){
+  bindDictBar();
+  var add = $('dictUnitAdd');
+  if(add) add.onclick = function(){
+    if(typeof ensureAdminUsers === 'function') ensureAdminUsers();
+    openAddDivisionModal({ onCreated: function(){ loadDict(); } });
+  };
+  var chk = $('dictUnitsShowHidden');
+  if(chk) chk.onchange = function(){ S.dictUnitsHidden = this.checked; drawUnitsDict(); };
+}
+
+function openUnitsDictActions(e, name){
+  var it = (S.dictItems || []).filter(function(x){ return x.name === name; })[0];
+  if(!it) return;
+  openOverflowMenu(e, [
+    { label: it.hidden ? 'Вернуть в схему' : 'Скрыть', icon: it.hidden ? 'eye' : 'archive', run:function(){ hideUnitFromDict(it); } },
+    { divider:true },
+    { label:'Удалить', icon:'trash', danger:true, run:function(){ deleteUnitFromDict(it); } }
+  ]);
+}
+
+function hideUnitFromDict(it){
+  var toHide = !it.hidden;
+  ask({
+    title: toHide ? 'Скрыть подразделение' : 'Вернуть подразделение',
+    html: toHide
+      ? 'Скрыть <b>«' + esc(it.name) + '»</b>? Оно пропадёт из схемы и выбора, а все данные останутся. Вернуть можно в любой момент.'
+      : 'Вернуть <b>«' + esc(it.name) + '»</b> в схему?',
+    ok: toHide ? 'Скрыть' : 'Вернуть'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminHideDivision', S.token, { unit: it.name, hidden: toHide }).then(function(res){
+      if(!res || !res.ok){ toast((res && res.error) || 'Не удалось изменить', 'no'); return; }
+      toast(toHide ? 'Подразделение скрыто' : 'Подразделение возвращено', 'ok');
+      loadDict();
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+  });
+}
+
+function deleteUnitFromDict(it){
+  if(it.used){
+    toast('Нельзя удалить: подразделение используется (' + (it.usedParts || []).join(', ') + '). Скройте его.', 'no');
+    return;
+  }
+  ask({
+    title: 'Удалить подразделение',
+    html: 'Удалить <b>«' + esc(it.name) + '»</b> насовсем? Оно нигде не используется.',
+    ok: 'Удалить',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminDeleteDivision', S.token, { unit: it.name }).then(function(res){
+      if(!res || !res.ok){ toast((res && res.error) || 'Не удалось удалить', 'no'); return; }
+      toast('Подразделение удалено', 'ok');
+      loadDict();
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
   });
 }
 
@@ -11681,6 +11811,7 @@ function removeStaffDictItem(it){
 function drawDict(){
   var kind = S.dictKind;
   if(kind === 'staff') return drawStaffDict();
+  if(kind === 'units') return drawUnitsDict();
   var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
   var q = norm(S.dictQ);
   var items = (S.dictItems || []).filter(function(it){
