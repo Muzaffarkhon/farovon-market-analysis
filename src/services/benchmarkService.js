@@ -77,6 +77,36 @@ class BenchmarkService {
    * Веса источников в сводной ставке. weights = { sourceKey: 0..100 }.
    * 0 — источник показывается, но в сводную не входит.
    */
+  /**
+   * Веса источников для одной должности. weights = { sourceKey: 0..100 | null }.
+   * null — убрать свой вес у должности (вернуть общий вес источника).
+   */
+  async setPositionWeights(positionId, weights, by) {
+    const pid = Number(positionId);
+    const pos = pid > 0 ? await queryOne('SELECT id FROM dictionary_positions WHERE id = ?', [pid]) : null;
+    if (!pos) throw new Error('Должность не найдена в справочнике');
+    const known = new Set((await queryAll('SELECT key FROM data_sources')).map(r => r.key));
+    const saved = {};
+    for (const [key, raw] of Object.entries(weights || {})) {
+      if (!known.has(key)) continue;
+      if (raw === null || raw === '') {
+        await run('DELETE FROM position_source_weights WHERE dict_position_id = ? AND source_key = ?', [pid, key]);
+        saved[key] = null;
+        continue;
+      }
+      const w = Math.max(0, Math.min(100, Math.round(Number(raw))));
+      if (!Number.isFinite(w)) continue;
+      await run(
+        `INSERT INTO position_source_weights (dict_position_id, source_key, weight, updated_by, updated_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(dict_position_id, source_key) DO UPDATE SET weight = excluded.weight, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+        [pid, key, w, by || null]
+      );
+      saved[key] = w;
+    }
+    return saved;
+  }
+
   async setSourceWeights(weights) {
     const known = new Set((await queryAll('SELECT key FROM data_sources')).map(r => r.key));
     const saved = {};
@@ -316,8 +346,14 @@ class BenchmarkService {
     // среднее каждого перцентиля по источникам с данными (market composite,
     // как в CompAnalyst/MarketPay); вес — у источника, а не у должности.
     const compositeParts = [];
+    // Вес по должности (если задан) перекрывает общий вес источника.
+    const posWeightRows = await queryAll('SELECT source_key, weight FROM position_source_weights WHERE dict_position_id = ?', [dictPosId]);
+    const posWeights = {};
+    posWeightRows.forEach(r => { posWeights[r.source_key] = Number(r.weight); });
+    const weightOf = (key, globalW) => (posWeights[key] != null ? posWeights[key] : globalW);
     const internalWeightRow = await queryOne("SELECT COALESCE(weight, 100) AS weight FROM data_sources WHERE key = 'internal'");
-    const internalWeight = internalWeightRow ? Number(internalWeightRow.weight) : 100;
+    const internalGlobalWeight = internalWeightRow ? Number(internalWeightRow.weight) : 100;
+    const internalWeight = weightOf('internal', internalGlobalWeight);
     if (internalStats.count > 0 && internalStats.p50 > 0) {
       compositeParts.push({ key: 'internal', weight: internalWeight, stats: internalStats });
     }
@@ -384,7 +420,7 @@ class BenchmarkService {
       }
 
       if (stats.p50 > 0) {
-        compositeParts.push({ key: src.source_key, weight: Number(src.weight), stats });
+        compositeParts.push({ key: src.source_key, weight: weightOf(src.source_key, Number(src.weight)), stats });
       }
 
       let gapPercent = null;
@@ -407,7 +443,9 @@ class BenchmarkService {
         stats,
         gapPercent,
         gapAmount,
-        weight: Number(src.weight),
+        weight: weightOf(src.source_key, Number(src.weight)),
+        globalWeight: Number(src.weight),
+        positionWeight: posWeights[src.source_key] != null,
         compaRatio: (ourMid > 0 && stats.p50 > 0) ? Math.round(ourMid / stats.p50 * 100) / 100 : null
       });
     }
@@ -459,6 +497,8 @@ class BenchmarkService {
         gapPercent: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(((ourMid - internalStats.p50) / internalStats.p50) * 100) : null,
         gapAmount: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid - internalStats.p50) : null,
         weight: internalWeight,
+        globalWeight: internalGlobalWeight,
+        positionWeight: posWeights.internal != null,
         share: shares.internal || 0,
         compaRatio: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid / internalStats.p50 * 100) / 100 : null
       },

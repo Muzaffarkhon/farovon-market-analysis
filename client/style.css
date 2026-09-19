@@ -12215,3 +12215,25 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   .bmw-row input[type=range] { grid-column: 1 / -1; grid-row: 2; }
 }
 .bm-k em .bm-flag { display: inline-block; padding: 0 7px; line-height: 1.5; }
+
+/* Веса по должности: кнопка в «Составе сводной ставки», встроенный редактор */
+.bmc-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bmc-posw-btn { width: auto; min-height: 28px; padding: 0 10px; font-size: 12.5px; white-space: nowrap; }
+.bmc-posw-btn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.bmc-posw { display: inline-block; margin-left: 6px; font-style: normal; font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; vertical-align: 1px; }
+.bmw--pos { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.bmw-tag { font-style: normal; font-size: 11px; color: var(--muted); }
+.bmw-v { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.bmw-reset { min-height: 0; padding: 2px 4px; color: var(--muted); }
+.bmw-reset[hidden] { display: none; }
+.bmw-act { display: flex; justify-content: flex-end; gap: 8px; }
+.bmw-act .btn-primary, .bmw-act .btn-ghost { width: auto; min-height: 30px; padding: 0 14px; font-size: 13px; }
+@media (max-width: 640px) {
+  .bmc-w .bmc-posw { display: block; margin: 2px 0 0 auto; width: max-content; }
+  .bmw-act { flex-wrap: wrap; }
+  .bmw-act .btn-primary { flex: 1 1 auto; }
+}
+/* Метка «свой вес» — под процентом, а не в строку: иначе в узкой колонке веса не помещается. */
+.bmc-w .bmc-posw { display: block; width: max-content; margin: 2px 0 0; }
+@media (max-width: 640px) { .bmc-w .bmc-posw { margin-left: auto; } }
+.bmw-row input[type=range] { border: 0; background: transparent; box-shadow: none; padding: 0; min-height: 0; height: 22px; }

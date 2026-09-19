@@ -377,6 +377,16 @@ async function migrate() {
   // источник, действует на все должности. У всех по умолчанию одинаковый —
   // тогда сводная совпадает с прежним простым средним.
   await ensureColumn('data_sources', 'weight', 'INTEGER NOT NULL DEFAULT 100');
+  // Вес источника для конкретной должности — перекрывает общий вес источника
+  // (data_sources.weight) только по ней. Нет строки — действует общий вес.
+  await run(`CREATE TABLE IF NOT EXISTS position_source_weights (
+    dict_position_id INTEGER NOT NULL,
+    source_key TEXT NOT NULL,
+    weight INTEGER NOT NULL,
+    updated_by TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (dict_position_id, source_key)
+  )`);
   // Годовой архив обзора рынка: анкета получает жёсткую привязку к периоду
   // сбора (period_id → periods.id) вместо неиспользуемой текстовой метки
   // period. Нужно, чтобы дашборд мог фильтровать по году, а форма заполнения

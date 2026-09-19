@@ -11,6 +11,18 @@ exports.getSources = async (req, res) => {
   }
 };
 
+exports.setPositionWeights = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const saved = await benchmarkService.setPositionWeights(body.positionId, body.weights, req.user && (req.user.fio || req.user.login));
+    res.json({ ok: true, weights: saved });
+  } catch (err) {
+    if (/не найдена/.test(err.message)) return res.status(404).json({ ok: false, error: err.message });
+    console.error('setPositionWeights error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось сохранить веса по должности' });
+  }
+};
+
 exports.setSourceWeights = async (req, res) => {
   try {
     const saved = await benchmarkService.setSourceWeights(req.body && req.body.weights);

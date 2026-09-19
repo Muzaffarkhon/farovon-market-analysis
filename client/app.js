@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.93')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.92')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.93')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14244,6 +14244,7 @@ function loadBmCompareDetail(){
         '<span class="bmc-src">' + (o.badge || '<b>' + esc(o.title) + '</b>') +
           (o.meta ? '<small>' + o.meta + '</small>' : '') + '</span>' +
         '<span class="bmc-w">' + (o.total ? '100%' : share) +
+          (o.posW ? '<em class="bmc-posw" title="Свой вес источника для этой должности">свой вес</em>' : '') +
           (!o.total && o.share > 0 ? '<i class="bmc-wbar"><i style="width:' + Math.round(o.share * 100) + '%"></i></i>' : '') + '</span>' +
         vals +
       '</div>';
@@ -14252,7 +14253,8 @@ function loadBmCompareDetail(){
     var rowsHtml = srcRow({
       title: 'Внутренний сбор',
       meta: (intr.observationsCount || 0) + ' набл. · свои анкеты',
-      hasData: !!intrStats.p50, st: intrStats, share: intr.share || 0, compa: intr.compaRatio
+      hasData: !!intrStats.p50, st: intrStats, share: intr.share || 0, compa: intr.compaRatio,
+      posW: !!intr.positionWeight
     });
     (r.external || []).forEach(function(ext){
       rowsHtml += srcRow({
@@ -14260,7 +14262,7 @@ function loadBmCompareDetail(){
         meta: esc([ext.sourcePosition ? '«' + ext.sourcePosition + '»' : '', ext.dataAsOf || '', ext.isLicensed ? 'лицензия' : '']
           .filter(Boolean).join(' · ')),
         hasData: !!ext.hasData && !!(ext.stats && ext.stats.p50), st: ext.stats || {}, share: ext.share || 0, compa: ext.compaRatio,
-        mappable: true
+        mappable: true, posW: !!ext.positionWeight
       });
     });
     if(sm.compositeMedian){
@@ -14326,11 +14328,15 @@ function loadBmCompareDetail(){
         renderSalaryRangeBar({ p10: cst.p10, p25: cst.p25, p50: cst.p50, p75: cst.p75, p90: cst.p90 }, ourPayFrom, ourPayTo, ourMid, { noFlag: true }) +
       '</div>' +
       '<div class="bm-card bmc">' +
-        '<div class="bmc-title">Состав сводной ставки</div>' +
+        '<div class="bmc-title"><span>Состав сводной ставки</span>' +
+          (hasCap('benchmarks:import') && pos.id ? '<button type="button" class="btn-line bmc-posw-btn" id="bmPosWBtn">' + ic('settings', 13) + 'Веса для должности</button>' : '') +
+        '</div>' +
+        '<div id="bmPosWEdit"></div>' +
         '<div class="bmc-row bmc-hd"><span>Источник</span><span>Вес</span><span>P25</span><span>P50</span><span>P75</span><span>Compa</span></div>' +
         rowsHtml +
       '</div>' +
       totHtml;
+    wireBmPositionWeights(r);
   }).catch(function(err){
     d.innerHTML = '<div class="err">Ошибка: ' + (err.message || err) + '</div>';
   });
@@ -14554,6 +14560,78 @@ function renderBmDatasets(){
  * на все должности. Показываем внутренний сбор и источники, по которым
  * загружен хотя бы один датасет — остальные в сводную всё равно не попадут.
  */
+/**
+ * Веса источников для текущей должности — перекрывают общий вес источника
+ * только по ней. «Как у источника» убирает свой вес (вернуть общий).
+ * Редактируются только источники, у которых по должности есть данные.
+ */
+function wireBmPositionWeights(r){
+  var btn = $('bmPosWBtn'), box = $('bmPosWEdit');
+  if(!btn || !box) return;
+  var intr = r.internal || {};
+  var list = [];
+  if(intr.stats && intr.stats.p50) list.push({ key: 'internal', title: 'Внутренний сбор', w: intr.weight, g: intr.globalWeight, own: !!intr.positionWeight });
+  (r.external || []).forEach(function(e){
+    if(e.hasData && e.stats && e.stats.p50) list.push({ key: e.sourceKey, title: e.sourceTitle, w: e.weight, g: e.globalWeight, own: !!e.positionWeight });
+  });
+  if(!list.length){ btn.remove(); return; }
+
+  var cur = {};   // key → число (свой вес) либо null (как у источника)
+  list.forEach(function(x){ cur[x.key] = x.own ? x.w : null; });
+  var eff = function(x){ return cur[x.key] != null ? cur[x.key] : x.g; };
+
+  function shares(){
+    var sum = list.reduce(function(a, x){ return a + eff(x); }, 0);
+    list.forEach(function(x){
+      var v = box.querySelector('[data-pw-v="' + x.key + '"]');
+      if(v) v.textContent = eff(x) ? (sum ? Math.round(eff(x) / sum * 100) : 0) + '%' : 'не входит';
+      var t = box.querySelector('[data-pw-t="' + x.key + '"]');
+      if(t) t.textContent = cur[x.key] != null ? 'по должности' : 'общий вес';
+      var rs = box.querySelector('[data-pw-reset="' + x.key + '"]');
+      if(rs) rs.hidden = cur[x.key] == null;
+    });
+  }
+  function open(){
+    box.innerHTML = '<div class="bmw bmw--pos">' +
+      list.map(function(x){
+        return '<div class="bmw-row">' +
+          '<span class="bmw-name">' + esc(x.title) + ' <em class="bmw-tag" data-pw-t="' + esc(x.key) + '"></em></span>' +
+          '<input type="range" min="0" max="100" step="5" value="' + eff(x) + '" data-pw="' + esc(x.key) + '">' +
+          '<span class="bmw-v"><span data-pw-v="' + esc(x.key) + '"></span>' +
+            '<button type="button" class="btn-ghost bmw-reset" data-pw-reset="' + esc(x.key) + '" title="Вернуть общий вес источника">' + icBare('close', 11) + '</button></span>' +
+        '</div>';
+      }).join('') +
+      '<div class="bmw-act"><button type="button" class="btn-ghost" id="bmPosWCancel">Отмена</button>' +
+        '<button type="button" class="btn-primary" id="bmPosWSave">Сохранить для должности</button></div>' +
+    '</div>';
+    box.querySelectorAll('input[data-pw]').forEach(function(inp){
+      inp.oninput = function(){ cur[inp.dataset.pw] = Number(inp.value); shares(); };
+    });
+    box.querySelectorAll('[data-pw-reset]').forEach(function(b){
+      b.onclick = function(){
+        var x = list.filter(function(y){ return y.key === b.dataset.pwReset; })[0];
+        cur[x.key] = null;
+        var inp = box.querySelector('input[data-pw="' + x.key + '"]');
+        if(inp) inp.value = x.g;
+        shares();
+      };
+    });
+    $('bmPosWCancel').onclick = function(){ box.innerHTML = ''; btn.classList.remove('on'); };
+    $('bmPosWSave').onclick = function(){
+      var save = this; save.disabled = true;
+      call('apiBenchmarkSetPositionWeights', S.token, r.position.id, cur).then(guardAsyncToTab(function(res){
+        save.disabled = false;
+        if(!res || !res.ok){ toast((res && res.error) || 'Не удалось сохранить веса', 'err'); return; }
+        toast('Веса для должности сохранены', 'ok');
+        loadBmCompareDetail();
+      })).catch(function(){ save.disabled = false; toast('Нет связи с сервером', 'err'); });
+    };
+    btn.classList.add('on');
+    shares();
+  }
+  btn.onclick = function(){ if(box.innerHTML) { box.innerHTML = ''; btn.classList.remove('on'); } else open(); };
+}
+
 function renderBmWeights(datasets){
   var box = $('bmWeights');
   if(!box) return;

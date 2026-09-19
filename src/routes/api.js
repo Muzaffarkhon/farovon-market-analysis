@@ -152,6 +152,7 @@ router.post('/admin/user-capabilities', requireRoles('admin'), adminController.s
 router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);
 router.post('/benchmarks/sources', requireCapability('benchmarks:import'), benchmarkController.createSource);
 router.post('/benchmarks/sources/weights', requireCapability('benchmarks:import'), benchmarkController.setSourceWeights);
+router.post('/benchmarks/position-weights', requireCapability('benchmarks:import'), benchmarkController.setPositionWeights);
 router.get('/benchmarks/datasets', requireCapability('benchmarks:view'), benchmarkController.getDatasets);
 router.post('/benchmarks/datasets/:id/delete', requireCapability('benchmarks:import'), benchmarkController.deleteDataset);
 router.get('/benchmarks/positions/:sourceKey', requireCapability('benchmarks:view'), benchmarkController.getSourcePositions);
