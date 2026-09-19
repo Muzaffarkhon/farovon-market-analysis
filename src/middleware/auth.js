@@ -97,12 +97,17 @@ async function hasCapability(user, capability) {
   if (!user) return false;
   if (user.role === 'admin') return true;
   try {
+    // Личная запись по праву (если есть) перекрывает роль: 'deny' — отключено
+    // конкретному сотруднику, даже если роль его даёт; 'grant' — выдано сверху.
     const row = await queryOne(
-      `SELECT 1 AS ok FROM role_capabilities WHERE role = ? AND capability = ?
-       UNION SELECT 1 FROM user_capabilities WHERE user_login = ? AND capability = ?`,
-      [user.role, capability, user.login, capability]
+      `SELECT
+         (SELECT COALESCE(effect, 'grant') FROM user_capabilities WHERE user_login = ? AND capability = ?) AS personal,
+         (SELECT 1 FROM role_capabilities WHERE role = ? AND capability = ?) AS by_role`,
+      [user.login, capability, user.role, capability]
     );
-    return !!row;
+    if (!row) return false;
+    if (row.personal === 'deny') return false;
+    return row.personal === 'grant' || !!row.by_role;
   } catch (err) {
     console.error('hasCapability error:', err.message);
     // Таблицы может не быть, если сервер поднялся раньше миграции (см.

@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.90';
+var APP_VERSION = window.APP_VERSION || 'v2.5.91';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1864,7 +1864,7 @@ var API_ROUTES = {
   apiAdminRenameRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/rename', { method:'POST', token:args[0], body:{ label:args[2] } }); },
   apiAdminDeleteRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/delete', { method:'POST', token:args[0] }); },
   apiAdminGetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'GET', token:args[0] }); },
-  apiAdminSetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capabilities:args[2] } }); },
+  apiAdminSetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capabilities:args[2], denied:args[3] || [] } }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
   // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.

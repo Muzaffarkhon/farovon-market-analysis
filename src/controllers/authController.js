@@ -382,7 +382,16 @@ async function getUserPayload(user) {
   if (user.role === 'admin') {
     capabilities = CAPABILITIES.map(c => c.id);
   } else {
-    capabilities = (roleCaps || []).map(r => r.capability);
+    // Раньше сюда шли только права роли: личные надбавки работали на сервере,
+    // но в меню не появлялись, а личные отключения меню бы не убирали.
+    // Не кэшируется — это персональные данные сотрудника, запрос крошечный.
+    const personal = await queryAll(
+      "SELECT capability, COALESCE(effect, 'grant') AS effect FROM user_capabilities WHERE user_login = ?",
+      [user.login]
+    ).catch(() => []);
+    const set = new Set((roleCaps || []).map(r => r.capability));
+    personal.forEach(p => { if (p.effect === 'deny') set.delete(p.capability); else set.add(p.capability); });
+    capabilities = [...set];
   }
 
   return {

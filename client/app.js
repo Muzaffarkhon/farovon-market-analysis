@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.90')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.90')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.90')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.90')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.91')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -13040,11 +13040,15 @@ function rcIsDirty(){
 function ucapIsDirty(){
   var d = S.ucap;
   if(!d) return false;
-  return Object.keys(d.matrix || {}).some(function(login){
-    var now = (d.matrix[login] || []).slice().sort().join(',');
-    var was = (d.orig[login] || []).slice().sort().join(',');
-    return now !== was;
-  });
+  return Object.keys(d.matrix || {}).concat(Object.keys(d.deny || {})).some(ucapUserDirty);
+}
+
+/** Изменились ли права конкретного сотрудника (выданные или отключённые). */
+function ucapUserDirty(login){
+  var d = S.ucap;
+  var key = function(a){ return (a || []).slice().sort().join(','); };
+  return key(d.matrix[login]) !== key(d.orig[login]) ||
+         key(d.deny[login]) !== key(d.origDeny[login]);
 }
 
 function loadAdminRoles(){
@@ -13086,17 +13090,26 @@ function loadAdminUserCapabilities(){
       if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
       return;
     }
-    var byUser = {};
-    (r.grants || []).forEach(function(g){ (byUser[g.userLogin] = byUser[g.userLogin] || []).push(g.capability); });
+    var byUser = {}, denyByUser = {};
+    (r.grants || []).forEach(function(g){
+      var bucket = g.effect === 'deny' ? denyByUser : byUser;
+      (bucket[g.userLogin] = bucket[g.userLogin] || []).push(g.capability);
+    });
     var users = (r.users || []).filter(function(u){ return u.role !== 'admin'; });
-    var orig = {};
-    users.forEach(function(u){ orig[u.login] = (byUser[u.login] || []).slice(); });
+    var orig = {}, origDeny = {};
+    users.forEach(function(u){
+      orig[u.login] = (byUser[u.login] || []).slice();
+      origDeny[u.login] = (denyByUser[u.login] || []).slice();
+    });
     var keepSel = S.ucap && S.ucap.sel && users.some(function(u){ return u.login === S.ucap.sel; });
     S.ucap = {
       capabilities: r.capabilities,
       users: users,
       orig: orig,
       matrix: JSON.parse(JSON.stringify(orig)),
+      // Права роли, которые конкретному сотруднику лично отключены.
+      origDeny: origDeny,
+      deny: JSON.parse(JSON.stringify(origDeny)),
       // Что сотруднику уже даёт его роль/должность — показываем в
       // чек-листе как факт (не редактируется здесь), чтобы было видно,
       // от чего человек отталкивается, прежде чем добавлять личное сверху.
@@ -13125,7 +13138,11 @@ function ucapGroups(){
 
 function ucapUserBadge(u){
   var n = (S.ucap.matrix[u.login] || []).length;
-  return n ? (n+' '+declOfNum(n,["личное право","личных права","личных прав"])) : 'нет личных прав';
+  var m = (S.ucap.deny[u.login] || []).length;
+  var parts = [];
+  if(n) parts.push('+' + n + ' ' + declOfNum(n,["личное право","личных права","личных прав"]));
+  if(m) parts.push('−' + m + ' ' + declOfNum(m,["отключено","отключено","отключено"]));
+  return parts.length ? parts.join(' · ') : 'как у роли';
 }
 
 function renderAdminUserCapabilities(){
@@ -13146,10 +13163,12 @@ function renderAdminUserCapabilities(){
     saveBtn.onclick = function(){
       var btn = this; btn.disabled = true; btn.textContent = 'Сохраняем…';
       var jobs = [];
-      Object.keys(d.matrix).forEach(function(login){
-        var now = (d.matrix[login] || []).slice().sort().join(',');
-        var was = (d.orig[login] || []).slice().sort().join(',');
-        if(now !== was) jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || []));
+      var logins = {};
+      Object.keys(d.matrix).concat(Object.keys(d.deny)).forEach(function(l){ logins[l] = true; });
+      Object.keys(logins).forEach(function(login){
+        if(ucapUserDirty(login)){
+          jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || [], d.deny[login] || []));
+        }
       });
       if(!jobs.length){ btn.disabled = false; btn.textContent = 'Сохранить'; toast('Изменений нет','ok'); return; }
       Promise.all(jobs).then(function(results){
@@ -13234,87 +13253,78 @@ function renderUcapDetail(){
   if(!user){ el.innerHTML = '<div class="note">Выберите сотрудника слева.</div>'; return; }
 
   var groups = ucapGroups();
-  var granted = d.matrix[user.login] || [];
-  // Что уже даёт роль/должность сотрудника — факт, здесь не редактируется
-  // (менять можно только на вкладке «По ролям»). Показываем, чтобы было
-  // видно, от чего человек отталкивается, прежде чем добавлять личное.
+  var granted = d.matrix[user.login] = d.matrix[user.login] || [];
+  var denied = d.deny[user.login] = d.deny[user.login] || [];
+  // Что даёт роль. Такое право отмечено по умолчанию, а снять галочку —
+  // значит отключить его лично этому сотруднику (роль при этом не меняется).
   var roleCaps = (d.roleCapabilities && d.roleCapabilities[user.role]) || [];
   var roleLabel = (d.roleLabels && d.roleLabels[user.role]) || user.role;
+  var viaRole = function(id){ return roleCaps.indexOf(id) >= 0; };
+  var isOn = function(id){ return viaRole(id) ? denied.indexOf(id) < 0 : granted.indexOf(id) >= 0; };
+  var setOn = function(id, on){
+    var arr = viaRole(id) ? denied : granted;
+    var want = viaRole(id) ? !on : on;       // у права роли «вкл» = нет в отключённых
+    var i = arr.indexOf(id);
+    if(want){ if(i < 0) arr.push(id); } else if(i >= 0) arr.splice(i, 1);
+  };
+  var changed = granted.length + denied.length;
 
   var head = '<div class="r2-head">'+
     '<div class="r2-title">'+esc(user.fio)+'</div>'+
-    '<span class="r2-key">'+esc(user.login)+'</span>'+
-    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все личные ('+granted.length+')</button>' : '')+
+    '<span class="r2-key">'+esc(user.login)+' · '+esc(roleLabel)+'</span>'+
+    (changed ? '<button id="ucapClearBtn" class="btn-line roles2-del">'+ic('refresh',13)+' Вернуть как у роли ('+changed+')</button>' : '')+
   '</div>';
 
-  var body = !granted.length && !groups.length
-    ? ''
-    : groups.map(function(g){
-        var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
-        var allOn = toggleIds.length > 0 && toggleIds.every(function(id){ return granted.indexOf(id) >= 0; });
-        return '<div class="r2-group">'+
-          (toggleIds.length
-            ? '<label class="r2-group-t r2-group-t--check">'+
-                '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
-                '<span>'+esc(g.label)+'</span>'+
-              '</label>'
-            : '<div class="r2-group-t">'+esc(g.label)+'</div>')+
-          g.items.map(function(c){
-            var viaRole = roleCaps.indexOf(c.id) >= 0;
-            if(viaRole){
-              return '<label class="r2-cap r2-cap--role" title="Уже есть по роли «'+esc(roleLabel)+'» — не редактируется здесь">'+
-                '<input type="checkbox" checked disabled>'+
-                '<span>'+esc(c.label)+' <span class="r2-cap-tag">по роли</span></span>'+
-              '</label>';
-            }
-            var on = granted.indexOf(c.id) >= 0;
-            return '<label class="r2-cap">'+
-              '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on?' checked':'')+'>'+
-              '<span>'+esc(c.label)+'</span>'+
-            '</label>';
-          }).join('')+
-        '</div>';
-      }).join('');
+  var body = groups.map(function(g){
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(isOn).length;
+    return '<div class="r2-group">'+
+      '<label class="r2-group-t r2-group-t--check">'+
+        '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(onCount === ids.length ? ' checked' : '')+'>'+
+        '<span>'+esc(g.label)+'</span>'+
+      '</label>'+
+      g.items.map(function(c){
+        var role = viaRole(c.id), on = isOn(c.id);
+        var tag = role
+          ? (on ? '<span class="r2-cap-tag">по роли</span>' : '<span class="r2-cap-tag r2-cap-tag--off">отключено лично</span>')
+          : (on ? '<span class="r2-cap-tag r2-cap-tag--add">выдано лично</span>' : '');
+        return '<label class="r2-cap'+(role && !on ? ' r2-cap--off' : '')+'"'+
+            (role ? ' title="Даёт роль «'+esc(roleLabel)+'». Снимите галочку, чтобы отключить только этому сотруднику"' : '')+'>'+
+          '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on ? ' checked' : '')+'>'+
+          '<span>'+esc(c.label)+' '+tag+'</span>'+
+        '</label>';
+      }).join('')+
+    '</div>';
+  }).join('');
 
   el.innerHTML = head + '<div class="r2-caps">'+body+'</div>';
+
+  var after = function(){ renderUcapDetail(); ucapUpdateListBadge(user.login); };
 
   el.querySelectorAll('input[data-ucap-group]').forEach(function(box){
     var g = groups.filter(function(x){ return x.label === box.dataset.ucapGroup; })[0];
     if(!g) return;
-    var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
-    var onCount = toggleIds.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(isOn).length;
     // «Частично выбрано» задаётся только свойством, не HTML-атрибутом.
-    box.indeterminate = onCount > 0 && onCount < toggleIds.length;
+    box.indeterminate = onCount > 0 && onCount < ids.length;
     box.onchange = function(){
-      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
       var checked = this.checked;
-      toggleIds.forEach(function(id){
-        var i = arr.indexOf(id);
-        if(checked){ if(i<0) arr.push(id); }
-        else if(i>=0) arr.splice(i,1);
-      });
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
+      ids.forEach(function(id){ setOn(id, checked); });
+      after();
     };
   });
 
   el.querySelectorAll('input[data-ucap-cap]').forEach(function(box){
-    box.onchange = function(){
-      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
-      var i = arr.indexOf(this.dataset.ucapCap);
-      if(this.checked){ if(i<0) arr.push(this.dataset.ucapCap); }
-      else if(i>=0) arr.splice(i,1);
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
-    };
+    box.onchange = function(){ setOn(this.dataset.ucapCap, this.checked); after(); };
   });
 
   var clearBtn = $('ucapClearBtn');
   if(clearBtn){
     clearBtn.onclick = function(){
       d.matrix[user.login] = [];
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
+      d.deny[user.login] = [];
+      after();
     };
   }
 }

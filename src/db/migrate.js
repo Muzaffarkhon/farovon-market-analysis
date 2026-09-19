@@ -186,6 +186,10 @@ async function migrate() {
     granted_at TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_login, capability)
   )`);
+  // effect: 'grant' — выдано лично сверх роли, 'deny' — лично отключено, хотя
+  // роль его даёт (отключение перекрывает роль). Одно право у сотрудника —
+  // либо выдано, либо отключено, не оба сразу (тот же первичный ключ).
+  await ensureColumn('user_capabilities', 'effect', "TEXT NOT NULL DEFAULT 'grant'");
 
   // Справочник ролей: раньше список ролей был только константой в коде. Теперь
   // он в БД, чтобы админ мог добавлять свои роли (конструктор «Роли и доступы»).
