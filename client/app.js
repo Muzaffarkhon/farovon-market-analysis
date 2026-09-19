@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.91')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.92')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.91')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.92')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14026,7 +14026,15 @@ function loadBmInitialData(){
   });
 }
 
-function bmNum(v){ return v ? Number(v).toLocaleString('ru-RU') : '—'; }
+function bmNum(v){ return v ? Math.round(Number(v)).toLocaleString('ru-RU') : '—'; }
+function bmRatio(v){ return v != null ? Number(v).toFixed(2).replace('.', ',') : '—'; }
+/** Зона compa-ratio: норма 0,90–1,10 (принятый в отрасли коридор). */
+function bmCompaZone(c){
+  if(c == null) return null;
+  if(c < 0.9) return { t: 'ниже рынка', cls: 'is-low' };
+  if(c > 1.1) return { t: 'выше рынка', cls: 'is-high' };
+  return { t: 'в рынке', cls: 'is-ok' };
+}
 
 /** Строка перцентилей P10…P90 — без коробок: подпись сверху, число под ней. */
 function bmStatStrip(st, tone){
@@ -14042,7 +14050,8 @@ function bmStatStrip(st, tone){
  * оклада Фаровон. Без плавающих подписей поверх шкалы (на телефоне они
  * наезжали друг на друга) — значения вынесены в строку-легенду под ней.
  */
-function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
+function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid, opts){
+  opts = opts || {};
   stats = stats || {};
   var p25 = Number(stats.p25 || 0);
   var p50 = Number(stats.p50 || 0);
@@ -14063,7 +14072,7 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
   function pct(v){ return Math.max(0, Math.min(100, ((v - minVal) / span) * 100)); }
 
   var badge = '';
-  if(ourMid > 0 && p25 > 0 && p75 > 0){
+  if(!opts.noFlag && ourMid > 0 && p25 > 0 && p75 > 0){
     if(ourMid >= p25 && ourMid <= p75){
       badge = '<span class="bm-flag is-ok">В коридоре рынка</span>';
     } else if(ourMid < p25){
@@ -14074,6 +14083,7 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
   }
 
   var bar = '<div class="bm-bar">' +
+    (lo && hi && hi > lo ? '<i class="bm-bar-rng" style="left:' + pct(lo) + '%;width:' + Math.max(1, pct(hi) - pct(lo)) + '%" title="P10–P90"></i>' : '') +
     (p25 && p75 ? '<i class="bm-bar-cor" style="left:' + pct(p25) + '%;width:' + Math.max(2, pct(p75) - pct(p25)) + '%" title="Коридор P25–P75"></i>' : '') +
     (ourFrom && ourTo && ourFrom !== ourTo ? '<i class="bm-bar-our" style="left:' + pct(ourFrom) + '%;width:' + Math.max(2, pct(ourTo) - pct(ourFrom)) + '%" title="Вилка Фаровон"></i>' : '') +
     (p50 ? '<i class="bm-bar-p50" style="left:' + pct(p50) + '%" title="P50"></i>' : '') +
@@ -14084,6 +14094,8 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
     '<div class="bm-bar-head"><span>Рынок vs Фаровон</span>' + badge + '</div>' +
     bar +
     '<div class="bm-bar-legend">' +
+      (lo && hi && hi > lo ? '<span>P10–P90: <b>' + bmNum(lo) + ' – ' + bmNum(hi) + '</b></span>' : '') +
+      (p50 ? '<span><i class="lg lg-p50"></i>P50: <b>' + bmNum(p50) + '</b></span>' : '') +
       (p25 && p75 ? '<span><i class="lg lg-cor"></i>Коридор P25–P75: <b>' + bmNum(p25) + ' – ' + bmNum(p75) + '</b></span>' : '') +
       (ourMid ? '<span><i class="lg lg-our"></i>Фаровон: <b>' + bmNum(ourMid) + '</b>' + (ourFrom && ourTo && ourFrom !== ourTo ? ' <em>(' + bmNum(ourFrom) + ' – ' + bmNum(ourTo) + ')</em>' : '') + '</span>' : '') +
     '</div>' +
@@ -14210,44 +14222,66 @@ function loadBmCompareDetail(){
         '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--color-fog)">не задана</span>');
     }
 
-    var compBadge = '';
-    if(comp.compositeGapPercent != null){
-      var isPositive = comp.compositeGapPercent >= 0;
-      var sign = isPositive ? '+' : '';
-      var pillClass = isPositive ? 'top-period-pill' : 'top-period-pill is-closed';
-      compBadge = '<span class="' + pillClass + '" style="font-size:14px;padding:5px 12px;font-weight:600;font-feature-settings:\'tnum\' 1">' +
-        '<span class="top-period-dot"></span> ' + sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
-    }
-
-    var sourcesHtml = '';
-
-    // Внутренний сбор
+    var sm = r.summary || {};
+    var cst = sm.compositeStats || { p50: sm.compositeMedian };
     var intr = r.internal || {};
     var intrStats = intr.stats || {};
-    sourcesHtml += '<div class="bm-card">' +
-      '<div class="bm-head">' +
-        '<div class="bm-head-l">' + renderSourceBadge('internal') +
-          '<span class="bm-sub">' + esc(intr.sourceTitle || 'Внутренние анкеты') + ' · ' + (intr.observationsCount || 0) + ' набл.</span></div>' +
-        '<div class="bm-head-r">' + (intrStats.p50 ? '<b>' + bmNum(intrStats.p50) + '</b><span>сом. · P50</span>' : '<span class="bm-none">нет данных</span>') + '</div>' +
-      '</div>' +
-      (intrStats.p50 ? bmStatStrip(intrStats, 'tone-acc') + renderSalaryRangeBar(intrStats, ourPayFrom, ourPayTo, ourMid) : '') +
-    '</div>';
+
+    // Строка источника в «Составе сводной ставки». Одна разметка на обе
+    // ширины: на компьютере — строка таблицы, на телефоне CSS раскладывает
+    // её карточкой (название и вес сверху, значения с подписями ниже).
+    function srcRow(o){
+      var z = bmCompaZone(o.compa);
+      var share = o.share > 0 ? Math.round(o.share * 100) + '%' : (o.hasData ? 'не входит' : '—');
+      var vals = o.hasData
+        ? ['P25', 'P50', 'P75'].map(function(k, i){
+            var v = [o.st.p25, o.st.p50, o.st.p75][i];
+            return '<span class="bmc-v"><i>' + k + '</i><b>' + bmNum(v) + '</b></span>';
+          }).join('') +
+          '<span class="bmc-v"><i>Compa</i><b class="' + (z ? z.cls : '') + '">' + bmRatio(o.compa) + '</b></span>'
+        : '<span class="bmc-empty">нет данных' + (o.mappable ? ' · <button class="btn-ghost" onclick="switchBmTab(\'mapping\')">сопоставить</button>' : '') + '</span>';
+      return '<div class="bmc-row' + (o.total ? ' is-total' : '') + '">' +
+        '<span class="bmc-src">' + (o.badge || '<b>' + esc(o.title) + '</b>') +
+          (o.meta ? '<small>' + o.meta + '</small>' : '') + '</span>' +
+        '<span class="bmc-w">' + (o.total ? '100%' : share) +
+          (!o.total && o.share > 0 ? '<i class="bmc-wbar"><i style="width:' + Math.round(o.share * 100) + '%"></i></i>' : '') + '</span>' +
+        vals +
+      '</div>';
+    }
+
+    var rowsHtml = srcRow({
+      title: 'Внутренний сбор',
+      meta: (intr.observationsCount || 0) + ' набл. · свои анкеты',
+      hasData: !!intrStats.p50, st: intrStats, share: intr.share || 0, compa: intr.compaRatio
+    });
+    (r.external || []).forEach(function(ext){
+      rowsHtml += srcRow({
+        title: ext.sourceTitle,
+        meta: esc([ext.sourcePosition ? '«' + ext.sourcePosition + '»' : '', ext.dataAsOf || '', ext.isLicensed ? 'лицензия' : '']
+          .filter(Boolean).join(' · ')),
+        hasData: !!ext.hasData && !!(ext.stats && ext.stats.p50), st: ext.stats || {}, share: ext.share || 0, compa: ext.compaRatio,
+        mappable: true
+      });
+    });
+    if(sm.compositeMedian){
+      rowsHtml += srcRow({ total: true, title: 'Сводная, взвешенная', hasData: true, st: cst, compa: sm.compaRatio });
+    }
 
     // Совокупный доход (оклад + переменная часть, приведённая к месяцу).
     // Считается по всем записям с окладом: где премию посчитать нельзя —
-    // берётся только оклад (запись не выпадает).
+    // берётся только оклад (запись не выпадает). Показываем, только если есть
+    // хотя бы одна распознанная премия — иначе дублирует «Внутренний сбор».
     var totStats = intr.totalStats || {};
     var totSample = intr.totalSampleCount || 0;
     var totBon = intr.totalBonusCount || 0;
-    var totCov = totSample ? totBon / totSample : 0;
-    // Карточку показываем, только если есть хотя бы одна распознанная премия —
-    // иначе «Совокупный доход» = «Внутренний сбор», дублирование.
+    var totHtml = '';
     if(totStats.p50 && totBon > 0){
+      var totCov = totSample ? totBon / totSample : 0;
       // «+N%» к окладу — только когда премия посчитана у большинства (≥50%);
       // ниже порога один-два бонуса рядом с медианой дают ложный «прирост».
       var totUplift = (totCov >= 0.5 && intrStats.p50 && totStats.p50 > intrStats.p50)
         ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
-      sourcesHtml += '<div class="bm-card">' +
+      totHtml = '<div class="bm-card">' +
         '<div class="bm-head">' +
           '<div class="bm-head-l"><span class="bm-ic">' + ic('wallet', 14) + '</span><b>Совокупный доход</b>' +
             '<span class="bm-sub">оклад + переменная часть / мес.</span></div>' +
@@ -14260,50 +14294,43 @@ function loadBmCompareDetail(){
       '</div>';
     }
 
-    // Внешние источники
-    (r.external || []).forEach(function(ext){
-      var extStats = ext.stats || {};
-      var gapHtml = '';
-      if(ext.gapPercent != null){
-        var isPos = ext.gapPercent >= 0;
-        gapHtml = '<span class="bm-gap ' + (isPos ? 'is-pos' : 'is-neg') + '">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + (ext.gapAmount || 0).toLocaleString('ru-RU') + ' сом.)</span>';
-      }
-      sourcesHtml += '<div class="bm-card">' +
-        '<div class="bm-head">' +
-          '<div class="bm-head-l">' + renderSourceBadge(ext.sourceKey, ext.isLicensed, ext.sourceTitle) +
-            '<span class="bm-sub">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span></div>' +
-          '<div class="bm-head-r">' + (extStats.p50 ? '<b>' + bmNum(extStats.p50) + '</b><span>сом. · P50</span>' : '<span class="bm-none">нет данных</span>') + gapHtml + '</div>' +
-        '</div>' +
-        (ext.hasData
-          ? bmStatStrip(extStats, 'tone-acc') + renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid)
-          : '<div class="bm-empty">Нет сопоставленных данных для этой должности. ' +
-              '<button class="btn-ghost" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button></div>') +
-      '</div>';
-    });
-
-    // Сводка: медиана рынка · Фаровон · разрыв — одной строкой
-    var compRangeBar = renderSalaryRangeBar({ p50: comp.compositeMedian }, ourPayFrom, ourPayTo, ourMid);
-    var gapPill = '';
-    if(comp.compositeGapPercent != null){
-      var gp = comp.compositeGapPercent >= 0;
-      gapPill = '<span class="bm-gap big ' + (gp ? 'is-pos' : 'is-neg') + '">' + (gp ? '+' : '') + comp.compositeGapPercent + '% к рынку' +
-        (comp.compositeGapAmount ? ' · ' + (comp.compositeGapAmount > 0 ? '+' : '') + comp.compositeGapAmount.toLocaleString('ru-RU') + ' сом.' : '') + '</span>';
-    }
+    var z = bmCompaZone(sm.compaRatio);
+    var gap = sm.compositeGapAmount;
+    var compaScale = sm.compaRatio != null
+      ? '<div class="bm-cr">' +
+          '<div class="bm-cr-hd"><span>Compa-ratio</span><span>норма 0,90–1,10</span></div>' +
+          '<div class="bm-cr-bar"><i class="z1"></i><i class="z2"></i><i class="z3"></i>' +
+            '<b style="left:' + Math.max(0, Math.min(100, (sm.compaRatio - 0.8) / 0.4 * 100)) + '%"></b></div>' +
+          '<div class="bm-cr-ax"><span>0,80</span><span>1,00</span><span>1,20</span></div>' +
+        '</div>'
+      : '';
 
     d.innerHTML = '<div class="bm-detail-head">' +
         '<span class="bm-detail-head-lbl">Сравнение по должности</span>' +
         '<b>' + shownName + '</b>' +
       '</div>' +
       '<div class="bm-card bm-summary">' +
-        '<div class="bm-kpis">' +
-          '<div class="bm-kpi"><span>Медиана рынка · ' + (comp.sourcesCount || 0) + ' ' + declOfNum(comp.sourcesCount || 0, ['источник', 'источника', 'источников']) + '</span>' +
-            '<b>' + (comp.compositeMedian ? bmNum(comp.compositeMedian) : '—') + '</b></div>' +
-          '<div class="bm-kpi"><span>Медиана Фаровон</span><b class="tone-ok">' + (ourMid ? bmNum(ourMid) : '—') + '</b></div>' +
-          '<div class="bm-kpi bm-kpi-gap"><span>Разрыв</span>' + (gapPill || '<b>—</b>') + '</div>' +
+        '<div class="bm-k4">' +
+          '<div class="bm-k"><span>Рынок, P50</span><b>' + (sm.compositeMedian ? bmNum(sm.compositeMedian) : '—') + '</b>' +
+            '<em>сводная · ' + (sm.sourcesCount || 0) + ' ' + declOfNum(sm.sourcesCount || 0, ['источник', 'источника', 'источников']) + '</em></div>' +
+          '<div class="bm-k"><span>Фаровон</span><b class="tone-ok">' + (ourMid ? bmNum(ourMid) : '—') + '</b>' +
+            '<em>' + (ourPayFrom && ourPayTo ? 'вилка ' + bmNum(ourPayFrom) + '–' + bmNum(ourPayTo) : 'вилка не задана') + '</em></div>' +
+          '<div class="bm-k"><span>Compa-ratio</span><b>' + bmRatio(sm.compaRatio) + '</b>' +
+            '<em>' + (z ? '<span class="bm-flag ' + z.cls + '">' + z.t + '</span>' : 'нет данных') + '</em></div>' +
+          '<div class="bm-k"><span>Разрыв</span><b class="' + (gap == null ? '' : gap < 0 ? 'tone-no' : 'tone-ok') + '">' +
+              (gap == null ? '—' : (gap < 0 ? '−' : '+') + bmNum(Math.abs(gap))) + '</b>' +
+            '<em>' + (sm.compositeGapPercent == null ? 'к рынку' : (sm.compositeGapPercent < 0 ? '−' : '+') +
+              String(Math.abs(sm.compositeGapPercent)).replace('.', ',') + '% к рынку') + '</em></div>' +
         '</div>' +
-        compRangeBar +
+        compaScale +
+        renderSalaryRangeBar({ p10: cst.p10, p25: cst.p25, p50: cst.p50, p75: cst.p75, p90: cst.p90 }, ourPayFrom, ourPayTo, ourMid, { noFlag: true }) +
       '</div>' +
-      sourcesHtml;
+      '<div class="bm-card bmc">' +
+        '<div class="bmc-title">Состав сводной ставки</div>' +
+        '<div class="bmc-row bmc-hd"><span>Источник</span><span>Вес</span><span>P25</span><span>P50</span><span>P75</span><span>Compa</span></div>' +
+        rowsHtml +
+      '</div>' +
+      totHtml;
   }).catch(function(err){
     d.innerHTML = '<div class="err">Ошибка: ' + (err.message || err) + '</div>';
   });
@@ -14458,7 +14485,8 @@ function renderBmDatasets(){
   var c = $('bmContent');
   if(!c) return;
 
-  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+  c.innerHTML = '<div id="bmWeights"></div>' +
+    '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div><span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
     '<div style="display:flex;gap:8px">' +
       '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
@@ -14474,6 +14502,7 @@ function renderBmDatasets(){
     var list = (res && res.datasets) || [];
     var el = $('bmDatasetsList');
     if(!el) return;
+    renderBmWeights(list);
 
     if(list.length === 0){
       el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--color-fog)">' +
@@ -14518,6 +14547,63 @@ function renderBmDatasets(){
       }
     };
   }));
+}
+
+/**
+ * Веса источников в сводной рыночной ставке. Один вес на источник, действует
+ * на все должности. Показываем внутренний сбор и источники, по которым
+ * загружен хотя бы один датасет — остальные в сводную всё равно не попадут.
+ */
+function renderBmWeights(datasets){
+  var box = $('bmWeights');
+  if(!box) return;
+  var withData = { internal: true };
+  (datasets || []).forEach(function(d){ withData[d.source_key] = true; });
+  var list = (BM_STATE.sources || []).filter(function(src){ return withData[src.key]; });
+  if(!list.length){ box.innerHTML = ''; return; }
+  var canEdit = hasCap('benchmarks:import');
+  var cur = {};
+  list.forEach(function(src){ cur[src.key] = src.weight != null ? Number(src.weight) : 100; });
+
+  // Доли пересчитываем подписями, а не перерисовкой блока — иначе ползунок
+  // пересоздавался бы под пальцем посреди перетаскивания.
+  function shares(){
+    var sum = list.reduce(function(a, src){ return a + cur[src.key]; }, 0);
+    box.querySelectorAll('[data-bmw-v]').forEach(function(el){
+      var w = cur[el.dataset.bmwV];
+      el.textContent = w ? (sum ? Math.round(w / sum * 100) : 0) + '%' : 'не входит';
+    });
+  }
+  function draw(){
+    box.innerHTML = '<div class="bm-card bmw">' +
+      '<div class="bmw-hd"><b>Веса источников в сводной ставке</b>' +
+        (canEdit ? '<button type="button" class="btn-primary" id="bmwSave">Сохранить</button>' : '') + '</div>' +
+      list.map(function(src){
+        return '<div class="bmw-row">' +
+          '<span class="bmw-name">' + esc(src.title) + '</span>' +
+          '<input type="range" min="0" max="100" step="5" value="' + cur[src.key] + '" data-bmw="' + esc(src.key) + '"' + (canEdit ? '' : ' disabled') + '>' +
+          '<span class="bmw-v" data-bmw-v="' + esc(src.key) + '"></span>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+    box.querySelectorAll('input[data-bmw]').forEach(function(inp){
+      inp.oninput = function(){ cur[inp.dataset.bmw] = Number(inp.value); shares(); };
+    });
+    shares();
+    var save = $('bmwSave');
+    if(save){
+      save.onclick = function(){
+        save.disabled = true;
+        call('apiBenchmarkSetWeights', S.token, cur).then(guardAsyncToTab(function(res){
+          save.disabled = false;
+          if(!res || !res.ok){ toast((res && res.error) || 'Не удалось сохранить веса', 'err'); return; }
+          (BM_STATE.sources || []).forEach(function(src){ if(res.weights[src.key] != null) src.weight = res.weights[src.key]; });
+          toast('Веса сохранены', 'ok');
+        })).catch(function(){ save.disabled = false; toast('Нет связи с сервером', 'err'); });
+      };
+    }
+  }
+  draw();
 }
 
 function openBmAddSourceModal(){

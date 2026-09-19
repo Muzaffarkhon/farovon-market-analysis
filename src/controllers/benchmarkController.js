@@ -11,6 +11,16 @@ exports.getSources = async (req, res) => {
   }
 };
 
+exports.setSourceWeights = async (req, res) => {
+  try {
+    const saved = await benchmarkService.setSourceWeights(req.body && req.body.weights);
+    res.json({ ok: true, weights: saved });
+  } catch (err) {
+    console.error('setSourceWeights error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось сохранить веса источников' });
+  }
+};
+
 exports.createSource = async (req, res) => {
   try {
     const { key, title, kind, isLicensed, defaultCurrency, notes } = req.body;
