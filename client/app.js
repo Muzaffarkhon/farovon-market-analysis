@@ -517,7 +517,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.95')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -552,7 +552,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.95')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -613,7 +613,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.95')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.96')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -643,7 +643,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.95')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.96')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -14090,6 +14090,13 @@ function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid, opts){
     (ourMid ? '<i class="bm-bar-dot" style="left:' + pct(ourMid) + '%" title="Фаровон"></i>' : '') +
   '</div>';
 
+  if(opts.lean){
+    return '<div class="bm-barwrap is-lean">' + bar +
+      '<div class="bm-bar-legend">' +
+        (p25 && p75 ? '<span><i class="lg lg-cor"></i>Рынок P25–P75: <b>' + bmNum(p25) + ' – ' + bmNum(p75) + '</b></span>' : '') +
+        (ourMid ? '<span><i class="lg lg-dot"></i>Фаровон: <b>' + bmNum(ourMid) + '</b></span>' : '') +
+      '</div></div>';
+  }
   return '<div class="bm-barwrap">' +
     '<div class="bm-bar-head"><span>Рынок vs Фаровон</span>' + badge + '</div>' +
     bar +
@@ -14232,21 +14239,16 @@ function loadBmCompareDetail(){
     // её карточкой (название и вес сверху, значения с подписями ниже).
     function srcRow(o){
       var z = bmCompaZone(o.compa);
-      var share = o.share > 0 ? Math.round(o.share * 100) + '%' : (o.hasData ? 'не входит' : '—');
-      var vals = o.hasData
-        ? ['P25', 'P50', 'P75'].map(function(k, i){
-            var v = [o.st.p25, o.st.p50, o.st.p75][i];
-            return '<span class="bmc-v"><i>' + k + '</i><b>' + bmNum(v) + '</b></span>';
-          }).join('') +
-          '<span class="bmc-v"><i>Compa</i><b class="' + (z ? z.cls : '') + '">' + bmRatio(o.compa) + '</b></span>'
-        : '<span class="bmc-empty">нет данных' + (o.mappable ? ' · <button class="btn-ghost" onclick="switchBmTab(\'mapping\')">сопоставить</button>' : '') + '</span>';
-      return '<div class="bmc-row' + (o.total ? ' is-total' : '') + '">' +
-        '<span class="bmc-src">' + (o.badge || '<b>' + esc(o.title) + '</b>') +
-          (o.meta ? '<small>' + o.meta + '</small>' : '') + '</span>' +
-        '<span class="bmc-w">' + (o.total ? '100%' : share) +
-          (o.posW ? '<em class="bmc-posw" title="Свой вес источника для этой должности">свой вес</em>' : '') +
-          (!o.total && o.share > 0 ? '<i class="bmc-wbar"><i style="width:' + Math.round(o.share * 100) + '%"></i></i>' : '') + '</span>' +
-        vals +
+      var share = o.share > 0 ? Math.round(o.share * 100) + '%' : (o.hasData ? '<em class="bmr-off">не входит</em>' : '');
+      var range = (o.hasData && o.st.p25 && o.st.p75) ? 'P25–P75: ' + bmNum(o.st.p25) + ' – ' + bmNum(o.st.p75) : '';
+      var meta = [o.meta, range].filter(Boolean).join(' · ');
+      var cells = o.hasData
+        ? '<span class="bmr-w">' + (o.total ? '100%' : share) + (o.posW ? '<em class="bmc-posw" title="Свой вес источника для этой должности">свой</em>' : '') + '</span>' +
+          '<span class="bmr-p">' + bmNum(o.st.p50) + '</span>' +
+          '<span class="bmr-c ' + (z ? z.cls : '') + '">' + bmRatio(o.compa) + '</span>'
+        : '<span class="bmr-empty">нет данных' + (o.mappable ? ' · <button class="btn-ghost" onclick="switchBmTab(\'mapping\')">сопоставить</button>' : '') + '</span>';
+      return '<div class="bmr-row' + (o.total ? ' is-total' : '') + (o.hasData ? '' : ' is-empty') + '">' +
+        '<span class="bmr-src"><b>' + esc(o.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + cells +
       '</div>';
     }
 
@@ -14297,42 +14299,40 @@ function loadBmCompareDetail(){
     }
 
     var z = bmCompaZone(sm.compaRatio);
-    var gap = sm.compositeGapAmount;
-    var compaScale = sm.compaRatio != null
-      ? '<div class="bm-cr">' +
-          '<div class="bm-cr-hd"><span>Compa-ratio</span><span>норма 0,90–1,10</span></div>' +
-          '<div class="bm-cr-bar"><i class="z1"></i><i class="z2"></i><i class="z3"></i>' +
-            '<b style="left:' + Math.max(0, Math.min(100, (sm.compaRatio - 0.8) / 0.4 * 100)) + '%"></b></div>' +
-          '<div class="bm-cr-ax"><span>0,80</span><span>1,00</span><span>1,20</span></div>' +
+    var gapPct = sm.compositeGapPercent;
+    var gapTxt = gapPct == null ? '' :
+      (Math.abs(gapPct) < 0.05 ? 'на уровне рынка' : 'на ' + String(Math.abs(gapPct)).replace('.', ',') + '% ' + (gapPct < 0 ? 'ниже' : 'выше') + ' рынка');
+    var srcN = sm.sourcesCount || 0;
+    var verdict = z
+      ? '<div class="bmv-main">' +
+          '<span class="bmv-badge ' + z.cls + '">' + (z.cls === 'is-ok' ? 'Платим по рынку' : z.cls === 'is-low' ? 'Платим ниже рынка' : 'Платим выше рынка') + '</span>' +
+          '<div class="bmv-cr"><b>' + bmRatio(sm.compaRatio) + '</b><span>compa-ratio</span></div>' +
+          '<div class="bmv-sub">' + gapTxt + ' · норма 0,90–1,10</div>' +
         '</div>'
-      : '';
+      : '<div class="bmv-main"><span class="bmv-badge">Нет данных для сравнения</span>' +
+          '<div class="bmv-sub">Нет цифр рынка по этой должности. Сопоставьте её с загруженными обзорами.</div></div>';
 
     d.innerHTML = '<div class="bm-detail-head">' +
         '<span class="bm-detail-head-lbl">Сравнение по должности</span>' +
         '<b>' + shownName + '</b>' +
       '</div>' +
-      '<div class="bm-card bm-summary">' +
-        '<div class="bm-k4">' +
-          '<div class="bm-k"><span>Рынок, P50</span><b>' + (sm.compositeMedian ? bmNum(sm.compositeMedian) : '—') + '</b>' +
-            '<em>сводная · ' + (sm.sourcesCount || 0) + ' ' + declOfNum(sm.sourcesCount || 0, ['источник', 'источника', 'источников']) + '</em></div>' +
-          '<div class="bm-k"><span>Фаровон</span><b class="tone-ok">' + (ourMid ? bmNum(ourMid) : '—') + '</b>' +
-            '<em>' + (ourPayFrom && ourPayTo ? 'вилка ' + bmNum(ourPayFrom) + '–' + bmNum(ourPayTo) : 'вилка не задана') + '</em></div>' +
-          '<div class="bm-k"><span>Compa-ratio</span><b>' + bmRatio(sm.compaRatio) + '</b>' +
-            '<em>' + (z ? '<span class="bm-flag ' + z.cls + '">' + z.t + '</span>' : 'нет данных') + '</em></div>' +
-          '<div class="bm-k"><span>Разрыв</span><b class="' + (gap == null ? '' : gap < 0 ? 'tone-no' : 'tone-ok') + '">' +
-              (gap == null ? '—' : (gap < 0 ? '−' : '+') + bmNum(Math.abs(gap))) + '</b>' +
-            '<em>' + (sm.compositeGapPercent == null ? 'к рынку' : (sm.compositeGapPercent < 0 ? '−' : '+') +
-              String(Math.abs(sm.compositeGapPercent)).replace('.', ',') + '% к рынку') + '</em></div>' +
+      '<div class="bm-card bmv">' +
+        '<div class="bmv-top">' + verdict +
+          '<div class="bmv-nums">' +
+            '<div><span>Рынок, P50</span><b>' + (sm.compositeMedian ? bmNum(sm.compositeMedian) : '—') + '</b>' +
+              '<small>' + srcN + ' ' + declOfNum(srcN, ['источник', 'источника', 'источников']) + '</small></div>' +
+            '<div><span>Фаровон</span><b>' + (ourMid ? bmNum(ourMid) : '—') + '</b>' +
+              '<small>' + (ourPayFrom && ourPayTo ? 'вилка ' + bmNum(ourPayFrom) + '–' + bmNum(ourPayTo) : 'вилка не задана') + '</small></div>' +
+          '</div>' +
         '</div>' +
-        compaScale +
-        renderSalaryRangeBar({ p10: cst.p10, p25: cst.p25, p50: cst.p50, p75: cst.p75, p90: cst.p90 }, ourPayFrom, ourPayTo, ourMid, { noFlag: true }) +
+        renderSalaryRangeBar({ p10: cst.p10, p25: cst.p25, p50: cst.p50, p75: cst.p75, p90: cst.p90 }, ourPayFrom, ourPayTo, ourMid, { noFlag: true, lean: true }) +
       '</div>' +
       '<div class="bm-card bmc">' +
-        '<div class="bmc-title"><span>Состав сводной ставки</span>' +
+        '<div class="bmc-title"><span>Из чего сложился рынок</span>' +
           (hasCap('benchmarks:import') && pos.id ? '<button type="button" class="btn-line bmc-posw-btn" id="bmPosWBtn">' + ic('settings', 13) + 'Веса для должности</button>' : '') +
         '</div>' +
         '<div id="bmPosWEdit"></div>' +
-        '<div class="bmc-row bmc-hd"><span>Источник</span><span>Вес</span><span>P25</span><span>P50</span><span>P75</span><span>Compa</span></div>' +
+        '<div class="bmr-row bmr-hd"><span>Источник</span><span>Вес</span><span>Рынок P50</span><span>Compa</span></div>' +
         rowsHtml +
       '</div>' +
       totHtml;
@@ -14584,22 +14584,22 @@ function wireBmPositionWeights(r){
     var byKey = {}; list.forEach(function(x){ byKey[x.key] = x; });
     bmwPaint(box, list.map(function(x){ return x.key; }), function(k){ return eff(byKey[k]); });
     list.forEach(function(x){
-      var t = box.querySelector('[data-pw-t="' + x.key + '"]');
-      if(t) t.textContent = cur[x.key] != null ? 'по должности' : 'общий вес';
       var rs = box.querySelector('[data-pw-reset="' + x.key + '"]');
       if(rs) rs.hidden = cur[x.key] == null;
     });
   }
   function open(){
     box.innerHTML = '<div class="bmw bmw--pos">' +
-      '<div class="bmw-sub" style="margin:0 0 2px">Свои веса только для этой должности. Остальные должности используют общий вес источника.</div>' +
+      '<div class="bmw-sub">Веса только для этой должности. У остальных остаются общие.</div>' +
       bmwStack(list.map(function(x){ return x.key; })) +
+      '<div class="bmw-cap"><span>Источник</span><span></span><span>Вес</span><span>Доля</span></div>' +
       list.map(function(x, i){
         return '<div class="bmw-row">' +
-          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(x.title) + ' <em class="bmw-tag" data-pw-t="' + esc(x.key) + '"></em></span>' +
+          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(x.title) + '</span>' +
           '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + eff(x) + '" data-pw="' + esc(x.key) + '">' +
-          '<span class="bmw-v"><span data-pw-v="' + esc(x.key) + '"></span>' +
-            '<button type="button" class="btn-ghost bmw-reset" data-pw-reset="' + esc(x.key) + '" title="Вернуть общий вес источника">' + icBare('close', 11) + '</button></span>' +
+          '<span class="bmw-w" data-bmw-w="' + esc(x.key) + '"></span>' +
+          '<span class="bmw-v" data-pw-v="' + esc(x.key) + '"></span>' +
+          '<button type="button" class="btn-ghost bmw-reset" data-pw-reset="' + esc(x.key) + '" title="Вернуть общий вес источника">' + icBare('close', 11) + '</button>' +
         '</div>';
       }).join('') +
       '<div class="bmw-act"><button type="button" class="btn-ghost" id="bmPosWCancel">Отмена</button>' +
@@ -14646,7 +14646,9 @@ function bmwPaint(root, keys, weightOf){
   keys.forEach(function(k, i){
     var w = weightOf(k), share = (w && sum) ? Math.round(w / sum * 100) : 0;
     var v = root.querySelector('[data-bmw-v="' + k + '"], [data-pw-v="' + k + '"]');
-    if(v) v.innerHTML = w ? '<b>' + share + '%</b><small>вес ' + w + '</small>' : '<small>не входит</small>';
+    if(v){ v.textContent = w ? share + '%' : '—'; v.classList.toggle('is-off', !w); }
+    var vw = root.querySelector('[data-bmw-w="' + k + '"]');
+    if(vw) vw.textContent = w;
     var seg = root.querySelector('[data-bmw-seg="' + k + '"]');
     if(seg) seg.style.width = (w && sum ? w / sum * 100 : 0) + '%';
     var inp = root.querySelector('input[data-bmw="' + k + '"], input[data-pw="' + k + '"]');
@@ -14678,13 +14680,15 @@ function renderBmWeights(datasets){
   function draw(){
     box.innerHTML = '<div class="bm-card bmw">' +
       '<div class="bmw-hd"><div><b>Веса источников в сводной ставке</b>' +
-        '<span class="bmw-sub">Чем выше вес, тем больше источник влияет на сводную. Действует на все должности.</span></div>' +
+        '<span class="bmw-sub">Вес — насколько мы доверяем источнику. Действует на все должности.</span></div>' +
         (canEdit ? '<button type="button" class="btn-primary" id="bmwSave">Сохранить</button>' : '') + '</div>' +
       bmwStack(keys) +
+      '<div class="bmw-cap"><span>Источник</span><span></span><span>Вес</span><span>Доля</span></div>' +
       list.map(function(src, i){
         return '<div class="bmw-row">' +
           '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(src.title) + '</span>' +
           '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + cur[src.key] + '" data-bmw="' + esc(src.key) + '"' + (canEdit ? '' : ' disabled') + '>' +
+          '<span class="bmw-w" data-bmw-w="' + esc(src.key) + '"></span>' +
           '<span class="bmw-v" data-bmw-v="' + esc(src.key) + '"></span>' +
         '</div>';
       }).join('') +

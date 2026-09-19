@@ -12272,3 +12272,66 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
 .bmw-v { flex-direction: column; align-items: flex-end; line-height: 1.15; }
 .bmw-v b { font-weight: 700; color: var(--text); }
 .bmw-v small { font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* Блок весов: один ряд = источник · ползунок · вес · доля */
+.bmw-row, .bmw-cap { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr) 40px 52px; gap: 12px; align-items: center; }
+.bmw--pos .bmw-row, .bmw--pos .bmw-cap { grid-template-columns: minmax(0, 200px) minmax(0, 1fr) 40px 52px 22px; }
+.bmw-cap { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding-top: 4px; }
+.bmw-cap span:nth-child(3), .bmw-cap span:nth-child(4) { text-align: right; }
+.bmw-w { text-align: right; color: var(--muted); font-feature-settings: 'tnum' 1; font-size: 13px; }
+.bmw-v { display: block; text-align: right; font-size: 15px; font-weight: 700; color: var(--text); }
+.bmw-v b, .bmw-v small { all: unset; }
+.bmw-v.is-off { color: var(--muted); font-weight: 500; }
+.bmw--pos { border: 0; padding: 4px 0 0; margin: 8px 0 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.bmw--pos .bmw-cap span:nth-child(5) { width: 22px; }
+.bmw-reset { justify-self: end; }
+@media (max-width: 640px) {
+  .bmw-cap { display: none; }
+  .bmw-row, .bmw--pos .bmw-row { grid-template-columns: minmax(0, 1fr) 36px 48px; row-gap: 0; }
+  .bmw--pos .bmw-row { grid-template-columns: minmax(0, 1fr) 36px 48px 22px; }
+  .bmw-row .bmw-range { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Сравнение по должности: вердикт + компактная таблица источников */
+.bmv-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.bmv-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bmv-badge { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: var(--card-2, var(--line)); color: var(--muted); }
+.bmv-badge.is-ok { background: color-mix(in srgb, var(--ok) 14%, var(--card)); color: var(--ok); }
+.bmv-badge.is-low { background: color-mix(in srgb, var(--no) 14%, var(--card)); color: var(--no); }
+.bmv-badge.is-high { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: var(--warn); }
+.bmv-cr { display: flex; align-items: baseline; gap: 8px; }
+.bmv-cr b { font-size: 34px; line-height: 1; font-weight: 700; letter-spacing: -.02em; font-feature-settings: 'tnum' 1; }
+.bmv-cr span { font-size: 13px; color: var(--muted); }
+.bmv-sub { font-size: 13px; color: var(--muted); }
+.bmv-nums { display: flex; gap: 28px; }
+.bmv-nums > div { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+.bmv-nums span { font-size: 12px; color: var(--muted); }
+.bmv-nums b { font-size: 22px; font-weight: 700; font-feature-settings: 'tnum' 1; }
+.bmv-nums small { font-size: 12px; color: var(--muted); }
+.bm-barwrap.is-lean { margin-top: 14px; }
+.bmr-row { display: grid; grid-template-columns: minmax(0, 1fr) 78px 96px 64px; gap: 8px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 14px; font-feature-settings: 'tnum' 1; }
+.bmr-hd { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 2px 2px 6px; }
+.bmr-hd span:nth-child(n+2), .bmr-w, .bmr-p, .bmr-c { text-align: right; }
+.bmr-src { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bmr-src b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmr-src small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmr-p { font-weight: 600; }
+.bmr-c { font-weight: 700; }
+.bmr-c.is-ok { color: var(--ok); } .bmr-c.is-low { color: var(--no); } .bmr-c.is-high { color: var(--warn); }
+.bmr-off { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.bmr-w .bmc-posw { display: block; width: max-content; margin: 2px 0 0 auto; }
+.bmr-empty { grid-column: 2 / -1; text-align: right; font-size: 12.5px; color: var(--muted); }
+.bmr-empty .btn-ghost { padding: 0 4px; min-height: 0; font-size: 12.5px; color: var(--accent); font-weight: 600; }
+.bmr-row.is-empty .bmr-src b { font-weight: 500; color: var(--muted); }
+.bmr-row.is-total { border-bottom: 0; background: var(--card-2, var(--line)); border-radius: 8px; padding: 10px 8px; margin-top: 4px; }
+.bmr-row.is-total .bmr-src b { font-weight: 700; }
+@media (max-width: 640px) {
+  .bmv-top { align-items: flex-start; }
+  .bmv-cr b { font-size: 30px; }
+  .bmv-nums { gap: 20px; width: 100%; justify-content: space-between; }
+  .bmv-nums > div { text-align: left; }
+  .bmv-nums b { font-size: 19px; }
+  .bmr-row { grid-template-columns: minmax(0, 1fr) 46px 62px 46px; gap: 6px; font-size: 13px; }
+  .bmr-hd { font-size: 10px; letter-spacing: 0; }
+  .bmr-src small { white-space: normal; }
+}
