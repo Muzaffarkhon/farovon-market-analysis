@@ -12855,3 +12855,19 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 .kr-attn-row b { display: block; font-size: 13px; }
 .kr-attn-row small { color: var(--subtle); font-size: 12px; }
 .kr-attn-empty { padding: 18px 16px; font-size: 13px; color: var(--muted); }
+
+/* Телефон: длинные таблицы больше не «прибиты» к высоте экрана внутри страницы —
+   страница прокручивается целиком, а не таблица внутри неё, которая уходила
+   под нижнюю панель и не давала листать. */
+@media (max-width: 700px) {
+  .tblwrap--page,
+  #dashSumTabBody .tblwrap--page,
+  #dictBox .tblwrap--page,
+  .org-tree-wrapper .tblwrap--page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: visible;
+  }
+  .workspace-pane { padding-bottom: 88px; }
+}
