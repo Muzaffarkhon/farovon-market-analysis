@@ -12628,3 +12628,36 @@ body { font-variant-numeric: tabular-nums; }
   .org-tree-header-bar { flex-wrap: wrap; }
   .org-tree-header-bar input { width: 100% !important; min-width: 0; }
 }
+
+
+/* Телефон: плавающая нижняя панель, компактный масштаб схемы, шторка в два положения */
+@media (max-width: 640px) {
+  #topNav.nav-tabs {
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    padding: 3px 4px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+  #topNav .nav-btn { min-height: 42px; border-radius: 18px; }
+  #topNav .nav-btn.on { background: var(--accent-soft); }
+  body.has-topnav .wrap { padding-bottom: 84px; }
+}
+
+@media (max-width: 700px) {
+  .org-bottom-zoom-pill { padding: 2px 6px; gap: 4px; left: 8px; }
+  .org-bottom-zoom-pill #btnFindMe { font-size: 11.5px !important; padding: 0 6px !important; min-height: 24px !important; }
+  .org-bottom-zoom-pill .org-zoom-btn { width: 26px; height: 26px; min-width: 26px; min-height: 26px; font-size: 15px; }
+  .org-bottom-zoom-pill .org-zoom-pct { font-size: 11.5px; min-width: 32px; }
+  .org-right-drawer { height: 36%; transition: height 0.2s ease; }
+  .org-right-drawer.is-tall { position: fixed; left: 8px; right: 8px; top: 96px; bottom: 84px; width: auto; height: auto; z-index: 60; border-radius: 14px; border: 1px solid var(--line-strong); }
+  .org-workspace-body:has(.org-right-drawer:not(.is-tall)) .org-bottom-zoom-pill { bottom: calc(36% + 8px); }
+  .org-workspace-body:has(.org-right-drawer.is-tall) .org-bottom-zoom-pill { display: none; }
+  .org-drawer-header { position: relative; padding-top: 16px; cursor: pointer; }
+  .org-drawer-header::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line-strong); }
+}
