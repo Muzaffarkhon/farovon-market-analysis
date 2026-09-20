@@ -12670,3 +12670,14 @@ body { font-variant-numeric: tabular-nums; }
   #ttl.is-crumbs .crumb-root { display: none; }
   #ttl.is-crumbs .crumb-cur { padding-left: 4px; }
 }
+
+/* Оргструктура на телефоне: заголовок, поиск и «Фильтр» не помещались в одну
+   строку и обрезались — теперь поиск с фильтром переносятся на вторую строку. */
+@media (max-width: 700px) {
+  .org-tree-header-left { flex-wrap: wrap !important; row-gap: 8px; width: 100%; }
+  .org-top-pill-title { flex: 1 1 auto; }
+  .org-tree-header-left .org-count { order: 1; }
+  .org-tree-search-wrap { flex: 1 1 55%; min-width: 0; width: auto; order: 2; }
+  .org-tree-search-wrap input { width: 100% !important; }
+  .org-tree-header-left .sf-trigger-btn { flex: none; order: 3; }
+}
