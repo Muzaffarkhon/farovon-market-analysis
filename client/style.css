@@ -12695,3 +12695,43 @@ body { font-variant-numeric: tabular-nums; }
 .sheet-hd--step1 .step-pill, .sheet-hd--step2 .step-pill { display: flex; width: fit-content; margin-bottom: 8px; }
 .sheet-hd--step1 > div:first-child > b, .sheet-hd--step2 > div:first-child > b { display: block; font-size: 18px; letter-spacing: -0.01em; }
 .sheet-hd--step1 .btn-ghost, .sheet-hd--step2 .btn-ghost { flex: none; }
+
+/* ═══ Единый вид по макету: фон страницы, кнопки, таблицы ═══
+   Светлая тема: страница светло-серая, карточки и таблицы белые. Тёмная тема
+   берёт прежний фон. Логика и разметка не затронуты — только оформление. */
+:root { --canvas: #f8fafc; }
+:root[data-theme="dark"], .theme-dark { --canvas: var(--bg); }
+body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
+
+/* Кнопки: вторичная — белая с нейтральной рамкой, главная — синяя */
+.btn-line:not(.btn-danger) {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  font-weight: 600;
+  border-radius: var(--r-xs);
+}
+.btn-line:not(.btn-danger):hover {
+  background: var(--card-hover);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.btn-primary { border-radius: var(--r-xs); font-weight: 600; box-shadow: none; }
+.btn-primary:hover { box-shadow: none; }
+
+/* Таблицы: спокойная шапка, ровные отступы, подсветка строки под курсором */
+.tblwrap { border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.co-tbl th {
+  background: var(--card-2);
+  color: var(--subtle);
+  font-weight: 700;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.co-tbl td { padding: 7px 12px; }
+.co-tbl tbody tr:hover td { background: var(--card-hover); }
+
+/* Меню теперь сверху — нижняя панель сохранения больше не сдвигается под боковое меню */
+@media (min-width: 1024px) {
+  .bar { left: 0; }
+}
