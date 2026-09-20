@@ -12735,3 +12735,33 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 @media (min-width: 1024px) {
   .bar { left: 0; }
 }
+
+/* ═══ По макету: заголовок страницы, отступы ═══
+   Строка заголовка сливается со страницей (без белой плашки и линии), заголовок
+   крупнее — как «h1 + подпись» в макетах. Телефон не затрагивается. */
+@media (min-width: 1024px) {
+  .top {
+    background: var(--canvas);
+    border-bottom: 0;
+    padding: 14px 24px 2px;
+    min-height: 58px;
+  }
+  .top h1, #ttl.is-crumbs { font-size: 21px; font-weight: 700; letter-spacing: -0.015em; }
+  .top .sub { font-size: 13.5px; }
+  .wrap { padding: 0 24px 8px 24px; }
+}
+
+/* Сводка по подразделениям: цифры — крупными плитками, как в макете «Ход сбора» */
+.page-head-stats { gap: 10px; }
+.page-head-stats .phs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 8px 14px;
+  box-shadow: var(--sh-1);
+}
+.page-head-stats .phs b { font-size: 22px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+.page-head-stats .phs span { font-size: 12px; color: var(--subtle); }
