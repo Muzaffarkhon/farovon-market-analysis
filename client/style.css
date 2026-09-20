@@ -12773,4 +12773,17 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 .batch-prog-t b { color: var(--text); }
 .batch-prog-bar { height: 8px; border-radius: 9999px; background: var(--line); overflow: hidden; }
 .batch-prog-bar i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 9999px; transition: width 0.2s ease; }
-@media (max-width: 700px) { .batch-prog { display: none; } }
+@media (max-width: 979px) { .batch-prog { display: none; } }
+
+.batch-err {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--r-xs);
+  background: var(--no-soft);
+  border: 1px solid var(--no-border);
+  color: var(--no-hover);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.batch-err[hidden] { display: none; }
