@@ -12787,3 +12787,7 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
   line-height: 1.4;
 }
 .batch-err[hidden] { display: none; }
+
+/* Дашборд: цвет значения в плитках */
+.kpi-v.kv-warn { color: var(--warn); }
+.kpi-v.kv-ok { color: var(--ok); }

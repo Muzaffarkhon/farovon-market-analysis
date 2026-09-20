@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.117')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.117')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.117')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.117')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.118')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -4207,22 +4207,36 @@ function renderDashKpiRow(sm){
   // отжимают таблицу вниз. На других вкладках строка пустая и схлопывается.
   if(S.dashTab !== 'overview') return '';
   sm = sm || {};
-  function tile(label, val, sub, warn){
+  function tile(label, val, sub, tone){
     var vHtml = (typeof val === 'number') ? '<span data-countup="'+val+'">0</span>' : val;
     return '<div class="kpi-card"><div class="kpi-t">'+label+'</div>'+
-      '<div class="kpi-v">'+vHtml+'</div>'+
-      (sub ? '<div class="kpi-s'+(warn?' is-warn':'')+'">'+sub+'</div>' : '')+
+      '<div class="kpi-v'+(tone ? ' kv-'+tone : '')+'">'+vHtml+'</div>'+
+      (sub ? '<div class="kpi-s'+(tone === 'warn' ? ' is-warn' : '')+'">'+sub+'</div>' : '')+
     '</div>';
   }
   var med = sm.salaryMedian || 0;
+  // Гэп Фаровон к рынку — среднее по должностям, где заданы оклады Фаровона.
+  var pos = ((S.dashData && S.dashData.positions) || []).filter(function(p){ return p.gapPct != null; });
+  var gapTile;
+  if(pos.length){
+    var avg = pos.reduce(function(a, p){ return a + p.gapPct; }, 0) / pos.length;
+    var avgR = Math.round(avg * 10) / 10;
+    gapTile = tile('Фаровон к рынку', (avgR > 0 ? '+' : (avgR < 0 ? '−' : '')) + String(Math.abs(avgR)).replace('.', ',') + '%',
+      avgR < 0 ? 'ниже медианы · ' + pos.length + ' ' + declOfNum(pos.length, ['должность','должности','должностей']) : (avgR > 0 ? 'выше медианы' : 'на уровне медианы'),
+      avgR < -2 ? 'warn' : (avgR > 2 ? 'ok' : ''));
+  } else {
+    gapTile = tile('Фаровон к рынку', '—', 'нужны оклады Фаровона');
+  }
+  var spread = (sm.salaryP25 && sm.salaryP75 && med) ? Math.round((sm.salaryP75 - sm.salaryP25) / med * 100) : null;
   return '<div class="kpi-grid kpi-grid--dash">'+
-    tile('Записей по рынку', (sm.totalSurveyRecords||0), (sm.recordsWithSalary||0)+' с окладом')+
-    tile('Компаний в опросе', (sm.companiesInSurvey||0), '')+
-    tile('Медиана рынка', med ? med.toLocaleString('ru-RU')+' c' : '—',
-      (sm.salaryP25 && sm.salaryP75) ? 'P25 '+sm.salaryP25.toLocaleString('ru-RU')+' · P75 '+sm.salaryP75.toLocaleString('ru-RU') : '')+
-    tile('Должностей', (sm.positionsCount||0),
-      sm.unmappedRecords ? sm.unmappedRecords+' записей без сопоставления' : '',
-      !!sm.unmappedRecords)+
+    tile('Медиана рынка (P50)', med ? med.toLocaleString('ru-RU') + ' c' : '—',
+      (sm.salaryP25 && sm.salaryP75) ? 'P25 '+sm.salaryP25.toLocaleString('ru-RU')+' · P75 '+sm.salaryP75.toLocaleString('ru-RU') : 'сомони, оклад')+
+    gapTile+
+    tile('Размах вилки', spread != null ? spread + '%' : '—', spread != null ? 'между P25 и P75' : '')+
+    tile('Записей по рынку', (sm.totalSurveyRecords||0),
+      (sm.recordsWithSalary||0)+' с окладом · '+(sm.companiesInSurvey||0)+' '+declOfNum(sm.companiesInSurvey||0, ['компания','компании','компаний'])+
+      (sm.unmappedRecords ? ' · '+sm.unmappedRecords+' без сопоставления' : ''),
+      sm.unmappedRecords ? 'warn' : '')+
   '</div>';
 }
 
