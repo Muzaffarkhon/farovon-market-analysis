@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.102')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.103')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.102')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.103')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.102')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.103')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.102')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.103')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1296,7 +1296,7 @@ function renderHome(){
   var p = S.data.period || {};
   var periodOpen = p.state !== 'закрыт';
 
-  function stat(val, label, hint, cls){
+  function stat(val, label, hint, cls, vcls){
     var vHtml;
     if(typeof val === 'number'){
       vHtml = '<span data-countup="'+val+'">0</span>';
@@ -1306,7 +1306,7 @@ function renderHome(){
       vHtml = val;
     }
     return '<div class="home-stat">'+
-      '<div class="home-stat-v">'+vHtml+'</div>'+
+      '<div class="home-stat-v'+(vcls ? ' '+vcls : '')+'">'+vHtml+'</div>'+
       '<div class="home-stat-l">'+esc(label)+'</div>'+
       (hint ? '<div class="home-stat-h'+(cls ? ' '+cls : '')+'">'+esc(hint)+'</div>' : '')+
     '</div>';
@@ -1355,7 +1355,7 @@ function renderHome(){
 
   h += '<div class="home-stats">'+
     stat(units.length, isElevated ? 'подразделений' : 'моих подразделений', null) +
-    stat(pct + '%', 'участники рынка проверены', mcTotal ? (mcDone + ' из ' + mcTotal) : 'нет данных') +
+    stat(pct + '%', 'участники рынка проверены', mcTotal ? (mcDone + ' из ' + mcTotal) : 'нет данных', null, !mcTotal ? '' : (pct >= 66 ? 'v-ok' : (pct >= 33 ? 'v-acc' : 'v-warn'))) +
     stat(agg.surveys, 'записей по рынку', null) +
     stat('<span class="home-period-name">' + esc(p.name || '—') + '</span>', 'период сбора',
          (p.to ? 'до ' + p.to : '') + (periodOpen ? '' : ' · закрыт'), periodOpen ? 'ok' : 'mut') +
@@ -1369,6 +1369,28 @@ function renderHome(){
     h += '<div class="note home-hint">На уточнении: <b>' + askCompanies + '</b> ' +
       declOfNum(askCompanies, ['компания', 'компании', 'компаний']) +
       ' — ещё не считаются проверенными.</div>';
+  }
+
+  var dirMap = {};
+  units.forEach(function(x){
+    var d = String(x.dir || 'Без направления').trim() || 'Без направления';
+    var e = dirMap[d] || (dirMap[d] = { name:d, units:0, full:0, total:0, done:0 });
+    e.units++; e.total += x.total || 0; e.done += x.done || 0;
+    if((x.total || 0) > 0 && (x.done || 0) >= (x.total || 0)) e.full++;
+  });
+  var dirs = Object.keys(dirMap).map(function(k){ return dirMap[k]; })
+    .sort(function(a, b){ return b.units - a.units; });
+  if(dirs.length > 1){
+    h += '<div class="sec-title home-sec">Ход сбора по направлениям</div>';
+    h += '<div class="home-dirs">' + dirs.slice(0, 12).map(function(d){
+      var pc = d.total ? Math.round(d.done / d.total * 100) : 0;
+      var tone = pc >= 66 ? 'ok' : (pc >= 33 ? '' : 'warn');
+      return '<div class="home-dir">'+
+        '<div class="home-dir-h"><span class="home-dir-n" title="'+esc(d.name)+'">'+esc(d.name)+'</span><b>'+pc+'%</b></div>'+
+        '<div class="home-bar '+tone+'"><i style="width:'+pc+'%"></i></div>'+
+        '<div class="home-dir-s">подразделений: '+d.units+' · полностью: '+d.full+'</div>'+
+      '</div>';
+    }).join('') + '</div>';
   }
 
   h += '<div class="sec-title home-sec">Разделы</div>';
