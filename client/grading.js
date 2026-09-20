@@ -414,6 +414,7 @@ function drawGradePositions(){
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей'+
     (hasCommittee ? ' <span class="muted">· комиссия '+GR.committeeSize+' чел.'+(GR.isCommitteeMember ? '' : ', вы не в её составе')+'</span>' : '')+
     '</div>'+
+    '<div class="gr-progbar'+(done === GR.rows.length ? ' ok' : '')+'"><i style="width:'+Math.round(done / GR.rows.length * 100)+'%"></i></div>'+
     // Список растёт по содержимому — под ним не должно оставаться пустого
     // экрана. Пока анкета открыта, этот блок вообще скрыт (см. выше), так
     // что ужимать под неё больше не нужно.
@@ -433,7 +434,7 @@ function drawGradePositions(){
       // Остальным членам комиссии чужие голоса до утверждения не показываем —
       // отсюда и «слепая» заявка теряет смысл, если любой мог бы их сверить.
       var committeePlain = (r.grade_level ? 'завершено' : (r.submitted_count || 0)+' из '+GR.committeeSize);
-      var committeeText = committeePlain + (mySubmitted ? ' '+icBare('check', 12) : '');
+      var committeeText = '<span class="gr-cstat '+(r.grade_level ? 'is-done' : ((r.submitted_count || 0) > 0 ? 'is-part' : 'is-none'))+'">'+committeePlain+'</span>' + (mySubmitted ? ' '+icBare('check', 12) : '');
       var committeeCell = (canReset && (r.submitted_count || 0) > 0)
         ? '<button type="button" class="list-cell gr-committee-cell" data-i="'+i+'" data-ctx-label="'+esc('Комиссия: ' + committeePlain)+'">'+committeeText+'</button>'
         : committeeText;

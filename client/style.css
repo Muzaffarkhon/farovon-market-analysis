@@ -12595,3 +12595,15 @@ body { font-variant-numeric: tabular-nums; }
 .bmv-main:has(.bmv-badge.is-ok) .bmv-cr b { color: var(--ok); }
 .bmv-main:has(.bmv-badge.is-low) .bmv-cr b { color: var(--no); }
 .bmv-main:has(.bmv-badge.is-high) .bmv-cr b { color: var(--warn); }
+
+
+/* ═══ Переделка дизайна, этап 5: оценка должностей и риски ═══ */
+.gr-progress { padding: 8px 2px 6px; font-size: 13.5px; }
+.gr-progress b { color: var(--text); }
+.gr-progbar { height: 6px; border-radius: 9999px; background: var(--line); margin: 0 2px 12px; overflow: hidden; }
+.gr-progbar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+.gr-progbar.ok i { background: var(--ok); }
+.gr-cstat { display: inline-flex; padding: 2px 9px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: var(--card-2); color: var(--muted); }
+.gr-cstat.is-part { background: var(--warn-soft); color: var(--warn); }
+.gr-cstat.is-done { background: var(--ok-soft); color: var(--ok); }
+.kr-heat .kr-cell.on { font-size: 17px; height: 46px; }
