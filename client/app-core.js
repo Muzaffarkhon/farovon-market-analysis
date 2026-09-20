@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.101';
+var APP_VERSION = window.APP_VERSION || 'v2.5.102';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -3031,19 +3031,15 @@ function openPicker(opts){
 }
 
 function toggleRailCollapse(){
-  S.railCollapsed = !S.railCollapsed;
-  saveNavState();
-  applyRailCollapse();
+  // Меню теперь верхнее и не сворачивается — оставлено для совместимости.
 }
 
 function applyRailCollapse(){
   var rail = $('rail');
   if(!rail) return;
-  rail.classList.toggle('is-collapsed', !!S.railCollapsed);
+  rail.classList.remove('is-collapsed');
   var rb = $('railBrand');
-  if(rb){
-    rb.title = S.railCollapsed ? 'Развернуть меню' : 'Свернуть меню';
-  }
+  if(rb){ rb.title = ''; rb.style.cursor = 'default'; }
 }
 
 /**
@@ -3069,7 +3065,7 @@ var NAV_ROLE_NAMES = {
 function navRenderBtn(it, cls){
   var on = it.active && it.active() ? ' on' : '';
   var danger = it.danger ? ' btn-danger' : '';
-  var lbl = esc((cls === 'nav-btn' && it.tabLabel) || it.label);
+  var lbl = esc((cls === 'nav-btn' && it.tabLabel) || (cls === 'rail-item' && it.key === 'report' ? 'Отчёт' : it.label));
   var icon = cls === 'rail-item'
     ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'
     : ic(it.icon);
@@ -3114,6 +3110,25 @@ function navRenderBtn(it, cls){
 
 var activeRailDropdown = null;
 
+// Список для выпадашки «Администрирование»: разделы без своих подразделов —
+// как есть, разделы с подразделами (Пользователи, Справочники) разворачиваются
+// в их подразделы с подписью «Раздел · Подраздел», чтобы ничего не терялось.
+function adminDropdownSubs(m){
+  var out = [];
+  (m.admin || []).forEach(function(it){
+    var kids = it.subsections || it.submenu;
+    if(kids && kids.length >= 2){
+      kids.forEach(function(k){
+        out.push({ key:k.key, icon:k.icon || it.icon, active:k.active, run:k.run,
+          label: it.label + ' · ' + k.label });
+      });
+    } else {
+      out.push(it);
+    }
+  });
+  return out;
+}
+
 function closeRailDropdown(){
   if(activeRailDropdown){
     if(activeRailDropdown.el && activeRailDropdown.el.parentNode){
@@ -3140,6 +3155,9 @@ function toggleRailDropdown(navKey, btn){
   var m = navModel();
   var all = m.primary.concat(m.admin, m.utility);
   var it = all.filter(function(x){ return x.key === navKey; })[0];
+  if(navKey === 'admin' && !it){
+    it = { key:'admin', label:'Администрирование', submenu: adminDropdownSubs(m) };
+  }
   if(!it) return;
 
   var subs = it.subsections || it.submenu;
@@ -3186,17 +3204,17 @@ function toggleRailDropdown(navKey, btn){
 
   // Позиционирование поверх левого меню в стиле АИСТ
   var rect = btn.getBoundingClientRect();
-  var left = rect.right + 6;
-  var top = rect.top;
+  // Меню сверху: список раскрывается под кнопкой.
+  var left = rect.left;
+  var top = rect.bottom + 4;
 
   var h = el.offsetHeight || (subs.length * 36 + 46);
   if(top + h > window.innerHeight - 12){
     top = Math.max(12, window.innerHeight - h - 12);
   }
 
-  if(left + 240 > window.innerWidth){
-    left = Math.max(8, rect.left);
-    top = rect.bottom + 4;
+  if(left + 290 > window.innerWidth){
+    left = Math.max(8, window.innerWidth - 298);
   }
 
   el.style.left = left + 'px';
@@ -3270,6 +3288,10 @@ function navHandleClick(e){
     openNavSubmenu(it);
     return;
   }
+  if(it.key === 'admin' && b.classList.contains('rail-item')){
+    toggleRailDropdown('admin', b);
+    return;
+  }
   if(it.key === 'refresh' || it.key === 'help' || it.key === 'profile' || it.key === 'out') it.run();
   else navGo(it);
 }
@@ -3286,11 +3308,13 @@ function renderNav(){
 
     var rh = m.primary.map(function(it){ return navRenderBtn(it, 'rail-item'); }).join('');
     if(m.admin.length){
-      // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
-      // «Грейдинг» (см. navModel() в app.js) — здесь остаётся только сама
-      // админка, без нужды выделять из неё подгруппу вручную.
-      rh += '<div class="rail-sec-label">Администрирование</div>';
-      m.admin.forEach(function(it){ rh += navRenderBtn(it, 'rail-item'); });
+      // Верхнее меню одной строкой: всё администрирование — один пункт
+      // с выпадающим списком (разделы и их подразделы, см. adminDropdownSubs).
+      rh += navRenderBtn({
+        key:'admin', label:'Администрирование', icon:'admin',
+        active:function(){ return S.appView === 'admin'; },
+        submenu: adminDropdownSubs(m)
+      }, 'rail-item');
     }
     $('railNav').innerHTML = rh;
     $('railNav').onclick = navHandleClick;
