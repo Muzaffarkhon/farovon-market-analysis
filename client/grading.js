@@ -228,7 +228,8 @@ function drawGradeBlocks(){
   if(!bar) return;
   bar.innerHTML = (GR.blocks || []).map(function(b){
     return '<button class="gr-group'+(b.key === GR.block ? ' on' : '')+'" data-b="'+esc(b.key)+'">'+
-      esc(b.label)+'<small>'+(b.evaluated_count || 0)+' из '+(b.position_count || 0)+' оценено</small></button>';
+      '<span class="gr-gname">'+esc(b.label)+'</span><small>'+(b.evaluated_count || 0)+' из '+(b.position_count || 0)+' оценено</small>'+
+      '<i class="gr-gbar"><b style="width:'+(b.position_count ? Math.round((b.evaluated_count || 0) / b.position_count * 100) : 0)+'%"></b></i></button>';
   }).join('');
   [].forEach.call(bar.querySelectorAll('[data-b]'), function(btn){
     btn.onclick = function(){
@@ -421,7 +422,7 @@ function drawGradePositions(){
     '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
     '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th>'+
       (hasCommittee ? '<th>Комиссия</th>' : '')+
-      '<th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
+      '<th class="gr-num">Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var mySubmitted = !!r.my_submission;
       var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
@@ -443,7 +444,7 @@ function drawGradePositions(){
         '<td>'+unitsCell+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         (hasCommittee ? '<td>'+committeeCell+'</td>' : '')+
-        '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
+        '<td class="gr-num">'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">'+esc(grGradeName(r.grade_level))+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
         '<td class="gr-row-acts">'+
           '<button class="btn-line gr-open" data-i="'+i+'">'+btnLabel+'</button>'+

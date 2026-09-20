@@ -12825,3 +12825,15 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 .bmr-row { grid-template-columns: minmax(0, 1fr) 120px 96px 64px; }
 .bmv-nums b { font-size: 24px; letter-spacing: -0.02em; }
 .bmv-cr b { font-size: 38px; }
+
+/* Оценка должностей: карточки блоков и таблица как в макете */
+.gr-groups { gap: 10px; margin-bottom: 14px; }
+.gr-group { align-items: stretch; text-align: left; background: var(--card); box-shadow: var(--sh-1); padding: 12px 14px; }
+.gr-group:hover { border-color: var(--accent-border); }
+.gr-gname { font-size: 15px; font-weight: 700; color: var(--text); }
+.gr-group small { font-size: 12px; }
+.gr-gbar { display: block; height: 6px; border-radius: 9999px; background: var(--line); margin-top: 6px; overflow: hidden; }
+.gr-gbar b { display: block; height: 100%; background: var(--ok); border-radius: 9999px; }
+.gr-group.on { background: var(--accent-soft); border-color: var(--accent); box-shadow: none; }
+.gr-group.on .gr-gname { color: var(--accent); }
+.gr-tbl .gr-num { text-align: right; font-weight: 700; }
