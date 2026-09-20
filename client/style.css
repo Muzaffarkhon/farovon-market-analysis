@@ -12654,10 +12654,19 @@ body { font-variant-numeric: tabular-nums; }
   .org-bottom-zoom-pill #btnFindMe { font-size: 11.5px !important; padding: 0 6px !important; min-height: 24px !important; }
   .org-bottom-zoom-pill .org-zoom-btn { width: 26px; height: 26px; min-width: 26px; min-height: 26px; font-size: 15px; }
   .org-bottom-zoom-pill .org-zoom-pct { font-size: 11.5px; min-width: 32px; }
-  .org-right-drawer { height: 36%; transition: height 0.2s ease; }
+  .org-right-drawer { height: 27%; min-height: 128px; transition: height 0.2s ease; }
   .org-right-drawer.is-tall { position: fixed; left: 8px; right: 8px; top: 96px; bottom: 76px; width: auto; height: auto; z-index: 60; border-radius: 14px; border: 1px solid var(--line-strong); }
-  .org-workspace-body:has(.org-right-drawer:not(.is-tall)) .org-bottom-zoom-pill { bottom: calc(36% + 8px); }
+  .org-workspace-body:has(.org-right-drawer:not(.is-tall)) .org-bottom-zoom-pill { bottom: calc(max(27%, 128px) + 8px); }
   .org-workspace-body:has(.org-right-drawer.is-tall) .org-bottom-zoom-pill { display: none; }
   .org-drawer-header { position: relative; padding-top: 16px; cursor: pointer; }
   .org-drawer-header::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line-strong); }
+}
+
+/* Телефон: в заголовке остаётся только текущий раздел — длинная цепочка
+   «Администрирование › Оргструктура» обрезалась до «Администриров». */
+@media (max-width: 620px) {
+  #ttl.is-crumbs .crumb-link,
+  #ttl.is-crumbs .crumb-sep,
+  #ttl.is-crumbs .crumb-root { display: none; }
+  #ttl.is-crumbs .crumb-cur { padding-left: 4px; }
 }
