@@ -12815,3 +12815,13 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 .ovf-ben-h span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ovf-ben-bar { height: 8px; border-radius: 9999px; background: var(--line); overflow: hidden; }
 .ovf-ben-bar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+
+/* Бенчмаркинг: таблица источников как в макете — серая шапка, полоса веса */
+.bmr-hd { background: var(--card-2); border-radius: var(--r-xs); padding: 8px 10px; color: var(--subtle); font-weight: 700; margin-bottom: 2px; }
+.bmr-row { padding: 11px 10px; }
+.bmr-w { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-weight: 700; }
+.bmr-wbar { display: block; width: 100%; height: 6px; border-radius: 9999px; background: var(--line); overflow: hidden; }
+.bmr-wbar b { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+.bmr-row { grid-template-columns: minmax(0, 1fr) 120px 96px 64px; }
+.bmv-nums b { font-size: 24px; letter-spacing: -0.02em; }
+.bmv-cr b { font-size: 38px; }
