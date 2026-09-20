@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.119')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.119')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.118')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.119')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.118')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.119')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -4789,6 +4789,63 @@ function overviewBarRow(name, right, pct, color){
   '</div>';
 }
 
+/**
+ * Блок «как в макете»: слева зарплатные вилки по должностям (коробки P25–P75,
+ * риска-медиана, тонкая линия мин–макс), справа рейтинг льгот. Полные версии
+ * остаются на вкладках «Зарплатные вилки» и «Льготы и Бонусы».
+ */
+function overviewForkBenefits(positions, benefits){
+  var rows = positions.filter(function(p){ return p.min > 0 && p.max > 0 && p.median > 0; })
+    .sort(function(a, b){ return (b.count || 0) - (a.count || 0); }).slice(0, 6);
+  var bens = (benefits || []).slice(0, 6);
+  if(!rows.length && !bens.length) return '';
+  var lo = 0, hi = 1;
+  if(rows.length){
+    lo = Math.min.apply(null, rows.map(function(p){ return p.min; }));
+    hi = Math.max.apply(null, rows.map(function(p){ return p.max; }));
+    var pad = Math.round((hi - lo) * 0.05); lo = Math.max(0, lo - pad); hi = hi + pad;
+  }
+  var rng = Math.max(hi - lo, 1);
+  var pc = function(v){ return Math.max(0, Math.min(100, (v - lo) / rng * 100)); };
+  var fmt = function(n){ return Math.round(n).toLocaleString('ru-RU'); };
+
+  var left = '<div class="card ovf-card">'+
+    '<div class="ovf-hd"><b>Зарплатные вилки по должностям</b><span>сомони · минимум, P25, медиана, P75, максимум</span></div>';
+  if(rows.length){
+    rows.forEach(function(p){
+      var p25 = p.p25 > 0 ? p.p25 : p.min, p75 = p.p75 > 0 ? p.p75 : p.max;
+      left += '<div class="ovf-row">'+
+        '<div class="ovf-name" title="'+esc(p.pos)+'">'+esc(p.pos)+'</div>'+
+        '<div class="ovf-track">'+
+          '<i class="ovf-line" style="left:'+pc(p.min)+'%;width:'+Math.max(0.5, pc(p.max) - pc(p.min))+'%"></i>'+
+          '<i class="ovf-box" style="left:'+pc(p25)+'%;width:'+Math.max(1, pc(p75) - pc(p25))+'%"></i>'+
+          '<i class="ovf-med" style="left:'+pc(p.median)+'%"></i>'+
+          (p.ourMid > 0 ? '<i class="ovf-our" title="Оклад Фаровон" style="left:'+pc(p.ourMid)+'%"></i>' : '')+
+        '</div>'+
+        '<div class="ovf-val">'+fmt(p.median)+'</div>'+
+      '</div>';
+    });
+    left += '<div class="ovf-legend"><span>Синий блок — от P25 до P75</span><span>Линия внутри — медиана</span><span>Тонкая линия — минимум и максимум</span>'+
+      (rows.some(function(p){ return p.ourMid > 0; }) ? '<span>Тёмная метка — оклад Фаровон</span>' : '')+'</div>';
+  } else {
+    left += '<div class="ovf-empty">Нет должностей с заполненными вилками</div>';
+  }
+  left += '</div>';
+
+  var right = '<div class="card ovf-card">'+
+    '<div class="ovf-hd"><b>Рейтинг льгот</b><span>доля компаний рынка</span></div>';
+  if(bens.length){
+    bens.forEach(function(b){
+      right += '<div class="ovf-ben"><div class="ovf-ben-h"><span title="'+esc(b.name)+'">'+esc(b.name)+'</span><b>'+b.pct+'%</b></div>'+
+        '<div class="ovf-ben-bar"><i style="width:'+Math.max(2, Math.min(100, b.pct))+'%"></i></div></div>';
+    });
+  } else {
+    right += '<div class="ovf-empty">Нет данных о льготах</div>';
+  }
+  right += '</div>';
+  return '<div class="ovf-dual">' + left + right + '</div>';
+}
+
 function renderOverviewTab(d){
   d = d || {};
   var sm = d.summary || {};
@@ -4807,6 +4864,9 @@ function renderOverviewTab(d){
   };
 
   var h = '<div class="dash-tab-scroll">';
+
+  // 0. Вилки по должностям + рейтинг льгот — сразу под плитками, как в макете
+  h += overviewForkBenefits(positions, d.topBenefits);
 
   // 1. Распределение окладов — salHistogram уже возвращает самодостаточную
   //    карточку с заголовком, второй раз в .card не оборачиваем.

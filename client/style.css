@@ -12791,3 +12791,27 @@ body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
 /* Дашборд: цвет значения в плитках */
 .kpi-v.kv-warn { color: var(--warn); }
 .kpi-v.kv-ok { color: var(--ok); }
+
+/* Обзор дашборда: вилки по должностям + рейтинг льгот на одном экране */
+.ovf-dual { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; margin-bottom: 12px; align-items: start; }
+@media (max-width: 900px) { .ovf-dual { grid-template-columns: 1fr; } }
+.ovf-card { padding: 14px 16px; }
+.ovf-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.ovf-hd b { font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--subtle); }
+.ovf-hd span { font-size: 12px; color: var(--subtle); text-align: right; }
+.ovf-row { display: grid; grid-template-columns: minmax(110px, 200px) 1fr 76px; gap: 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.ovf-name { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovf-track { position: relative; height: 24px; }
+.ovf-track i { position: absolute; display: block; }
+.ovf-line { top: 11px; height: 2px; background: var(--line-strong); }
+.ovf-box { top: 3px; height: 18px; background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 5px; box-sizing: border-box; }
+.ovf-med { top: 1px; height: 22px; width: 3px; margin-left: -1px; background: var(--accent); border-radius: 2px; }
+.ovf-our { top: 5px; height: 14px; width: 6px; margin-left: -3px; background: var(--text); border-radius: 2px; }
+.ovf-val { text-align: right; font-weight: 700; font-size: 13px; }
+.ovf-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 12px; color: var(--subtle); }
+.ovf-empty { padding: 18px 0; font-size: 13px; color: var(--muted); }
+.ovf-ben { padding: 8px 0; }
+.ovf-ben-h { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
+.ovf-ben-h span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovf-ben-bar { height: 8px; border-radius: 9999px; background: var(--line); overflow: hidden; }
+.ovf-ben-bar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
