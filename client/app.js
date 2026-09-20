@@ -524,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.115')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.116')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.115')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.116')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.115')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.116')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.115')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.116')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -3003,6 +3003,17 @@ function openBatchSurveySheet(posName){
     }
   }
 
+  function updateBatchProgress(){
+    var n = document.getElementById('bpNum'), b = document.getElementById('bpBar');
+    if(!n || !b) return;
+    var done = entries.filter(function(it){
+      var pf = parseMoney(it.payFrom), pt = parseMoney(it.payTo);
+      return pf > 0 && pt > 0 && pf <= pt;
+    }).length;
+    n.textContent = done + ' из ' + entries.length;
+    b.style.width = (entries.length ? Math.round(done / entries.length * 100) : 0) + '%';
+  }
+
   function updateCardCompleteness(card, item){
     var comp = getSurveyItemCompleteness(item);
     var pFrom = parseMoney(item.payFrom);
@@ -3023,6 +3034,7 @@ function openBatchSurveySheet(posName){
     }
     card.classList.toggle('is-filled', comp.status === 'ok' && !isForkInverted);
     card.classList.toggle('is-part', comp.status === 'part' || isForkInverted);
+    updateBatchProgress();
   }
 
   // Один вид переменной части: размер + вид + периодичность. Строк может быть
@@ -3161,6 +3173,8 @@ function openBatchSurveySheet(posName){
           '<b>Должность: '+esc(posName)+'</b>'+
           '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
         '</div>'+
+        '<div class="batch-prog"><div class="batch-prog-t"><span>Оклад указан</span><b id="bpNum"></b></div>'+
+          '<div class="batch-prog-bar"><i id="bpBar"></i></div></div>'+
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
 
@@ -3184,6 +3198,7 @@ function openBatchSurveySheet(posName){
 
   renderSheetContent();
   document.body.appendChild(el);
+  updateBatchProgress();
 
   // Перерисовать выпадающий список льгот в карточке из текущего item.benefits
   // (после «Отметить частые» и добавления своей льготы). keepOpen — оставить
