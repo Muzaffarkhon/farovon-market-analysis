@@ -12681,3 +12681,17 @@ body { font-variant-numeric: tabular-nums; }
   .org-tree-search-wrap input { width: 100% !important; }
   .org-tree-header-left .sf-trigger-btn { flex: none; order: 3; }
 }
+
+/* ═══ Окна ввода шагов 1 и 2: шапка в новом стиле ═══ */
+.sheet-hd--step1, .sheet-hd--step2 {
+  border-left: 0;
+  padding-left: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sheet-hd--step1 > div:first-child, .sheet-hd--step2 > div:first-child { flex: 1; min-width: 0; }
+.sheet-hd--step1 .step-pill, .sheet-hd--step2 .step-pill { display: flex; width: fit-content; margin-bottom: 8px; }
+.sheet-hd--step1 > div:first-child > b, .sheet-hd--step2 > div:first-child > b { display: block; font-size: 18px; letter-spacing: -0.01em; }
+.sheet-hd--step1 .btn-ghost, .sheet-hd--step2 .btn-ghost { flex: none; }
