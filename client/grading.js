@@ -1288,7 +1288,32 @@ function loadRiskHeatmap(){
     // где «горит».
     rows.sort(function(a, b){ return (b.critical - a.critical) || (b.total - a.total); });
 
-    var h = '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl kr-heat">'+
+    var sum = rows.reduce(function(a, x){
+      a.total += x.total || 0; a.critical += x.critical || 0; a.attention += x.attention || 0; a.standard += x.standard || 0;
+      return a;
+    }, { total:0, critical:0, attention:0, standard:0 });
+    var kpi = function(label, v, sub, tone){
+      return '<div class="kpi-card"><div class="kpi-t">'+label+'</div><div class="kpi-v'+(tone ? ' kv-'+tone : '')+'">'+v+'</div>'+
+        '<div class="kpi-s">'+sub+'</div></div>';
+    };
+    var hot = rows.filter(function(x){ return x.critical > 0 || x.attention > 0; })
+      .sort(function(a, b){ return (b.critical - a.critical) || (b.attention - a.attention); }).slice(0, 6);
+    var attn = '<div class="card kr-attn"><div class="kr-attn-hd">Требуют внимания</div>'+
+      (hot.length ? hot.map(function(x){
+        var crit = x.critical > 0;
+        return '<div class="kr-attn-row"><div><b>'+esc(x.dir)+'</b><small>'+(x.critical ? x.critical+' критических' : '')+
+          (x.critical && x.attention ? ' · ' : '')+(x.attention ? x.attention+' в зоне внимания' : '')+'</small></div>'+
+          '<span class="badge '+(crit ? 'kr-critical' : 'kr-attention')+'">'+(crit ? 'Высокий' : 'Средний')+'</span></div>';
+      }).join('') : '<div class="kr-attn-empty">Направлений с повышенным риском нет</div>')+
+    '</div>';
+
+    var h = '<div class="kpi-grid kr-kpis">'+
+      kpi('Оценено сотрудников', sum.total, 'по '+rows.length+' '+declOfNum(rows.length, ['направлению','направлениям','направлениям']), '')+
+      kpi('Критический риск', sum.critical, 'нужен план преемственности', sum.critical ? 'no' : '')+
+      kpi('Зона внимания', sum.attention, 'под наблюдением', sum.attention ? 'warn' : '')+
+      kpi('Штатные', sum.standard, 'риск в норме', sum.standard ? 'ok' : '')+
+    '</div>'+
+    '<div class="kr-dual"><div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl kr-heat">'+
       '<thead><tr><th>Направление</th><th>Штатные</th><th>Зона внимания</th><th>Критический риск</th><th>Всего</th></tr></thead><tbody>'+
       rows.map(function(x){
         return '<tr>'+
@@ -1299,7 +1324,7 @@ function loadRiskHeatmap(){
           '<td><b>'+x.total+'</b></td>'+
         '</tr>';
       }).join('')+
-      '</tbody></table></div>';
+      '</tbody></table></div>'+ attn + '</div>';
 
     $('krContent').innerHTML = h;
   })).catch(guardAsyncToTab(function(){
