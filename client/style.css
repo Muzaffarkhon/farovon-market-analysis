@@ -12635,7 +12635,7 @@ body { font-variant-numeric: tabular-nums; }
   #topNav.nav-tabs {
     left: 12px;
     right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    bottom: calc(3px + env(safe-area-inset-bottom));
     padding: 3px 4px;
     border: 1px solid var(--line);
     border-radius: 24px;
@@ -12646,7 +12646,7 @@ body { font-variant-numeric: tabular-nums; }
   }
   #topNav .nav-btn { min-height: 42px; border-radius: 18px; }
   #topNav .nav-btn.on { background: var(--accent-soft); }
-  body.has-topnav .wrap { padding-bottom: 84px; }
+  body.has-topnav .wrap { padding-bottom: 76px; }
 }
 
 @media (max-width: 700px) {
@@ -12655,7 +12655,7 @@ body { font-variant-numeric: tabular-nums; }
   .org-bottom-zoom-pill .org-zoom-btn { width: 26px; height: 26px; min-width: 26px; min-height: 26px; font-size: 15px; }
   .org-bottom-zoom-pill .org-zoom-pct { font-size: 11.5px; min-width: 32px; }
   .org-right-drawer { height: 36%; transition: height 0.2s ease; }
-  .org-right-drawer.is-tall { position: fixed; left: 8px; right: 8px; top: 96px; bottom: 84px; width: auto; height: auto; z-index: 60; border-radius: 14px; border: 1px solid var(--line-strong); }
+  .org-right-drawer.is-tall { position: fixed; left: 8px; right: 8px; top: 96px; bottom: 76px; width: auto; height: auto; z-index: 60; border-radius: 14px; border: 1px solid var(--line-strong); }
   .org-workspace-body:has(.org-right-drawer:not(.is-tall)) .org-bottom-zoom-pill { bottom: calc(36% + 8px); }
   .org-workspace-body:has(.org-right-drawer.is-tall) .org-bottom-zoom-pill { display: none; }
   .org-drawer-header { position: relative; padding-top: 16px; cursor: pointer; }
