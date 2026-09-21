@@ -3303,28 +3303,17 @@ function openBatchSurveySheet(posName){
     '</div>';
   }
 
-  function filledCount(){
-    return entries.filter(function(it){ return getSurveyItemCompleteness(it).status !== 'none'; }).length;
-  }
-
-  function refreshProgress(){
-    var sub = el.querySelector('.bs-sub');
-    if(sub) sub.textContent = 'Заполнено ' + filledCount() + ' из ' + entries.length + ' ' + declOfNum(entries.length, ['компании','компаний','компаний']);
-  }
-
   function refreshAsideRow(idx){
     var row = el.querySelector('.bl-item[data-go="'+idx+'"]');
     if(!row) return;
     var tmp = document.createElement('div');
     tmp.innerHTML = asideRowHtml(entries[idx], idx);
     row.parentNode.replaceChild(tmp.firstChild, row);
-    refreshProgress();
   }
 
   function refreshAside(){
     var list = el.querySelector('.batch-aside-list');
     if(list) list.innerHTML = entries.map(asideRowHtml).join('');
-    refreshProgress();
   }
 
   // Открыть карточку компании. На узком экране список и карточка — два
@@ -3348,7 +3337,6 @@ function openBatchSurveySheet(posName){
         '<div>'+
           '<span class="step-pill step-pill--2">'+ic('wallet', 12)+'Шаг 2 · Оклады</span>'+
           '<b>Должность: '+esc(posName)+'</b>'+
-          '<div class="bs-sub"></div>'+
         '</div>'+
         '<div class="batch-prog"><div class="batch-prog-t"><span>Оклад указан</span><b id="bpNum"></b></div>'+
           '<div class="batch-prog-bar"><i id="bpBar"></i></div></div>'+
