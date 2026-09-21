@@ -20,6 +20,17 @@ function toMonthly(value, hourly) {
   return (hourly && value > 0) ? Math.round(value * HOURS_PER_MONTH) : value;
 }
 
+/**
+ * Сдельная оплата (за услугу/изделие). К месяцу не приводится: сколько услуг
+ * человек сделает за месяц — неизвестно, а ставка за услугу (условные 50
+ * сомони) в вилке окладов дала бы либо мусорную медиану, либо, через
+ * эвристику looksHourly (< 1000 → ЧТС), умножение на 168 часов. Поэтому такие
+ * строки в зарплатную статистику не попадают, но остаются в «Реестре данных».
+ */
+function isPieceRate(payPer) {
+  return /сдельн|за услуг|за издели/i.test(String(payPer || ''));
+}
+
 /** Нормализация должности/компании для сопоставления position_company_selections
  * с surveys (то же самое, что norm() в surveyController.js/фронте). */
 function normPos(s) {
@@ -366,7 +377,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     // направления / HR BP / видимости пользователя).
     {
       const rg = (uInfo.region || '').trim();
-      if (rg) {
+      if (rg && !isPieceRate(s.pay_per)) {
         const _pf = Number(s.pay_from) || 0;
         const _pt = Number(s.pay_to) || 0;
         const _hr = looksHourly((s.pay_per || '').trim(), _pf, _pt);
@@ -392,9 +403,14 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     const payPer = (s.pay_per || 'в месяц').trim();
     // ЧТС приводим к месяцу (× 168 ч) — для вилок, медианы и гистограммы.
     // Сырые pFrom/pTo остаются как есть для вкладки «Реестр данных».
-    const isHourly = looksHourly(payPer, pFrom, pTo);
-    const pFromM = toMonthly(pFrom, isHourly);
-    const pToM = toMonthly(pTo, isHourly);
+    // Сдельные ставки обнуляем для месячных показателей — дальше все сводки
+    // (медиана, вилки, регионы, «записей с окладом») отбирают строки по
+    // pFromM/pToM > 0, поэтому строка выпадает из статистики автоматически,
+    // оставаясь в «Реестре данных» с исходными pFrom/pTo.
+    const isPiece = isPieceRate(payPer);
+    const isHourly = !isPiece && looksHourly(payPer, pFrom, pTo);
+    const pFromM = isPiece ? 0 : toMonthly(pFrom, isHourly);
+    const pToM = isPiece ? 0 : toMonthly(pTo, isHourly);
     const bonHas = (s.bon_has || '').trim().toLowerCase();
     const bonSize = (s.bon_size || '').trim();
     const bonType = (s.bon_type || '').trim();
@@ -728,6 +744,7 @@ module.exports = {
   parseBonusSize,
   perToMonthlyFactor,
   normPeriod,
+  isPieceRate,
   summarizeVarPay,
   resolveDashboardPeriodId,
 };
