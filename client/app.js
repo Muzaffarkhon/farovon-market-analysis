@@ -3034,7 +3034,7 @@ function openBatchSurveySheet(posName){
     b.style.width = (entries.length ? Math.round(done / entries.length * 100) : 0) + '%';
   }
 
-  function updateCardCompleteness(card, item){
+  function updateCardCompleteness(card, item, skipReveal){
     var comp = getSurveyItemCompleteness(item);
     var pFrom = parseMoney(item.payFrom);
     var pTo = parseMoney(item.payTo);
@@ -3058,7 +3058,10 @@ function openBatchSurveySheet(posName){
     // действием, иначе статус и оклад в списке отстают от того, что печатают.
     refreshAsideRow(+card.dataset.idx);
     // Заполнили блок — открываем следующий и освежаем сводки в свёрнутых.
-    revealSections(card, item);
+    // На мобильных это разворачивает блок прямо под пальцем/клавиатурой,
+    // поэтому пока поле оклада ещё в фокусе, раскрытие откладывается до blur
+    // (см. skipReveal в обработчике input и слушатель blur ниже).
+    if(!skipReveal) revealSections(card, item);
     // Счётчик «Оклад указан N из M» и баннер «от > до» из main.
     updateBatchProgress();
   }
@@ -3794,6 +3797,7 @@ function openBatchSurveySheet(posName){
     if(!card) return;
     var idx = +card.dataset.idx;
     var item = entries[idx];
+    var isPayField = e.target.classList.contains('b-pay-from') || e.target.classList.contains('b-pay-to');
 
     // Раньше буквы отфильтровывались только в item.payFrom/payTo (модель),
     // а само поле ввода оставалось как есть — человек видел набранный текст,
@@ -3819,8 +3823,21 @@ function openBatchSurveySheet(posName){
     }
     if(e.target.classList.contains('b-extra')) item.extra = e.target.value;
     if(e.target.classList.contains('b-note')) item.note = e.target.value;
-    updateCardCompleteness(card, item);
+    updateCardCompleteness(card, item, isPayField);
   });
+
+  // Поле оклада ещё в фокусе — блок «Должность у них» откроется только когда
+  // пользователь уйдёт из поля, а не с первым же введённым символом. blur не
+  // всплывает, поэтому слушаем на фазе погружения (capture).
+  el.addEventListener('blur', function(e){
+    var t = e.target;
+    if(!t.classList || !(t.classList.contains('b-pay-from') || t.classList.contains('b-pay-to'))) return;
+    var card = t.closest('.batch-card');
+    if(!card) return;
+    var idx = +card.dataset.idx;
+    var item = entries[idx];
+    revealSections(card, item);
+  }, true);
 
   el.addEventListener('change', function(e){
     var card = e.target.closest('.batch-card');
