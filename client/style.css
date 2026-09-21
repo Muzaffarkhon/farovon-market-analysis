@@ -2742,72 +2742,41 @@ label.lbl {
   padding-bottom: 8px;
 }
 
-.batch-list {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 8px 0;
-}
-
-/* Низ карточки должности: кнопка сохранения (обычный поток — прокручивается
-   вместе со списком) + плавающая подсказка «ниже ещё N компаний». */
+/* Низ карточки должности: кнопка сохранения. */
 .batch-foot {
   margin-top: 12px;
   padding-bottom: calc(2px + env(safe-area-inset-bottom));
 }
 
-/* Подсказка — липкая: пока ниже есть скрытые компании, висит у нижнего края
-   области прокрутки; у конца списка сама уезжает вверх. Скрыта (hidden),
-   когда всё помещается или список кончился — тогда не занимает места. */
-.batch-foot-cue {
-  position: sticky;
-  bottom: 10px;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: max-content;
-  max-width: 90%;
-  margin: 6px auto -2px;
-  padding: 5px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  animation: batch-cue-bob 1.6s ease-in-out infinite;
-}
-.batch-foot-cue:hover { color: var(--text); border-color: var(--accent); }
-@keyframes batch-cue-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(2px); }
+/* ── Анкета Шага 2: список компаний слева, поля одной компании справа ──────
+   Прежний вариант рисовал поля ввода сразу по всем компаниям (таблица на
+   десктопе, стопка аккордеонов на телефоне) — экран получался перегруженным.
+   Теперь видно ровно одну анкету, список слева служит навигацией и картой
+   прогресса. */
+.batch-split {
+  display: grid;
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin: 10px 0 2px;
 }
 
-/* turn-7b — плоская редактируемая таблица для десктопа: одна строка на
-   компанию, оклад правится в ячейке, «Параметры» разворачивают детальные
-   поля под строкой на всю ширину. */
-.batch-list--grid {
-  gap: 0;
+/* min-width:0 обязателен обеим панелям: у grid-элемента по умолчанию
+   min-width:auto, и длинная подпись поля распирает карточку за край экрана. */
+.batch-aside,
+.batch-main {
+  min-width: 0;
+}
+
+.batch-aside {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-}
-
-.bx-head,
-.batch-list--grid .bx-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 1.6fr) 92px 92px 108px 120px 116px 128px;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
-}
-
-.bx-head {
   background: var(--card-2);
+  overflow: hidden;
+}
+
+.batch-aside-hd {
+  padding: 8px 12px;
   border-bottom: 1px solid var(--line);
   font-size: 11.5px;
   font-weight: 700;
@@ -2816,91 +2785,197 @@ label.lbl {
   color: var(--muted);
 }
 
-.batch-list--grid .batch-card {
-  border: 0;
-  border-left: 3px solid transparent;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  background: var(--card);
+/* Обе панели прокручиваются сами по себе: иначе при длинной анкете список
+   компаний уезжает вверх вместе с формой, и кнопка «Сохранить» оказывается
+   в самом низу общей простыни. */
+.batch-aside-list,
+.batch-main {
+  max-height: min(58vh, 540px);
+  overflow-y: auto;
 }
 
-.batch-list--grid .batch-card:last-child {
-  border-bottom: 0;
-}
-
-.batch-list--grid .batch-card:hover {
-  box-shadow: none;
-}
-
-.batch-list--grid .batch-card.is-filled {
-  border-left: 3px solid var(--ok);
-  background: var(--ok-soft);
-}
-
-.batch-list--grid .batch-card.is-part {
-  border-left: 3px solid var(--warn);
-  background: var(--warn-soft);
-}
-
-.batch-list--grid .bx-co {
+.bl-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.batch-list--grid .bx-co span {
+.bl-item:last-child { border-bottom: 0; }
+.bl-item:hover { background: var(--card-hover); }
+
+.bl-item.on {
+  background: var(--card);
+  border-left-color: var(--accent);
+}
+
+.bl-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.bl-ok .bl-dot { background: var(--ok); }
+.bl-part .bl-dot { background: var(--warn); }
+.bl-needs .bl-dot { background: var(--no); }
+
+.bl-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bl-co {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.batch-list--grid .bx-cell input,
-.batch-list--grid .bx-cell select {
-  width: 100%;
-  height: 34px;
-  min-height: 34px;
-  padding: 0 8px;
-  font-size: 13.5px;
+.bl-sum {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.batch-list--grid .batch-toggle-more.bx-more {
-  margin: 0;
-  width: auto;
-  min-height: 34px;
-  padding: 0 10px;
-  justify-content: center;
-  gap: 4px;
-  font-size: 13px;
+.bl-pct {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+}
+
+.bl-ok .bl-pct { color: var(--ok); }
+
+/* Карточка одной компании — один столбец, поля сгруппированы по смыслу. */
+.bcard {
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius);
   background: var(--card);
+  padding: 14px 16px 10px;
+  box-shadow: none;
 }
 
-.batch-list--grid .batch-toggle-more.bx-more:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.bcard.is-filled { border-left-color: var(--ok); }
+.bcard.is-part { border-left-color: var(--warn); }
+
+.bcard-hd {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
 }
 
-.batch-list--grid .batch-hd.bx-st {
-  padding: 0;
-  margin: 0;
-  border: 0;
-  background: none;
+.bcard-hd .batch-co-title { font-size: 15px; }
+
+/* «К списку» нужна только там, где панели не помещаются рядом. */
+.bcard-back { display: none; }
+
+.bsec {
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.bsec:first-of-type { border-top: 0; }
+
+/* Заголовок блока должен читаться уровнем выше подписей полей (label.lbl —
+   13.5px/600/muted), иначе группировка не считывается и экран снова
+   выглядит сплошной лентой полей. */
+.bsec-t {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
 }
 
-.batch-list--grid .batch-more-panel {
-  margin: 0;
-  padding: 12px 16px 16px;
-  border-top: 1px dashed var(--line);
-  background: var(--card-2);
+/* Внутри блока отступ сверху задаётся явно (.bsec-gap), а не через margin
+   каждой подписи — иначе после заголовка блока зияет двойной отступ. */
+.bsec-b label.lbl { margin-top: 0; }
+.bsec-b .bsec-gap { margin-top: 12px; }
+
+.bsec-req {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.bsec-gap { margin-top: 10px; }
+
+.bcard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.bcard-nav .btn-line { width: auto; }
+.bcard-nav .btn-line[disabled] { opacity: 0.4; pointer-events: none; }
+.bcard-prev svg { transform: rotate(180deg); }
+
+.bcard-pos {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Узкий экран: список и карточка — два отдельных экрана. */
+@media (max-width: 899px) {
+  .batch-split {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .batch-aside-list,
+  .batch-main { max-height: none; overflow: visible; }
+  .batch-split .batch-main { display: none; }
+  .batch-split.is-detail .batch-aside { display: none; }
+  .batch-split.is-detail .batch-main { display: block; }
+  .bcard { padding: 12px 12px 8px; }
+  .bcard-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-right: auto;
+    padding: 4px 8px 4px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .bcard-back svg { transform: rotate(180deg); }
+  .bcard-hd { flex-wrap: wrap; }
+  .bcard-hd .batch-co-title { width: 100%; order: 3; }
 }
 
 .batch-card {
@@ -3058,12 +3133,6 @@ label.lbl {
   white-space: nowrap;
 }
 
-.batch-more-panel {
-  border-top: 1px solid var(--line);
-  margin-top: 12px;
-  padding-top: 12px;
-}
-
 @media (max-width: 768px) {
   .batch-card-inner {
     flex-direction: column;
@@ -3142,50 +3211,6 @@ label.lbl {
 .batch-card.is-part {
   border-left: 4px solid var(--warn);
   background: var(--card);
-}
-
-.batch-row-main {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-@media (max-width: 640px) {
-  .batch-row-main {
-    grid-template-columns: 1fr;
-  }
-}
-
-.batch-toggle-more {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  padding: 6px 4px;
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px dashed var(--line);
-  margin-top: 8px;
-}
-
-.batch-toggle-more .b-arr svg {
-  transition: transform 0.2s ease;
-  vertical-align: -1px;
-}
-
-.batch-toggle-more.open .b-arr svg {
-  transform: rotate(90deg);
-}
-
-.batch-more-panel {
-  padding-top: 10px;
-  margin-top: 4px;
 }
 
 .b-pay-from,

@@ -3012,11 +3012,14 @@ function openBatchSurveySheet(posName){
     }
     card.classList.toggle('is-filled', comp.status === 'ok' && !isForkInverted);
     card.classList.toggle('is-part', comp.status === 'part' || isForkInverted);
+    // Строка в списке слева живёт отдельно от карточки — обновляем её тем же
+    // действием, иначе статус и оклад в списке отстают от того, что печатают.
+    refreshAsideRow(+card.dataset.idx);
   }
 
   // Один вид переменной части: размер + вид + периодичность. Строк может быть
   // несколько (item.bonuses). Пустой массив = одна строка-заготовка.
-  // Объявлено на уровне openBatchSurveySheet — зовётся и из morePanelHtml,
+  // Объявлено на уровне openBatchSurveySheet — зовётся и из карточки компании,
   // и из обработчика кликов (добавить/убрать вид).
   function bonRowsHtml(item){
     var rows = (Array.isArray(item.bonuses) && item.bonuses.length) ? item.bonuses : [{ type:'', size:'', per:'' }];
@@ -3043,132 +3046,181 @@ function openBatchSurveySheet(posName){
     }).join('');
   }
 
-  function renderSheetContent(){
-    // turn-7b: на десктопе весь ввод по должности — плоская редактируемая
-    // таблица (оклад правится прямо в ячейке), детальные поля (должность у них,
-    // бонусы, льготы, источник, комментарий) остаются на «Параметры» под строкой.
-    // На телефоне — прежние аккордеон-карточки (turn-7a).
-    // Ширину берём по факту окна: класс .compact на <html> в обычном браузере
-    // висит всегда (грузится Telegram SDK), поэтому по нему десктоп не отличить.
-    var wide = window.innerWidth >= 980;
+  // Какая компания сейчас редактируется (индекс в entries). Форма показывает
+  // поля ровно одной компании: прежний вариант рисовал сразу все N компаний с
+  // полями ввода в каждой строке — на 9-25 компаниях это была стена контролов.
+  var curIdx = 0;
+  // Компании, где при сохранении не хватило обязательных полей — помечаются в
+  // списке слева, чтобы было видно, куда возвращаться.
+  var needsSet = {};
 
-    function morePanelHtml(item){
-      return '<div class="batch-more-panel hidden">'+
-        '<label class="lbl">Как эта должность называется у них</label>'+
-        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>' + ic('chevron', 12) + '</i></div>'+
+  var curOpts = function(sel){ return currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); };
+  var perOpts = function(sel){ return payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(sel===p?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
 
-        '<label class="lbl">Грейд / Уровень</label>'+
-        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">'+
+  // Короткая сводка оклада для строки списка: «6 500 – 7 500 сомони».
+  function payPreview(item){
+    var f = String(item.payFrom == null ? '' : item.payFrom).trim();
+    var t = String(item.payTo == null ? '' : item.payTo).trim();
+    if(!f && !t) return '';
+    var cur = item.cur || '';
+    return (f && t ? f + ' – ' + t : (f || t)) + (cur ? ' ' + cur : '');
+  }
 
-        '<label class="lbl">График работы</label>'+
-        chips('schedule', scheduleList, item.schedule, false)+
+  function asideRowHtml(item, idx){
+    var comp = getSurveyItemCompleteness(item);
+    var pay = payPreview(item);
+    return '<button type="button" class="bl-item bl-'+comp.status+
+        (idx === curIdx ? ' on' : '')+(needsSet[idx] ? ' bl-needs' : '')+'" data-go="'+idx+'">'+
+      '<span class="bl-dot"></span>'+
+      '<span class="bl-txt">'+
+        '<span class="bl-co">'+esc(item.co)+'</span>'+
+        '<span class="bl-sum">'+(pay ? esc(pay) : 'нет данных')+'</span>'+
+      '</span>'+
+      '<span class="bl-pct">'+(comp.status === 'ok' ? ic('check', 13) : (comp.pct ? comp.pct + '%' : ''))+'</span>'+
+    '</button>';
+  }
 
-        '<label class="lbl">Бонусы и премии</label>'+
+  // Блок полей с заголовком. req — пометка «обязательно»: раньше про
+  // обязательность графика/бонусов/источника/надёжности человек узнавал только
+  // из ошибки при сохранении.
+  function sec(title, req, body){
+    return '<section class="bsec">'+
+      '<h4 class="bsec-t">'+esc(title)+(req ? '<span class="bsec-req">обязательно</span>' : '')+'</h4>'+
+      '<div class="bsec-b">'+body+'</div>'+
+    '</section>';
+  }
+
+  function detailHtml(item, idx){
+    var comp = getSurveyItemCompleteness(item);
+    var cls = comp.status === 'ok' ? 'is-filled' : (comp.status === 'part' ? 'is-part' : '');
+    return '<div class="batch-card bcard '+cls+'" data-idx="'+idx+'">'+
+      '<div class="batch-hd bcard-hd">'+
+        '<button type="button" class="bcard-back" data-act="to-list">'+ic('chevron', 13)+'К списку</button>'+
+        '<div class="batch-co-title">'+ic('units', 14)+'<span>'+esc(item.co)+'</span></div>'+
+        renderSurveyStTag(comp)+
+      '</div>'+
+
+      sec('Оклад', false,
+        '<div class="two">'+
+          '<div><label class="lbl">Оклад от</label><input class="b-pay-from" inputmode="decimal" placeholder="например: 6500" value="'+esc(item.payFrom)+'"></div>'+
+          '<div><label class="lbl">Оклад до</label><input class="b-pay-to" inputmode="decimal" placeholder="например: 7500" value="'+esc(item.payTo)+'"></div>'+
+        '</div>'+
+        '<div class="two bsec-gap">'+
+          '<div><label class="lbl">Валюта</label><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
+          '<div><label class="lbl">Период</label><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
+        '</div>')+
+
+      sec('Должность у них', false,
+        '<label class="lbl">Как эта должность называется в компании</label>'+
+        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>'+ic('chevron', 12)+'</i></div>'+
+        '<label class="lbl bsec-gap">Грейд / Уровень</label>'+
+        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">')+
+
+      sec('График работы', true,
+        chips('schedule', scheduleList, item.schedule, false))+
+
+      sec('Премии и бонусы', true,
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
-        '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+'" style="margin-top:8px">'+
+        '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+' bsec-gap">'+
           '<div class="b-bon-list">'+bonRowsHtml(item)+'</div>'+
           '<button type="button" class="btn-line b-bon-add" data-act="bon-add">'+ic('plus',12)+' Добавить вид</button>'+
-        '</div>'+
+        '</div>')+
 
-        '<label class="lbl" style="margin-top:10px">Льготы и соцпакет</label>'+
+      sec('Льготы и соцпакет', false,
         (STD_PINNED.length
           ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Отметить частые</button>'
           : '')+
         benefitDropdown(item.benefits, benefitGroups, STD_PINNED)+
+        '<label class="lbl bsec-gap">Прочие выплаты</label>'+
+        '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">')+
 
-        '<label class="lbl" style="margin-top:10px">Прочие выплаты</label>'+
-        '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">'+
+      sec('Откуда данные', true,
+        '<label class="lbl">Источник</label>'+
+        chips('source', sources, item.source, false)+
+        '<label class="lbl bsec-gap">Насколько данным можно доверять</label>'+
+        chips('trust', trustList, item.trust, false))+
 
-        '<div class="two" style="margin-top:10px">'+
-          '<div><label class="lbl">Откуда данные</label>'+chips('source', sources, item.source, false)+'</div>'+
-          '<div><label class="lbl">Надёжность</label>'+chips('trust', trustList, item.trust, false)+'</div>'+
-        '</div>'+
+      sec('Комментарий', false,
+        '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>')+
 
-        '<label class="lbl" style="margin-top:10px">Комментарий</label>'+
-        '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>'+
-      '</div>';
+      '<div class="bcard-nav">'+
+        '<button type="button" class="btn-line bcard-prev" data-act="go-prev"'+(idx <= 0 ? ' disabled' : '')+'>'+ic('chevron', 12)+'Предыдущая</button>'+
+        '<span class="bcard-pos">'+(idx + 1)+' из '+entries.length+'</span>'+
+        '<button type="button" class="btn-line bcard-next" data-act="go-next"'+(idx >= entries.length - 1 ? ' disabled' : '')+'>Следующая'+ic('chevron', 12)+'</button>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function filledCount(){
+    return entries.filter(function(it){ return getSurveyItemCompleteness(it).status !== 'none'; }).length;
+  }
+
+  function refreshProgress(){
+    var sub = el.querySelector('.bs-sub');
+    if(sub) sub.textContent = 'Заполнено ' + filledCount() + ' из ' + entries.length + ' ' + declOfNum(entries.length, ['компании','компаний','компаний']);
+  }
+
+  function refreshAsideRow(idx){
+    var row = el.querySelector('.bl-item[data-go="'+idx+'"]');
+    if(!row) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = asideRowHtml(entries[idx], idx);
+    row.parentNode.replaceChild(tmp.firstChild, row);
+    refreshProgress();
+  }
+
+  function refreshAside(){
+    var list = el.querySelector('.batch-aside-list');
+    if(list) list.innerHTML = entries.map(asideRowHtml).join('');
+    refreshProgress();
+  }
+
+  // Открыть карточку компании. На узком экране список и карточка — два
+  // «экрана» (класс is-detail), на широком они стоят рядом.
+  function selectCompany(i){
+    if(i < 0 || i >= entries.length) return;
+    curIdx = i;
+    var main = el.querySelector('.batch-main');
+    if(main){
+      main.innerHTML = detailHtml(entries[i], i);
+      main.scrollTop = 0;
     }
+    refreshAside();
+    var split = el.querySelector('.batch-split');
+    if(split) split.classList.add('is-detail');
+  }
 
-    var curOpts = function(sel){ return currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); };
-    var perOpts = function(sel){ return payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(sel===p?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
-
-    var cardsHtml = entries.map(function(item, idx){
-      var comp = getSurveyItemCompleteness(item);
-      var stTag = renderSurveyStTag(comp);
-      var cls = comp.status === 'ok' ? 'is-filled' : (comp.status === 'part' ? 'is-part' : '');
-
-      if(wide){
-        return '<div class="batch-card '+cls+'" data-idx="'+idx+'">'+
-          '<div class="bx-row">'+
-            '<div class="bx-co">' + ic('units', 14) + '<span>' + esc(item.co) + '</span></div>'+
-            '<div class="bx-cell"><input class="b-pay-from" inputmode="decimal" placeholder="от" value="'+esc(item.payFrom)+'"></div>'+
-            '<div class="bx-cell"><input class="b-pay-to" inputmode="decimal" placeholder="до" value="'+esc(item.payTo)+'"></div>'+
-            '<div class="bx-cell"><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
-            '<div class="bx-cell"><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
-            '<button type="button" class="batch-toggle-more bx-more" data-act="toggle-more">Параметры <span class="b-arr">' + ic('chevron', 12) + '</span></button>'+
-            '<div class="batch-hd bx-st">'+stTag+'</div>'+
-          '</div>'+
-          morePanelHtml(item)+
-        '</div>';
-      }
-
-      return '<div class="batch-card '+cls+'" data-idx="'+idx+'">'+
-        '<div class="batch-hd">'+
-          '<div class="batch-co-title">' + ic('units', 14) + '<span>' + esc(item.co) + '</span></div>'+
-          stTag+
-        '</div>'+
-        '<div class="batch-row-main">'+
-          '<div>'+
-            '<label class="lbl">Оклад ('+esc(item.cur)+')</label>'+
-            '<div class="two">'+
-              '<div><input class="b-pay-from" inputmode="decimal" placeholder="от" value="'+esc(item.payFrom)+'"></div>'+
-              '<div><input class="b-pay-to" inputmode="decimal" placeholder="до" value="'+esc(item.payTo)+'"></div>'+
-            '</div>'+
-          '</div>'+
-          '<div>'+
-            '<label class="lbl">Валюта и период</label>'+
-            '<div class="two">'+
-              '<div><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
-              '<div><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
-            '</div>'+
-          '</div>'+
-        '</div>'+
-
-        '<button type="button" class="batch-toggle-more" data-act="toggle-more">'+
-          '<span>' + ic('wrench', 13) + 'Параметры (должность у них, бонусы, льготы, источник)</span>'+
-          '<span class="b-arr">' + ic('chevron', 12) + '</span>'+
-        '</button>'+
-
-        morePanelHtml(item)+
-      '</div>';
-    }).join('');
-
-    el.innerHTML = '<div class="sheet-in batch-sheet'+(wide ? ' batch-sheet--wide' : '')+'">'+
+  function renderSheetContent(){
+    el.innerHTML = '<div class="sheet-in batch-sheet batch-sheet--wide">'+
       '<div class="sheet-hd sheet-hd--step2">'+
         '<div>'+
           '<span class="step-pill step-pill--2">'+ic('wallet', 12)+'Шаг 2 · Оклады</span>'+
           '<b>Должность: '+esc(posName)+'</b>'+
-          '<div style="font-size:13px;color:var(--muted);margin-top:2px">Пакетный ввод данных по '+actualCos.length+' '+declOfNum(actualCos.length, ['компании','компаниям','компаниям'])+'</div>'+
+          '<div class="bs-sub"></div>'+
         '</div>'+
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
 
-      '<div class="batch-list'+(wide ? ' batch-list--grid' : '')+'">'+
-        (wide ? '<div class="bx-head">'+
-          '<span>Компания</span><span>Оклад от*</span><span>Оклад до*</span>'+
-          '<span>Валюта</span><span>Период</span><span></span><span>Статус</span>'+
-        '</div>' : '')+
-        cardsHtml+
+      '<div class="batch-split">'+
+        '<aside class="batch-aside">'+
+          '<div class="batch-aside-hd">Компании</div>'+
+          '<div class="batch-aside-list"></div>'+
+        '</aside>'+
+        '<div class="batch-main"></div>'+
       '</div>'+
 
-      // Липкий низ: кнопка сохранения всегда на виду, а над ней — подсказка
-      // «ниже ещё N», когда список компаний не помещается на экран (важнее
-      // всего в альбомной ориентации, где высота маленькая).
-      '<button type="button" class="batch-foot-cue" data-act="scroll-more" hidden>'+ic('chevron', 13)+'<span></span></button>'+
       '<div class="batch-foot">'+
         '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
       '</div>'+
     '</div>';
+
+    refreshAside();
+    var main = el.querySelector('.batch-main');
+    if(main) main.innerHTML = detailHtml(entries[curIdx], curIdx);
+    // На широком экране обе панели видны сразу; на узком первым показываем
+    // список, чтобы человек сам выбрал, с какой компании начать.
+    var split = el.querySelector('.batch-split');
+    if(split && window.innerWidth >= 900) split.classList.add('is-detail');
   }
 
   renderSheetContent();
@@ -3190,43 +3242,6 @@ function openBatchSurveySheet(posName){
     }
     wrap.parentNode.replaceChild(fresh, wrap);
   }
-
-  // ── Подсказка «ниже ещё компании» ───────────────────────────────────────
-  // Показываем, только когда список реально не помещается и мы не у конца.
-  // Текст — сколько карточек компаний ещё под сгибом.
-  function updateScrollCue(){
-    if(!el.isConnected){
-      window.removeEventListener('resize', updateScrollCue);
-      window.removeEventListener('orientationchange', updateScrollCue);
-      return;
-    }
-    var sc = el.querySelector('.sheet-in');
-    var cue = el.querySelector('.batch-foot-cue');
-    if(!sc || !cue) return;
-    var foot = el.querySelector('.batch-foot');
-    var scRect = sc.getBoundingClientRect();
-    // Сколько ещё прокрутки осталось до кнопки «Сохранить».
-    var remain = foot
-      ? (foot.getBoundingClientRect().top - scRect.bottom)
-      : (sc.scrollHeight - sc.scrollTop - sc.clientHeight);
-    if(remain <= 8){ cue.hidden = true; return; }
-    // Карточки, чей верхний край ушёл ниже видимой области — ещё не на экране.
-    var cards = el.querySelectorAll('.batch-card');
-    var below = 0;
-    for(var i = 0; i < cards.length; i++){
-      if(cards[i].getBoundingClientRect().top >= scRect.bottom - 16) below++;
-    }
-    cue.querySelector('span').textContent = below
-      ? 'ниже ещё ' + below + ' ' + declOfNum(below, ['компания', 'компании', 'компаний'])
-      : 'прокрутите вниз';
-    cue.hidden = false;
-  }
-  var _cueSheet = el.querySelector('.sheet-in');
-  if(_cueSheet) _cueSheet.addEventListener('scroll', updateScrollCue, { passive: true });
-  window.addEventListener('resize', updateScrollCue);
-  window.addEventListener('orientationchange', updateScrollCue);
-  el.addEventListener('_recue', updateScrollCue);
-  setTimeout(updateScrollCue, 60);
 
   var initialSnapshot = JSON.stringify(entries);
   function isSheetDirty(){
@@ -3267,6 +3282,7 @@ function openBatchSurveySheet(posName){
       ];
       [].forEach.call(el.querySelectorAll('.batch-card--needs'), function(c){ c.classList.remove('batch-card--needs'); });
       [].forEach.call(el.querySelectorAll('.chips--invalid'), function(c){ c.classList.remove('chips--invalid'); });
+      needsSet = {};
       var reqErrors = [];
       entries.forEach(function(item, ri){
         var started = !!(
@@ -3281,21 +3297,8 @@ function openBatchSurveySheet(posName){
         if(!started) return;
         var miss = REQUIRED_DETAIL.filter(function(f){ return !String(item[f.key] == null ? '' : item[f.key]).trim(); });
         if(!miss.length) return;
-        reqErrors.push({ co: item.co, miss: miss });
-        var card = el.querySelector('.batch-card[data-idx="' + ri + '"]');
-        if(card){
-          card.classList.add('batch-card--needs');
-          var panel = card.querySelector('.batch-more-panel');
-          if(panel && panel.classList.contains('hidden')){
-            panel.classList.remove('hidden');
-            var mb = card.querySelector('[data-act="toggle-more"]');
-            if(mb) mb.classList.add('open');
-          }
-          miss.forEach(function(f){
-            var box = card.querySelector('.chips[data-chips="' + f.chips + '"]');
-            if(box) box.classList.add('chips--invalid');
-          });
-        }
+        reqErrors.push({ co: item.co, miss: miss, idx: ri });
+        needsSet[ri] = 1;
       });
       if(reqErrors.length){
         var first = reqErrors[0];
@@ -3305,8 +3308,20 @@ function openBatchSurveySheet(posName){
             : 'Не хватает обязательных полей (график, бонусы, источник, надёжность) в ' + reqErrors.length + ' ' + declOfNum(reqErrors.length, ['компании', 'компаниях', 'компаниях']),
           'warn'
         );
-        var firstCard = el.querySelector('.batch-card--needs');
-        if(firstCard && firstCard.scrollIntoView) firstCard.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        // В DOM живёт карточка только текущей компании — открываем первую
+        // проблемную и подсвечиваем в ней недостающие наборы чипов; остальные
+        // помечены в списке слева (needsSet).
+        selectCompany(first.idx);
+        var firstCard = el.querySelector('.batch-card[data-idx="' + first.idx + '"]');
+        if(firstCard){
+          firstCard.classList.add('batch-card--needs');
+          first.miss.forEach(function(f){
+            var box = firstCard.querySelector('.chips[data-chips="' + f.chips + '"]');
+            if(box) box.classList.add('chips--invalid');
+          });
+          var firstBox = firstCard.querySelector('.chips--invalid');
+          if(firstBox && firstBox.scrollIntoView) firstBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
         return false;
       }
 
@@ -3441,12 +3456,17 @@ function openBatchSurveySheet(posName){
       return;
     }
 
-    // Подсказка «ниже ещё компании» — прокручиваем список почти на экран вниз
-    if(e.target.closest('[data-act="scroll-more"]')){
-      var sc2 = el.querySelector('.sheet-in');
-      if(sc2) sc2.scrollBy({ top: Math.max(160, sc2.clientHeight - 140), behavior: 'smooth' });
+    // Навигация по компаниям: строка списка, «назад к списку» (узкий экран),
+    // «Предыдущая» / «Следующая» под карточкой.
+    var goRow = e.target.closest('[data-go]');
+    if(goRow){ selectCompany(+goRow.dataset.go); return; }
+    if(e.target.closest('[data-act="to-list"]')){
+      var splitEl = el.querySelector('.batch-split');
+      if(splitEl) splitEl.classList.remove('is-detail');
       return;
     }
+    if(e.target.closest('[data-act="go-prev"]')){ selectCompany(curIdx - 1); return; }
+    if(e.target.closest('[data-act="go-next"]')){ selectCompany(curIdx + 1); return; }
 
     // «Отметить частые» — одним кликом проставить закреплённый набор льгот
     // (STD_PINNED). Повторный клик, если весь набор уже стоит, — снимает его.
@@ -3478,7 +3498,6 @@ function openBatchSurveySheet(posName){
       var bdPanel = bdWrap.querySelector('.bx-bd-panel');
       if(bdPanel) bdPanel.classList.toggle('hidden');
       bdWrap.classList.toggle('open', bdPanel && !bdPanel.classList.contains('hidden'));
-      setTimeout(function(){ el.dispatchEvent(new Event('_recue')); }, 0);
       return;
     }
 
@@ -3496,16 +3515,6 @@ function openBatchSurveySheet(posName){
       refreshBenefitDropdown(bdCard, bdItem, true);
       updateCardCompleteness(bdCard, bdItem);
       toast(exists ? 'Такая льгота уже отмечена' : 'Добавлена льгота: ' + nv, exists ? '' : 'ok');
-      return;
-    }
-
-    var moreBtn = e.target.closest('[data-act="toggle-more"]');
-    if(moreBtn){
-      var card = moreBtn.closest('.batch-card');
-      var panel = card.querySelector('.batch-more-panel');
-      panel.classList.toggle('hidden');
-      moreBtn.classList.toggle('open');
-      setTimeout(function(){ el.dispatchEvent(new Event('_recue')); }, 0);
       return;
     }
 
