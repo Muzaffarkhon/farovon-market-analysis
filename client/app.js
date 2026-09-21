@@ -3057,13 +3057,22 @@ function openBatchSurveySheet(posName){
   var curOpts = function(sel){ return currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); };
   var perOpts = function(sel){ return payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(sel===p?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
 
+  // Сдельная оплата: ставка назначается за услугу, а не за отработанное время.
+  // Та же проверка, что на сервере (isPieceRate в analyticsService) — такие
+  // записи не участвуют в месячных вилках и медиане рынка.
+  function payIsPiece(p){
+    return /сдельн|за услуг|за издели/i.test(String(p || ''));
+  }
+
   // Короткая сводка оклада для строки списка: «6 500 – 7 500 сомони».
   function payPreview(item){
     var f = String(item.payFrom == null ? '' : item.payFrom).trim();
     var t = String(item.payTo == null ? '' : item.payTo).trim();
     if(!f && !t) return '';
     var cur = item.cur || '';
-    return (f && t ? f + ' – ' + t : (f || t)) + (cur ? ' ' + cur : '');
+    return (f && t ? f + ' – ' + t : (f || t)) +
+      (cur ? ' ' + cur : '') +
+      (payIsPiece(item.payPer) ? ' за услугу' : '');
   }
 
   function asideRowHtml(item, idx){
@@ -3108,11 +3117,18 @@ function openBatchSurveySheet(posName){
         '<div class="two bsec-gap">'+
           '<div><label class="lbl">Валюта</label><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
           '<div><label class="lbl">Период</label><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
-        '</div>')+
+        '</div>'+
+        '<p class="bsec-hint b-piece-hint'+(payIsPiece(item.payPer) ? '' : ' hidden')+'">'+
+          'Сдельная оплата: укажите ставку за одну услугу. В вилки и медиану рынка такие записи не попадают — их нельзя сравнивать с месячным окладом.'+
+        '</p>')+
 
       sec('Должность у них', false,
         '<label class="lbl">Как эта должность называется в компании</label>'+
-        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span><i>'+ic('chevron', 12)+'</i></div>'+
+        // Кнопка сброса нужна: выбранную должность раньше нельзя было снять —
+        // пикер умеет только выбрать другую, пустого пункта в нём нет.
+        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span>'+
+          (item.posTheir ? '<button type="button" class="pick-clear" data-act="clear-their" title="Очистить">'+ic('close', 12)+'</button>' : '')+
+          '<i>'+ic('chevron', 12)+'</i></div>'+
         '<label class="lbl bsec-gap">Грейд / Уровень</label>'+
         '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">')+
 
@@ -3561,6 +3577,21 @@ function openBatchSurveySheet(posName){
       return;
     }
 
+    // Сброс выбранной должности у конкурента — проверяем ДО открытия пикера,
+    // иначе клик по крестику внутри .pick откроет выбор вместо очистки.
+    if(e.target.closest('[data-act="clear-their"]')){
+      item.posTheir = '';
+      var pickBox = card.querySelector('.b-pick-their');
+      if(pickBox){
+        var ph = pickBox.querySelector('span');
+        if(ph){ ph.textContent = 'Выберите или добавьте'; ph.className = 'ph'; }
+        var clr = pickBox.querySelector('.pick-clear');
+        if(clr) clr.remove();
+      }
+      updateCardCompleteness(card, item);
+      return;
+    }
+
     // Пикер должности у конкурента
     var pickTheir = e.target.closest('.b-pick-their');
     if(pickTheir){
@@ -3571,8 +3602,19 @@ function openBatchSurveySheet(posName){
         value: item.posTheir,
         onPick: function(v){
           item.posTheir = v;
-          pickTheir.querySelector('span').textContent = v || 'Выберите или добавьте';
-          pickTheir.querySelector('span').className = v ? '' : 'ph';
+          var span = pickTheir.querySelector('span');
+          span.textContent = v || 'Выберите или добавьте';
+          span.className = v ? '' : 'ph';
+          // Крестик появляется вместе с выбранным значением.
+          if(v && !pickTheir.querySelector('.pick-clear')){
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pick-clear';
+            btn.dataset.act = 'clear-their';
+            btn.title = 'Очистить';
+            btn.innerHTML = ic('close', 12);
+            pickTheir.insertBefore(btn, pickTheir.querySelector('i'));
+          }
           updateCardCompleteness(card, item);
         }
       });
@@ -3645,7 +3687,12 @@ function openBatchSurveySheet(posName){
     var item = entries[idx];
 
     if(e.target.classList.contains('b-cur')){ item.cur = e.target.value; S.fillPrefs.cur = item.cur; }
-    if(e.target.classList.contains('b-pay-per')){ item.payPer = e.target.value; S.fillPrefs.payPer = item.payPer; }
+    if(e.target.classList.contains('b-pay-per')){
+      item.payPer = e.target.value;
+      S.fillPrefs.payPer = item.payPer;
+      var hint = card.querySelector('.b-piece-hint');
+      if(hint) hint.classList.toggle('hidden', !payIsPiece(item.payPer));
+    }
 
     // Галочка льготы в выпадающем списке
     if(e.target.matches('input[data-act="bd-opt"]')){

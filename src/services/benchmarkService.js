@@ -1,7 +1,7 @@
 const { queryAll, queryOne, run, batch } = require('../db/database');
 const { getActivePeriod } = require('./periodService');
 const { hasCapability } = require('../middleware/auth');
-const { summarizeVarPay, parseBonusesCol } = require('./analyticsService');
+const { summarizeVarPay, parseBonusesCol, isPieceRate } = require('./analyticsService');
 
 /**
  * Расчет перцентилей по массиву чисел (P10, P25, P50/медиана, P75, P90, min, max, avg).
@@ -253,7 +253,7 @@ class BenchmarkService {
     // дашборд уже умеет их различать.
     const currentPeriod = await getActivePeriod();
     const survRows = await queryAll(`
-      SELECT pay_from, pay_to, cur, company,
+      SELECT pay_from, pay_to, cur, company, pay_per,
              bon_has, bon_size, bon_type, bon_per, bonuses
       FROM surveys
       WHERE state != 'удалена' AND LOWER(TRIM(pos_our)) = LOWER(TRIM(?)) AND period_id = ?
@@ -266,6 +266,9 @@ class BenchmarkService {
     const internalTotalValues = [];
     let bonusQuantifiedCount = 0;
     survRows.forEach(r => {
+      // Сдельная ставка за услугу несопоставима с месячным окладом Фаровона —
+      // в перцентили внутреннего сбора её не берём (как и на дашборде).
+      if (isPieceRate(r.pay_per)) return;
       const pF = Number(r.pay_from || 0);
       const pT = Number(r.pay_to || 0);
       const mid = (pF > 0 && pT > 0) ? (pF + pT) / 2 : (pF || pT || 0);
@@ -412,7 +415,9 @@ class BenchmarkService {
         sourceKey: 'internal',
         sourceTitle: 'Внутренний сбор',
         sourceKind: 'internal',
-        observationsCount: survRows.length,
+        // Считаем только те анкеты, что реально попали в перцентили: сдельные
+        // ставки исключены, и «N набл.» рядом с вилкой не должно их обещать.
+        observationsCount: internalValues.length,
         stats: internalStats,
         // Совокупный доход (оклад + переменная часть/мес.) — вторая карточка.
         totalStats: internalTotalStats,

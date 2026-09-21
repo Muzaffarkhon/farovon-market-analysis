@@ -1668,6 +1668,28 @@ label.lbl {
   font-size: 13px;
 }
 
+/* Сброс выбранного значения: у пикера нет пустого пункта, снять выбор иначе
+   было нечем. */
+.pick-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pick-clear:hover {
+  background: var(--no-soft);
+  color: var(--no);
+}
+
 .pick.need {
   border-color: var(--warn);
   background: var(--warn-soft);
@@ -2742,10 +2764,18 @@ label.lbl {
   padding-bottom: 8px;
 }
 
-/* Низ карточки должности: кнопка сохранения. */
+/* Низ карточки должности: кнопка сохранения. Кнопка — inline-flex с nowrap,
+   и на узком экране её подпись («Сохранить данные по должности (9)») вылезала
+   за правый край карточки: тянем на всю ширину и разрешаем перенос. */
 .batch-foot {
   margin-top: 12px;
   padding-bottom: calc(2px + env(safe-area-inset-bottom));
+}
+
+.batch-foot .btn-primary {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
 }
 
 /* ── Анкета Шага 2: список компаний слева, поля одной компании справа ──────
@@ -2927,6 +2957,17 @@ label.lbl {
 }
 
 .bsec-gap { margin-top: 10px; }
+
+.bsec-hint {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-border, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+}
 
 .bcard-nav {
   display: flex;
