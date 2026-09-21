@@ -61,6 +61,7 @@ function doLogout(){
     call('apiLogout').catch(function(){}).then(function(){
       store.del(LS_TOKEN);
       try { sessionStorage.removeItem('farovon_ws_tabs'); } catch(e){}
+      clearBatchSheetState();
       location.reload();
     });
   };
@@ -524,7 +525,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -559,7 +560,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -620,7 +621,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -650,7 +651,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.124')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.125')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -2055,13 +2056,18 @@ function renderUnit(){
     '<div class="unit-sticky-bar">'+
       '<div class="sub-tabs unit-step-tabs">'+
         (inArchiveMode ? '' :
-        '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'">'+
-          'Шаг 1. Должности и компании'+
-          ' <span class="badge '+(step1done?'b-active':'b-dim')+'" style="margin-left:4px">'+c.done+'/'+c.all+'</span>'+
-          (c.part ? ' <span class="badge b-blocked" style="margin-left:4px;color:var(--warn);background:var(--warn-soft)">'+c.part+' в процессе</span>' : '')+
+        // Полное название шага («Должности и компании» / «Данные по рынку»)
+        // теперь только всплывающей подсказкой — на вкладке остаётся короткое
+        // «Шаг 1» / «Шаг 2» с бейджем, чтобы обе вкладки помещались в один
+        // компактный ряд на телефоне.
+        '<button data-tab="comp" class="sub-tab '+(S.tab==='comp'?'on':'')+'" title="Должности и компании">'+
+          'Шаг 1'+
+          ' <span class="badge'+(c.part ? '' : (step1done?' b-active':' b-dim'))+'"'+
+            (c.part ? ' style="margin-left:4px;color:var(--warn);background:var(--warn-soft)"' : ' style="margin-left:4px"')+
+          '>'+c.done+'/'+c.all+(c.part ? ' · '+c.part+' в процессе' : '')+'</span>'+
         '</button>')+
-        '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'">'+
-          (inArchiveMode ? 'Данные по рынку (архив)' : 'Шаг 2. Данные по рынку')+
+        '<button data-tab="survey" class="sub-tab '+(S.tab==='survey'?'on':'')+'" title="'+(inArchiveMode ? 'Данные по рынку (архив)' : 'Данные по рынку')+'">'+
+          'Шаг 2'+
           ' <span class="badge '+(S.surveys.length>0?'b-active':'b-dim')+'" style="margin-left:4px">'+svLabel()+'</span>'+
         '</button>'+
       '</div>'+
@@ -2087,6 +2093,13 @@ function renderUnit(){
   $('bar').classList.remove('hidden');
   document.body.classList.add('has-bar');
   updateProgress();
+
+  // Если перед перезагрузкой страницы (F5) была открыта анкета Шага 2 именно
+  // этого подразделения — открываем её снова (см. openBatchSurveySheet).
+  var pendingBatch = consumePendingBatchSheet(S.unit);
+  if(pendingBatch && pendingBatch.pos){
+    setTimeout(function(){ openBatchSurveySheet(pendingBatch.pos, pendingBatch.co); }, 0);
+  }
 }
 
 function renderUnitPeriodBanner(){
@@ -2202,9 +2215,11 @@ function renderTabComp(){
   var mc = svMatrixCounts();
   var h = '';
 
+  // Счётчик должностей рядом с поиском убрали — то же число уже написано на
+  // чипе «Все (N)» прямо под этой строкой (когда должностей больше трёх).
   var tbHtml = '<div class="search-wrap" style="max-width:240px;width:100%;min-width:160px">'+icBare('search')+
       '<input id="posSearch" placeholder="Найти должность…" autocomplete="off"></div>'+
-    '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:13px">' + G.groups.length + ' ' + declOfNum(G.groups.length, ['должность','должности','должностей']) + '</span>';
+    (G.groups.length <= 3 ? '<span class="tbl-count" style="margin:0 2px;white-space:nowrap;font-size:13px">' + G.groups.length + ' ' + declOfNum(G.groups.length, ['должность','должности','должностей']) + '</span>' : '');
   var tbSlot = $('unitHeadToolbar');
   if(tbSlot) tbSlot.innerHTML = tbHtml;
 
@@ -2553,10 +2568,10 @@ function renderTabSurvey(){
   var tbSlot = $('unitHeadToolbar');
   if(tbSlot){
     if(mc.totalSlots > 0){
-      tbSlot.innerHTML = '<div class="fill-toolbar-prog">'+
-        '<span>Заполнено <b>' + mc.filledCount + '</b> из <b>' + mc.totalSlots + '</b> (' + mc.pct + '%)</span>'+
-        '<div class="fill-progress fill-progress--sm'+(mc.pct>=100?' is-done':'')+'"><i style="width:' + mc.pct + '%"></i></div>'+
-      '</div>';
+      // Тот же «X из Y (Z%)» и так виден в бейдже вкладки «Шаг 2», в заголовке
+      // «Данные по рынку» чуть ниже и в нижней закреплённой панели — четвёртая
+      // копия в этом слоте только съедала высоту экрана, не добавляя данных.
+      tbSlot.innerHTML = '';
     } else if(mc.totalPositions > 0){
       tbSlot.innerHTML = '<div class="fill-toolbar-prog"><span>В штатке подразделения <b>' +
         mc.totalPositions + '</b> ' + declOfNum(mc.totalPositions, ['должность', 'должности', 'должностей']) +
@@ -2854,7 +2869,34 @@ function openCustomPositionSheet(toCompanies){
  * Пакетный ввод по должности: открывает карточки сразу всех актуальных компаний
  * для выбранной должности, позволяя заполнить всё в один заход.
  */
-function openBatchSurveySheet(posName){
+
+// Анкета Шага 2 (список компаний + карточка) живёт только в памяти открытой
+// страницы — обычный F5 её «забывал», хотя вход в систему оставался тем же
+// (сессия жива, /auth/resume отвечает успешно). Запоминаем в sessionStorage,
+// какая должность/компания были открыты, и переоткрываем сразу после того,
+// как отрисуется нужное подразделение (см. renderUnit).
+var LS_BATCH_SHEET = 'farovon_batch_sheet';
+function saveBatchSheetState(unit, posName, co){
+  try{ sessionStorage.setItem(LS_BATCH_SHEET, JSON.stringify({ unit: unit, pos: posName, co: co || '' })); }catch(e){}
+}
+function clearBatchSheetState(){
+  try{ sessionStorage.removeItem(LS_BATCH_SHEET); }catch(e){}
+}
+// Забирает сохранённое состояние, только если оно относится к unit, который
+// как раз сейчас отрисовался — иначе оставляет запись нетронутой (подойдёт
+// более позднему renderUnit того же подразделения, если он ещё не случился).
+function consumePendingBatchSheet(unit){
+  try{
+    var raw = sessionStorage.getItem(LS_BATCH_SHEET);
+    if(!raw) return null;
+    var st = JSON.parse(raw);
+    if(!st || st.unit !== unit) return null;
+    sessionStorage.removeItem(LS_BATCH_SHEET);
+    return st;
+  }catch(e){ return null; }
+}
+
+function openBatchSurveySheet(posName, initialCo){
   // position-first: список компаний для ЭТОЙ должности — из S.selections
   // (Шаг 1), а не общий на весь unit. В архивном режиме своего чек-листа нет
   // (Шаг 1 недоступен для архивных лет) — там компании только из уже
@@ -2888,6 +2930,15 @@ function openBatchSurveySheet(posName){
   var bonusTypes = ref.bonusTypes || ['ежемесячный', 'квартальный', 'годовой', 'KPI'];
   var bonusPeriods = ref.bonusPeriods || ['в месяц', 'в квартал', 'в год'];
   var scheduleList = ref.schedules || ['5/2 · 40 часов', '5/2 · 45 часов', '6/1 · 48 часов', '6/1 · 50 часов', '6/1 · 54 часа', 'Сменный 2/2', 'Вахтовый', 'Свободный / гибкий'];
+  // Подсказка часов под чипом — только там, где типовые начало/конец дня
+  // считаются однозначно (8-часовая рабочая неделя минус обеденный час);
+  // у сменного/вахтового/свободного графика фиксированных часов нет.
+  var SCHEDULE_HOURS = {
+    '5/2 · 40 часов': '08:00–17:00',
+    '5/2 · 45 часов': '08:00–18:00',
+    '6/1 · 48 часов': '09:00–18:00',
+    '6/1 · 54 часа': '08:00–18:00'
+  };
   var sources = ref.sources || ['собеседования', 'бывшие сотрудники', 'сайты вакансий', 'знакомые'];
   var trustList = ref.trust || ['высокая', 'средняя', 'низкая'];
   // Льготы приходят с сервера сгруппированными по разделам:
@@ -3099,6 +3150,11 @@ function openBatchSurveySheet(posName){
   // поля ровно одной компании: прежний вариант рисовал сразу все N компаний с
   // полями ввода в каждой строке — на 9-25 компаниях это была стена контролов.
   var curIdx = 0;
+  var restoredToCompany = false;
+  if(initialCo){
+    var _initIdx = entries.findIndex(function(e2){ return norm(e2.co) === norm(initialCo); });
+    if(_initIdx >= 0){ curIdx = _initIdx; restoredToCompany = true; }
+  }
   // Компании, где при сохранении не хватило обязательных полей — помечаются в
   // списке слева, чтобы было видно, куда возвращаться.
   var needsSet = {};
@@ -3223,15 +3279,27 @@ function openBatchSurveySheet(posName){
     if(body) body.classList.toggle('hidden', !open);
   }
 
-  /** Открыть дозревшие блоки и освежить сводки. Только открываем: свернуть
-   *  блок под курсором посреди правки (например, когда поле очистили) —
-   *  худшее, что можно сделать с формой. */
+  /** Открыть дозревшие блоки, свернуть обратно те, что раскрылись только
+   *  как «следующий шаг», а данные из них убрали, и освежить сводки.
+   *  Блок, в котором сейчас реально стоит курсор, никогда не сворачиваем —
+   *  закрыть форму под пальцем посреди правки хуже, чем оставить лишний
+   *  открытый блок. Блок, который человек только что закрыл вручную (не
+   *  заполняя, а осознанно пропуская его и переходя дальше), тоже не
+   *  открываем обратно только по правилу «первый пустой» — иначе он бы
+   *  выскакивал заново на каждый следующий ввод в форме. Как только в нём
+   *  реально появятся данные — правило manualClosed уже не имеет значения. */
   function revealSections(card, item){
     var first = firstEmptySec(item);
+    var active = document.activeElement;
     [].forEach.call(card.querySelectorAll('.bsec'), function(s){
       var key = s.dataset.sec;
-      if(!s.classList.contains('open') && (secHasData(item, key) || key === first)){
+      var isFirstButManuallyClosed = (key === first) && s.dataset.manualClosed === '1';
+      var shouldOpen = secHasData(item, key) || (key === first && !isFirstButManuallyClosed);
+      var isOpen = s.classList.contains('open');
+      if(shouldOpen && !isOpen){
         setSecOpen(s, true);
+      } else if(!shouldOpen && isOpen && !(active && s.contains(active))){
+        setSecOpen(s, false);
       }
       var sum = s.querySelector('.bsec-sum');
       if(sum) sum.textContent = secSummary(item, key);
@@ -3272,7 +3340,7 @@ function openBatchSurveySheet(posName){
         '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">', item)+
 
       sec('schedule', 'График работы', true,
-        '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false)+'</div>', item)+
+        '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false, false, SCHEDULE_HOURS)+'</div>', item)+
 
       sec('bonus', 'Премии и бонусы', true,
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
@@ -3332,6 +3400,7 @@ function openBatchSurveySheet(posName){
     refreshAside();
     var split = el.querySelector('.batch-split');
     if(split) split.classList.add('is-detail');
+    saveBatchSheetState(S.unit, posName, entries[i].co);
   }
 
   function renderSheetContent(){
@@ -3364,14 +3433,17 @@ function openBatchSurveySheet(posName){
     var main = el.querySelector('.batch-main');
     if(main) main.innerHTML = detailHtml(entries[curIdx], curIdx);
     // На широком экране обе панели видны сразу; на узком первым показываем
-    // список, чтобы человек сам выбрал, с какой компании начать.
+    // список, чтобы человек сам выбрал, с какой компании начать — кроме
+    // восстановления после перезагрузки: тогда сразу открываем ту карточку,
+    // на которой человек был.
     var split = el.querySelector('.batch-split');
-    if(split && window.innerWidth >= 900) split.classList.add('is-detail');
+    if(split && (window.innerWidth >= 900 || restoredToCompany)) split.classList.add('is-detail');
   }
 
   renderSheetContent();
   document.body.appendChild(el);
   updateBatchProgress();
+  saveBatchSheetState(S.unit, posName, entries[curIdx] && entries[curIdx].co);
 
   // Перерисовать выпадающий список льгот в карточке из текущего item.benefits
   // (после «Отметить частые» и добавления своей льготы). keepOpen — оставить
@@ -3565,6 +3637,7 @@ function openBatchSurveySheet(posName){
 
   function requestCloseSheet(){
     if(!isSheetDirty()){
+      clearBatchSheetState();
       el.remove();
       return;
     }
@@ -3592,6 +3665,7 @@ function openBatchSurveySheet(posName){
     };
     cm.querySelector('#cmDiscard').onclick = function(){
       cm.remove();
+      clearBatchSheetState();
       el.remove();
     };
     cm.querySelector('#cmStay').onclick = function(){
@@ -3621,11 +3695,19 @@ function openBatchSurveySheet(posName){
     if(e.target.closest('[data-act="go-prev"]')){ selectCompany(curIdx - 1); return; }
     if(e.target.closest('[data-act="go-next"]')){ selectCompany(curIdx + 1); return; }
 
-    // Свернуть/развернуть блок вручную — автораскрытие ничего не запрещает.
+    // Свернуть/развернуть блок вручную. Если человек осознанно закрыл пустой
+    // блок, чтобы заполнять дальше не по порядку (например, оклад → график,
+    // пропустив необязательную «Должность у них») — запоминаем это меткой:
+    // иначе revealSections тут же открывал бы его обратно на каждый следующий
+    // ввод, только потому что это «первый незаполненный» по порядку блоков.
     var secTog = e.target.closest('[data-act="sec-toggle"]');
     if(secTog){
       var secEl = secTog.closest('.bsec');
-      if(secEl) setSecOpen(secEl, !secEl.classList.contains('open'));
+      if(secEl){
+        var willOpen = !secEl.classList.contains('open');
+        setSecOpen(secEl, willOpen);
+        secEl.dataset.manualClosed = willOpen ? '' : '1';
+      }
       return;
     }
 
@@ -3916,33 +3998,14 @@ function markDirty(){
 function updateProgress(){
   var c = counts();
 
-  if(S.tab === 'comp'){
-    $('progT').textContent = c.done + ' из ' + c.all;
-    if(c.part){
-      $('progS').className = 'ask';
-      $('progS').textContent = 'в процессе: ' + c.part;
-    } else {
-      $('progS').className = '';
-      $('progS').textContent = (c.all && c.done === c.all) ? 'всё заполнено' : 'должностей заполнено';
-    }
-  } else {
-    var mc = svMatrixCounts();
-    if(mc.totalSlots > 0){
-      $('progT').textContent = mc.filledCount + ' из ' + mc.totalSlots;
-      $('progS').className = '';
-      $('progS').textContent = 'карточек заполнено (' + mc.pct + '%)';
-    } else if(mc.totalPositions > 0){
-      // Компаний ещё нет (Шаг 1 пуст) — знаменателя-матрицы нет, но штатка
-      // подразделения известна: показываем её как ориентир.
-      $('progT').textContent = S.surveys.length + ' из ' + mc.totalPositions;
-      $('progS').className = '';
-      $('progS').textContent = declOfNum(mc.totalPositions, ['должность в штатке', 'должности в штатке', 'должностей в штатке']);
-    } else {
-      $('progT').textContent = S.surveys.length + (S.removed.length ? ' (−'+S.removed.length+')' : '');
-      $('progS').className = '';
-      $('progS').textContent = 'записей по должностям';
-    }
-  }
+  // Тот же счётчик («0/22 · 1 в процессе» / «1/3») уже виден в бейджах вкладок
+  // «Шаг 1»/«Шаг 2» прямо над этой панелью — здесь он был третьим повтором
+  // одного и того же числа на экране. Текст убрали, но сам блок оставили в
+  // разметке пустым (не display:none) — иначе при одном оставшемся элементе
+  // .bar-in кнопки «space-between» прижимает не к правому краю, а к левому.
+  var progT = $('progT'), progS = $('progS');
+  if(progT) progT.textContent = '';
+  if(progS){ progS.textContent = ''; progS.className = ''; }
 
   var t1 = document.querySelector('.tabs button[data-tab="comp"]');
   var t2 = document.querySelector('.tabs button[data-tab="survey"]');
@@ -3962,10 +4025,10 @@ function updateProgress(){
   if(nextBtn){
     nextBtn.classList.remove('hidden');
     if(S.tab === 'comp'){
-      nextBtn.textContent = 'Перейти к шагу 2: Оклады →';
+      nextBtn.textContent = 'Шаг 2: Оклады →';
       nextBtn.onclick = function(){ S.tab = 'survey'; renderUnit(); };
     } else {
-      nextBtn.textContent = '← Назад к шагу 1: Должности';
+      nextBtn.textContent = '← Шаг 1: Должности';
       nextBtn.onclick = function(){ S.tab = 'comp'; renderUnit(); };
     }
   }

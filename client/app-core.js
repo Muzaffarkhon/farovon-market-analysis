@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.124';
+var APP_VERSION = window.APP_VERSION || 'v2.5.125';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -2390,14 +2390,20 @@ function show(scr){
 /**
  * Набор кнопок-переключателей.
  * multi=true — можно выбрать несколько; req=true — снять выбор нельзя (обязательное поле).
+ * subMap — необязательная подпись мелким шрифтом под чипом (например, часы
+ * графика: «5/2 · 40 часов» → «08:00–17:00»), ключ — то же значение из list.
  */
-function chips(act, list, value, multi, req){
+function chips(act, list, value, multi, req, subMap){
   var sel = multi ? (value||[]) : [value];
   return '<div class="chips" data-chips="'+act+'"'+(multi?' data-multi="1"':'')+
          (req?' data-req="1"':'')+'>' +
     list.map(function(v){
       var on = sel.indexOf(v) >= 0;
-      return '<button type="button" data-act="'+act+'" data-v="'+esc(v)+'"'+(on?' class="on"':'')+'>'+esc(v)+'</button>';
+      var sub = subMap && subMap[v];
+      var cls = (on ? 'on' : '') + (sub ? ' chip--sub' : '');
+      return '<button type="button" data-act="'+act+'" data-v="'+esc(v)+'"'+(cls?' class="'+cls.trim()+'"':'')+'>'+
+        esc(v)+(sub ? '<span class="chip-sub">'+esc(sub)+'</span>' : '')+
+      '</button>';
     }).join('') + '</div>';
 }
 

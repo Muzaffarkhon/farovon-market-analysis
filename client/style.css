@@ -2502,6 +2502,27 @@ label.lbl {
   font-weight: 700;
 }
 
+/* Чип с подписью часов («5/2 · 40 часов» · «08:00–17:00») — в один ряд. */
+.chips button.chip--sub {
+  padding: 0 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chip-sub {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.chips button.chip--sub.on .chip-sub {
+  color: var(--accent);
+  opacity: 0.8;
+}
+
 .toggle-more {
   width: 100%;
   border: none;
@@ -2795,6 +2816,31 @@ label.lbl {
   margin: 10px 0 2px;
 }
 
+/* Лист анкеты Шага 2 раньше был по высоте контента: с парой компаний он
+   повисал маленькой карточкой посреди затемнённого экрана, а кнопка
+   «Сохранить» липла прямо под списком. Теперь лист всегда высотой во весь
+   доступный экран (та же формула, что и у .sheet-in), список/карточка
+   занимают освободившееся место и сами прокручиваются, а кнопка остаётся
+   прижатой к низу. */
+.sheet-in.batch-sheet {
+  display: flex;
+  flex-direction: column;
+  height: min(90vh, calc(var(--vvh) - 24px));
+}
+
+.sheet-in.batch-sheet .sheet-hd,
+.sheet-in.batch-sheet .batch-err,
+.sheet-in.batch-sheet .batch-foot {
+  flex: none;
+}
+
+.sheet-in.batch-sheet .batch-split {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* min-width:0 обязателен обеим панелям: у grid-элемента по умолчанию
    min-width:auto, и длинная подпись поля распирает карточку за край экрана. */
 .batch-aside,
@@ -3020,6 +3066,12 @@ label.lbl {
   width: 100%;
   padding: 0 8px;
   text-align: center;
+}
+
+/* Чип с часами внутри сетки — название и время centered как единая группа
+   (выше специфичность, чтобы точно победить общее правило выше). */
+.chips-grid .chips button.chip--sub {
+  justify-content: center;
 }
 
 .bsec-hint {
@@ -3587,6 +3639,13 @@ label.lbl {
   border-radius: 20px 20px 0 0;
   padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
   box-shadow: var(--shadow-lg);
+}
+
+/* Клавиатура выехала → --vvh резко уменьшился → max-height листа скачком
+   ужимается, и лист «проваливается» вниз одним кадром (особенно заметно на
+   первом поле формы, сразу под шапкой). Плавный переход убирает рывок. */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-in { transition: max-height 0.18s ease; }
 }
 
 @media (min-width: 640px) {
@@ -9667,35 +9726,55 @@ html.compact {
   }
 }
 
-/* Шаг-вкладки на телефоне: вертикальный стек — обе целиком читаются,
-   крупные тап-цели (перебиваем .compact .sub-tabs { overflow-x:auto; nowrap }). */
+/* Шаг-вкладки на телефоне: один компактный ряд из двух коротких подписей
+   («Шаг 1» / «Шаг 2», полное название — во всплывающей подсказке). Рамку
+   вокруг самой кнопки убрали — овальный бейдж со счётчиком внутри уже даёт
+   достаточно контура, вторая рамка снаружи была лишней и обрезала текст,
+   когда бейдж длиннее (например, «0/22 · 1 в процессе»). Ширину каждой
+   вкладки теперь задаёт её содержимое, а не жёсткое деление 50/50. */
 @media (max-width: 560px) {
   .unit-sticky-bar {
     gap: 6px;
     padding: 8px 0;
+    /* Тонкая линия снизу шапки на телефоне визуально отсекала «Шаг 1/Шаг 2 +
+       поиск» отдельной рамкой-блоком от списка должностей ниже — убираем,
+       граница между шапкой и контентом и так видна по отступу. */
+    border-bottom: none;
   }
   .unit-step-tabs {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-    overflow: visible;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    overflow-x: auto;
   }
   .unit-step-tabs .sub-tab {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 6px;
-    font-size: 14.5px;
-    padding: 8px 10px;
-    border-radius: var(--r-xs);
-    border-bottom: none;
+    flex: 0 1 auto;
+    min-width: 0;
+    justify-content: center;
+    gap: 4px;
+    font-size: 12.5px;
+    padding: 5px 2px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    white-space: nowrap;
+    /* Кнопка по умолчанию (button {...} в начале файла) несёт белый фон и
+       тень — на тёмном фоне шапки оба бейджа-шага смотрелись как обычные
+       кнопки-«таблетки». Здесь это просто подпись, а не кнопка-поверхность. */
+    background: transparent;
+    box-shadow: none;
   }
   .unit-step-tabs .sub-tab.on {
-    background: var(--accent-soft);
+    border-bottom-color: var(--accent);
+    background: transparent;
+    color: var(--accent);
   }
   .unit-step-tabs .sub-tab .badge {
     margin-left: 0 !important;
+    font-size: 10.5px;
+    padding: 1px 6px;
   }
   .unit-head-toolbar {
     width: 100%;
