@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.123';
+var APP_VERSION = window.APP_VERSION || 'v2.5.124';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -3389,12 +3389,25 @@ function renderRail(){ renderNav(); }
     if(!r || !r.ok || !r.username) return; // бот не подключён — остаётся текстовый вариант
     var link = 'https://t.me/' + r.username;
     $('loginHelp').innerHTML =
-      '<a href="'+esc(link)+'" target="_blank" class="btn-line" '+
+      '<a href="'+esc(link)+'" target="_blank" class="btn-line" data-tg-link="1" '+
         'style="display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;margin-top:16px">'+
         ic('chat', 15)+'Открыть бота @'+esc(r.username)+'</a>'+
-      '<a href="'+esc(link)+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:5px;'+
+      '<a href="'+esc(link)+'" target="_blank" data-tg-link="1" style="display:flex;align-items:center;justify-content:center;gap:5px;'+
         'color:var(--muted);font-size:13.5px;text-decoration:none;margin-top:12px">'+
         ic('help', 14)+'Не получается войти? Написать администратору</a>';
+    // Внутри Telegram Mini App обычный <a href="https://t.me/..." target="_blank">
+    // не открывается — WebView блокирует переход на другого бота. Нужен
+    // Telegram.WebApp.openTelegramLink(), см. пометку IN_TG выше в файле.
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if(IN_TG && tg && tg.openTelegramLink){
+      var els = $('loginHelp').querySelectorAll('[data-tg-link]');
+      for(var i = 0; i < els.length; i++){
+        els[i].addEventListener('click', function(e){
+          e.preventDefault();
+          tg.openTelegramLink(link);
+        });
+      }
+    }
   }).catch(function(){ /* остаётся текстовый вариант */ });
 
   if(window.WorkspaceTabs) WorkspaceTabs.init();
