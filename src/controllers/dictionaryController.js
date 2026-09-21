@@ -1,5 +1,6 @@
 const { queryAll, queryOne, run } = require('../db/database');
 const { hasCapability } = require('../middleware/auth');
+const { divisionUsageMap } = require('../services/divisionUsage');
 
 /**
  * Справочники системы: компании, должности, сегменты, регионы.
@@ -101,6 +102,33 @@ async function audit(login, action, detail) {
 /** Полный список одного справочника вместе со счётчиком использований. */
 exports.list = async (req, res) => {
   const kind = req.params.kind;
+
+  // Подразделения — не таблица-справочник, а оргструктура (таблица divisions).
+  // Здесь только список для управления: добавить/скрыть/удалить пустое.
+  if (kind === 'units') {
+    try {
+      const rows = await queryAll(
+        "SELECT unit, COALESCE(dir, '') AS dir, COALESCE(parent_unit, '') AS parent_unit, COALESCE(is_hidden, 0) AS is_hidden FROM divisions ORDER BY dir ASC, unit ASC"
+      );
+      const usage = await divisionUsageMap();
+      const items = rows.map(r => {
+        const u = usage.get(String(r.unit).trim()) || [];
+        return {
+          name: r.unit,
+          dir: r.dir,
+          parent: r.parent_unit,
+          hidden: Number(r.is_hidden) === 1,
+          usedParts: u.map(x => x.n + ' ' + x.what),
+          used: u.reduce((a, x) => a + x.n, 0)
+        };
+      });
+      const dirRows = await queryAll("SELECT DISTINCT TRIM(dir) AS v FROM divisions WHERE TRIM(COALESCE(dir,'')) <> '' ORDER BY v");
+      return res.json({ ok: true, kind, items, dirs: dirRows.map(r => r.v) });
+    } catch (err) {
+      console.error('dictionary units list error:', err);
+      return res.status(500).json({ ok: false, error: 'Ошибка загрузки справочника' });
+    }
+  }
   if (!KINDS[kind]) return res.status(400).json({ ok: false, error: 'Неизвестный справочник' });
 
   // Колонки code и таблица unit_positions появляются миграцией. Если она ещё не

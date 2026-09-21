@@ -201,7 +201,7 @@ function navModel(){
       { key:'benchmarks:mapping', label:'Сопоставление должностей', icon:'link', run:function(){ openBenchmarks('mapping'); } },
       { key:'benchmarks:datasets', label:'Источники и датасеты', icon:'archive', run:function(){ openBenchmarks('datasets'); } }
     ];
-    primary.push({ key:'benchmarks', label:'Бенчмаркинг', icon:'chart',
+    primary.push({ key:'benchmarks', label:'Бенчмаркинг', tabLabel:'Бенчмарк', icon:'chart',
       active:mkActive('benchmarks'), inTabs:true, subsections:bmSubs, submenu:bmSubs,
       run:function(){ switchView('benchmarks'); } });
   }
@@ -221,7 +221,7 @@ function navModel(){
   if(hasCap('grading:factors')) grSubs.push({ key:'gradingFactors', label:'Анкеты оценки', icon:'book', run:function(){ openAdminPanel('gradingFactors'); } });
   if(hasCap('grading:blocks')) grSubs.push({ key:'gradingBlocks', label:'Блоки грейдирования', icon:'units', run:function(){ openAdminPanel('gradingBlocks'); } });
   if(grSubs.length){
-    primary.push({ key:'grading', label:'Оценка должностей', icon:'grades',
+    primary.push({ key:'grading', label:'Оценка должностей', tabLabel:'Грейды', icon:'grades',
       active:mkActive('grading'), inTabs:true, subsections:grSubs, submenu:grSubs,
       // Клик по самому «Грейдингу» (не по под-вкладке из стрелочки) всегда ведёт
       // на главную «Оценка должностей» — а не туда, где случайно остались в
@@ -234,7 +234,7 @@ function navModel(){
       { key:'keyrisk:list', label:'Ключевые сотрудники', icon:'risk', run:function(){ openKeyRisks('list'); } },
       { key:'keyrisk:heat', label:'Тепловая карта рисков', icon:'target', run:function(){ openKeyRisks('heat'); } }
     ];
-    primary.push({ key:'keyrisk', label:'Оценка сотрудника', icon:'risk',
+    primary.push({ key:'keyrisk', label:'Оценка сотрудника', tabLabel:'Сотрудник', icon:'risk',
       active:mkActive('keyrisk'), inTabs:true, subsections:krSubs, submenu:krSubs,
       // Та же логика, что и у «Грейдинга» выше: клик по разделу — всегда на
       // главную «Ключевые сотрудники», а не на последнюю открытую вкладку.
@@ -308,6 +308,13 @@ function navModel(){
       run: function(){ openAdminPanel('dict', 'regions'); }
     },
     {
+      key: 'dict:units',
+      label: 'Подразделения',
+      icon: 'units',
+      active: function(){ return S.appView === 'admin' && S.adminTab === 'dict' && S.dictKind === 'units'; },
+      run: function(){ openAdminPanel('dict', 'units'); }
+    },
+    {
       key: 'dict:staff',
       label: 'Сотрудники',
       icon: 'users',
@@ -347,6 +354,7 @@ function navModel(){
     // «Поддержка» (тот же приём, что и с «Грейдинг»/«Оценка сотрудника» выше).
     // Внутри самого раздела (шапка, крошки) по-прежнему «Чат поддержки».
     { key:'support', atab:'support', label:'Поддержка', icon:'chat', cap:'support:manage' },
+    { key:'broadcast', atab:'broadcast', label:'Рассылка', icon:'megaphone', cap:'broadcast:send' },
     { key:'roles', atab:'roles', label:'Роли и доступы', icon:'shield', adminOnly:true }
   ];
   var admin = canSeeAdmin() ? adminAll.filter(function(t){
@@ -516,7 +524,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.78')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -551,7 +559,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.78')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -612,7 +620,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.78')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.124')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -642,7 +650,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.78')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.124')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1288,7 +1296,7 @@ function renderHome(){
   var p = S.data.period || {};
   var periodOpen = p.state !== 'закрыт';
 
-  function stat(val, label, hint, cls){
+  function stat(val, label, hint, cls, vcls){
     var vHtml;
     if(typeof val === 'number'){
       vHtml = '<span data-countup="'+val+'">0</span>';
@@ -1298,7 +1306,7 @@ function renderHome(){
       vHtml = val;
     }
     return '<div class="home-stat">'+
-      '<div class="home-stat-v">'+vHtml+'</div>'+
+      '<div class="home-stat-v'+(vcls ? ' '+vcls : '')+'">'+vHtml+'</div>'+
       '<div class="home-stat-l">'+esc(label)+'</div>'+
       (hint ? '<div class="home-stat-h'+(cls ? ' '+cls : '')+'">'+esc(hint)+'</div>' : '')+
     '</div>';
@@ -1317,6 +1325,14 @@ function renderHome(){
   if(typeof openBenchmarks === 'function' && canSeeBenchmarks()){
     navCards.push({ label:'Бенчмаркинг', desc:'Сравнение вознаграждений по внешним источникам', icon:'chart', run:openBenchmarks });
   }
+  // Оценка должностей и оценка сотрудника — такие же разделы первого уровня,
+  // как в нижней панели и боковом меню; раньше на главной их карточек не было.
+  if(typeof canSeeGrading === 'function' && canSeeGrading()){
+    navCards.push({ label:'Оценка должностей', desc:'Грейды, оценка по критериям, сводка по блокам', icon:'grades', run:function(){ openGrading('assess'); } });
+  }
+  if(typeof canSeeKeyRisks === 'function' && canSeeKeyRisks()){
+    navCards.push({ label:'Оценка сотрудника', desc:'Ключевые сотрудники и тепловая карта рисков', icon:'risk', run:function(){ openKeyRisks('list'); } });
+  }
   if(r === 'hrbp'){
     navCards.push({ label:'Сводка по HR BP', desc:'Состояние по направлениям, открытие периода', icon:'clipboard', run:openProgress });
   }
@@ -1325,19 +1341,6 @@ function renderHome(){
   }
   if(canSeeAdmin()){
     navCards.push({ label:'Админка', desc:'Пользователи, оргструктура, справочники, период', icon:'admin', run:function(){ S.adminTab = 'users'; openAdminPanel(); } });
-  }
-
-  var nextStep = '';
-  if(!isElevated && periodOpen && mcTotal && mcDone < mcTotal){
-    nextStep = 'Идёт сбор. Проверьте участников рынка и внесите оклады — осталось ' + (mcTotal - mcDone) + '.';
-  } else if(!isElevated && periodOpen){
-    nextStep = 'Участники рынка проверены. Загляните в «Данные по рынку» — не забыты ли оклады по должностям.';
-  } else if(!periodOpen){
-    nextStep = r === 'hrbp'
-      ? 'Период закрыт. Правка вам доступна; открыть период — в «Сводке по HR BP».'
-      : 'Период сбора закрыт — данные доступны для просмотра.';
-  } else if(isElevated){
-    nextStep = 'Период открыт. Незакрытые направления видны в «Отчёте по подразделениям».';
   }
 
   var firstName = esc(String(u.fio || u.login || '').trim().split(/\s+/)[0] || u.login);
@@ -1352,7 +1355,7 @@ function renderHome(){
 
   h += '<div class="home-stats">'+
     stat(units.length, isElevated ? 'подразделений' : 'моих подразделений', null) +
-    stat(pct + '%', 'участники рынка проверены', mcTotal ? (mcDone + ' из ' + mcTotal) : 'нет данных') +
+    stat(pct + '%', 'участники рынка проверены', mcTotal ? (mcDone + ' из ' + mcTotal) : 'нет данных', null, !mcTotal ? '' : (pct >= 66 ? 'v-ok' : (pct >= 33 ? 'v-acc' : 'v-warn'))) +
     stat(agg.surveys, 'записей по рынку', null) +
     stat('<span class="home-period-name">' + esc(p.name || '—') + '</span>', 'период сбора',
          (p.to ? 'до ' + p.to : '') + (periodOpen ? '' : ' · закрыт'), periodOpen ? 'ok' : 'mut') +
@@ -1368,6 +1371,28 @@ function renderHome(){
       ' — ещё не считаются проверенными.</div>';
   }
 
+  var dirMap = {};
+  units.forEach(function(x){
+    var d = String(x.dir || 'Без направления').trim() || 'Без направления';
+    var e = dirMap[d] || (dirMap[d] = { name:d, units:0, full:0, total:0, done:0 });
+    e.units++; e.total += x.total || 0; e.done += x.done || 0;
+    if((x.total || 0) > 0 && (x.done || 0) >= (x.total || 0)) e.full++;
+  });
+  var dirs = Object.keys(dirMap).map(function(k){ return dirMap[k]; })
+    .sort(function(a, b){ return b.units - a.units; });
+  if(dirs.length > 1){
+    h += '<div class="sec-title home-sec">Ход сбора по направлениям</div>';
+    h += '<div class="home-dirs">' + dirs.slice(0, 12).map(function(d){
+      var pc = d.total ? Math.round(d.done / d.total * 100) : 0;
+      var tone = pc >= 66 ? 'ok' : (pc >= 33 ? '' : 'warn');
+      return '<div class="home-dir">'+
+        '<div class="home-dir-h"><span class="home-dir-n" title="'+esc(d.name)+'">'+esc(d.name)+'</span><b>'+pc+'%</b></div>'+
+        '<div class="home-bar '+tone+'"><i style="width:'+pc+'%"></i></div>'+
+        '<div class="home-dir-s">подразделений: '+d.units+' · полностью: '+d.full+'</div>'+
+      '</div>';
+    }).join('') + '</div>';
+  }
+
   h += '<div class="sec-title home-sec">Разделы</div>';
   h += '<div class="home-cards fx-stagger">' + navCards.map(function(c, i){
     return '<button class="home-card" data-i="' + i + '">'+
@@ -1376,10 +1401,6 @@ function renderHome(){
       '<span class="home-card-d">' + esc(c.desc) + '</span>'+
     '</button>';
   }).join('') + '</div>';
-
-  if(nextStep){
-    h += '<div class="info home-hint">' + ic('target', 14) + ' ' + esc(nextStep) + '</div>';
-  }
 
   h += '</div>';
   $('body').innerHTML = h;
@@ -1684,7 +1705,6 @@ function renderGroupCard(x){
         bar2('Участники рынка', x.done, x.total, pct, askPct) +
         bar2('Данные по рынку', sv, totalSlots > 0 ? totalSlots : null, svPct, 0) +
       '</div>'+
-      '<div class="u-grp-hint">'+ic('info', 12)+'Заполняется один раз — данные сохранятся во все площадки группы.</div>'+
     '</div>'+
     '<div class="u-chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none">'+ICONS.chevron+'</svg></div>'+
   '</div>';
@@ -2193,9 +2213,6 @@ function renderTabComp(){
          'Для этого подразделения штатка не заведена.<br>'+
          'Добавьте должность кнопкой ниже — она попадёт и в справочник.</div>';
   } else {
-    h += '<p class="step-hint">'+ic('units', 13)+' По каждой должности отметьте компании, с которыми сравниваете оклад — '+
-         'у разных должностей список компаний может отличаться. Нет с кем сравнивать — так и оставьте, ноль компаний тоже допустимый результат.</p>';
-
     var posDone = 0, posPart = 0, posNone = 0;
     G.groups.forEach(function(g){
       var st = mc.posMap[norm(g.pos)] || { total: 0, filled: 0 };
@@ -2234,7 +2251,9 @@ function renderTabComp(){
            (g.extra ? ' <span class="pill p-mid">не в штатке</span>' : '')+'</div>';
       x += '<div class="pos-sub">'+ (st.selCos && st.selCos.length
             ? esc(st.selCos.slice(0,3).join(', ')) + (st.selCos.length > 3 ? ' и ещё ' + (st.selCos.length-3) : '')
-            : 'компании ещё не выбраны') +'</div></div>';
+            : 'компании ещё не выбраны') +'</div>'+
+           (st.total ? '<div class="pos-bar'+(stCode === 'done' ? ' ok' : '')+'"><i style="width:'+Math.round(Math.min(1, st.filled / st.total) * 100)+'%"></i></div>' : '')+
+           '</div>';
       x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
       x += '<button type="button" class="btn-ghost pos-edit" data-open-pos-comp="'+esc(g.pos)+'">'+
              ic('pencil', 14) + (st.total ? 'Компании' : 'Выбрать') + '</button>';
@@ -2564,12 +2583,6 @@ function renderTabSurvey(){
       h += '<div class="fill-progress'+(mc.pct>=100?' is-done':'')+'" style="margin:0 0 14px"><i style="width:' + mc.pct + '%"></i></div>';
     }
 
-    if(currentUnitGroup()){
-      h += '<p class="step-hint">'+ic('units', 13)+' Смежная группа «'+esc(currentUnitGroup())+'»: '+
-           'заполняете один раз — при сохранении данные разложатся во все площадки группы '+
-           '(они различаются только регионом).</p>';
-    }
-
     var posTotalCount = G.groups.length;
     var posDoneCount = 0, posPartCount = 0, posNoneCount = 0;
     G.groups.forEach(function(g){
@@ -2714,8 +2727,6 @@ function openPositionCompaniesSheet(posName){
       '<div><span class="step-pill step-pill--1">'+ic('units', 12)+'Шаг 1 · Компании</span>'+
       '<b>Компании для сравнения — «'+esc(posName)+'»</b></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<p class="step-hint" style="margin:0 0 10px">Отметьте компании, с которыми сравниваете оклад по этой должности. '+
-    'Ноль компаний — тоже допустимый результат, если сравнивать не с кем.</p>'+
     '<div class="search-wrap" style="margin:0 0 10px">'+icBare('search')+
       '<input id="posCoSearch" placeholder="Найти компанию…" autocomplete="off"></div>'+
     '<div id="posCoList" style="max-height:46vh;overflow:auto">'+renderList('')+'</div>'+
@@ -2995,6 +3006,34 @@ function openBatchSurveySheet(posName){
     }
   }
 
+  function updateBatchProgress(){
+    var n = document.getElementById('bpNum'), b = document.getElementById('bpBar');
+    if(!n || !b) return;
+    var done = entries.filter(function(it){
+      var pf = parseMoney(it.payFrom), pt = parseMoney(it.payTo);
+      return pf > 0 && pt > 0 && pf <= pt;
+    }).length;
+    var bad = entries.filter(function(it){
+      var pf = parseMoney(it.payFrom), pt = parseMoney(it.payTo);
+      return pf > 0 && pt > 0 && pf > pt;
+    });
+    var er = document.getElementById('batchErr');
+    if(er){
+      if(bad.length){
+        er.hidden = false;
+        er.innerHTML = (bad.length === 1
+          ? '<b>' + esc(bad[0].co) + ':</b> «Оклад от» (' + parseMoney(bad[0].payFrom).toLocaleString('ru-RU') + ') больше «Оклад до» (' + parseMoney(bad[0].payTo).toLocaleString('ru-RU') + ').'
+          : 'В ' + bad.length + ' компаниях «Оклад от» больше «Оклад до»: <b>' + bad.map(function(it){ return esc(it.co); }).join(', ') + '</b>.')
+          + ' Исправьте значения — сохранение заблокировано, чтобы в аналитику не попала ошибка.';
+      } else {
+        er.hidden = true;
+        er.innerHTML = '';
+      }
+    }
+    n.textContent = done + ' из ' + entries.length;
+    b.style.width = (entries.length ? Math.round(done / entries.length * 100) : 0) + '%';
+  }
+
   function updateCardCompleteness(card, item){
     var comp = getSurveyItemCompleteness(item);
     var pFrom = parseMoney(item.payFrom);
@@ -3020,6 +3059,8 @@ function openBatchSurveySheet(posName){
     refreshAsideRow(+card.dataset.idx);
     // Заполнили блок — открываем следующий и освежаем сводки в свёрнутых.
     revealSections(card, item);
+    // Счётчик «Оклад указан N из M» и баннер «от > до» из main.
+    updateBatchProgress();
   }
 
   // Один вид переменной части: размер + вид + периодичность. Строк может быть
@@ -3309,6 +3350,8 @@ function openBatchSurveySheet(posName){
           '<b>Должность: '+esc(posName)+'</b>'+
           '<div class="bs-sub"></div>'+
         '</div>'+
+        '<div class="batch-prog"><div class="batch-prog-t"><span>Оклад указан</span><b id="bpNum"></b></div>'+
+          '<div class="batch-prog-bar"><i id="bpBar"></i></div></div>'+
         '<button class="btn-ghost" data-x="1">Закрыть</button>'+
       '</div>'+
 
@@ -3319,6 +3362,7 @@ function openBatchSurveySheet(posName){
         '</aside>'+
         '<div class="batch-main"></div>'+
       '</div>'+
+      '<div class="batch-err" id="batchErr" hidden></div>'+
 
       '<div class="batch-foot">'+
         '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
@@ -3336,6 +3380,7 @@ function openBatchSurveySheet(posName){
 
   renderSheetContent();
   document.body.appendChild(el);
+  updateBatchProgress();
 
   // Перерисовать выпадающий список льгот в карточке из текущего item.benefits
   // (после «Отметить частые» и добавления своей льготы). keepOpen — оставить
@@ -4331,22 +4376,36 @@ function renderDashKpiRow(sm){
   // отжимают таблицу вниз. На других вкладках строка пустая и схлопывается.
   if(S.dashTab !== 'overview') return '';
   sm = sm || {};
-  function tile(label, val, sub, warn){
+  function tile(label, val, sub, tone){
     var vHtml = (typeof val === 'number') ? '<span data-countup="'+val+'">0</span>' : val;
     return '<div class="kpi-card"><div class="kpi-t">'+label+'</div>'+
-      '<div class="kpi-v">'+vHtml+'</div>'+
-      (sub ? '<div class="kpi-s'+(warn?' is-warn':'')+'">'+sub+'</div>' : '')+
+      '<div class="kpi-v'+(tone ? ' kv-'+tone : '')+'">'+vHtml+'</div>'+
+      (sub ? '<div class="kpi-s'+(tone === 'warn' ? ' is-warn' : '')+'">'+sub+'</div>' : '')+
     '</div>';
   }
   var med = sm.salaryMedian || 0;
+  // Гэп Фаровон к рынку — среднее по должностям, где заданы оклады Фаровона.
+  var pos = ((S.dashData && S.dashData.positions) || []).filter(function(p){ return p.gapPct != null; });
+  var gapTile;
+  if(pos.length){
+    var avg = pos.reduce(function(a, p){ return a + p.gapPct; }, 0) / pos.length;
+    var avgR = Math.round(avg * 10) / 10;
+    gapTile = tile('Фаровон к рынку', (avgR > 0 ? '+' : (avgR < 0 ? '−' : '')) + String(Math.abs(avgR)).replace('.', ',') + '%',
+      avgR < 0 ? 'ниже медианы · ' + pos.length + ' ' + declOfNum(pos.length, ['должность','должности','должностей']) : (avgR > 0 ? 'выше медианы' : 'на уровне медианы'),
+      avgR < -2 ? 'warn' : (avgR > 2 ? 'ok' : ''));
+  } else {
+    gapTile = tile('Фаровон к рынку', '—', 'нужны оклады Фаровона');
+  }
+  var spread = (sm.salaryP25 && sm.salaryP75 && med) ? Math.round((sm.salaryP75 - sm.salaryP25) / med * 100) : null;
   return '<div class="kpi-grid kpi-grid--dash">'+
-    tile('Записей по рынку', (sm.totalSurveyRecords||0), (sm.recordsWithSalary||0)+' с окладом')+
-    tile('Компаний в опросе', (sm.companiesInSurvey||0), '')+
-    tile('Медиана рынка', med ? med.toLocaleString('ru-RU')+' c' : '—',
-      (sm.salaryP25 && sm.salaryP75) ? 'P25 '+sm.salaryP25.toLocaleString('ru-RU')+' · P75 '+sm.salaryP75.toLocaleString('ru-RU') : '')+
-    tile('Должностей', (sm.positionsCount||0),
-      sm.unmappedRecords ? sm.unmappedRecords+' записей без сопоставления' : '',
-      !!sm.unmappedRecords)+
+    tile('Медиана рынка (P50)', med ? med.toLocaleString('ru-RU') + ' c' : '—',
+      (sm.salaryP25 && sm.salaryP75) ? 'P25 '+sm.salaryP25.toLocaleString('ru-RU')+' · P75 '+sm.salaryP75.toLocaleString('ru-RU') : 'сомони, оклад')+
+    gapTile+
+    tile('Размах вилки', spread != null ? spread + '%' : '—', spread != null ? 'между P25 и P75' : '')+
+    tile('Записей по рынку', (sm.totalSurveyRecords||0),
+      (sm.recordsWithSalary||0)+' с окладом · '+(sm.companiesInSurvey||0)+' '+declOfNum(sm.companiesInSurvey||0, ['компания','компании','компаний'])+
+      (sm.unmappedRecords ? ' · '+sm.unmappedRecords+' без сопоставления' : ''),
+      sm.unmappedRecords ? 'warn' : '')+
   '</div>';
 }
 
@@ -4899,6 +4958,63 @@ function overviewBarRow(name, right, pct, color){
   '</div>';
 }
 
+/**
+ * Блок «как в макете»: слева зарплатные вилки по должностям (коробки P25–P75,
+ * риска-медиана, тонкая линия мин–макс), справа рейтинг льгот. Полные версии
+ * остаются на вкладках «Зарплатные вилки» и «Льготы и Бонусы».
+ */
+function overviewForkBenefits(positions, benefits){
+  var rows = positions.filter(function(p){ return p.min > 0 && p.max > 0 && p.median > 0; })
+    .sort(function(a, b){ return (b.count || 0) - (a.count || 0); }).slice(0, 6);
+  var bens = (benefits || []).slice(0, 6);
+  if(!rows.length && !bens.length) return '';
+  var lo = 0, hi = 1;
+  if(rows.length){
+    lo = Math.min.apply(null, rows.map(function(p){ return p.min; }));
+    hi = Math.max.apply(null, rows.map(function(p){ return p.max; }));
+    var pad = Math.round((hi - lo) * 0.05); lo = Math.max(0, lo - pad); hi = hi + pad;
+  }
+  var rng = Math.max(hi - lo, 1);
+  var pc = function(v){ return Math.max(0, Math.min(100, (v - lo) / rng * 100)); };
+  var fmt = function(n){ return Math.round(n).toLocaleString('ru-RU'); };
+
+  var left = '<div class="card ovf-card">'+
+    '<div class="ovf-hd"><b>Зарплатные вилки по должностям</b><span>сомони · минимум, P25, медиана, P75, максимум</span></div>';
+  if(rows.length){
+    rows.forEach(function(p){
+      var p25 = p.p25 > 0 ? p.p25 : p.min, p75 = p.p75 > 0 ? p.p75 : p.max;
+      left += '<div class="ovf-row">'+
+        '<div class="ovf-name" title="'+esc(p.pos)+'">'+esc(p.pos)+'</div>'+
+        '<div class="ovf-track">'+
+          '<i class="ovf-line" style="left:'+pc(p.min)+'%;width:'+Math.max(0.5, pc(p.max) - pc(p.min))+'%"></i>'+
+          '<i class="ovf-box" style="left:'+pc(p25)+'%;width:'+Math.max(1, pc(p75) - pc(p25))+'%"></i>'+
+          '<i class="ovf-med" style="left:'+pc(p.median)+'%"></i>'+
+          (p.ourMid > 0 ? '<i class="ovf-our" title="Оклад Фаровон" style="left:'+pc(p.ourMid)+'%"></i>' : '')+
+        '</div>'+
+        '<div class="ovf-val">'+fmt(p.median)+'</div>'+
+      '</div>';
+    });
+    left += '<div class="ovf-legend"><span>Синий блок — от P25 до P75</span><span>Линия внутри — медиана</span><span>Тонкая линия — минимум и максимум</span>'+
+      (rows.some(function(p){ return p.ourMid > 0; }) ? '<span>Тёмная метка — оклад Фаровон</span>' : '')+'</div>';
+  } else {
+    left += '<div class="ovf-empty">Нет должностей с заполненными вилками</div>';
+  }
+  left += '</div>';
+
+  var right = '<div class="card ovf-card">'+
+    '<div class="ovf-hd"><b>Рейтинг льгот</b><span>доля компаний рынка</span></div>';
+  if(bens.length){
+    bens.forEach(function(b){
+      right += '<div class="ovf-ben"><div class="ovf-ben-h"><span title="'+esc(b.name)+'">'+esc(b.name)+'</span><b>'+b.pct+'%</b></div>'+
+        '<div class="ovf-ben-bar"><i style="width:'+Math.max(2, Math.min(100, b.pct))+'%"></i></div></div>';
+    });
+  } else {
+    right += '<div class="ovf-empty">Нет данных о льготах</div>';
+  }
+  right += '</div>';
+  return '<div class="ovf-dual">' + left + right + '</div>';
+}
+
 function renderOverviewTab(d){
   d = d || {};
   var sm = d.summary || {};
@@ -4917,6 +5033,9 @@ function renderOverviewTab(d){
   };
 
   var h = '<div class="dash-tab-scroll">';
+
+  // 0. Вилки по должностям + рейтинг льгот — сразу под плитками, как в макете
+  h += overviewForkBenefits(positions, d.topBenefits);
 
   // 1. Распределение окладов — salHistogram уже возвращает самодостаточную
   //    карточку с заголовком, второй раз в .card не оборачиваем.
@@ -5976,7 +6095,7 @@ function renderAdminPanel(){
     { id:'archive', icon:'archive', label:'Архив', cap:'users:view' },
     // Число подразделений было вписано в подпись строкой «(326)» — оно
     // разъедется, как только оргструктуру поменяют. Берём из данных.
-    { id:'divisions', icon:'units', label:'Оргструктура' + (S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : ''), cap:'divisions:view' },
+    { id:'divisions', icon:'units', label:'Оргструктура' + (window.innerWidth > 620 && S.data && S.data.allUnits ? ' ('+S.data.allUnits.length+')' : ''), cap:'divisions:view' },
     { id:'dict', icon:'book', label:'Справочники', cap:'dictionary:view' },
     { id:'period', icon:'clock', label:'Период сбора', cap:'period:view' },
     { id:'tools', icon:'wrench', label:'Сервисные утилиты', cap:'service:view' },
@@ -5986,6 +6105,7 @@ function renderAdminPanel(){
     { id:'gradingFactors', icon:'book', label:'Анкеты оценки', cap:'grading:factors' },
     { id:'gradingBlocks', icon:'units', label:'Блоки грейдирования', cap:'grading:blocks' },
     { id:'support', icon:'chat', label:'Чат поддержки', cap:'support:manage' },
+    { id:'broadcast', icon:'megaphone', label:'Рассылка', cap:'broadcast:send' },
     { id:'roles', icon:'shield', label:'Роли и доступы', adminOnly:true }
   ];
   var u = (S.data && S.data.user) || {};
@@ -6047,6 +6167,7 @@ function renderAdminPanel(){
   else if(S.adminTab === 'gradingFactors') renderAdminGradingFactors();
   else if(S.adminTab === 'gradingBlocks') renderAdminGradingBlocks();
   else if(S.adminTab === 'support') renderAdminSupport();
+  else if(S.adminTab === 'broadcast') renderAdminBroadcast();
   else if(S.adminTab === 'roles') loadAdminRoles();
 }
 
@@ -6138,12 +6259,6 @@ function drawGradingFactors(){
             return '<option value="'+esc(val)+'"'+(val === curDir ? ' selected' : '')+'>'+esc(b.label)+esc(mark)+'</option>';
           }).join(''))+
     '</select>'+
-  '</div>'+
-  '<div class="muted gf-note">'+
-    (curLabel
-      ? 'Правите формулировки для ' + curLabel + '. Вопросы без своей формулировки берут общий текст. '
-      : 'Правите общие формулировки — их видят все, у кого нет своей. ')+
-    'Веса факторов и пороги грейдов одинаковы для всего холдинга, из интерфейса не меняются: иначе уровни перестанут быть сравнимыми между заводами.'+
   '</div>';
 
   var factors = gradingFactorsOf(cur);
@@ -6393,7 +6508,6 @@ function drawAdminGradingCommittee(){
 
   var h = '<div class="gb-committee-hd">'+
       '<b>Комиссия блока «'+esc(grBlockLabelAdmin(S.gbBlock))+'»</b>'+
-      '<span class="gb-committee-hint">Оценивают вслепую, независимо друг от друга — только эти люди смогут оценивать должности этого блока</span>'+
     '</div>'+
     (members.length
       ? '<div class="gb-committee-list">'+members.map(function(m){
@@ -6738,7 +6852,6 @@ function drawAdminSupportList(){
   // renderSupSearchBar). Дальше обновляется только сама лента строк.
   if(!$('supRowsBox')){
     box.innerHTML =
-      '<div class="muted sup-note">Гости, которых бот не смог опознать сам, и сотрудники, написавшие прямо на сайте — всё здесь, в одном списке.</div>'+
       '<div class="sup-search-bar" id="supSearchBar"></div>'+
       '<div class="sup-guest-quick-hd">Вопросы гостю в Telegram (кнопки при открытии чата)</div>'+
       '<div class="sup-quick" id="supGuestQuick"></div>'+
@@ -7334,7 +7447,7 @@ function drawMySupportHome(){
   var faq = S.myFaq || [];
   var threads = S.myThreads || [];
 
-  var h = '<div class="my-sup-intro muted">Есть вопрос — сначала загляните в частые вопросы ниже, если не нашли ответ — напишите нам, ответим здесь же.</div>';
+  var h = '';
 
   if(faq.length){
     h += '<div class="sup-guest-quick-hd">Частые вопросы</div>'+
@@ -7699,8 +7812,11 @@ function showListPopover(e, title, items){
 
 function openOverflowMenu(e, actions){
   if(e){ e.preventDefault(); e.stopPropagation(); }
-  closeOverflowMenus();
   var anchor = e && (e.currentTarget || (e.target && e.target.closest && e.target.closest('button')));
+  // Повторный клик по той же кнопке «⋯» закрывает меню, а не открывает его заново.
+  var already = document.querySelector('.row-menu-pop');
+  if(already && anchor && already._anchor === anchor){ closeOverflowMenus(); return; }
+  closeOverflowMenus();
   var hasCoord = e && typeof e.clientX === 'number' && e.clientX > 0;
   var isMousePos = hasCoord && (e._fromCtx || e.type === 'contextmenu' || e.button === 2);
   if(!anchor && !hasCoord) return;
@@ -7724,6 +7840,7 @@ function openOverflowMenu(e, actions){
     menu.appendChild(item);
   });
   menu.onclick = function(evt){ evt.stopPropagation(); };
+  menu._anchor = anchor || null;
   document.body.appendChild(menu);
 
   if(isMousePos || (!anchor && hasCoord)){
@@ -8007,10 +8124,6 @@ function openUserModal(login){
         '<input id="umPosition" value="'+esc(u?(u.position||''):'')+'" placeholder="Например: Бухгалтер" maxlength="200">'+
       '</div>'+
     '</div>'+
-    '<p class="step-hint" style="margin:2px 0 0">Должность подставляется автоматически при выборе этого человека в анкете незаменимости («Оценка сотрудника»).</p>'+
-    (isEdit ? '' :
-      '<p class="step-hint" style="margin:6px 0 0">Пароль пользователь получает сам в Telegram-боте: '+
-      '<b>/link</b> (поделиться номером) → <b>/login</b>. Админ пароль не задаёт и не видит.</p>')+
     '<div style="margin:8px 0 6px">'+
       '<label class="checkline"><input type="checkbox" id="umActive" '+(u&&!u.active?'':'checked')+' '+(adminFieldsLocked?'disabled':'')+'> Пользователь активен</label>'+
     '</div>'+
@@ -8022,7 +8135,7 @@ function openUserModal(login){
     '</div>'+
     '<div class="search-wrap" style="margin-top:6px">'+icBare('search')+
       '<input id="umUnitSearch" placeholder="Фильтр подразделений…"></div>'+
-    '<div id="umUnitList" style="max-height:135px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px;padding:6px"></div>'+
+    '<div id="umUnitList" class="um-unit-list"></div>'+
     '<div style="height:12px"></div>'+
     '<button id="umSave" class="btn-primary">Сохранить</button>'+
   '</div>';
@@ -8617,7 +8730,8 @@ function renderAdminDivisions(){
   var prevScrollLeft = oldVp ? oldVp.scrollLeft : (S.orgScroll ? S.orgScroll.left : null);
   var prevScrollTop = oldVp ? oldVp.scrollTop : (S.orgScroll ? S.orgScroll.top : null);
 
-  var divs = S.adminDivs || [];
+  var hiddenN = (S.adminDivs || []).filter(function(x){ return x && Number(x.is_hidden) === 1; }).length;
+  var divs = (S.adminDivs || []).filter(function(x){ return !(x && Number(x.is_hidden) === 1); });
   var search = (($('divSearch') && $('divSearch').value) ? $('divSearch').value : '').toLowerCase();
   var staffSearch = (($('staffSearch') && $('staffSearch').value) ? $('staffSearch').value : '').toLowerCase();
   var curView = S.adminDivsView || 'tree';
@@ -8628,18 +8742,15 @@ function renderAdminDivisions(){
   function orgToolbarBtns(view){
     var adjN = new Set((S.adminDivs || []).map(function(x){ return String(x.group_key || '').trim(); }).filter(Boolean)).size;
     return '<div class="org-toolbar-btns">'+
-      '<button class="seg-btn'+(view === 'tree' ? ' on' : '')+'" id="btnOrgTree">' + ic('units', 13) + ' Схема</button>'+
-      '<button class="btn-line" id="btnAdjGroups" style="gap:5px" title="Смежные группы площадок">'+
-        ic('link', 13) + ' Смежные группы' + (adjN ? ' ('+adjN+')' : '')+
-      '</button>'+
-      '<button class="seg-btn'+(view === 'table' ? ' on' : '')+'" id="btnOrgTable">' + ic('book', 13) + ' Таблица</button>'+
-      (hasCap('divisions:edit') ?
-        '<button class="btn-primary toolbar-act" id="btnAddDivision" title="Создать новое подразделение">+ Добавить подразделение</button>'
-        : '')+
+      '<div class="org-seg" role="group" aria-label="Вид">'+
+        '<button class="org-seg-b' + (view === 'tree' ? ' on' : '') + '" id="btnOrgTree">' + ic('units', 13) + '<span>Схема</span></button>'+
+        '<button class="org-seg-b' + (view === 'table' ? ' on' : '') + '" id="btnOrgTable">' + ic('book', 13) + '<span>Таблица</span></button>'+
+      '</div>'+
       ((S.myUndoStack && S.myUndoStack.length) ?
         '<button class="btn-line" id="btnOrgUndo" title="' + esc('Отменить: ' + (S.myUndoStack[S.myUndoStack.length-1].label || 'последнее действие')) + '" style="gap:5px;color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,0.07)">'+
           ic('undo', 13) + ' Отменить</button>'
         : '')+
+      '<button class="btn-line org-more" id="btnOrgMore" title="Смежные группы, справочник подразделений" aria-label="Ещё" data-adj="' + adjN + '" data-hid="' + hiddenN + '">' + icBare('more', 16) + '</button>'+
     '</div>';
   }
 
@@ -8692,6 +8803,12 @@ function renderAdminDivisions(){
   }
 
   S.orgZoom = S.orgZoom || 0.85;
+  // Телефон: при первом открытии схемы за сессию — крупнее читаемый масштаб
+  // и панель состава свёрнута, чтобы схему было видно (панель открывается кнопкой).
+  if(!window._orgMobileInit){
+    window._orgMobileInit = true;
+    if(window.innerWidth <= 700){ S.orgDrawerCollapsed = true; S.orgZoom = 0.6; }
+  }
 
   var h = '';
 
@@ -9298,7 +9415,7 @@ function renderAdminDivisions(){
             icBare('search', 14)+
             '<input id="divSearch" placeholder="Поиск по отделам и направлениям…" value="'+esc(search)+'">'+
           '</div>'+
-          '<div style="font-size:13px;color:var(--muted);margin-left:6px">'+tblCount(collapsedRows.length, (S.adminDivs || []).length, ['позиция', 'позиции', 'позиций'])+'</div>'+
+          '<div class="org-count" title="Показано подразделений и направлений"><b>'+collapsedRows.length+'</b>'+(collapsedRows.length !== (S.adminDivs || []).length ? ' из '+(S.adminDivs || []).length : '')+'</div>'+
         '</div>'+
         orgToolbarBtns('table')+
       '</div>'+
@@ -9393,10 +9510,13 @@ function renderAdminDivisions(){
   if(btnTable) btnTable.onclick = function(){ S.adminDivsView = 'table'; saveNavState(); renderAdminDivisions(); };
   var btnUndo = $('btnOrgUndo');
   if(btnUndo) btnUndo.onclick = popUndo;
-  var btnAdjG = $('btnAdjGroups');
-  if(btnAdjG) btnAdjG.onclick = openAdjacentGroupsModal;
-  var btnAddDiv = $('btnAddDivision');
-  if(btnAddDiv) btnAddDiv.onclick = openAddDivisionModal;
+  var btnOrgMore = $('btnOrgMore');
+  if(btnOrgMore) btnOrgMore.onclick = function(e){
+    var adjN2 = Number(this.dataset.adj) || 0, hidN2 = Number(this.dataset.hid) || 0;
+    var items = [{ label: 'Смежные группы' + (adjN2 ? ' (' + adjN2 + ')' : ''), icon: 'link', run: openAdjacentGroupsModal }];
+    if(hasCap('dictionary:view')) items.push({ label: 'Справочник подразделений' + (hidN2 ? ' · скрыто ' + hidN2 : ''), icon: 'book', run: function(){ openAdminPanel('dict', 'units'); } });
+    openOverflowMenu(e, items);
+  };
 
   // Конструктор: смена направления через выпадающий список
   var selChangeDir = $('selChangeDir');
@@ -10428,8 +10548,10 @@ function promptAssignStaffToUnit(fio, targetUnit){
 // нельзя — saveDivision только обновляет существующие строки. Минимум —
 // название; направление и ответственные необязательны и дозаполняются в
 // обычной панели справа. См. adminController.createDivision.
-function openAddDivisionModal(){
+function openAddDivisionModal(opts){
+  opts = opts || {};
   var dirs = [];
+  (S.dictDirs || []).forEach(function(d){ d = String(d || '').trim(); if(d && dirs.indexOf(d) < 0) dirs.push(d); });
   (S.adminDivs || []).forEach(function(x){
     var d = String(x.dir || '').trim();
     if(d && dirs.indexOf(d) < 0) dirs.push(d);
@@ -10470,8 +10592,6 @@ function openAddDivisionModal(){
     '</div>'+
     '<label class="lbl" style="margin-top:10px">HR BP</label>'+
     '<select id="adHrbp" style="width:100%">'+personOpts()+'</select>'+
-
-    '<p class="step-hint" style="margin:10px 0 0">Регион, смежную группу и подчинение подотделу можно задать после создания — в панели справа.</p>'+
     '<div style="height:14px"></div>'+
     '<button id="adCreate" class="btn-primary">Создать подразделение</button>'+
     '<div style="height:8px"></div>'+
@@ -10512,6 +10632,7 @@ function openAddDivisionModal(){
       if(res && res.ok){
         toast('Подразделение «'+name+'» создано', 'ok');
         el.remove();
+        if(opts.onCreated){ opts.onCreated(res); return; }
         // приземлиться на новый отдел, чтобы сразу дозаполнить
         S.selectedOrgNode = { type: 'unit', unit: name, dir: dir };
         if(dir) S.expandedDir = dir;
@@ -10642,8 +10763,6 @@ function openAdjacentGroupsModal(){
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in" style="max-width:640px">'+
     '<div class="sheet-hd"><b>Смежные группы площадок</b><button class="btn-ghost" data-x="1">Закрыть</button></div>'+
-    '<p class="step-hint" style="margin:4px 0 14px">Площадки одной группы заполняют рынок один раз — данные сохраняются сразу во все площадки группы (различаются регионом или производственной площадкой).</p>'+
-
     '<div class="lbl" style="margin-bottom:6px">Существующие группы ('+groupKeys.length+')</div>'+
     (groupKeys.length
       ? '<div class="ag-list">'+groupKeys.map(function(k){
@@ -11124,7 +11243,7 @@ function drawDeptAssign(){
   });
 
   var myDir = (S.data.user.units || [])[0] || (divs[0] && divs[0].dir) || '';
-  var h = '<p class="step-hint">Отделы направления «'+esc(myDir)+'». Назначьте ответственного за заполнение обзора рынка — можно выбрать сотрудника с живым поиском прямо в строке или назначить одного на все отделы сразу.</p>';
+  var h = '';
   
   h += '<div class="toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+
     '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px">'+
@@ -11669,6 +11788,7 @@ var DICT_KINDS = [
   { id:'positions', label:'Должности', one:'должность', ttl:'Должность' },
   { id:'segments',  label:'Сегменты',  one:'сегмент',   ttl:'Сегмент' },
   { id:'regions',   label:'Регионы',   one:'регион',    ttl:'Регион' },
+  { id:'units',     label:'Подразделения', one:'подразделение', ttl:'Подразделение' },
   // Только просмотр — записи приходят пачкой через «Сервисные утилиты →
   // Импорт справочника сотрудников», добавлять/править по одной здесь нельзя.
   { id:'staff', label:'Сотрудники', one:'сотрудника', ttl:'Сотрудник', readOnly:true }
@@ -11711,6 +11831,124 @@ function loadDict(){
     drawDict();
   }).catch(function(){
     $('dictBox').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  });
+}
+
+/**
+ * Справочник подразделений: единственное место, где подразделения создают,
+ * скрывают и удаляют. Оргструктура остаётся для схемы, переноса и ответственных.
+ * Пустое (нигде не используется) можно удалить; используемое — только скрыть.
+ */
+function drawUnitsDict(){
+  var q = norm(S.dictQ);
+  var canEdit = hasCap('divisions:edit');
+  var all = S.dictItems || [];
+  var showHidden = S.dictUnitsHidden !== false;
+  var items = all.filter(function(it){
+    if(!showHidden && it.hidden) return false;
+    if(!q) return true;
+    return norm(it.name).indexOf(q) >= 0 || norm(it.dir || '').indexOf(q) >= 0;
+  });
+  var hiddenN = all.filter(function(x){ return x.hidden; }).length;
+
+  var h = '<div class="toolbar">'+
+    '<div class="search-wrap">'+icBare('search')+
+      '<input id="dictQ" placeholder="Поиск по названию или направлению…" value="'+esc(S.dictQ)+'" autocomplete="off" spellcheck="false"></div>'+
+    (hiddenN ? '<label class="dict-chk"><input type="checkbox" id="dictUnitsShowHidden"'+(showHidden ? ' checked' : '')+'> Показывать скрытые ('+hiddenN+')</label>' : '')+
+    tblCount(items.length, all.length, ['запись', 'записи', 'записей'])+
+    (canEdit ? '<button class="btn-primary toolbar-act" id="dictUnitAdd">+ Добавить подразделение</button>' : '')+
+  '</div>';
+
+  if(!items.length){
+    h += q
+      ? '<div class="empty">Ничего не найдено</div>'
+      : '<div class="empty empty--lg"><span class="empty-ic">'+icBare('units', 40)+'</span><b>Подразделений пока нет</b></div>';
+    $('dictBox').innerHTML = h;
+    bindUnitsDictBar(canEdit);
+    return;
+  }
+
+  h += '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin"><thead><tr>'+
+    '<th>Подразделение</th><th>Направление</th><th>Статус</th><th></th>'+
+    '</tr></thead><tbody>'+
+    items.map(function(it){
+      var used = it.used
+        ? '<span class="dict-used" title="'+esc((it.usedParts || []).join(', '))+'">Используется</span>'
+        : '<span class="dict-free">Не используется — можно удалить</span>';
+      return '<tr class="'+(it.hidden ? 'is-hidden-row' : '')+'">'+
+        '<td><b>'+esc(it.name)+'</b>'+(it.parent ? '<small class="dict-sub">в составе «'+esc(it.parent)+'»</small>' : '')+
+          (it.hidden ? ' <span class="dict-badge">скрыто</span>' : '')+'</td>'+
+        '<td>'+(it.dir ? esc(it.dir) : '<span style="color:var(--muted)">—</span>')+'</td>'+
+        '<td>'+used+'</td>'+
+        '<td class="u-acts">'+(canEdit
+          ? '<button class="row-menu-trigger" data-unit-act="'+esc(it.name)+'" title="Действия" aria-label="Действия">'+icBare('more',16)+'</button>'
+          : '')+'</td></tr>';
+    }).join('')+
+    '</tbody></table></div>';
+
+  $('dictBox').innerHTML = h;
+  bindUnitsDictBar(canEdit);
+  $('dictBox').querySelectorAll('button[data-unit-act]').forEach(function(b){
+    b.onclick = function(e){ openUnitsDictActions(e, this.dataset.unitAct); };
+  });
+}
+
+function bindUnitsDictBar(canEdit){
+  bindDictBar();
+  var add = $('dictUnitAdd');
+  if(add) add.onclick = function(){
+    if(typeof ensureAdminUsers === 'function') ensureAdminUsers();
+    openAddDivisionModal({ onCreated: function(){ loadDict(); } });
+  };
+  var chk = $('dictUnitsShowHidden');
+  if(chk) chk.onchange = function(){ S.dictUnitsHidden = this.checked; drawUnitsDict(); };
+}
+
+function openUnitsDictActions(e, name){
+  var it = (S.dictItems || []).filter(function(x){ return x.name === name; })[0];
+  if(!it) return;
+  openOverflowMenu(e, [
+    { label: it.hidden ? 'Вернуть в схему' : 'Скрыть', icon: it.hidden ? 'eye' : 'archive', run:function(){ hideUnitFromDict(it); } },
+    { divider:true },
+    { label:'Удалить', icon:'trash', danger:true, run:function(){ deleteUnitFromDict(it); } }
+  ]);
+}
+
+function hideUnitFromDict(it){
+  var toHide = !it.hidden;
+  ask({
+    title: toHide ? 'Скрыть подразделение' : 'Вернуть подразделение',
+    html: toHide
+      ? 'Скрыть <b>«' + esc(it.name) + '»</b>? Оно пропадёт из схемы и выбора, а все данные останутся. Вернуть можно в любой момент.'
+      : 'Вернуть <b>«' + esc(it.name) + '»</b> в схему?',
+    ok: toHide ? 'Скрыть' : 'Вернуть'
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminHideDivision', S.token, { unit: it.name, hidden: toHide }).then(function(res){
+      if(!res || !res.ok){ toast((res && res.error) || 'Не удалось изменить', 'no'); return; }
+      toast(toHide ? 'Подразделение скрыто' : 'Подразделение возвращено', 'ok');
+      loadDict();
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
+  });
+}
+
+function deleteUnitFromDict(it){
+  if(it.used){
+    toast('Нельзя удалить: подразделение используется (' + (it.usedParts || []).join(', ') + '). Скройте его.', 'no');
+    return;
+  }
+  ask({
+    title: 'Удалить подразделение',
+    html: 'Удалить <b>«' + esc(it.name) + '»</b> насовсем? Оно нигде не используется.',
+    ok: 'Удалить',
+    danger: true
+  }).then(function(yes){
+    if(!yes) return;
+    call('apiAdminDeleteDivision', S.token, { unit: it.name }).then(function(res){
+      if(!res || !res.ok){ toast((res && res.error) || 'Не удалось удалить', 'no'); return; }
+      toast('Подразделение удалено', 'ok');
+      loadDict();
+    }).catch(function(){ toast('Нет связи с сервером', 'no'); });
   });
 }
 
@@ -11883,6 +12121,7 @@ function removeStaffDictItem(it){
 function drawDict(){
   var kind = S.dictKind;
   if(kind === 'staff') return drawStaffDict();
+  if(kind === 'units') return drawUnitsDict();
   var meta = DICT_KINDS.filter(function(k){ return k.id === kind; })[0];
   var q = norm(S.dictQ);
   var items = (S.dictItems || []).filter(function(it){
@@ -13242,11 +13481,15 @@ function rcIsDirty(){
 function ucapIsDirty(){
   var d = S.ucap;
   if(!d) return false;
-  return Object.keys(d.matrix || {}).some(function(login){
-    var now = (d.matrix[login] || []).slice().sort().join(',');
-    var was = (d.orig[login] || []).slice().sort().join(',');
-    return now !== was;
-  });
+  return Object.keys(d.matrix || {}).concat(Object.keys(d.deny || {})).some(ucapUserDirty);
+}
+
+/** Изменились ли права конкретного сотрудника (выданные или отключённые). */
+function ucapUserDirty(login){
+  var d = S.ucap;
+  var key = function(a){ return (a || []).slice().sort().join(','); };
+  return key(d.matrix[login]) !== key(d.orig[login]) ||
+         key(d.deny[login]) !== key(d.origDeny[login]);
 }
 
 function loadAdminRoles(){
@@ -13288,17 +13531,26 @@ function loadAdminUserCapabilities(){
       if($('ucapBody')) $('ucapBody').innerHTML = '<div class="err">'+esc((r&&r.error)||'Ошибка загрузки персональных прав')+'</div>';
       return;
     }
-    var byUser = {};
-    (r.grants || []).forEach(function(g){ (byUser[g.userLogin] = byUser[g.userLogin] || []).push(g.capability); });
+    var byUser = {}, denyByUser = {};
+    (r.grants || []).forEach(function(g){
+      var bucket = g.effect === 'deny' ? denyByUser : byUser;
+      (bucket[g.userLogin] = bucket[g.userLogin] || []).push(g.capability);
+    });
     var users = (r.users || []).filter(function(u){ return u.role !== 'admin'; });
-    var orig = {};
-    users.forEach(function(u){ orig[u.login] = (byUser[u.login] || []).slice(); });
+    var orig = {}, origDeny = {};
+    users.forEach(function(u){
+      orig[u.login] = (byUser[u.login] || []).slice();
+      origDeny[u.login] = (denyByUser[u.login] || []).slice();
+    });
     var keepSel = S.ucap && S.ucap.sel && users.some(function(u){ return u.login === S.ucap.sel; });
     S.ucap = {
       capabilities: r.capabilities,
       users: users,
       orig: orig,
       matrix: JSON.parse(JSON.stringify(orig)),
+      // Права роли, которые конкретному сотруднику лично отключены.
+      origDeny: origDeny,
+      deny: JSON.parse(JSON.stringify(origDeny)),
       // Что сотруднику уже даёт его роль/должность — показываем в
       // чек-листе как факт (не редактируется здесь), чтобы было видно,
       // от чего человек отталкивается, прежде чем добавлять личное сверху.
@@ -13327,7 +13579,11 @@ function ucapGroups(){
 
 function ucapUserBadge(u){
   var n = (S.ucap.matrix[u.login] || []).length;
-  return n ? (n+' '+declOfNum(n,["личное право","личных права","личных прав"])) : 'нет личных прав';
+  var m = (S.ucap.deny[u.login] || []).length;
+  var parts = [];
+  if(n) parts.push('+' + n + ' ' + declOfNum(n,["личное право","личных права","личных прав"]));
+  if(m) parts.push('−' + m + ' ' + declOfNum(m,["отключено","отключено","отключено"]));
+  return parts.length ? parts.join(' · ') : 'как у роли';
 }
 
 function renderAdminUserCapabilities(){
@@ -13348,10 +13604,12 @@ function renderAdminUserCapabilities(){
     saveBtn.onclick = function(){
       var btn = this; btn.disabled = true; btn.textContent = 'Сохраняем…';
       var jobs = [];
-      Object.keys(d.matrix).forEach(function(login){
-        var now = (d.matrix[login] || []).slice().sort().join(',');
-        var was = (d.orig[login] || []).slice().sort().join(',');
-        if(now !== was) jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || []));
+      var logins = {};
+      Object.keys(d.matrix).concat(Object.keys(d.deny)).forEach(function(l){ logins[l] = true; });
+      Object.keys(logins).forEach(function(login){
+        if(ucapUserDirty(login)){
+          jobs.push(call('apiAdminSetUserCapabilities', S.token, login, d.matrix[login] || [], d.deny[login] || []));
+        }
       });
       if(!jobs.length){ btn.disabled = false; btn.textContent = 'Сохранить'; toast('Изменений нет','ok'); return; }
       Promise.all(jobs).then(function(results){
@@ -13436,88 +13694,78 @@ function renderUcapDetail(){
   if(!user){ el.innerHTML = '<div class="note">Выберите сотрудника слева.</div>'; return; }
 
   var groups = ucapGroups();
-  var granted = d.matrix[user.login] || [];
-  // Что уже даёт роль/должность сотрудника — факт, здесь не редактируется
-  // (менять можно только на вкладке «По ролям»). Показываем, чтобы было
-  // видно, от чего человек отталкивается, прежде чем добавлять личное.
+  var granted = d.matrix[user.login] = d.matrix[user.login] || [];
+  var denied = d.deny[user.login] = d.deny[user.login] || [];
+  // Что даёт роль. Такое право отмечено по умолчанию, а снять галочку —
+  // значит отключить его лично этому сотруднику (роль при этом не меняется).
   var roleCaps = (d.roleCapabilities && d.roleCapabilities[user.role]) || [];
   var roleLabel = (d.roleLabels && d.roleLabels[user.role]) || user.role;
+  var viaRole = function(id){ return roleCaps.indexOf(id) >= 0; };
+  var isOn = function(id){ return viaRole(id) ? denied.indexOf(id) < 0 : granted.indexOf(id) >= 0; };
+  var setOn = function(id, on){
+    var arr = viaRole(id) ? denied : granted;
+    var want = viaRole(id) ? !on : on;       // у права роли «вкл» = нет в отключённых
+    var i = arr.indexOf(id);
+    if(want){ if(i < 0) arr.push(id); } else if(i >= 0) arr.splice(i, 1);
+  };
+  var changed = granted.length + denied.length;
 
   var head = '<div class="r2-head">'+
     '<div class="r2-title">'+esc(user.fio)+'</div>'+
-    '<span class="r2-key">'+esc(user.login)+'</span>'+
-    (granted.length ? '<button id="ucapClearBtn" class="btn-line btn-danger roles2-del">'+ic('trash',13)+' Убрать все личные ('+granted.length+')</button>' : '')+
-  '</div>'+
-  '<p class="step-hint" style="margin-bottom:14px">Роль: <b>'+esc(roleLabel)+'</b>. Отмеченные и заблокированные права уже есть по роли — ниже можно добавить сверх неё лично для этого сотрудника.</p>';
+    '<span class="r2-key">'+esc(user.login)+' · '+esc(roleLabel)+'</span>'+
+    (changed ? '<button id="ucapClearBtn" class="btn-line roles2-del">'+ic('refresh',13)+' Вернуть как у роли ('+changed+')</button>' : '')+
+  '</div>';
 
-  var body = !granted.length && !groups.length
-    ? ''
-    : groups.map(function(g){
-        var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
-        var allOn = toggleIds.length > 0 && toggleIds.every(function(id){ return granted.indexOf(id) >= 0; });
-        return '<div class="r2-group">'+
-          (toggleIds.length
-            ? '<label class="r2-group-t r2-group-t--check">'+
-                '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(allOn?' checked':'')+'>'+
-                '<span>'+esc(g.label)+'</span>'+
-              '</label>'
-            : '<div class="r2-group-t">'+esc(g.label)+'</div>')+
-          g.items.map(function(c){
-            var viaRole = roleCaps.indexOf(c.id) >= 0;
-            if(viaRole){
-              return '<label class="r2-cap r2-cap--role" title="Уже есть по роли «'+esc(roleLabel)+'» — не редактируется здесь">'+
-                '<input type="checkbox" checked disabled>'+
-                '<span>'+esc(c.label)+' <span class="r2-cap-tag">по роли</span></span>'+
-              '</label>';
-            }
-            var on = granted.indexOf(c.id) >= 0;
-            return '<label class="r2-cap">'+
-              '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on?' checked':'')+'>'+
-              '<span>'+esc(c.label)+'</span>'+
-            '</label>';
-          }).join('')+
-        '</div>';
-      }).join('');
+  var body = groups.map(function(g){
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(isOn).length;
+    return '<div class="r2-group">'+
+      '<label class="r2-group-t r2-group-t--check">'+
+        '<input type="checkbox" data-ucap-group="'+esc(g.label)+'"'+(onCount === ids.length ? ' checked' : '')+'>'+
+        '<span>'+esc(g.label)+'</span>'+
+      '</label>'+
+      g.items.map(function(c){
+        var role = viaRole(c.id), on = isOn(c.id);
+        var tag = role
+          ? (on ? '<span class="r2-cap-tag">по роли</span>' : '<span class="r2-cap-tag r2-cap-tag--off">отключено лично</span>')
+          : (on ? '<span class="r2-cap-tag r2-cap-tag--add">выдано лично</span>' : '');
+        return '<label class="r2-cap'+(role && !on ? ' r2-cap--off' : '')+'"'+
+            (role ? ' title="Даёт роль «'+esc(roleLabel)+'». Снимите галочку, чтобы отключить только этому сотруднику"' : '')+'>'+
+          '<input type="checkbox" data-ucap-cap="'+esc(c.id)+'"'+(on ? ' checked' : '')+'>'+
+          '<span>'+esc(c.label)+' '+tag+'</span>'+
+        '</label>';
+      }).join('')+
+    '</div>';
+  }).join('');
 
   el.innerHTML = head + '<div class="r2-caps">'+body+'</div>';
+
+  var after = function(){ renderUcapDetail(); ucapUpdateListBadge(user.login); };
 
   el.querySelectorAll('input[data-ucap-group]').forEach(function(box){
     var g = groups.filter(function(x){ return x.label === box.dataset.ucapGroup; })[0];
     if(!g) return;
-    var toggleIds = g.items.map(function(c){ return c.id; }).filter(function(id){ return roleCaps.indexOf(id) < 0; });
-    var onCount = toggleIds.filter(function(id){ return granted.indexOf(id) >= 0; }).length;
+    var ids = g.items.map(function(c){ return c.id; });
+    var onCount = ids.filter(isOn).length;
     // «Частично выбрано» задаётся только свойством, не HTML-атрибутом.
-    box.indeterminate = onCount > 0 && onCount < toggleIds.length;
+    box.indeterminate = onCount > 0 && onCount < ids.length;
     box.onchange = function(){
-      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
       var checked = this.checked;
-      toggleIds.forEach(function(id){
-        var i = arr.indexOf(id);
-        if(checked){ if(i<0) arr.push(id); }
-        else if(i>=0) arr.splice(i,1);
-      });
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
+      ids.forEach(function(id){ setOn(id, checked); });
+      after();
     };
   });
 
   el.querySelectorAll('input[data-ucap-cap]').forEach(function(box){
-    box.onchange = function(){
-      var arr = d.matrix[user.login] = d.matrix[user.login] || [];
-      var i = arr.indexOf(this.dataset.ucapCap);
-      if(this.checked){ if(i<0) arr.push(this.dataset.ucapCap); }
-      else if(i>=0) arr.splice(i,1);
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
-    };
+    box.onchange = function(){ setOn(this.dataset.ucapCap, this.checked); after(); };
   });
 
   var clearBtn = $('ucapClearBtn');
   if(clearBtn){
     clearBtn.onclick = function(){
       d.matrix[user.login] = [];
-      renderUcapDetail();
-      ucapUpdateListBadge(user.login);
+      d.deny[user.login] = [];
+      after();
     };
   }
 }
@@ -13545,9 +13793,6 @@ function renderAdminRoles(){
   }).join('');
 
   var mode = d.mode || 'role';
-  var byRoleHint = 'Слева — роли, справа — что роль видит и делает в админке. У «Администратора» доступ всегда полный. Особые полномочия структурных ролей заданы в коде — здесь показаны для справки.';
-  var personalHint = 'Право для одного конкретного сотрудника, независимо от его роли — не нужно включать право всей роли, чтобы дать его одному руководителю.';
-
   $('adminContent').innerHTML =
     '<div class="roles2">'+
       '<div class="roles2-bar">'+
@@ -13555,7 +13800,6 @@ function renderAdminRoles(){
           '<button class="seg-btn'+(mode==='role'?' on':'')+'" data-rmode="role">'+ic('shield',14)+' По ролям</button>'+
           '<button class="seg-btn'+(mode==='personal'?' on':'')+'" data-rmode="personal">'+ic('users',14)+' Персонально</button>'+
         '</div>'+
-        '<p class="step-hint roles2-hint">'+(mode==='role' ? byRoleHint : personalHint)+'</p>'+
         (mode==='role'
           ? '<button id="roleAdd" class="btn-line roles2-bar-btn">'+ic('users',14)+' Добавить роль</button>'
           : '')+
@@ -13603,7 +13847,7 @@ function roleDetailHtml(r, groups){
 
   var note = r.structural
     ? '<div class="r2-note">'+ic('warn',14)+'<span><b>Особые полномочия (заданы в коде):</b> '+esc(r.note)+'</span></div>'
-    : (r.is_protected ? '' : '<div class="r2-note r2-note--plain">'+ic('help',14)+'<span>Своя роль: доступ только по галочкам ниже; область данных \u2014 как у \u00abСотрудника\u00bb (только назначенные подразделения).</span></div>');
+    : '';
 
   var body;
   if(r.key === 'admin'){
@@ -13909,7 +14153,7 @@ function openProgress(){
       if(!box) return;
 
       if(S.dashSumTab === 'dirs'){
-        var dh = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+        var dh = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin sum-dirs-tbl">'+
           '<thead><tr><th>Направление</th><th class="num">Готовность</th><th class="num">Подразделений</th><th class="num">Заполнено связей</th></tr></thead><tbody>';
         dh += dirBars.map(function(d){
           var isDone = d.pct >= 100;
@@ -13976,7 +14220,7 @@ function openProgress(){
         $('dashSumCount').innerHTML = tblCount(rows.length, r.rows.length,
           ['подразделение', 'подразделения', 'подразделений']);
       }
-      var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin">'+
+      var t = '<div class="tblwrap tblwrap--page"><table class="co-tbl co-tbl--pin sum-units-tbl">'+
         '<thead><tr><th>Подразделение</th><th>Ответственный</th><th class="num">Компании</th>'+
         '<th class="num">Уточнить</th><th class="num">Должности</th><th class="num">Данные</th><th class="num">Обновлено</th></tr></thead><tbody>';
       t += rows.length ? rows.map(function(x){
@@ -13988,7 +14232,7 @@ function openProgress(){
         var pcls = pt===0 ? 'p-no' : (pf>=pt ? 'p-ok' : (pf>0 ? 'p-mid' : 'p-no'));
         var posCell = pt===0 ? '—' : '<span class="pill '+pcls+'">'+pf+'/'+pt+'</span>';
         return '<tr class="dash-row" data-u="'+esc(x.unit)+'" style="cursor:pointer">'+
-          '<td><b>'+esc(x.unit)+'</b></td><td>'+esc(x.resp)+'</td>'+
+          '<td><b>'+esc(x.unit)+'</b>'+(x.resp ? '<div class="sum-resp">'+esc(x.resp)+'</div>' : '')+'</td><td class="sum-resp-col">'+esc(x.resp)+'</td>'+
           '<td class="num"><span class="pill '+cls+'">'+x.done+'/'+x.total+'</span></td>'+
           '<td class="num">'+((x.ask||0) ? '<span class="pill p-ask">'+x.ask+'</span>' : '—')+'</td>'+
           '<td class="num">'+posCell+'</td>'+
@@ -14205,6 +14449,11 @@ function switchBmTab(tab){
   openBenchmarks(tab);
 }
 
+/** Источники без скрытых — для списков выбора и блока весов. */
+function bmVisibleSources(){
+  return (BM_STATE.sources || []).filter(function(s){ return !s.hidden; });
+}
+
 function loadBmInitialData(){
   Promise.all([
     call('apiBenchmarkSources', S.token).catch(function(){ return { sources:[] }; }),
@@ -14223,85 +14472,85 @@ function loadBmInitialData(){
   });
 }
 
-function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid){
+function bmNum(v){ return v ? Math.round(Number(v)).toLocaleString('ru-RU') : '—'; }
+function bmRatio(v){ return v != null ? Number(v).toFixed(2).replace('.', ',') : '—'; }
+/** Зона compa-ratio: норма 0,90–1,10 (принятый в отрасли коридор). */
+function bmCompaZone(c){
+  if(c == null) return null;
+  if(c < 0.9) return { t: 'ниже рынка', cls: 'is-low' };
+  if(c > 1.1) return { t: 'выше рынка', cls: 'is-high' };
+  return { t: 'в рынке', cls: 'is-ok' };
+}
+
+/** Строка перцентилей P10…P90 — без коробок: подпись сверху, число под ней. */
+function bmStatStrip(st, tone){
+  st = st || {};
+  var cells = [['P10', st.min || st.p10], ['P25', st.p25], ['P50', st.p50], ['P75', st.p75], ['P90', st.max || st.p90]];
+  return '<div class="bm-stats">' + cells.map(function(c){
+    return '<div class="bm-st' + (c[0] === 'P50' ? ' is-mid ' + (tone || '') : '') + '"><span>' + c[0] + '</span><b>' + bmNum(c[1]) + '</b></div>';
+  }).join('') + '</div>';
+}
+
+/**
+ * Полоса «рынок vs Фаровон»: тонкая шкала, коридор P25–P75, риска P50 и точка
+ * оклада Фаровон. Без плавающих подписей поверх шкалы (на телефоне они
+ * наезжали друг на друга) — значения вынесены в строку-легенду под ней.
+ */
+function renderSalaryRangeBar(stats, ourFrom, ourTo, ourMid, opts){
+  opts = opts || {};
   stats = stats || {};
-  var p10 = Number(stats.min || stats.p10 || 0);
   var p25 = Number(stats.p25 || 0);
   var p50 = Number(stats.p50 || 0);
   var p75 = Number(stats.p75 || 0);
-  var p90 = Number(stats.max || stats.p90 || 0);
+  var lo = Number(stats.min || stats.p10 || 0);
+  var hi = Number(stats.max || stats.p90 || 0);
   ourFrom = Number(ourFrom || 0);
   ourTo = Number(ourTo || 0);
   ourMid = Number(ourMid || 0);
 
   if(!p50 && !ourMid) return '';
+  var vals = [lo, p25, p50, p75, hi, ourFrom, ourTo, ourMid].filter(function(v){ return v > 0; });
+  if(!vals.length) return '';
 
-  var allVals = [p10, p25, p50, p75, p90, ourFrom, ourTo, ourMid].filter(function(v){ return v > 0; });
-  if(!allVals.length) return '';
+  var minVal = Math.min.apply(null, vals) * 0.9;
+  var maxVal = Math.max.apply(null, vals) * 1.1;
+  var span = (maxVal - minVal) || 1;
+  function pct(v){ return Math.max(0, Math.min(100, ((v - minVal) / span) * 100)); }
 
-  var minVal = Math.min.apply(null, allVals) * 0.85;
-  var maxVal = Math.max.apply(null, allVals) * 1.15;
-  var span = maxVal - minVal;
-  if(span <= 0) span = 1;
-
-  function toPct(v){
-    var pct = ((v - minVal) / span) * 100;
-    return Math.max(0, Math.min(100, pct));
-  }
-
-  var p25Pct = p25 ? toPct(p25) : 0;
-  var p75Pct = p75 ? toPct(p75) : 100;
-  var p50Pct = p50 ? toPct(p50) : 50;
-
-  var ourFromPct = ourFrom ? toPct(ourFrom) : (ourMid ? toPct(ourMid) : 0);
-  var ourToPct = ourTo ? toPct(ourTo) : (ourMid ? toPct(ourMid) : 0);
-  var ourMidPct = ourMid ? toPct(ourMid) : 0;
-
-  // Статус попадания в рынок
-  var statusBadge = '';
-  if(ourMid > 0 && p25 > 0 && p75 > 0){
+  var badge = '';
+  if(!opts.noFlag && ourMid > 0 && p25 > 0 && p75 > 0){
     if(ourMid >= p25 && ourMid <= p75){
-      statusBadge = '<span class="top-period-pill"><span class="top-period-dot"></span> В коридоре рынка (P25–P75)</span>';
+      badge = '<span class="bm-flag is-ok">В коридоре рынка</span>';
     } else if(ourMid < p25){
-      var d = Math.round(((p25 - ourMid) / p25) * 100);
-      statusBadge = '<span class="top-period-pill is-closed"><span class="top-period-dot"></span> Ниже рынка (−' + d + '% от P25)</span>';
+      badge = '<span class="bm-flag is-low">Ниже рынка −' + Math.round(((p25 - ourMid) / p25) * 100) + '% от P25</span>';
     } else {
-      var d = Math.round(((ourMid - p75) / p75) * 100);
-      statusBadge = '<span class="top-period-pill" style="color:var(--warn);border-color:var(--warn-border)"><span class="top-period-dot" style="background:var(--warn)"></span> Выше рынка (+' + d + '% от P75)</span>';
+      badge = '<span class="bm-flag is-high">Выше рынка +' + Math.round(((ourMid - p75) / p75) * 100) + '% от P75</span>';
     }
   }
 
-  return '<div style="margin:8px 0 2px;padding:8px 12px;background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">' +
-      '<span style="font-size:11px;font-weight:600;color:var(--color-fog);text-transform:uppercase;letter-spacing:0.04em">Коридор рынка vs Оклад Фаровон</span>' +
-      statusBadge +
-    '</div>' +
-    '<div style="position:relative;height:26px;margin:14px 18px 12px">' +
-      '<div style="position:absolute;left:0;right:0;top:15px;height:6px;background:var(--color-ash);border-radius:3px"></div>' +
-      (p25 && p75 ?
-        '<div style="position:absolute;left:' + p25Pct + '%;width:' + Math.max(3, p75Pct - p25Pct) + '%;top:13px;height:10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:4px" title="Рыночный коридор P25–P75: ' + p25.toLocaleString('ru-RU') + ' – ' + p75.toLocaleString('ru-RU') + '">' +
-        '</div>'
-      : '') +
-      (p50 ?
-        '<div style="position:absolute;left:' + p50Pct + '%;top:5px;width:2px;height:26px;background:var(--accent);transform:translateX(-50%);z-index:2;border-radius:1px">' +
-          '<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--color-midnight-ink);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--color-ash);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">P50: ' + p50.toLocaleString('ru-RU') + '</div>' +
-        '</div>'
-      : '') +
-      (ourMid ?
-        (ourFrom && ourTo && ourFrom !== ourTo ?
-          '<div style="position:absolute;left:' + ourFromPct + '%;width:' + Math.max(4, ourToPct - ourFromPct) + '%;top:27px;height:5px;background:var(--ok);border-radius:2px;z-index:3" title="Вилка Фаровон: ' + ourFrom.toLocaleString('ru-RU') + ' – ' + ourTo.toLocaleString('ru-RU') + '">' +
-          '</div>'
-        : '') +
-        '<div style="position:absolute;left:' + ourMidPct + '%;top:18px;width:14px;height:14px;background:var(--ok);border:2px solid #fff;box-shadow:var(--shadow-sm);border-radius:50%;transform:translateX(-50%);z-index:4">' +
-          '<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;color:var(--ok);white-space:nowrap;background:var(--color-canvas-white);padding:1px 6px;border-radius:4px;border:1px solid var(--ok-border);box-shadow:var(--shadow-xs);font-feature-settings:\'tnum\' 1">Фаровон: ' + ourMid.toLocaleString('ru-RU') + '</div>' +
-        '</div>'
-      : '') +
-    '</div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-fog);margin-top:16px;border-top:1px dashed var(--color-ash);padding-top:6px;font-feature-settings:\'tnum\' 1">' +
-      '<span>От: ' + Math.round(minVal / 0.85).toLocaleString('ru-RU') + '</span>' +
-      (p25 ? '<span>P25: <b>' + p25.toLocaleString('ru-RU') + '</b></span>' : '') +
-      (p75 ? '<span>P75: <b>' + p75.toLocaleString('ru-RU') + '</b></span>' : '') +
-      '<span>До: ' + Math.round(maxVal / 1.15).toLocaleString('ru-RU') + ' сом.</span>' +
+  var bar = '<div class="bm-bar">' +
+    (lo && hi && hi > lo ? '<i class="bm-bar-rng" style="left:' + pct(lo) + '%;width:' + Math.max(1, pct(hi) - pct(lo)) + '%" title="P10–P90"></i>' : '') +
+    (p25 && p75 ? '<i class="bm-bar-cor" style="left:' + pct(p25) + '%;width:' + Math.max(2, pct(p75) - pct(p25)) + '%" title="Коридор P25–P75"></i>' : '') +
+    (ourFrom && ourTo && ourFrom !== ourTo ? '<i class="bm-bar-our" style="left:' + pct(ourFrom) + '%;width:' + Math.max(2, pct(ourTo) - pct(ourFrom)) + '%" title="Вилка Фаровон"></i>' : '') +
+    (p50 ? '<i class="bm-bar-p50" style="left:' + pct(p50) + '%" title="P50"></i>' : '') +
+    (ourMid ? '<i class="bm-bar-dot" style="left:' + pct(ourMid) + '%" title="Фаровон"></i>' : '') +
+  '</div>';
+
+  if(opts.lean){
+    return '<div class="bm-barwrap is-lean">' + bar +
+      '<div class="bm-bar-legend">' +
+        (p25 && p75 ? '<span><i class="lg lg-cor"></i>Рынок P25–P75: <b>' + bmNum(p25) + ' – ' + bmNum(p75) + '</b></span>' : '') +
+        (ourMid ? '<span><i class="lg lg-dot"></i>Фаровон: <b>' + bmNum(ourMid) + '</b></span>' : '') +
+      '</div></div>';
+  }
+  return '<div class="bm-barwrap">' +
+    '<div class="bm-bar-head"><span>Рынок vs Фаровон</span>' + badge + '</div>' +
+    bar +
+    '<div class="bm-bar-legend">' +
+      (lo && hi && hi > lo ? '<span>P10–P90: <b>' + bmNum(lo) + ' – ' + bmNum(hi) + '</b></span>' : '') +
+      (p50 ? '<span><i class="lg lg-p50"></i>P50: <b>' + bmNum(p50) + '</b></span>' : '') +
+      (p25 && p75 ? '<span><i class="lg lg-cor"></i>Коридор P25–P75: <b>' + bmNum(p25) + ' – ' + bmNum(p75) + '</b></span>' : '') +
+      (ourMid ? '<span><i class="lg lg-our"></i>Фаровон: <b>' + bmNum(ourMid) + '</b>' + (ourFrom && ourTo && ourFrom !== ourTo ? ' <em>(' + bmNum(ourFrom) + ' – ' + bmNum(ourTo) + ')</em>' : '') + '</span>' : '') +
     '</div>' +
   '</div>';
 }
@@ -14426,155 +14675,114 @@ function loadBmCompareDetail(){
         '<b>Медиана Фаровон:</b> ' + (ourMid ? ourMid.toLocaleString('ru-RU') + ' сом.' : '<span style="color:var(--color-fog)">не задана</span>');
     }
 
-    var compBadge = '';
-    if(comp.compositeGapPercent != null){
-      var isPositive = comp.compositeGapPercent >= 0;
-      var sign = isPositive ? '+' : '';
-      var pillClass = isPositive ? 'top-period-pill' : 'top-period-pill is-closed';
-      compBadge = '<span class="' + pillClass + '" style="font-size:14px;padding:5px 12px;font-weight:600;font-feature-settings:\'tnum\' 1">' +
-        '<span class="top-period-dot"></span> ' + sign + comp.compositeGapPercent + '% к рынку (' + (comp.compositeGapAmount > 0 ? '+' : '') + (comp.compositeGapAmount ? comp.compositeGapAmount.toLocaleString('ru-RU') : '0') + ' сом.)</span>';
-    }
-
-    var sourcesHtml = '';
-
-    // Внутренний сбор
+    var sm = r.summary || {};
+    var cst = sm.compositeStats || { p50: sm.compositeMedian };
     var intr = r.internal || {};
     var intrStats = intr.stats || {};
-    var intrRangeBar = renderSalaryRangeBar(intrStats, ourPayFrom, ourPayTo, ourMid);
 
-    sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-        '<div style="display:flex;align-items:center;gap:10px">' +
-          renderSourceBadge('internal') +
-          '<div>' +
-            '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(intr.sourceTitle) + '</b>' +
-            '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">Внутренние анкеты (' + (intr.observationsCount || 0) + ' набл.)</span>' +
-          '</div>' +
-        '</div>' +
-        (intrStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + intrStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
-      '</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-        '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (intrStats.min ? intrStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (intrStats.p25 ? intrStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (intrStats.p50 ? intrStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (intrStats.p75 ? intrStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (intrStats.max ? intrStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
-      '</div>' +
-      intrRangeBar +
-    '</div>';
+    // Строка источника в «Составе сводной ставки». Одна разметка на обе
+    // ширины: на компьютере — строка таблицы, на телефоне CSS раскладывает
+    // её карточкой (название и вес сверху, значения с подписями ниже).
+    function srcRow(o){
+      var z = bmCompaZone(o.compa);
+      var share = o.share > 0 ? Math.round(o.share * 100) + '%' : (o.hasData ? '<em class="bmr-off">не входит</em>' : '');
+      var range = (o.hasData && o.st.p25 && o.st.p75) ? 'P25–P75: ' + bmNum(o.st.p25) + ' – ' + bmNum(o.st.p75) : '';
+      var meta = [o.meta, range].filter(Boolean).join(' · ');
+      var cells = o.hasData
+        ? '<span class="bmr-w">' + (o.total ? '100%' : share) + (!o.total && o.share > 0 ? '<i class="bmr-wbar"><b style="width:' + Math.min(100, Math.round(o.share * 100)) + '%"></b></i>' : '') + (o.posW ? '<em class="bmc-posw" title="Свой вес источника для этой должности">свой</em>' : '') + '</span>' +
+          '<span class="bmr-p">' + bmNum(o.st.p50) + '</span>' +
+          '<span class="bmr-c ' + (z ? z.cls : '') + '">' + bmRatio(o.compa) + '</span>'
+        : '<span class="bmr-empty">нет данных' + (o.mappable ? ' · <button class="btn-ghost" onclick="switchBmTab(\'mapping\')">сопоставить</button>' : '') + '</span>';
+      return '<div class="bmr-row' + (o.total ? ' is-total' : '') + (o.hasData ? '' : ' is-empty') + '">' +
+        '<span class="bmr-src"><b>' + esc(o.title) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</span>' + cells +
+      '</div>';
+    }
+
+    var rowsHtml = srcRow({
+      title: 'Внутренний сбор',
+      meta: (intr.observationsCount || 0) + ' набл. · свои анкеты',
+      hasData: !!intrStats.p50, st: intrStats, share: intr.share || 0, compa: intr.compaRatio,
+      posW: !!intr.positionWeight
+    });
+    (r.external || []).forEach(function(ext){
+      rowsHtml += srcRow({
+        title: ext.sourceTitle,
+        meta: esc([ext.sourcePosition ? '«' + ext.sourcePosition + '»' : '', ext.dataAsOf || '', ext.isLicensed ? 'лицензия' : '']
+          .filter(Boolean).join(' · ')),
+        hasData: !!ext.hasData && !!(ext.stats && ext.stats.p50), st: ext.stats || {}, share: ext.share || 0, compa: ext.compaRatio,
+        mappable: true, posW: !!ext.positionWeight
+      });
+    });
+    if(sm.compositeMedian){
+      rowsHtml += srcRow({ total: true, title: 'Сводная, взвешенная', hasData: true, st: cst, compa: sm.compaRatio });
+    }
 
     // Совокупный доход (оклад + переменная часть, приведённая к месяцу).
     // Считается по всем записям с окладом: где премию посчитать нельзя —
-    // берётся только оклад (запись не выпадает).
+    // берётся только оклад (запись не выпадает). Показываем, только если есть
+    // хотя бы одна распознанная премия — иначе дублирует «Внутренний сбор».
     var totStats = intr.totalStats || {};
     var totSample = intr.totalSampleCount || 0;
     var totBon = intr.totalBonusCount || 0;
-    var totCov = totSample ? totBon / totSample : 0;
-    // Карточку показываем, только если есть хотя бы одна распознанная премия —
-    // иначе «Совокупный доход» = «Внутренний сбор», дублирование.
+    var totHtml = '';
     if(totStats.p50 && totBon > 0){
-      var totP10 = totStats.p10 || totStats.min || 0;
-      var totP90 = totStats.p90 || totStats.max || 0;
+      var totCov = totSample ? totBon / totSample : 0;
       // «+N%» к окладу — только когда премия посчитана у большинства (≥50%);
       // ниже порога один-два бонуса рядом с медианой дают ложный «прирост».
       var totUplift = (totCov >= 0.5 && intrStats.p50 && totStats.p50 > intrStats.p50)
         ? Math.round(((totStats.p50 - intrStats.p50) / intrStats.p50) * 100) : 0;
-      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:10px">' +
-            '<div style="width:30px;height:30px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;flex:none">' + ic('wallet', 15) + '</div>' +
-            '<div>' +
-              '<b style="font-size:15px;color:var(--color-midnight-ink)">Совокупный доход</b>' +
-              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">оклад + переменная часть / мес.</span>' +
-            '</div>' +
-          '</div>' +
-          '<b style="font-size:16px;color:var(--ok);font-feature-settings:\'tnum\' 1">' + totStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' +
+      totHtml = '<div class="bm-card">' +
+        '<div class="bm-head">' +
+          '<div class="bm-head-l"><span class="bm-ic">' + ic('wallet', 14) + '</span><b>Совокупный доход</b>' +
+            '<span class="bm-sub">оклад + переменная часть / мес.</span></div>' +
+          '<div class="bm-head-r"><b class="tone-ok">' + bmNum(totStats.p50) + '</b><span>сом. · P50</span></div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-          '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (totP10 ? totP10.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (totStats.p25 ? totStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--ok);white-space:nowrap">' + totStats.p50.toLocaleString('ru-RU') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (totStats.p75 ? totStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (totP90 ? totP90.toLocaleString('ru-RU') : '—') + '</b></div>' +
-        '</div>' +
-        '<div style="font-size:12px;color:var(--color-fog);margin-top:8px;line-height:1.5">' +
-          'По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
+        bmStatStrip(totStats, 'tone-ok') +
+        '<div class="bm-note">По ' + totSample + ' ' + declOfNum(totSample, ['записи','записям','записям']) + ' с окладом. ' +
           'Премия с суммой учтена у <b>' + totBon + '</b> из ' + totSample + '; у остальных — только оклад' +
-          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') +
-        '</div>' +
+          (totUplift > 0 ? '. Медиана выше оклада на <b>+' + totUplift + '%</b>' : '') + '</div>' +
       '</div>';
     }
 
-    // Внешние источники
-    (r.external || []).forEach(function(ext){
-      var extStats = ext.stats || {};
-      var gapHtml = '';
-      if(ext.gapPercent != null){
-        var isPos = ext.gapPercent >= 0;
-        var col = isPos ? 'var(--ok)' : 'var(--no)';
-        gapHtml = '<span style="font-size:13.5px;font-weight:600;color:' + col + ';font-feature-settings:\'tnum\' 1">' + (isPos ? '+' : '') + ext.gapPercent + '% (' + (ext.gapAmount > 0 ? '+' : '') + ext.gapAmount.toLocaleString('ru-RU') + ' сом.)</span>';
-      }
-
-      var extRangeBar = ext.hasData ? renderSalaryRangeBar(extStats, ourPayFrom, ourPayTo, ourMid) : '';
-
-      sourcesHtml += '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:10px">' +
-            renderSourceBadge(ext.sourceKey, ext.isLicensed, ext.sourceTitle) +
-            '<div>' +
-              '<b style="font-size:15px;color:var(--color-midnight-ink)">' + esc(ext.sourceTitle) + '</b>' +
-              '<span style="font-size:13px;color:var(--color-fog);margin-left:6px">' + (ext.sourcePosition ? '«' + esc(ext.sourcePosition) + '»' : 'Не сопоставлено') + (ext.dataAsOf ? ' · ' + esc(ext.dataAsOf) : '') + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div style="text-align:right">' +
-            (extStats.p50 ? '<b style="font-size:16px;color:var(--accent);font-feature-settings:\'tnum\' 1">' + extStats.p50.toLocaleString('ru-RU') + ' сом. <span style="font-size:12.5px;color:var(--color-fog);font-weight:normal">(P50)</span></b>' : '<span style="color:var(--color-fog);font-size:13px">нет данных</span>') +
-            (gapHtml ? '<br>' + gapHtml : '') +
-          '</div>' +
-        '</div>' +
-        (ext.hasData ?
-          '<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:6px;font-size:13px;background:var(--color-paper-mist);border:1px solid var(--color-ash);padding:8px 12px;border-radius:var(--radius-buttons);text-align:center;font-feature-settings:\'tnum\' 1">' +
-            '<div><span style="color:var(--color-fog)">P10:</span><br><b style="white-space:nowrap">' + (extStats.min ? extStats.min.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P25:</span><br><b style="white-space:nowrap">' + (extStats.p25 ? extStats.p25.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P50:</span><br><b style="color:var(--accent);white-space:nowrap">' + (extStats.p50 ? extStats.p50.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P75:</span><br><b style="white-space:nowrap">' + (extStats.p75 ? extStats.p75.toLocaleString('ru-RU') : '—') + '</b></div>' +
-            '<div><span style="color:var(--color-fog)">P90:</span><br><b style="white-space:nowrap">' + (extStats.max ? extStats.max.toLocaleString('ru-RU') : '—') + '</b></div>' +
-          '</div>' +
-          extRangeBar
-        :
-          '<div style="padding:12px;text-align:center;font-size:13.5px;color:var(--color-fog);background:var(--color-paper-mist);border-radius:var(--radius-buttons);border:1px solid var(--color-ash)">' +
-            'Нет сопоставленных данных для этой должности. ' +
-            '<button class="btn-ghost" style="padding:2px 8px;font-size:13.5px;color:var(--accent);font-weight:600" onclick="switchBmTab(\'mapping\')">Настроить сопоставление →</button>' +
-          '</div>'
-        ) +
-      '</div>';
-    });
-
-    // Сводный Range Bar по композитной медиане рынка
-    var compStats = { p50: comp.compositeMedian };
-    var compositeRangeBar = renderSalaryRangeBar(compStats, ourPayFrom, ourPayTo, ourMid);
+    var z = bmCompaZone(sm.compaRatio);
+    var gapPct = sm.compositeGapPercent;
+    var gapTxt = gapPct == null ? '' :
+      (Math.abs(gapPct) < 0.05 ? 'на уровне рынка' : 'на ' + String(Math.abs(gapPct)).replace('.', ',') + '% ' + (gapPct < 0 ? 'ниже' : 'выше') + ' рынка');
+    var srcN = sm.sourcesCount || 0;
+    var verdict = z
+      ? '<div class="bmv-main">' +
+          '<span class="bmv-badge ' + z.cls + '">' + (z.cls === 'is-ok' ? 'Платим по рынку' : z.cls === 'is-low' ? 'Платим ниже рынка' : 'Платим выше рынка') + '</span>' +
+          '<div class="bmv-cr"><b>' + bmRatio(sm.compaRatio) + '</b><span>compa-ratio</span></div>' +
+          '<div class="bmv-sub">' + gapTxt + ' · норма 0,90–1,10</div>' +
+        '</div>'
+      : '<div class="bmv-main"><span class="bmv-badge">Нет данных для сравнения</span>' +
+          '<div class="bmv-sub">Нет цифр рынка по этой должности. Сопоставьте её с загруженными обзорами.</div></div>';
 
     d.innerHTML = '<div class="bm-detail-head">' +
         '<span class="bm-detail-head-lbl">Сравнение по должности</span>' +
         '<b>' + shownName + '</b>' +
       '</div>' +
-      '<div class="card" style="padding:16px 20px;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-          '<div style="display:flex;align-items:center;gap:12px">' +
-            '<div style="width:36px;height:36px;border-radius:var(--radius-buttons);background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none">' +
-              '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' + ICONS.chart + '</svg>' +
-            '</div>' +
-            '<div>' +
-              '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Сводная рыночная медиана (' + comp.sourcesCount + ' ' + declOfNum(comp.sourcesCount, ['источник', 'источника', 'источников']) + ')</div>' +
-              '<div style="font-size:22px;font-weight:700;color:var(--color-midnight-ink);letter-spacing:-0.02em;margin-top:1px;font-feature-settings:\'tnum\' 1">' +
-                (comp.compositeMedian ? comp.compositeMedian.toLocaleString('ru-RU') + ' сомони' : '—') +
-              '</div>' +
-            '</div>' +
+      '<div class="bm-card bmv">' +
+        '<div class="bmv-top">' + verdict +
+          '<div class="bmv-nums">' +
+            '<div><span>Рынок, P50</span><b>' + (sm.compositeMedian ? bmNum(sm.compositeMedian) : '—') + '</b>' +
+              '<small>' + srcN + ' ' + declOfNum(srcN, ['источник', 'источника', 'источников']) + '</small></div>' +
+            '<div><span>Фаровон</span><b>' + (ourMid ? bmNum(ourMid) : '—') + '</b>' +
+              '<small>' + (ourPayFrom && ourPayTo ? 'вилка ' + bmNum(ourPayFrom) + '–' + bmNum(ourPayTo) : 'вилка не задана') + '</small></div>' +
           '</div>' +
-          '<div>' + compBadge + '</div>' +
         '</div>' +
-        compositeRangeBar +
+        renderSalaryRangeBar({ p10: cst.p10, p25: cst.p25, p50: cst.p50, p75: cst.p75, p90: cst.p90 }, ourPayFrom, ourPayTo, ourMid, { noFlag: true, lean: true }) +
       '</div>' +
-      sourcesHtml;
+      '<div class="bm-card bmc">' +
+        '<div class="bmc-title"><span>Из чего сложился рынок</span>' +
+          (hasCap('benchmarks:import') && pos.id ? '<button type="button" class="btn-line bmc-posw-btn" id="bmPosWBtn">' + ic('settings', 13) + 'Веса для должности</button>' : '') +
+        '</div>' +
+        '<div id="bmPosWEdit"></div>' +
+        '<div class="bmr-row bmr-hd"><span>Источник</span><span>Вес</span><span>Рынок P50</span><span>Compa</span></div>' +
+        rowsHtml +
+      '</div>' +
+      totHtml;
+    wireBmPositionWeights(r);
   }).catch(function(err){
     d.innerHTML = '<div class="err">Ошибка: ' + (err.message || err) + '</div>';
   });
@@ -14584,7 +14792,7 @@ function renderBmMapping(){
   var c = $('bmContent');
   if(!c) return;
 
-  var srcOpts = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+  var srcOpts = bmVisibleSources().filter(function(s){ return s.key !== 'internal'; }).map(function(s){
     return '<option value="' + s.key + '" ' + (s.key === BM_STATE.selectedSourceKey ? 'selected' : '') + '>' + esc(s.title) + '</option>';
   }).join('');
 
@@ -14729,9 +14937,11 @@ function renderBmDatasets(){
   var c = $('bmContent');
   if(!c) return;
 
-  c.innerHTML = '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+  c.innerHTML = '<div id="bmWeights"></div>' +
+    '<div class="toolbar" style="margin-bottom:12px;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
     '<div><span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-fog)">Загруженные датасеты и внешние источники</span></div>' +
     '<div style="display:flex;gap:8px">' +
+      '<button class="btn-line" id="btnBmSrcMgr" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('settings', 14) + 'Источники</button>' +
       '<button class="btn-line" id="btnBmAddSource" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('plus', 14) + 'Новый источник</button>' +
       '<button class="btn-primary" id="btnBmUpload" style="min-height:32px;padding:0 12px;font-size:13.5px;width:auto">' + ic('archive', 14) + 'Загрузить датасет</button>' +
     '</div>' +
@@ -14739,12 +14949,14 @@ function renderBmDatasets(){
   '<div id="bmDatasetsList">Загрузка датасетов…</div>';
 
   $('btnBmUpload').onclick = openBmImportModal;
-  $('btnBmAddSource').onclick = openBmAddSourceModal;
+  $('btnBmAddSource').onclick = function(){ openBmAddSourceModal(); };
+  $('btnBmSrcMgr').onclick = openBmSourcesMgr;
 
   call('apiBenchmarkDatasets', S.token).then(guardAsyncToTab(function(res){
     var list = (res && res.datasets) || [];
     var el = $('bmDatasetsList');
     if(!el) return;
+    renderBmWeights(list);
 
     if(list.length === 0){
       el.innerHTML = '<div class="card" style="padding:30px;text-align:center;color:var(--color-fog)">' +
@@ -14760,6 +14972,8 @@ function renderBmDatasets(){
           '<div>' +
             '<b style="font-size:15.5px;color:var(--color-midnight-ink)">' + esc(d.title) + '</b><br>' +
             '<span style="font-size:13px;color:var(--color-fog)">Источник: ' + esc(d.source_title) + ' · Отчёт: ' + esc(d.report_date || '—') + ' · Строк: ' + d.row_count + ' · Загрузил: ' + esc(d.uploaded_by || '—') + '</span>' +
+            (d.orig_currency ? '<span style="font-size:12.5px;color:var(--muted)">Исходная валюта: ' + esc(d.orig_currency) + ' → сомони по курсу ' + esc(String(Number(d.fx_rate).toPrecision(4))) + (d.fx_date ? ' на ' + esc(d.fx_date) : '') + '</span>' : '') +
+            (d.methodology ? '<span style="font-size:12.5px;color:var(--muted)">' + esc(d.methodology) + '</span>' : '') +
           '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px">' +
@@ -14791,11 +15005,214 @@ function renderBmDatasets(){
   }));
 }
 
-function openBmAddSourceModal(){
+/**
+ * Веса источников в сводной рыночной ставке. Один вес на источник, действует
+ * на все должности. Показываем внутренний сбор и источники, по которым
+ * загружен хотя бы один датасет — остальные в сводную всё равно не попадут.
+ */
+/**
+ * Веса источников для текущей должности — перекрывают общий вес источника
+ * только по ней. «Как у источника» убирает свой вес (вернуть общий).
+ * Редактируются только источники, у которых по должности есть данные.
+ */
+function wireBmPositionWeights(r){
+  var btn = $('bmPosWBtn'), box = $('bmPosWEdit');
+  if(!btn || !box) return;
+  var intr = r.internal || {};
+  var list = [];
+  if(intr.stats && intr.stats.p50) list.push({ key: 'internal', title: 'Внутренний сбор', w: intr.weight, g: intr.globalWeight, own: !!intr.positionWeight });
+  (r.external || []).forEach(function(e){
+    if(e.hasData && e.stats && e.stats.p50) list.push({ key: e.sourceKey, title: e.sourceTitle, w: e.weight, g: e.globalWeight, own: !!e.positionWeight });
+  });
+  if(!list.length){ btn.remove(); return; }
+
+  var cur = {};   // key → число (свой вес) либо null (как у источника)
+  list.forEach(function(x){ cur[x.key] = x.own ? x.w : null; });
+  var eff = function(x){ return cur[x.key] != null ? cur[x.key] : x.g; };
+
+  function shares(){
+    var byKey = {}; list.forEach(function(x){ byKey[x.key] = x; });
+    bmwPaint(box, list.map(function(x){ return x.key; }), function(k){ return eff(byKey[k]); });
+    list.forEach(function(x){
+      var rs = box.querySelector('[data-pw-reset="' + x.key + '"]');
+      if(rs) rs.hidden = cur[x.key] == null;
+    });
+  }
+  function open(){
+    box.innerHTML = '<div class="bmw bmw--pos">' +
+      '<div class="bmw-sub">Веса только для этой должности. У остальных остаются общие.</div>' +
+      bmwStack(list.map(function(x){ return x.key; })) +
+      '<div class="bmw-cap"><span>Источник</span><span></span><span>Вес</span><span>Доля</span></div>' +
+      list.map(function(x, i){
+        return '<div class="bmw-row">' +
+          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(x.title) + '</span>' +
+          '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + eff(x) + '" data-pw="' + esc(x.key) + '">' +
+          '<span class="bmw-w" data-bmw-w="' + esc(x.key) + '"></span>' +
+          '<span class="bmw-v" data-pw-v="' + esc(x.key) + '"></span>' +
+          '<button type="button" class="btn-ghost bmw-reset" data-pw-reset="' + esc(x.key) + '" title="Вернуть общий вес источника">' + icBare('close', 11) + '</button>' +
+        '</div>';
+      }).join('') +
+      '<div class="bmw-act"><button type="button" class="btn-ghost" id="bmPosWCancel">Отмена</button>' +
+        '<button type="button" class="btn-primary" id="bmPosWSave">Сохранить для должности</button></div>' +
+    '</div>';
+    box.querySelectorAll('input[data-pw]').forEach(function(inp){
+      inp.oninput = function(){ cur[inp.dataset.pw] = Number(inp.value); shares(); };
+    });
+    box.querySelectorAll('[data-pw-reset]').forEach(function(b){
+      b.onclick = function(){
+        var x = list.filter(function(y){ return y.key === b.dataset.pwReset; })[0];
+        cur[x.key] = null;
+        var inp = box.querySelector('input[data-pw="' + x.key + '"]');
+        if(inp) inp.value = x.g;
+        shares();
+      };
+    });
+    $('bmPosWCancel').onclick = function(){ box.innerHTML = ''; btn.classList.remove('on'); };
+    $('bmPosWSave').onclick = function(){
+      var save = this; save.disabled = true;
+      call('apiBenchmarkSetPositionWeights', S.token, r.position.id, cur).then(guardAsyncToTab(function(res){
+        save.disabled = false;
+        if(!res || !res.ok){ toast((res && res.error) || 'Не удалось сохранить веса', 'err'); return; }
+        toast('Веса для должности сохранены', 'ok');
+        loadBmCompareDetail();
+      })).catch(function(){ save.disabled = false; toast('Нет связи с сервером', 'err'); });
+    };
+    btn.classList.add('on');
+    shares();
+  }
+  btn.onclick = function(){ if(box.innerHTML) { box.innerHTML = ''; btn.classList.remove('on'); } else open(); };
+}
+
+/** Оттенок акцента для источника по порядковому номеру — чтобы у сегмента
+ *  полосы долей и точки у названия был один цвет без отдельной легенды. */
+function bmwTone(i){
+  var pct = [100, 68, 46, 30, 20, 14][i % 6];
+  return 'color-mix(in srgb, var(--accent) ' + pct + '%, var(--card))';
+}
+
+/** Полоса долей + подписи справа + заливка ползунков. keys — порядок источников. */
+function bmwPaint(root, keys, weightOf){
+  var sum = keys.reduce(function(a, k){ return a + weightOf(k); }, 0);
+  keys.forEach(function(k, i){
+    var w = weightOf(k), share = (w && sum) ? Math.round(w / sum * 100) : 0;
+    var v = root.querySelector('[data-bmw-v="' + k + '"], [data-pw-v="' + k + '"]');
+    if(v){ v.textContent = w ? share + '%' : '—'; v.classList.toggle('is-off', !w); }
+    var vw = root.querySelector('[data-bmw-w="' + k + '"]');
+    if(vw) vw.textContent = w;
+    var seg = root.querySelector('[data-bmw-seg="' + k + '"]');
+    if(seg) seg.style.width = (w && sum ? w / sum * 100 : 0) + '%';
+    var inp = root.querySelector('input[data-bmw="' + k + '"], input[data-pw="' + k + '"]');
+    if(inp) inp.style.setProperty('--p', w + '%');
+  });
+}
+
+function bmwStack(keys){
+  return '<div class="bmw-stack">' + keys.map(function(k, i){
+    return '<i data-bmw-seg="' + esc(k) + '" style="background:' + bmwTone(i) + '"></i>';
+  }).join('') + '</div>';
+}
+
+function renderBmWeights(datasets){
+  var box = $('bmWeights');
+  if(!box) return;
+  var withData = { internal: true };
+  (datasets || []).forEach(function(d){ withData[d.source_key] = true; });
+  var list = bmVisibleSources().filter(function(src){ return withData[src.key]; });
+  if(!list.length){ box.innerHTML = ''; return; }
+  var canEdit = hasCap('benchmarks:import');
+  var cur = {};
+  list.forEach(function(src){ cur[src.key] = src.weight != null ? Number(src.weight) : 100; });
+
+  var keys = list.map(function(src){ return src.key; });
+  // Доли пересчитываем подписями, а не перерисовкой блока — иначе ползунок
+  // пересоздавался бы под пальцем посреди перетаскивания.
+  function shares(){ bmwPaint(box, keys, function(k){ return cur[k]; }); }
+  function draw(){
+    box.innerHTML = '<div class="bm-card bmw">' +
+      '<div class="bmw-hd"><div><b>Веса источников в сводной ставке</b>' +
+        '<span class="bmw-sub">Вес — насколько мы доверяем источнику. Действует на все должности.</span></div>' +
+        (canEdit ? '<button type="button" class="btn-primary" id="bmwSave">Сохранить</button>' : '') + '</div>' +
+      bmwStack(keys) +
+      '<div class="bmw-cap"><span>Источник</span><span></span><span>Вес</span><span>Доля</span></div>' +
+      list.map(function(src, i){
+        return '<div class="bmw-row">' +
+          '<span class="bmw-name"><i class="bmw-dot" style="background:' + bmwTone(i) + '"></i>' + esc(src.title) + '</span>' +
+          '<input type="range" class="bmw-range" min="0" max="100" step="5" value="' + cur[src.key] + '" data-bmw="' + esc(src.key) + '"' + (canEdit ? '' : ' disabled') + '>' +
+          '<span class="bmw-w" data-bmw-w="' + esc(src.key) + '"></span>' +
+          '<span class="bmw-v" data-bmw-v="' + esc(src.key) + '"></span>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+    box.querySelectorAll('input[data-bmw]').forEach(function(inp){
+      inp.oninput = function(){ cur[inp.dataset.bmw] = Number(inp.value); shares(); };
+    });
+    shares();
+    var save = $('bmwSave');
+    if(save){
+      save.onclick = function(){
+        save.disabled = true;
+        call('apiBenchmarkSetWeights', S.token, cur).then(guardAsyncToTab(function(res){
+          save.disabled = false;
+          if(!res || !res.ok){ toast((res && res.error) || 'Не удалось сохранить веса', 'err'); return; }
+          (BM_STATE.sources || []).forEach(function(src){ if(res.weights[src.key] != null) src.weight = res.weights[src.key]; });
+          toast('Веса сохранены', 'ok');
+        })).catch(function(){ save.disabled = false; toast('Нет связи с сервером', 'err'); });
+      };
+    }
+  }
+  draw();
+}
+
+var BM_KIND_LABEL = { consultancy: 'Консалтинг', jobsite: 'Джоб-борд', official: 'Статистика', direct: 'Опрос / партнёры' };
+
+/** Окно «Источники»: изменить название и тип, скрыть или вернуть источник. */
+function openBmSourcesMgr(){
+  var old = document.getElementById('bmSrcMgr'); if(old) old.remove();
+  var el = document.createElement('div');
+  el.className = 'sheet'; el.id = 'bmSrcMgr';
+  function draw(){
+    var list = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; });
+    el.innerHTML = '<div class="sheet-in bms-mgr">' +
+      '<div class="sheet-hd"><b>Источники данных</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+      '<div class="bms-list">' + list.map(function(s){
+        return '<div class="bms-row' + (s.hidden ? ' is-hidden' : '') + '">' +
+          '<div class="bms-name"><b>' + esc(s.title) + '</b>' +
+            '<small>' + esc(BM_KIND_LABEL[s.kind] || s.kind || '') + (s.is_licensed ? ' · лицензия' : '') + (s.hidden ? ' · скрыт' : '') + '</small></div>' +
+          '<button class="btn-line" data-edit="' + esc(s.key) + '">Изменить</button>' +
+          '<button class="btn-ghost" data-hide="' + esc(s.key) + '">' + (s.hidden ? 'Показать' : 'Скрыть') + '</button>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="bms-note">Скрытый источник пропадает из списков и не входит в сводную ставку. Загруженные данные сохраняются, источник можно вернуть.</div>' +
+    '</div>';
+    el.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick = function(){ openBmAddSourceModal(b.dataset.edit); }; });
+    el.querySelectorAll('[data-hide]').forEach(function(b){
+      b.onclick = function(){
+        var s = (BM_STATE.sources || []).filter(function(x){ return x.key === b.dataset.hide; })[0];
+        b.disabled = true;
+        call('apiBenchmarkUpdateSource', S.token, { key: s.key, hidden: !s.hidden }).then(function(res){
+          if(!res || !res.ok){ toast((res && res.error) || 'Не удалось изменить источник', 'err'); b.disabled = false; return; }
+          s.hidden = res.source.hidden ? 1 : 0;
+          toast(s.hidden ? 'Источник скрыт' : 'Источник снова показан');
+          draw();
+          if(BM_STATE.tab === 'datasets') renderBmDatasets();
+        }).catch(function(){ toast('Нет связи с сервером', 'err'); b.disabled = false; });
+      };
+    });
+  }
+  el.onclick = function(e){ if(e.target.dataset.x || e.target === el) el.remove(); };
+  document.body.appendChild(el);
+  draw();
+  call('apiBenchmarkSources', S.token).then(function(res){
+    if(res && res.sources){ BM_STATE.sources = res.sources; if(el.isConnected) draw(); }
+  });
+}
+
+function openBmAddSourceModal(editKey){
+  var editSrc = editKey ? (BM_STATE.sources || []).filter(function(x){ return x.key === editKey; })[0] : null;
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in" style="max-width:560px">' +
-    '<div class="sheet-hd"><b>Добавить новый источник данных рынка</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div class="sheet-hd"><b>' + (editSrc ? 'Изменить источник' : 'Добавить новый источник данных рынка') + '</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
     '<div id="bmsErr" class="err hidden" style="margin-top:8px"></div>' +
     '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px">' +
       '<div>' +
@@ -14804,7 +15221,7 @@ function openBmAddSourceModal(){
       '</div>' +
       '<div>' +
         '<label class="lbl">Уникальный код источника (латиницей)</label>' +
-        '<input id="bmsKey" placeholder="Например: kpmg">' +
+        '<input id="bmsKey" placeholder="Например: kpmg"' + (editSrc ? ' disabled' : '') + '>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div>' +
@@ -14837,11 +15254,20 @@ function openBmAddSourceModal(){
     '</div>' +
     '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
       '<button class="btn-ghost" data-x="1">Отмена</button>' +
-      '<button class="btn-primary" id="btnBmsSave">Сохранить источник</button>' +
+      '<button class="btn-primary" id="btnBmsSave">' + (editSrc ? 'Сохранить' : 'Сохранить источник') + '</button>' +
     '</div>' +
   '</div>';
 
   document.body.appendChild(el);
+
+  if(editSrc){
+    el.querySelector('#bmsTitle').value = editSrc.title || '';
+    el.querySelector('#bmsKey').value = editSrc.key;
+    el.querySelector('#bmsKind').value = editSrc.kind || 'consultancy';
+    el.querySelector('#bmsCurr').value = editSrc.default_currency || 'сомони';
+    el.querySelector('#bmsLic').checked = !!editSrc.is_licensed;
+    el.querySelector('#bmsNotes').value = editSrc.notes || '';
+  }
 
   el.onclick = function(e){
     if(e.target.dataset.x || e.target === el){ el.remove(); return; }
@@ -14849,7 +15275,7 @@ function openBmAddSourceModal(){
 
   el.querySelector('#bmsTitle').oninput = function(){
     var keyIn = el.querySelector('#bmsKey');
-    if(!keyIn.value || keyIn.dataset.autofilled){
+    if(!editSrc && (!keyIn.value || keyIn.dataset.autofilled)){
       keyIn.value = this.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '_').slice(0, 25);
       keyIn.dataset.autofilled = '1';
     }
@@ -14873,7 +15299,7 @@ function openBmAddSourceModal(){
     var btn = this;
     btn.disabled = true; btn.textContent = 'Сохранение…';
 
-    call('apiBenchmarkCreateSource', S.token, {
+    call(editSrc ? 'apiBenchmarkUpdateSource' : 'apiBenchmarkCreateSource', S.token, {
       title: title,
       key: key,
       kind: kind,
@@ -14882,13 +15308,15 @@ function openBmAddSourceModal(){
       notes: notes
     }).then(function(res){
       if(res && res.ok){
-        toast('Источник «' + title + '» успешно добавлен!');
+        toast(editSrc ? 'Источник «' + title + '» сохранён' : 'Источник «' + title + '» успешно добавлен!');
         el.remove();
         loadBmInitialData();
+        var mgr = document.getElementById('bmSrcMgr'); if(mgr) mgr.remove();
+        if(editSrc) setTimeout(function(){ if(BM_STATE.tab === 'datasets') renderBmDatasets(); }, 400);
       } else {
         errEl.textContent = (res && res.error) || 'Ошибка сохранения';
         errEl.classList.remove('hidden');
-        btn.disabled = false; btn.textContent = 'Сохранить источник';
+        btn.disabled = false; btn.textContent = editSrc ? 'Сохранить' : 'Сохранить источник';
       }
     }).catch(function(err){
       errEl.textContent = err.message || 'Ошибка сети';
@@ -14898,128 +15326,598 @@ function openBmAddSourceModal(){
   };
 }
 
+/**
+ * Загрузка датасета обзора зарплат. Файл (Excel .xlsx или CSV) или вставка
+ * таблицы → выбор листа → колонки подбираются по заголовкам (можно поправить)
+ * → валюта с онлайн-курсом к сомони → предпросмотр сумм в сомони → импорт.
+ * В базу значения попадают уже в сомони: сравнение по должности валюты не
+ * пересчитывает.
+ */
+var BMI_FIELDS = [
+  { key:'posLabel', label:'Должность', req:true,  re:/должност|наименование|position|названия строк/i },
+  { key:'region',   label:'Регион',                re:/регион|region|страна/i },
+  { key:'grade',    label:'Уровень',               re:/уровень|grade|level/i },
+  { key:'code',     label:'Код',                   re:/^код$|^code$|код должн/i },
+  { key:'p10',      label:'P10 (нижний дециль)',   re:/нижний дециль|p10|10%/i },
+  { key:'p25',      label:'P25 (1-й квартиль)',    re:/1-й квартиль|первый квартиль|p25|25%/i },
+  { key:'p50',      label:'P50 (медиана)',         re:/медиана|p50|median|50%/i },
+  { key:'p75',      label:'P75 (3-й квартиль)',    re:/3-й квартиль|третий квартиль|p75|75%/i },
+  { key:'p90',      label:'P90 (верхний дециль)',  re:/верхний дециль|p90|90%/i },
+  { key:'min',      label:'Минимум',               re:/минимум|^min|_min/i },
+  { key:'max',      label:'Максимум',              re:/максимум|^max|_max/i },
+  { key:'avg',      label:'Среднее',               re:/среднее|average|^avg|mean/i },
+  { key:'sampleN',  label:'Число работников (N)',  re:/^n\*|число работников|sample|^n$/i }
+];
+var BMI_RAW_FIELDS = [
+  { key:'posLabel', label:'Должность', req:true, re:/должност|наименование|position/i },
+  { key:'value',    label:'Сумма (оклад)', req:true, re:/оклад|зарплат|сумма|price|value/i },
+  { key:'region',   label:'Регион', re:/регион|region/i },
+  { key:'company',  label:'Компания', re:/компани|company/i }
+];
+
+function bmiColLetter(i){ var s = ''; i++; while(i > 0){ var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+function bmiNum(v){
+  if(v == null) return 0;
+  var t = String(v).replace(/[\s ]+/g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  var n = parseFloat(t);
+  return isNaN(n) ? 0 : n;
+}
+function bmiParseDelimited(text){
+  var lines = String(text || '').split(/\r?\n/).filter(function(l){ return l.trim(); });
+  if(!lines.length) return [];
+  var f = lines[0], tab = (f.match(/\t/g) || []).length, semi = (f.match(/;/g) || []).length, comma = (f.match(/,/g) || []).length;
+  var d = ',';
+  if(tab && tab >= semi && tab >= comma) d = '\t'; else if(semi && semi >= comma) d = ';';
+  return lines.map(function(line){
+    var out = [], cur = '', q = false;
+    for(var i = 0; i < line.length; i++){
+      var c = line[i];
+      if(c === '"') q = !q;
+      else if(c === d && !q){ out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  });
+}
+function bmiFmt(v){ return v ? Math.round(v).toLocaleString('ru-RU') : '—'; }
+
 function openBmImportModal(){
   var el = document.createElement('div');
   el.className = 'sheet';
 
-  var srcOptions = (BM_STATE.sources || []).filter(function(s){ return s.key !== 'internal'; }).map(function(s){
-    return '<option value="' + s.key + '">' + esc(s.title) + '</option>';
+  var srcOptions = bmVisibleSources().filter(function(s){ return s.key !== 'internal'; }).map(function(s){
+    return '<option value="' + esc(s.key) + '" data-cur="' + esc(s.default_currency || 'сомони') + '">' + esc(s.title) + '</option>';
   }).join('');
 
+  var st = { fileB64: null, fileName: '', grid: [], fields: BMI_FIELDS, map: {}, headerRow: 0, dataStart: 1, fx: { rate: 1, code: 'TJS', date: '' }, report: null };
+
   el.innerHTML = '<div class="sheet-in bmi-modal">' +
-    '<div class="sheet-hd"><b>Загрузка датасета обзора заработных плат</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
+    '<div class="sheet-hd"><b>Загрузка датасета</b><button class="btn-ghost" data-x="1">Закрыть</button></div>' +
     '<div id="bmImpErr" class="err hidden"></div>' +
     '<div class="bmi-grid">' +
-      '<div>' +
-        '<label class="lbl">Источник</label>' +
-        '<select id="bmiSource">' + srcOptions + '</select>' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Название датасета</label>' +
-        '<input id="bmiTitle" placeholder="B1 Salary Survey 2026">' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Режим данных</label>' +
-        '<select id="bmiMode">' +
-          '<option value="percentiles">Готовые перцентили (P25/P50/P75)</option>' +
-          '<option value="raw_vacancies">Сырые вакансии/точки данных</option>' +
-        '</select>' +
-      '</div>' +
-      '<div>' +
-        '<label class="lbl">Дата актуальности данных</label>' +
-        '<input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '">' +
-      '</div>' +
+      '<div><label class="lbl">Источник</label><select id="bmiSource">' + srcOptions + '</select></div>' +
+      '<div><label class="lbl">Название датасета</label><input id="bmiTitle" placeholder="B1 Salary Survey 2026"></div>' +
+      '<div><label class="lbl">Режим данных</label><select id="bmiMode">' +
+        '<option value="percentiles">Готовые перцентили (P25/P50/P75…)</option>' +
+        '<option value="raw_vacancies">Сырые вакансии / точки данных</option></select></div>' +
+      '<div><label class="lbl">Дата актуальности данных</label><input type="date" id="bmiDataAsOf" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
     '</div>' +
-    '<label class="lbl bmi-lbl">Вставьте данные (таблица CSV / TSV из Excel или PDF):</label>' +
-    '<textarea id="bmiText" class="bmi-text" rows="6" placeholder="Должность,P25,P50,P75\nГлавный бухгалтер,8000,12000,16000"></textarea>' +
+    '<div class="bmi-drop" id="bmiDrop">' +
+      '<input type="file" id="bmiFile" accept=".xlsx,.csv,.tsv,.txt" hidden>' +
+      '<div class="bmi-drop-t">' + ic('archive', 18) + '<b id="bmiDropName">Выберите файл или перетащите его сюда</b></div>' +
+      '<div class="bmi-drop-s">Excel (.xlsx) или CSV. Либо <a href="#" id="bmiPasteLink">вставьте таблицу текстом</a></div>' +
+    '</div>' +
+    '<textarea id="bmiText" class="bmi-text hidden" rows="5" placeholder="Должность;P25;P50;P75&#10;Главный бухгалтер;8000;12000;16000"></textarea>' +
+    '<div id="bmiSetup" class="bmi-setup hidden"></div>' +
     '<div id="bmiPreview" class="bmi-preview-slot"></div>' +
     '<div class="bmi-acts">' +
       '<button class="btn-ghost" data-x="1">Отмена</button>' +
-      '<button class="btn-line" id="btnBmiDryRun">' + ic('search', 14) + 'Проверить без записи</button>' +
+      '<button class="btn-line" id="btnBmiDryRun" disabled>' + ic('search', 14) + 'Проверить без записи</button>' +
       '<button class="btn-primary" id="btnBmiCommit" disabled>Импортировать в базу</button>' +
     '</div>' +
   '</div>';
-
   document.body.appendChild(el);
 
-  var dryRunReport = null;
+  function showErr(t){ var e = $('bmImpErr'); if(!e) return; e.textContent = t || ''; e.classList.toggle('hidden', !t); }
+  el.onclick = function(e){ if(e.target.dataset.x || e.target === el){ el.remove(); return; } };
 
-  el.onclick = function(e){
-    if(e.target.dataset.x || e.target === el){ el.remove(); return; }
+  // ── чтение файла ──
+  function readFileAsBase64(file, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var bytes = new Uint8Array(fr.result), bin = '', chunk = 0x8000;
+      for(var i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      cb(btoa(bin));
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function takeFile(file){
+    if(!file) return;
+    showErr('');
+    st.fileName = file.name;
+    $('bmiDropName').textContent = file.name;
+    if(/\.xlsx$/i.test(file.name)){
+      readFileAsBase64(file, function(b64){
+        st.fileB64 = b64;
+        call('apiBenchmarkXlsxSheets', S.token, b64).then(guardAsyncToTab(function(res){
+          if(!res || !res.ok){ showErr((res && res.error) || 'Не удалось прочитать файл'); return; }
+          if(!$('bmiTitle').value) $('bmiTitle').value = file.name.replace(/\.xlsx$/i, '');
+          setup(res.sheets);
+        })).catch(function(){ showErr('Нет связи с сервером'); });
+      });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ st.fileB64 = null; st.grid = bmiParseDelimited(fr.result); if(!$('bmiTitle').value) $('bmiTitle').value = file.name.replace(/\.[^.]+$/, ''); setup(null); };
+      fr.readAsText(file, 'utf-8');
+    }
+  }
+  $('bmiDrop').onclick = function(e){ if(e.target.id === 'bmiPasteLink') return; $('bmiFile').click(); };
+  $('bmiFile').onchange = function(){ takeFile(this.files[0]); };
+  $('bmiDrop').ondragover = function(e){ e.preventDefault(); this.classList.add('is-over'); };
+  $('bmiDrop').ondragleave = function(){ this.classList.remove('is-over'); };
+  $('bmiDrop').ondrop = function(e){ e.preventDefault(); this.classList.remove('is-over'); takeFile(e.dataTransfer.files[0]); };
+  $('bmiPasteLink').onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    $('bmiText').classList.toggle('hidden');
+  };
+  $('bmiText').oninput = function(){
+    st.fileB64 = null;
+    st.grid = bmiParseDelimited(this.value);
+    if(st.grid.length) setup(null);
   };
 
-  $('btnBmiDryRun').onclick = function(){
-    var text = $('bmiText').value.trim();
-    if(!text){ toast('Вставьте текст таблицы'); return; }
+  // ── настройка: лист, заголовки, колонки, валюта ──
+  function currentFields(){ return $('bmiMode').value === 'raw_vacancies' ? BMI_RAW_FIELDS : BMI_FIELDS; }
 
-    var mode = $('bmiMode').value;
-    var colMap = mode === 'percentiles' ?
-      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
-      { posLabel:0, value:1, region:2, company:3 };
-
-    $('btnBmiDryRun').disabled = true; $('btnBmiDryRun').textContent = 'Проверка…';
-    $('bmImpErr').classList.add('hidden');
-
-    call('apiBenchmarkDryRun', S.token, {
-      sourceKey: $('bmiSource').value,
-      text: text,
-      mode: mode,
-      columnMap: colMap,
-      title: $('bmiTitle').value.trim(),
-      dataAsOf: $('bmiDataAsOf').value
-    }).then(guardAsyncToTab(function(res){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
-      if(!res || !res.ok){
-        $('bmImpErr').textContent = (res && res.error) || 'Ошибка проверки';
-        $('bmImpErr').classList.remove('hidden');
-        return;
+  function detect(){
+    var fields = currentFields(), grid = st.grid;
+    // Заголовок — строка среди первых 12 с наибольшим числом совпадений с названиями полей.
+    var best = 0, bestHits = -1;
+    for(var r = 0; r < Math.min(12, grid.length); r++){
+      var hits = 0;
+      (grid[r] || []).forEach(function(c){
+        var t = String(c || '');
+        if(t && fields.some(function(f){ return f.re.test(t); })) hits++;
+      });
+      if(hits > bestHits){ bestHits = hits; best = r; }
+    }
+    st.headerRow = best;
+    st.dataStart = best + 1;
+    var width = 0; grid.slice(0, 40).forEach(function(r){ if(r && r.length > width) width = r.length; });
+    st.width = width;
+    // Подпись колонки: слова из строк заголовка над данными (группа + название показателя).
+    st.colTitles = [];
+    for(var c = 0; c < width; c++){
+      var parts = [];
+      for(var r2 = Math.max(0, best - 2); r2 <= best + 1 && r2 < grid.length; r2++){
+        var t2 = String((grid[r2] || [])[c] || '').replace(/\s+/g, ' ').trim();
+        if(t2 && parts.indexOf(t2) < 0 && !/^-?[\d\s.,]+$/.test(t2)) parts.push(t2);
       }
+      st.colTitles[c] = parts.join(' · ');
+    }
+    st.map = {};
+    // Название колонки может стоять в любой из строк рядом с заголовком
+    // (группа «Ежемесячная заработная плата» выше, «Медиана» ниже) — проверяем их все.
+    var hdrRows = [];
+    for(var hr = Math.max(0, best - 2); hr <= Math.min(grid.length - 1, best + 1); hr++) hdrRows.push(hr);
+    fields.forEach(function(f){
+      for(var c2 = 0; c2 < width; c2++){
+        var taken = Object.keys(st.map).some(function(k){ return st.map[k] === c2; });
+        if(taken) continue;
+        var hit = hdrRows.some(function(hr2){
+          var own = String((grid[hr2] || [])[c2] || '').replace(/s+/g, ' ').trim();
+          return own && !/^-?[ds.,]+$/.test(own) && f.re.test(own);
+        });
+        if(hit){ st.map[f.key] = c2; return; }
+      }
+    });
+  }
 
-      dryRunReport = res.report;
+  function colOptions(sel){
+    var o = '<option value="">— нет —</option>';
+    for(var c = 0; c < st.width; c++){
+      var t = st.colTitles[c] ? ' · ' + st.colTitles[c].slice(0, 42) : '';
+      o += '<option value="' + c + '"' + (sel === c ? ' selected' : '') + '>' + bmiColLetter(c) + t + '</option>';
+    }
+    return o;
+  }
+
+  function setup(sheets){
+    var box = $('bmiSetup');
+    box.classList.remove('hidden');
+    var sheetHtml = sheets
+      ? '<div><label class="lbl">Лист</label><select id="bmiSheet">' + sheets.map(function(n){ return '<option>' + esc(n) + '</option>'; }).join('') + '</select></div>'
+      : '';
+    box.innerHTML = '<div class="bmi-row3">' + sheetHtml +
+      '<div><label class="lbl">Данные начинаются со строки №</label><input type="number" id="bmiStart" min="1" value="1"></div>' +
+      '<div><label class="lbl">Валюта в файле</label><select id="bmiCur"></select></div>' +
+    '</div>' +
+    '<div id="bmiFxLine" class="bmi-fx"></div>' +
+    '<div id="bmiMapBox"></div>' +
+    '<div id="bmiOpts" class="bmi-opts"></div>';
+    var cur = $('bmiCur');
+    cur.innerHTML = '<option value="TJS">Сомони (TJS)</option><option value="USD">Доллар США (USD)</option><option value="EUR">Евро (EUR)</option>' +
+      '<option value="RUB">Российский рубль (RUB)</option><option value="UZS">Узбекский сум (UZS)</option><option value="KZT">Казахстанский тенге (KZT)</option><option value="CNY">Китайский юань (CNY)</option>';
+    cur.onchange = loadFx;
+    var sh = $('bmiSheet');
+    if(sh) sh.onchange = function(){ loadGrid(this.value); };
+    $('bmiStart').oninput = function(){ st.dataStart = Math.max(0, (parseInt(this.value, 10) || 1) - 1); refresh(); };
+    if(sheets){ loadGrid(sheets[0]); } else { afterGrid(); }
+    loadFx();
+  }
+
+  function loadGrid(name){
+    call('apiBenchmarkXlsxGrid', S.token, st.fileB64, name).then(guardAsyncToTab(function(res){
+      if(!res || !res.ok){ showErr((res && res.error) || 'Не удалось прочитать лист'); return; }
+      st.grid = res.rows || [];
+      afterGrid();
+    })).catch(function(){ showErr('Нет связи с сервером'); });
+  }
+
+  function afterGrid(){
+    detect();
+    $('bmiStart').value = st.dataStart + 1;
+    drawMap();
+    refresh();
+  }
+
+  function drawMap(){
+    var fields = currentFields();
+    var h = '<div class="bmi-map">';
+    fields.forEach(function(f){
+      h += '<label class="bmi-map-i"><span>' + esc(f.label) + (f.req ? ' *' : '') + '</span>' +
+        '<select data-f="' + f.key + '">' + colOptions(st.map[f.key]) + '</select></label>';
+    });
+    h += '</div>';
+    $('bmiMapBox').innerHTML = h;
+    $('bmiMapBox').querySelectorAll('select[data-f]').forEach(function(s){
+      s.onchange = function(){ if(this.value === '') delete st.map[this.dataset.f]; else st.map[this.dataset.f] = Number(this.value); refresh(); };
+    });
+  }
+
+  function loadFx(){
+    var code = $('bmiCur').value;
+    var line = $('bmiFxLine');
+    if(code === 'TJS'){ st.fx = { rate: 1, code: 'TJS', date: '' }; line.innerHTML = ''; refresh(); return; }
+    line.innerHTML = '<span class="bmi-fx-load">Загружаю курс…</span>';
+    call('apiBenchmarkFx', S.token, code).then(guardAsyncToTab(function(res){
+      if(!res || !res.ok){
+        st.fx = { rate: 0, code: code, date: '' };
+        line.innerHTML = '<span class="bmi-fx-err">' + esc((res && res.error) || 'Курс недоступен') + '</span>';
+        refresh(); return;
+      }
+      st.fx = { rate: res.rate, code: code, date: res.date };
+      var r = res.rate;
+      var shown = r < 0.01 ? r.toLocaleString('ru-RU', { maximumSignificantDigits: 4 }) : r.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+      line.innerHTML = '<span>1 ' + esc(code) + ' = <b>' + shown + '</b> сомони</span>' +
+        '<span class="bmi-fx-s">онлайн-курс на ' + esc(res.date) + (res.stale ? ' · сервис недоступен, последний сохранённый' : '') + '</span>' +
+        '<button type="button" class="btn-ghost bmi-fx-b" id="bmiFxRe">Обновить</button>';
+      var re = $('bmiFxRe'); if(re) re.onclick = loadFx;
+      refresh();
+    })).catch(function(){ line.innerHTML = '<span class="bmi-fx-err">Нет связи с сервером</span>'; });
+  }
+
+  // ── таблица для отправки и предпросмотр ──
+  function options(){
+    return { avgAsMedian: !!($('bmiAvg') && $('bmiAvg').checked), midAsMedian: !!($('bmiMid') && $('bmiMid').checked) };
+  }
+
+  function buildRows(){
+    var mode = $('bmiMode').value, map = st.map, out = [];
+    var o = options();
+    for(var r = st.dataStart; r < st.grid.length; r++){
+      var row = st.grid[r] || [];
+      var label = map.posLabel != null ? String(row[map.posLabel] || '').replace(/\s+/g, ' ').trim() : '';
+      if(!label) continue;
+      var v = function(k){ return map[k] != null ? row[map[k]] : ''; };
+      if(mode === 'raw_vacancies'){
+        if(bmiNum(v('value')) <= 0) continue;
+        out.push({ label: label, region: v('region'), value: bmiNum(v('value')), company: v('company') });
+        continue;
+      }
+      var s = { label: label, region: v('region'), grade: v('grade'), code: v('code'),
+        p10: bmiNum(v('p10')), p25: bmiNum(v('p25')), p50: bmiNum(v('p50')), p75: bmiNum(v('p75')), p90: bmiNum(v('p90')),
+        min: bmiNum(v('min')), max: bmiNum(v('max')), avg: bmiNum(v('avg')), n: bmiNum(v('sampleN')) };
+      if(!s.p50 && o.avgAsMedian && s.avg) s.p50 = s.avg;
+      if(!s.p50 && o.midAsMedian && s.min && s.max) s.p50 = (s.min + s.max) / 2;
+      if(!s.p50) continue;
+      out.push(s);
+    }
+    return out;
+  }
+
+  function csvOf(rows){
+    var q = function(x){ return String(x == null ? '' : x).replace(/[;"\r\n]+/g, ' ').trim(); };
+    var mode = $('bmiMode').value;
+    if(mode === 'raw_vacancies'){
+      return ['Должность;Сумма;Регион;Компания'].concat(rows.map(function(r){ return [q(r.label), r.value, q(r.region), q(r.company)].join(';'); })).join('\n');
+    }
+    var n = function(x){ return x ? String(x) : ''; };
+    return ['Регион;Уровень;Код;Должность;P10;P25;P50;P75;P90;Мин;Макс;Среднее;N'].concat(rows.map(function(r){
+      return [q(r.region), q(r.grade), q(r.code), q(r.label), n(r.p10), n(r.p25), n(r.p50), n(r.p75), n(r.p90), n(r.min), n(r.max), n(r.avg), r.n ? Math.round(r.n) : ''].join(';');
+    })).join('\n');
+  }
+  var PCT_MAP = { region:0, grade:1, code:2, posLabel:3, p10:4, p25:5, p50:6, p75:7, p90:8, min:9, max:10, avg:11, sampleN:12 };
+  var RAW_MAP = { posLabel:0, value:1, region:2, company:3 };
+
+  function methodologyNote(){
+    var o = options(), notes = [];
+    if(o.avgAsMedian && st.map.p50 == null) notes.push('P50 принят равным среднему значению (в источнике медианы нет)');
+    if(o.midAsMedian && st.map.p50 == null) notes.push('P50 принят серединой между минимумом и максимумом (в источнике медианы нет)');
+    return notes.join('; ');
+  }
+
+  function refresh(){
+    st.report = null;
+    $('btnBmiCommit').disabled = true;
+    var mode = $('bmiMode').value;
+    var opts = $('bmiOpts');
+    if(opts){
+      var showOpts = mode === 'percentiles' && st.map.p50 == null;
+      opts.innerHTML = showOpts
+        ? '<label class="bmi-chk"><input type="checkbox" id="bmiAvg"' + (st.avgOn ? ' checked' : '') + '> В файле нет медианы — принять <b>среднее</b> за P50</label>' +
+          '<label class="bmi-chk"><input type="checkbox" id="bmiMid"' + (st.midOn ? ' checked' : '') + '> …или принять за P50 <b>середину между минимумом и максимумом</b></label>'
+        : '';
+      var a = $('bmiAvg'), m = $('bmiMid');
+      if(a) a.onchange = function(){ st.avgOn = this.checked; if(this.checked && m){ m.checked = false; st.midOn = false; } refresh(); };
+      if(m) m.onchange = function(){ st.midOn = this.checked; if(this.checked && a){ a.checked = false; st.avgOn = false; } refresh(); };
+    }
+    var rows = buildRows();
+    var ok = rows.length > 0 && (st.fx.rate > 0);
+    $('btnBmiDryRun').disabled = !ok;
+    var rate = st.fx.rate || 1, cur = st.fx.code;
+    var head = mode === 'raw_vacancies'
+      ? '<th>Должность</th><th class="num">Сумма</th>' + (cur !== 'TJS' ? '<th class="num">В сомони</th>' : '')
+      : '<th>Должность</th><th class="num">P25</th><th class="num">P50</th><th class="num">P75</th>' + (cur !== 'TJS' ? '<th class="num bmi-tjs">P50 в сомони</th>' : '');
+    var body = rows.slice(0, 6).map(function(r){
+      if(mode === 'raw_vacancies') return '<tr><td>' + esc(r.label) + '</td><td class="num">' + bmiFmt(r.value) + '</td>' + (cur !== 'TJS' ? '<td class="num bmi-tjs">' + bmiFmt(r.value * rate) + '</td>' : '') + '</tr>';
+      return '<tr><td>' + esc(r.label) + '</td><td class="num">' + bmiFmt(r.p25) + '</td><td class="num">' + bmiFmt(r.p50) + '</td><td class="num">' + bmiFmt(r.p75) + '</td>' +
+        (cur !== 'TJS' ? '<td class="num bmi-tjs">' + bmiFmt(r.p50 * rate) + '</td>' : '') + '</tr>';
+    }).join('');
+    $('bmiPreview').innerHTML = st.grid.length
+      ? '<div class="bmi-prev"><div class="bmi-prev-h"><b>' + rows.length + '</b> ' + declOfNum(rows.length, ['строка', 'строки', 'строк']) + ' с данными' +
+          (cur !== 'TJS' ? ' · суммы пересчитываются в сомони' : '') + '</div>' +
+          (rows.length ? '<table class="bmi-tbl"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>' : '<div class="bmi-empty">Не найдено строк с данными — проверьте колонки и номер первой строки.</div>') +
+        '</div>'
+      : '';
+  }
+
+  $('bmiMode').onchange = function(){ if(st.grid.length){ detect(); drawMap(); } refresh(); };
+
+  function payload(){
+    var rows = buildRows(), mode = $('bmiMode').value;
+    return {
+      sourceKey: $('bmiSource').value,
+      text: csvOf(rows),
+      mode: mode,
+      columnMap: mode === 'raw_vacancies' ? RAW_MAP : PCT_MAP,
+      currency: st.fx.code === 'TJS' ? 'сомони' : st.fx.code,
+      fxRate: st.fx.rate || 1,
+      title: $('bmiTitle').value.trim(),
+      dataAsOf: $('bmiDataAsOf').value,
+      methodology: methodologyNote()
+    };
+  }
+
+  $('btnBmiDryRun').onclick = function(){
+    var b = this; b.disabled = true; b.textContent = 'Проверка…'; showErr('');
+    call('apiBenchmarkDryRun', S.token, payload()).then(guardAsyncToTab(function(res){
+      b.disabled = false; b.innerHTML = ic('search', 14) + 'Проверить без записи';
+      if(!res || !res.ok){ showErr((res && res.error) || 'Ошибка проверки'); return; }
+      st.report = res.report;
       $('btnBmiCommit').disabled = false;
-
-      var prevHtml = '<div class="bmi-result">' +
-        '<b>Результат проверки:</b> Найдено ' + dryRunReport.validRows + ' валидных строк. Новых должностей для источника: ' + dryRunReport.newPositionsCount + '<br>' +
-        (dryRunReport.errors.length ? '<span class="bmi-result-err">Ошибок: ' + dryRunReport.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>') +
-      '</div>';
-      $('bmiPreview').innerHTML = prevHtml;
+      var r = res.report;
+      var box = document.createElement('div');
+      box.className = 'bmi-result';
+      box.innerHTML = '<b>Результат проверки:</b> ' + r.validRows + ' валидных строк, новых должностей: ' + r.newPositionsCount + '. ' +
+        (r.errors.length ? '<span class="bmi-result-err">Ошибок: ' + r.errors.length + '</span>' : '<span class="bmi-result-ok">Ошибок нет</span>');
+      var old = $('bmiPreview').querySelector('.bmi-result'); if(old) old.remove();
+      $('bmiPreview').appendChild(box);
     })).catch(guardAsyncToTab(function(err){
-      $('btnBmiDryRun').disabled = false; $('btnBmiDryRun').innerHTML = ic('search', 14) + 'Проверить без записи';
-      $('bmImpErr').textContent = err.message || 'Ошибка связи';
-      $('bmImpErr').classList.remove('hidden');
+      b.disabled = false; b.innerHTML = ic('search', 14) + 'Проверить без записи';
+      showErr(err.message || 'Ошибка связи');
     }));
   };
 
   $('btnBmiCommit').onclick = function(){
-    var text = $('bmiText').value.trim();
-    var mode = $('bmiMode').value;
-    var colMap = mode === 'percentiles' ?
-      { posLabel:0, p25:1, p50:2, p75:3, sampleN:4 } :
-      { posLabel:0, value:1, region:2, company:3 };
-
-    $('btnBmiCommit').disabled = true; $('btnBmiCommit').textContent = 'Импортируем…';
-
-    call('apiBenchmarkCommit', S.token, {
-      sourceKey: $('bmiSource').value,
-      text: text,
-      mode: mode,
-      columnMap: colMap,
-      title: $('bmiTitle').value.trim(),
-      dataAsOf: $('bmiDataAsOf').value
-    }).then(guardAsyncToTab(function(res){
-      if(res && res.ok){
-        toast('Датасет успешно сохранен!');
-        el.remove();
-        renderBmDatasets();
-      } else {
-        $('bmImpErr').textContent = (res && res.error) || 'Ошибка сохранения';
-        $('bmImpErr').classList.remove('hidden');
-        $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
-      }
+    var b = this; b.disabled = true; b.textContent = 'Импортируем…';
+    call('apiBenchmarkCommit', S.token, payload()).then(guardAsyncToTab(function(res){
+      if(res && res.ok){ toast('Датасет сохранён'); el.remove(); renderBmDatasets(); }
+      else { showErr((res && res.error) || 'Ошибка сохранения'); b.disabled = false; b.textContent = 'Импортировать в базу'; }
     })).catch(guardAsyncToTab(function(err){
-      $('bmImpErr').textContent = err.message || 'Ошибка связи';
-      $('bmImpErr').classList.remove('hidden');
-      $('btnBmiCommit').disabled = false; $('btnBmiCommit').textContent = 'Импортировать в базу';
+      showErr(err.message || 'Ошибка связи'); b.disabled = false; b.textContent = 'Импортировать в базу';
     }));
   };
 }
+
+
+
+// ─── Вкладка: Рассылка (Telegram-бот) ───
+// Слева — текст и отправка, справа — кому (фильтры по роли/подразделению/имени
+// и галочки), ниже — история с отчётом о доставке.
+function bcRoleLabel(r){ return (typeof ROLE_LABELS_RU !== 'undefined' && ROLE_LABELS_RU[r]) || r; }
+
+function renderAdminBroadcast(){
+  S.bc = S.bc || { rows:null, sel:{}, q:'', role:'', text:'', button:true, hist:null, open:null };
+  if(!$('bcRoot')){
+    $('adminContent').innerHTML = '<div id="bcRoot" class="bc-root">'+skTable()+'</div>';
+  }
+  Promise.all([
+    call('apiAdminBroadcastRecipients', S.token),
+    call('apiAdminBroadcasts', S.token)
+  ]).then(guardAsyncToTab(function(res){
+    var r = res[0], h = res[1];
+    if(!r || !r.ok){
+      $('bcRoot').innerHTML = '<div class="err">'+esc((r && r.error) || 'Не удалось загрузить получателей')+'</div>';
+      return;
+    }
+    S.bc.rows = r.rows || [];
+    S.bc.totalActive = r.totalActive || 0;
+    S.bc.hist = (h && h.ok) ? (h.rows || []) : [];
+    drawBroadcast();
+  })).catch(guardAsyncToTab(function(){
+    $('bcRoot').innerHTML = '<div class="err">Нет связи с сервером</div>';
+  }));
+}
+
+// У HR BP закреплены десятки подразделений — целиком в строку списка они
+// растягивали страницу вширь. Показываем первое и «ещё N»; поиск по-прежнему
+// идёт по полному списку.
+function bcUnitsShort(units){
+  var list = String(units || '').split(';').map(function(s){ return s.trim(); }).filter(Boolean);
+  if(!list.length) return '';
+  return ' · ' + esc(list[0]) + (list.length > 1 ? ' <b>+ещё ' + (list.length - 1) + '</b>' : '');
+}
+
+function bcVisibleRows(){
+  var b = S.bc, q = (b.q || '').toLowerCase();
+  return b.rows.filter(function(u){
+    if(b.role && u.role !== b.role) return false;
+    if(!q) return true;
+    return (u.fio || '').toLowerCase().indexOf(q) >= 0 ||
+           (u.login || '').toLowerCase().indexOf(q) >= 0 ||
+           (u.units || '').toLowerCase().indexOf(q) >= 0;
+  });
+}
+
+function bcSelectedIds(){
+  return Object.keys(S.bc.sel).filter(function(k){ return S.bc.sel[k]; }).map(Number);
+}
+
+function drawBroadcast(){
+  var b = S.bc, root = $('bcRoot');
+  if(!root) return;
+  var roles = [];
+  b.rows.forEach(function(u){ if(roles.indexOf(u.role) < 0) roles.push(u.role); });
+  var notLinked = Math.max(0, (b.totalActive || 0) - b.rows.length);
+
+  root.innerHTML =
+    '<div class="bc-grid">'+
+      '<div class="card bc-compose">'+
+        '<label class="lbl" for="bcText">Текст сообщения</label>'+
+        '<textarea id="bcText" rows="9" maxlength="3500" placeholder="Что нужно сообщить сотрудникам…">'+esc(b.text)+'</textarea>'+
+        '<div class="muted bc-count" id="bcCount"></div>'+
+        '<label class="bc-check"><input type="checkbox" id="bcButton"'+(b.button ? ' checked' : '')+'> Кнопка «Открыть «Обзор рынка»» под сообщением</label>'+
+        '<button type="button" class="btn-primary" id="bcSend"></button>'+      '</div>'+
+      '<div class="card bc-people">'+
+        '<div class="bc-people-head">'+
+          '<input id="bcSearch" placeholder="Имя, логин или подразделение…" value="'+esc(b.q)+'">'+
+          '<button type="button" class="btn-line" id="bcAll">Выбрать показанных</button>'+
+          '<button type="button" class="btn-ghost" id="bcNone">Снять всех</button>'+
+        '</div>'+
+        '<div class="chips bc-roles">'+
+          '<button type="button" data-role=""'+(!b.role ? ' class="on"' : '')+'>Все</button>'+
+          roles.map(function(r){
+            return '<button type="button" data-role="'+esc(r)+'"'+(b.role === r ? ' class="on"' : '')+'>'+esc(bcRoleLabel(r))+'</button>';
+          }).join('')+
+        '</div>'+
+        '<div class="bc-list" id="bcList"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card bc-hist"><b>История рассылок</b><div id="bcHist"></div></div>';
+
+  $('bcText').oninput = function(){ b.text = this.value; bcRefreshMeta(); };
+  $('bcButton').onchange = function(){ b.button = this.checked; };
+  $('bcSearch').oninput = function(){ b.q = this.value; bcDrawList(); };
+  $('bcAll').onclick = function(){ bcVisibleRows().forEach(function(u){ b.sel[u.id] = true; }); bcDrawList(); };
+  $('bcNone').onclick = function(){ b.sel = {}; bcDrawList(); };
+  root.querySelectorAll('.bc-roles button').forEach(function(btn){
+    btn.onclick = function(){ b.role = btn.getAttribute('data-role') || ''; drawBroadcast(); };
+  });
+  $('bcSend').onclick = bcSend;
+  bcDrawList();
+  bcDrawHist();
+}
+
+function bcRefreshMeta(){
+  var b = S.bc, n = bcSelectedIds().length;
+  if($('bcCount')) $('bcCount').textContent = (b.text || '').length + ' / 3500';
+  var btn = $('bcSend');
+  if(btn){
+    btn.textContent = n ? 'Отправить ('+n+')' : 'Выберите получателей';
+    btn.disabled = !n || !(b.text || '').trim();
+  }
+}
+
+function bcDrawList(){
+  var b = S.bc, rows = bcVisibleRows();
+  $('bcList').innerHTML = rows.length ? rows.map(function(u){
+    return '<label class="bc-row"><input type="checkbox" data-id="'+u.id+'"'+(b.sel[u.id] ? ' checked' : '')+'>'+
+      '<span class="bc-fio">'+esc(u.fio)+'</span>'+
+      '<span class="muted bc-meta">'+esc(bcRoleLabel(u.role))+bcUnitsShort(u.units)+'</span></label>';
+  }).join('') : '<div class="empty">Никого не найдено</div>';
+  $('bcList').querySelectorAll('input[data-id]').forEach(function(cb){
+    cb.onchange = function(){ b.sel[cb.getAttribute('data-id')] = cb.checked; bcRefreshMeta(); };
+  });
+  bcRefreshMeta();
+}
+
+function bcDrawHist(){
+  var h = S.bc.hist || [], box = $('bcHist');
+  if(!box) return;
+  if(!h.length){ box.innerHTML = '<div class="empty">Рассылок пока не было</div>'; return; }
+  box.innerHTML = h.map(function(x){
+    var open = S.bc.open === x.id;
+    return '<div class="bc-h" data-id="'+x.id+'">'+
+      '<div class="bc-h-top"><span>#'+x.id+' · '+esc(fmtDateTime(x.created_at))+' · '+esc(x.author_login)+'</span>'+
+      '<span class="bc-h-stat">Доставлено '+x.sent+' из '+x.total+(x.failed ? ' · <b class="bc-fail">не дошло '+x.failed+'</b>' : '')+'</span></div>'+
+      '<div class="bc-h-body">'+esc(x.body)+'</div>'+
+      (open ? '<div class="bc-h-det" id="bcDet'+x.id+'">Загрузка…</div>' : '')+
+    '</div>';
+  }).join('');
+  box.querySelectorAll('.bc-h').forEach(function(el){
+    el.onclick = function(){
+      var id = Number(el.getAttribute('data-id'));
+      S.bc.open = S.bc.open === id ? null : id;
+      bcDrawHist();
+    };
+  });
+  if(S.bc.open) bcLoadDetails(S.bc.open);
+}
+
+function bcLoadDetails(id){
+  call('apiAdminBroadcast', S.token, id).then(guardAsyncToTab(function(r){
+    var el = $('bcDet'+id);
+    if(!el) return;
+    if(!r || !r.ok){ el.textContent = (r && r.error) || 'Не удалось загрузить'; return; }
+    el.innerHTML = (r.recipients || []).map(function(u){
+      return '<span class="bc-chip'+(u.status === 'sent' ? '' : ' bc-chip-fail')+'">'+esc(u.fio)+(u.status === 'sent' ? '' : ' — не доставлено')+'</span>';
+    }).join('');
+  })).catch(function(){});
+}
+
+function bcSend(){
+  var b = S.bc, ids = bcSelectedIds();
+  if(!ids.length || !(b.text || '').trim()) return;
+  ask({
+    title: 'Отправить рассылку?',
+    html: 'Сообщение получат <b>'+ids.length+'</b> чел. Отменить отправку после нажатия нельзя.',
+    ok: 'Отправить'
+  }).then(function(yes){
+    if(!yes) return;
+    $('bcSend').disabled = true;
+    call('apiAdminBroadcastSend', S.token, { body:b.text, withButton:b.button, userIds:ids }).then(guardAsyncToTab(function(r){
+      if(!r || !r.ok){
+        toast((r && r.error) || 'Не удалось отправить', 'err');
+        bcRefreshMeta();
+        return;
+      }
+      toast('Доставлено '+r.sent+' из '+r.total+(r.failed ? ', не дошло: '+r.failed : ''), r.failed ? 'warn' : 'ok');
+      b.text = ''; b.sel = {}; b.open = r.id;
+      renderAdminBroadcast();
+    })).catch(guardAsyncToTab(function(){
+      toast('Нет связи с сервером — проверьте историю, рассылка могла уйти', 'err');
+      bcRefreshMeta();
+    }));
+  });
+}
+
+// Оргструктура на телефоне: тап по заголовку шторки раскрывает её выше/сворачивает.
+document.addEventListener('click', function(e){
+  if(window.innerWidth > 700) return;
+  var hd = e.target.closest ? e.target.closest('.org-drawer-header') : null;
+  if(!hd || e.target.closest('button')) return;
+  var d = hd.closest('.org-right-drawer');
+  if(d) d.classList.toggle('is-tall');
+});

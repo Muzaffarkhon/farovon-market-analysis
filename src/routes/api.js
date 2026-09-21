@@ -14,6 +14,7 @@ const benchmarkController = require('../controllers/benchmarkController');
 const liveController = require('../controllers/liveController');
 const gradingController = require('../controllers/gradingController');
 const supportController = require('../controllers/supportController');
+const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
@@ -109,6 +110,8 @@ router.get('/admin/divisions', requireCapability('divisions:view'), adminControl
 router.post('/admin/divisions', requireCapability('divisions:edit'), adminController.saveDivision);
 router.post('/admin/divisions/create', requireCapability('divisions:edit'), adminController.createDivision);
 router.post('/admin/divisions/move', requireCapability('divisions:edit'), adminController.moveDivisionCascade);
+router.post('/admin/divisions/hide', requireCapability('divisions:edit'), adminController.setDivisionHidden);
+router.post('/admin/divisions/delete', requireCapability('divisions:edit'), adminController.deleteDivision);
 router.post('/admin/divisions/batch-assign', requireCapability('divisions:edit'), adminController.batchAssignCascade);
 router.post('/admin/divisions/adjacent-group', requireCapability('divisions:edit'), adminController.applyAdjacentGroup);
 router.post('/admin/divisions/adjacent-group/clear', requireCapability('divisions:edit'), adminController.clearAdjacentGroup);
@@ -150,6 +153,9 @@ router.post('/admin/user-capabilities', requireRoles('admin'), adminController.s
 // ─── Мультиисточниковый бенчмаркинг вознаграждений ───
 router.get('/benchmarks/sources', requireCapability('benchmarks:view'), benchmarkController.getSources);
 router.post('/benchmarks/sources', requireCapability('benchmarks:import'), benchmarkController.createSource);
+router.post('/benchmarks/source-update', requireCapability('benchmarks:import'), benchmarkController.updateSource);
+router.post('/benchmarks/sources/weights', requireCapability('benchmarks:import'), benchmarkController.setSourceWeights);
+router.post('/benchmarks/position-weights', requireCapability('benchmarks:import'), benchmarkController.setPositionWeights);
 router.get('/benchmarks/datasets', requireCapability('benchmarks:view'), benchmarkController.getDatasets);
 router.post('/benchmarks/datasets/:id/delete', requireCapability('benchmarks:import'), benchmarkController.deleteDataset);
 router.get('/benchmarks/positions/:sourceKey', requireCapability('benchmarks:view'), benchmarkController.getSourcePositions);
@@ -157,6 +163,9 @@ router.get('/benchmarks/mappings', requireCapability('benchmarks:view'), benchma
 router.get('/benchmarks/suggest-mappings/:sourceKey', requireCapability('benchmarks:map'), benchmarkController.suggestMappings);
 router.post('/benchmarks/mappings', requireCapability('benchmarks:map'), benchmarkController.saveMapping);
 router.post('/benchmarks/mappings/:id/delete', requireCapability('benchmarks:map'), benchmarkController.deleteMapping);
+router.get('/benchmarks/fx', requireCapability('benchmarks:import'), benchmarkController.getFxRate);
+router.post('/benchmarks/import/xlsx-sheets', requireCapability('benchmarks:import'), benchmarkController.xlsxSheets);
+router.post('/benchmarks/import/xlsx-grid', requireCapability('benchmarks:import'), benchmarkController.xlsxGrid);
 router.post('/benchmarks/import/dry-run', requireCapability('benchmarks:import'), benchmarkController.dryRunImport);
 router.post('/benchmarks/import/commit', requireCapability('benchmarks:import'), benchmarkController.commitImport);
 router.get('/benchmarks/compare', requireCapability('benchmarks:view'), benchmarkController.compare);
@@ -200,6 +209,10 @@ router.post('/key-personnel/delete', requireRoles('admin'), gradingController.de
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 
 // ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
+router.get('/admin/broadcasts', requireCapability('broadcast:send'), broadcastController.list);
+router.get('/admin/broadcasts/recipients', requireCapability('broadcast:send'), broadcastController.recipients);
+router.get('/admin/broadcasts/:id', requireCapability('broadcast:send'), broadcastController.details);
+router.post('/admin/broadcasts/send', requireCapability('broadcast:send'), broadcastController.send);
 router.get('/admin/support/threads', requireCapability('support:manage'), supportController.listThreads);
 router.get('/admin/support/threads/:id', requireCapability('support:manage'), supportController.getThread);
 router.post('/admin/support/reply', requireCapability('support:manage'), supportController.reply);

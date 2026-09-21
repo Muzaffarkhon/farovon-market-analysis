@@ -158,7 +158,7 @@ async function getUserPayload(user) {
   ] = await Promise.all([
     cached('divisions', async () => {
       try {
-        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions ORDER BY num ASC, unit ASC");
+        return await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(survey_note,'') AS survey_note, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions WHERE COALESCE(is_hidden,0) = 0 ORDER BY num ASC, unit ASC");
       } catch (e) {
         try {
           return (await queryAll("SELECT unit, dir, COALESCE(group_key,'') AS group_key, COALESCE(resp,'') AS resp, COALESCE(head,'') AS head FROM divisions ORDER BY num ASC, unit ASC")).map(d => ({ ...d, survey_note: '' }));
@@ -382,7 +382,16 @@ async function getUserPayload(user) {
   if (user.role === 'admin') {
     capabilities = CAPABILITIES.map(c => c.id);
   } else {
-    capabilities = (roleCaps || []).map(r => r.capability);
+    // Раньше сюда шли только права роли: личные надбавки работали на сервере,
+    // но в меню не появлялись, а личные отключения меню бы не убирали.
+    // Не кэшируется — это персональные данные сотрудника, запрос крошечный.
+    const personal = await queryAll(
+      "SELECT capability, COALESCE(effect, 'grant') AS effect FROM user_capabilities WHERE user_login = ?",
+      [user.login]
+    ).catch(() => []);
+    const set = new Set((roleCaps || []).map(r => r.capability));
+    personal.forEach(p => { if (p.effect === 'deny') set.delete(p.capability); else set.add(p.capability); });
+    capabilities = [...set];
   }
 
   return {

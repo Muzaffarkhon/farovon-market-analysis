@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.78';
+var APP_VERSION = window.APP_VERSION || 'v2.5.124';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1802,6 +1802,8 @@ var API_ROUTES = {
   apiAdminBatchAssignDivision: function(args){ return fetchJson('/api/admin/divisions/batch-assign', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminApplyAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminClearAdjacentGroup: function(args){ return fetchJson('/api/admin/divisions/adjacent-group/clear', { method:'POST', token:args[0], body:{ key:args[1] } }); },
+  apiAdminHideDivision: function(args){ return fetchJson('/api/admin/divisions/hide', { method:'POST', token:args[0], body:args[1] }); },
+  apiAdminDeleteDivision: function(args){ return fetchJson('/api/admin/divisions/delete', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminMoveDivision: function(args){ return fetchJson('/api/admin/divisions/move', { method:'POST', token:args[0], body:args[1] }); },
   // Анкеты оценки: чтение формулировок (раздел оценки) и их правка (админка).
   apiGradingBlocks: function(args){ return fetchJson('/api/grading/blocks', { method:'GET', token:args[0] }); },
@@ -1818,6 +1820,10 @@ var API_ROUTES = {
   apiAdminGradingCommitteeFinalize: function(args){ return fetchJson('/api/admin/grading-committee/finalize', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingResetEvaluation: function(args){ return fetchJson('/api/admin/grading-blocks/reset-evaluation', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminGradingCommitteeBreakdown: function(args){ return fetchJson('/api/admin/grading-blocks/committee-breakdown?block=' + encodeURIComponent(args[1]) + '&job_title=' + encodeURIComponent(args[2]), { method:'GET', token:args[0] }); },
+  apiAdminBroadcastRecipients: function(args){ return fetchJson('/api/admin/broadcasts/recipients', { method:'GET', token:args[0] }); },
+  apiAdminBroadcasts: function(args){ return fetchJson('/api/admin/broadcasts', { method:'GET', token:args[0] }); },
+  apiAdminBroadcast: function(args){ return fetchJson('/api/admin/broadcasts/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
+  apiAdminBroadcastSend: function(args){ return fetchJson('/api/admin/broadcasts/send', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminSupportThreads: function(args){
     var f = args[1] || {};
     var qs = Object.keys(f).filter(function(k){ return f[k]; }).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(f[k]); }).join('&');
@@ -1860,7 +1866,7 @@ var API_ROUTES = {
   apiAdminRenameRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/rename', { method:'POST', token:args[0], body:{ label:args[2] } }); },
   apiAdminDeleteRole: function(args){ return fetchJson('/api/admin/roles/' + encodeURIComponent(args[1]) + '/delete', { method:'POST', token:args[0] }); },
   apiAdminGetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'GET', token:args[0] }); },
-  apiAdminSetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capabilities:args[2] } }); },
+  apiAdminSetUserCapabilities: function(args){ return fetchJson('/api/admin/user-capabilities', { method:'POST', token:args[0], body:{ userLogin:args[1], capabilities:args[2], denied:args[3] || [] } }); },
   apiSetPeriod: function(args){ return fetchJson('/api/admin/period', { method:'POST', token:args[0], body:args[1] }); },
   apiAdminRunMaintenance: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:args[1] } }); },
   // Тот же эндпоинт с confirm: без него массовые задачи только считают объём.
@@ -1887,6 +1893,12 @@ var API_ROUTES = {
   apiAdminGetAuditLog: function(args){ return fetchJson('/api/admin/audit-log?limit=' + (args[1]||100), { method:'GET', token:args[0] }); },
   apiSendMassReminder: function(args){ return fetchJson('/api/admin/maintenance', { method:'POST', token:args[0], body:{ taskType:'mass_reminder' } }); },
   apiBenchmarkSources: function(args){ return fetchJson('/api/benchmarks/sources', { method:'GET', token:args[0] }); },
+  apiBenchmarkSetPositionWeights: function(args){ return fetchJson('/api/benchmarks/position-weights', { method:'POST', token:args[0], body:{ positionId:args[1], weights:args[2] } }); },
+  apiBenchmarkSetWeights: function(args){ return fetchJson('/api/benchmarks/sources/weights', { method:'POST', token:args[0], body:{ weights:args[1] } }); },
+  apiBenchmarkFx: function(args){ return fetchJson('/api/benchmarks/fx?currency=' + encodeURIComponent(args[1] || 'TJS'), { method:'GET', token:args[0] }); },
+  apiBenchmarkXlsxSheets: function(args){ return fetchJson('/api/benchmarks/import/xlsx-sheets', { method:'POST', token:args[0], body:{ fileBase64:args[1] } }); },
+  apiBenchmarkXlsxGrid: function(args){ return fetchJson('/api/benchmarks/import/xlsx-grid', { method:'POST', token:args[0], body:{ fileBase64:args[1], sheet:args[2] } }); },
+  apiBenchmarkUpdateSource: function(args){ return fetchJson('/api/benchmarks/source-update', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkCreateSource: function(args){ return fetchJson('/api/benchmarks/sources', { method:'POST', token:args[0], body:args[1] }); },
   apiBenchmarkDatasets: function(args){ return fetchJson('/api/benchmarks/datasets' + (args[1] ? '?sourceKey='+encodeURIComponent(args[1]) : ''), { method:'GET', token:args[0] }); },
   apiBenchmarkPositions: function(args){ return fetchJson('/api/benchmarks/positions/' + encodeURIComponent(args[1]), { method:'GET', token:args[0] }); },
@@ -2115,6 +2127,58 @@ document.addEventListener('keydown', function(e){
     activeInp.blur();
   }
 }, false);
+
+/**
+ * Шаг назад внутри экрана: аппаратная кнопка «назад» на телефоне, жест
+ * «смахнуть от края» и кнопка «назад» браузера закрывают верхнюю открытую
+ * карточку (лист, диалог, меню), а не уводят из приложения. Раньше любая
+ * такая карточка закрывалась только крестиком или клавишей Escape — на
+ * телефоне ни того, ни другого под рукой нет.
+ *
+ * Механика: пока хоть что-то открыто, под это в историю положена одна
+ * запись-заглушка. Нажали «назад» — браузер её снимает, мы в ответ закрываем
+ * верхний слой; если под ним есть ещё один, заглушка кладётся снова. Закрыли
+ * крестиком — снимаем заглушку сами, чтобы история не копилась и следующее
+ * «назад» не срабатывало вхолостую.
+ */
+var OVERLAY_SEL = '.sheet, .menu-scrim';
+var ovArmed = false;   // лежит ли наша запись в истории
+var ovSkipPop = 0;     // popstate от нашего же history.go(-1) — пропустить
+
+function overlayNodes(){ return document.querySelectorAll(OVERLAY_SEL); }
+
+function syncOverlayHistory(){
+  var open = overlayNodes().length > 0;
+  if(open && !ovArmed){
+    ovArmed = true;
+    try { history.pushState({ fvOverlay: true }, ''); } catch(e){ ovArmed = false; }
+  } else if(!open && ovArmed){
+    ovArmed = false;
+    ovSkipPop++;
+    try { history.go(-1); } catch(e){ ovSkipPop--; }
+  }
+}
+
+/** Закрывает карточку её же кнопкой — иначе промис ask()/askText() так и
+ *  останется висеть, и код, который ждёт ответа, не продолжится. */
+function closeOverlayNode(node){
+  var btn = node.querySelector('[data-x]') || node.querySelector('[data-v="0"]');
+  if(btn) btn.click(); else node.remove();
+}
+
+if(window.MutationObserver){
+  new MutationObserver(function(){ syncOverlayHistory(); })
+    .observe(document.body, { childList: true });
+}
+
+window.addEventListener('popstate', function(){
+  if(ovSkipPop > 0){ ovSkipPop--; return; }
+  var nodes = overlayNodes();
+  if(!nodes.length) return;      // ничего не открыто — обычное поведение браузера
+  ovArmed = false;               // запись уже снята самим браузером
+  closeOverlayNode(nodes[nodes.length - 1]);
+  // Остались другие слои — наблюдатель положит заглушку обратно.
+});
 
 /** Иконка в .search-wrap стоит справа и кликабельна — просто фокусирует поле рядом. */
 document.addEventListener('click', function(e){
@@ -2967,19 +3031,15 @@ function openPicker(opts){
 }
 
 function toggleRailCollapse(){
-  S.railCollapsed = !S.railCollapsed;
-  saveNavState();
-  applyRailCollapse();
+  // Меню теперь верхнее и не сворачивается — оставлено для совместимости.
 }
 
 function applyRailCollapse(){
   var rail = $('rail');
   if(!rail) return;
-  rail.classList.toggle('is-collapsed', !!S.railCollapsed);
+  rail.classList.remove('is-collapsed');
   var rb = $('railBrand');
-  if(rb){
-    rb.title = S.railCollapsed ? 'Развернуть меню' : 'Свернуть меню';
-  }
+  if(rb){ rb.title = ''; rb.style.cursor = 'default'; }
 }
 
 /**
@@ -3005,7 +3065,7 @@ var NAV_ROLE_NAMES = {
 function navRenderBtn(it, cls){
   var on = it.active && it.active() ? ' on' : '';
   var danger = it.danger ? ' btn-danger' : '';
-  var lbl = esc((cls === 'nav-btn' && it.tabLabel) || it.label);
+  var lbl = esc((cls === 'nav-btn' && it.tabLabel) || (cls === 'rail-item' && it.key === 'report' ? 'Отчёт' : it.label));
   var icon = cls === 'rail-item'
     ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">'+ICONS[it.icon]+'</svg>'
     : ic(it.icon);
@@ -3037,12 +3097,37 @@ function navRenderBtn(it, cls){
   var caretPhone = (cls === 'nav-btn' && hasSub)
     ? '<svg class="nav-btn-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>'
     : '';
+  // Пункт меню («Пользователи», «Справочники») тоже может вести не на экран,
+  // а на свой список подразделов — без стрелки вправо это неотличимо от
+  // обычного перехода, и человек не знает, что там есть что-то ещё.
+  var caretMenu = (cls === 'menu-item' && hasSub)
+    ? '<svg class="menu-item-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+    : '';
   return '<button class="'+cls+danger+on+'" data-nav="'+it.key+'"'+
     (hasSub ? ' data-has-sub="1"' : '')+' title="'+esc(it.label)+'">'+
-    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+badgeCount+'</button>';
+    icon+'<span>'+lbl+caretPhone+'</span>'+badgeNew+badgeCount+caretMenu+'</button>';
 }
 
 var activeRailDropdown = null;
+
+// Список для выпадашки «Администрирование»: разделы без своих подразделов —
+// как есть, разделы с подразделами (Пользователи, Справочники) разворачиваются
+// в их подразделы с подписью «Раздел · Подраздел», чтобы ничего не терялось.
+function adminDropdownSubs(m){
+  var out = [];
+  (m.admin || []).forEach(function(it){
+    var kids = it.subsections || it.submenu;
+    if(kids && kids.length >= 2){
+      kids.forEach(function(k){
+        out.push({ key:k.key, icon:k.icon || it.icon, active:k.active, run:k.run,
+          label: it.label + ' · ' + k.label });
+      });
+    } else {
+      out.push(it);
+    }
+  });
+  return out;
+}
 
 function closeRailDropdown(){
   if(activeRailDropdown){
@@ -3070,6 +3155,9 @@ function toggleRailDropdown(navKey, btn){
   var m = navModel();
   var all = m.primary.concat(m.admin, m.utility);
   var it = all.filter(function(x){ return x.key === navKey; })[0];
+  if(navKey === 'admin' && !it){
+    it = { key:'admin', label:'Администрирование', submenu: adminDropdownSubs(m) };
+  }
   if(!it) return;
 
   var subs = it.subsections || it.submenu;
@@ -3116,17 +3204,17 @@ function toggleRailDropdown(navKey, btn){
 
   // Позиционирование поверх левого меню в стиле АИСТ
   var rect = btn.getBoundingClientRect();
-  var left = rect.right + 6;
-  var top = rect.top;
+  // Меню сверху: список раскрывается под кнопкой.
+  var left = rect.left;
+  var top = rect.bottom + 4;
 
   var h = el.offsetHeight || (subs.length * 36 + 46);
   if(top + h > window.innerHeight - 12){
     top = Math.max(12, window.innerHeight - h - 12);
   }
 
-  if(left + 240 > window.innerWidth){
-    left = Math.max(8, rect.left);
-    top = rect.bottom + 4;
+  if(left + 290 > window.innerWidth){
+    left = Math.max(8, window.innerWidth - 298);
   }
 
   el.style.left = left + 'px';
@@ -3200,6 +3288,10 @@ function navHandleClick(e){
     openNavSubmenu(it);
     return;
   }
+  if(it.key === 'admin' && b.classList.contains('rail-item')){
+    toggleRailDropdown('admin', b);
+    return;
+  }
   if(it.key === 'refresh' || it.key === 'help' || it.key === 'profile' || it.key === 'out') it.run();
   else navGo(it);
 }
@@ -3216,11 +3308,13 @@ function renderNav(){
 
     var rh = m.primary.map(function(it){ return navRenderBtn(it, 'rail-item'); }).join('');
     if(m.admin.length){
-      // «Анкеты оценки» и «Блоки грейдирования» переехали в подраздел пункта
-      // «Грейдинг» (см. navModel() в app.js) — здесь остаётся только сама
-      // админка, без нужды выделять из неё подгруппу вручную.
-      rh += '<div class="rail-sec-label">Администрирование</div>';
-      m.admin.forEach(function(it){ rh += navRenderBtn(it, 'rail-item'); });
+      // Верхнее меню одной строкой: всё администрирование — один пункт
+      // с выпадающим списком (разделы и их подразделы, см. adminDropdownSubs).
+      rh += navRenderBtn({
+        key:'admin', label:'Администрирование', icon:'admin',
+        active:function(){ return S.appView === 'admin'; },
+        submenu: adminDropdownSubs(m)
+      }, 'rail-item');
     }
     $('railNav').innerHTML = rh;
     $('railNav').onclick = navHandleClick;
@@ -3295,12 +3389,25 @@ function renderRail(){ renderNav(); }
     if(!r || !r.ok || !r.username) return; // бот не подключён — остаётся текстовый вариант
     var link = 'https://t.me/' + r.username;
     $('loginHelp').innerHTML =
-      '<a href="'+esc(link)+'" target="_blank" class="btn-line" '+
+      '<a href="'+esc(link)+'" target="_blank" class="btn-line" data-tg-link="1" '+
         'style="display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;margin-top:16px">'+
         ic('chat', 15)+'Открыть бота @'+esc(r.username)+'</a>'+
-      '<a href="'+esc(link)+'" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:5px;'+
+      '<a href="'+esc(link)+'" target="_blank" data-tg-link="1" style="display:flex;align-items:center;justify-content:center;gap:5px;'+
         'color:var(--muted);font-size:13.5px;text-decoration:none;margin-top:12px">'+
         ic('help', 14)+'Не получается войти? Написать администратору</a>';
+    // Внутри Telegram Mini App обычный <a href="https://t.me/..." target="_blank">
+    // не открывается — WebView блокирует переход на другого бота. Нужен
+    // Telegram.WebApp.openTelegramLink(), см. пометку IN_TG выше в файле.
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if(IN_TG && tg && tg.openTelegramLink){
+      var els = $('loginHelp').querySelectorAll('[data-tg-link]');
+      for(var i = 0; i < els.length; i++){
+        els[i].addEventListener('click', function(e){
+          e.preventDefault();
+          tg.openTelegramLink(link);
+        });
+      }
+    }
   }).catch(function(){ /* остаётся текстовый вариант */ });
 
   if(window.WorkspaceTabs) WorkspaceTabs.init();

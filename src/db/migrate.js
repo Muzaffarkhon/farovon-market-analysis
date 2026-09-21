@@ -186,6 +186,10 @@ async function migrate() {
     granted_at TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_login, capability)
   )`);
+  // effect: 'grant' — выдано лично сверх роли, 'deny' — лично отключено, хотя
+  // роль его даёт (отключение перекрывает роль). Одно право у сотрудника —
+  // либо выдано, либо отключено, не оба сразу (тот же первичный ключ).
+  await ensureColumn('user_capabilities', 'effect', "TEXT NOT NULL DEFAULT 'grant'");
 
   // Справочник ролей: раньше список ролей был только константой в коде. Теперь
   // он в БД, чтобы админ мог добавлять свои роли (конструктор «Роли и доступы»).
@@ -253,6 +257,9 @@ async function migrate() {
   // и флаг участия в C&B обзорах рынка (1 — участвует, 0 — исключено)
   await ensureColumn('divisions', 'org_role', "TEXT DEFAULT 'line'");
   await ensureColumn('divisions', 'is_survey_target', "INTEGER DEFAULT 1");
+  // Скрытое подразделение не показывается в схеме и в выборе для пользователей,
+  // но все его данные (анкеты, история) остаются. Вернуть можно в любой момент.
+  await ensureColumn('divisions', 'is_hidden', 'INTEGER NOT NULL DEFAULT 0');
 
   // Автоматическая инициализация роли 'control' для служб внутреннего аудита
   await run("UPDATE divisions SET org_role = 'control' WHERE (unit LIKE '%аудит%' OR dir LIKE '%аудит%') AND (org_role IS NULL OR org_role = 'line')");
@@ -369,6 +376,28 @@ async function migrate() {
       [key, title, kind, is_licensed, default_currency, notes]
     );
   }
+  // Вес источника в сводной рыночной ставке (market composite). Один на
+  // источник, действует на все должности. У всех по умолчанию одинаковый —
+  // тогда сводная совпадает с прежним простым средним.
+  await ensureColumn('data_sources', 'weight', 'INTEGER NOT NULL DEFAULT 100');
+  // Скрытый источник не показывается в списках и не участвует в сводной ставке;
+  // его датасеты и сопоставления остаются в базе.
+  await ensureColumn('data_sources', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
+  // Датасет, загруженный в другой валюте, хранится уже в сомони; здесь — исходная
+  // валюта и курс, по которому пересчитали (чтобы было видно, откуда цифры).
+  await ensureColumn('benchmark_datasets', 'orig_currency', 'TEXT');
+  await ensureColumn('benchmark_datasets', 'fx_rate', 'REAL');
+  await ensureColumn('benchmark_datasets', 'fx_date', 'TEXT');
+  // Вес источника для конкретной должности — перекрывает общий вес источника
+  // (data_sources.weight) только по ней. Нет строки — действует общий вес.
+  await run(`CREATE TABLE IF NOT EXISTS position_source_weights (
+    dict_position_id INTEGER NOT NULL,
+    source_key TEXT NOT NULL,
+    weight INTEGER NOT NULL,
+    updated_by TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (dict_position_id, source_key)
+  )`);
   // Годовой архив обзора рынка: анкета получает жёсткую привязку к периоду
   // сбора (period_id → periods.id) вместо неиспользуемой текстовой метки
   // period. Нужно, чтобы дашборд мог фильтровать по году, а форма заполнения
@@ -657,6 +686,7 @@ async function migrate() {
   await extendSupportChatWeb();
   await addSupportThreadArchive();
   await createPositionCompanySelections();
+  await createBroadcasts();
   await cleanupLegacySurveyTestData();
 }
 
@@ -697,6 +727,37 @@ async function createPositionCompanySelections() {
  * функционал (схема, бэкенд, фронт, дашборды) выкачен и проверен на всех
  * окружениях. Инструкция по запуску — см. RUN_SURVEY_TEST_DATA_CLEANUP ниже.
  */
+/**
+ * Рассылки через Telegram-бота (раздел «Рассылка» в админке): сама рассылка
+ * и построчный статус доставки каждому получателю — по нему считаем отчёт
+ * «доставлено/не доставлено» и находим, кто отвечает на рассылку (см.
+ * telegramController: ответ на свежую рассылку уходит в чат поддержки).
+ */
+async function createBroadcasts() {
+  await run(`CREATE TABLE IF NOT EXISTS broadcasts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_login TEXT NOT NULL,
+    body TEXT NOT NULL,
+    with_button INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 0,
+    sent INTEGER NOT NULL DEFAULT 0,
+    failed INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run(`CREATE TABLE IF NOT EXISTS broadcast_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    broadcast_id INTEGER NOT NULL REFERENCES broadcasts(id),
+    user_id INTEGER,
+    fio TEXT,
+    telegram_chat_id TEXT,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending | sent | failed
+    sent_at DATETIME
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_bc ON broadcast_recipients(broadcast_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_chat ON broadcast_recipients(telegram_chat_id, sent_at)');
+  console.log('🔧 Миграция: таблицы рассылок (broadcasts, broadcast_recipients) созданы');
+}
+
 async function cleanupLegacySurveyTestData() {
   const MIGRATION_NAME = '20260915_cleanup_legacy_survey_test_data';
   if (String(process.env.RUN_SURVEY_TEST_DATA_CLEANUP || '') !== '1') return;

@@ -6,7 +6,7 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   /* Данные (крупные KPI, числа вилок): моногарнитура ОС — цифры в одной сетке
      и визуально отделены от интерфейсного текста. */
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Segoe UI Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-mono: var(--font-sans);
   --color-canvas-white: #ffffff;
   --color-paper-mist: #f5f5f5;
   --color-ash: #e5e5e5;
@@ -106,6 +106,10 @@
   /* Высота видимой области за вычетом экранной клавиатуры. Обновляется из JS
      по visualViewport (см. app-core.js). Фолбэк — обычная высота окна. */
   --vvh: 100vh;
+  /* Высота окна для каркаса: на телефоне 100vh включает область под адресной
+     строкой/панелью Telegram, из-за чего низ интерфейса обрезался; 100dvh —
+     реально видимая высота. */
+  --app-h: 100vh;
 
   font-size: 15px;
 }
@@ -347,7 +351,7 @@ h3,
 /* ─── Каркас приложения (#app) ─── */
 #app {
   display: flex;
-  height: 100vh;
+  height: var(--app-h);
   width: 100vw;
   overflow: hidden;
   background: var(--bg);
@@ -454,8 +458,8 @@ h3,
    остаются на месте. */
 #app {
   display: flex;
-  height: 100vh;
-  max-height: 100vh;
+  height: var(--app-h);
+  max-height: var(--app-h);
   overflow: hidden;
 }
 
@@ -463,8 +467,8 @@ h3,
   flex: 1;
   min-width: 0;
   min-height: 0;
-  height: 100vh;
-  max-height: 100vh;
+  height: var(--app-h);
+  max-height: var(--app-h);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -477,8 +481,8 @@ h3,
   margin: 0;
   padding: 0 12px 6px 12px;
   min-height: 0;
-  height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
-  max-height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
+  height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
+  max-height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -523,7 +527,7 @@ body.has-bar .wrap {
      так, чтобы шапка карточки + список + «Добавить» + комментарий + запас под
      фиксированную нижнюю панель ровно помещались в .wrap — прокручивается
      только список, без второй прокрутки .wrap и без пустоты под ним. */
-  max-height: calc(100vh - 386px);
+  max-height: calc(var(--app-h) - 386px);
   min-height: 180px;
   overflow-y: auto;
   padding-right: 6px;
@@ -555,7 +559,7 @@ body.has-bar .wrap {
     display: flex;
     flex-direction: column;
     width: 256px;
-    height: 100vh;
+    height: var(--app-h);
     flex: none;
     border-right: 1px solid var(--color-ash);
     background: var(--color-canvas-white);
@@ -997,8 +1001,8 @@ body.has-bar .wrap {
     margin: 0;
     padding: 0 16px 12px 16px;
     min-height: 0;
-    height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
-    max-height: calc(100vh - 56px - var(--tabs-bar-h, 0px));
+    height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
+    max-height: calc(var(--app-h) - 56px - var(--tabs-bar-h, 0px));
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1873,7 +1877,7 @@ label.lbl {
     max-width: none;
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    min-height: var(--app-h);
     display: grid;
     grid-template-columns: 7fr 5fr;
     align-items: stretch;
@@ -3576,7 +3580,7 @@ label.lbl {
   background: var(--card);
   width: 100%;
   /* --vvh (из app-core.js) = высота за вычетом экранной клавиатуры; при
-     закрытой клавиатуре равна 100vh, поэтому обычно ограничение даёт 90vh. */
+     закрытой клавиатуре равна var(--app-h), поэтому обычно ограничение даёт 90vh. */
   max-height: min(90vh, calc(var(--vvh) - 24px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -3792,7 +3796,7 @@ label.lbl {
   z-index: 66;
   width: 280px;
   max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 80px);
+  max-height: calc(var(--app-h) - 80px);
   overflow-y: auto;
   background: var(--card);
   border: 1px solid var(--line);
@@ -4045,12 +4049,12 @@ label.lbl {
   body.has-topnav .wrap {
     padding-bottom: 60px;
   }
-
-  /* Всё из меню «⋮» переехало на нижнюю полосу (кнопки «Админка» и «Ещё» —
-     категории с выпадашками). На телефоне троеточие в шапке больше не нужно —
-     убираем, шапке становится просторнее. */
+  /* Кнопка «⋮» в шапке остаётся и на телефоне: открывает полное меню (все
+     разделы, профиль, выход) — дублирует «Ещё» внизу, но пользователи её ищут. */
   body.has-topnav #btnMenu {
-    display: none;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
   }
 }
 
@@ -5049,7 +5053,7 @@ label.lbl {
 .smart-filter-popover {
   width: 740px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 80px);
+  max-height: calc(var(--app-h) - 80px);
   display: flex;
   flex-direction: column;
   background: var(--card);
@@ -5857,7 +5861,7 @@ label.lbl {
 
 .u-t-login {
   color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-sans); font-variant-numeric: tabular-nums;
   font-size: 13.5px;
   white-space: nowrap;
   max-width: 180px;
@@ -6232,7 +6236,7 @@ label.lbl {
    (326 подразделений, 110 пользователей, журнал аудита) скроллятся внутри
    себя с закреплённой шапкой, а короткие остаются как были. */
 .tblwrap {
-  max-height: calc(100vh - 120px);
+  max-height: calc(var(--app-h) - 120px);
   overflow-y: auto;
 }
 
@@ -6942,9 +6946,9 @@ label.lbl {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  height: calc(100vh - 110px) !important;
-  min-height: calc(100vh - 110px) !important;
-  max-height: calc(100vh - 110px) !important;
+  height: calc(var(--app-h) - 110px) !important;
+  min-height: calc(var(--app-h) - 110px) !important;
+  max-height: calc(var(--app-h) - 110px) !important;
   overflow-y: auto;
   overflow-x: auto;
   margin-bottom: 0;
@@ -6952,19 +6956,19 @@ label.lbl {
 }
 
 #dictBox .tblwrap--page {
-  height: calc(100vh - 140px) !important;
-  min-height: calc(100vh - 140px) !important;
-  max-height: calc(100vh - 140px) !important;
+  height: calc(var(--app-h) - 140px) !important;
+  min-height: calc(var(--app-h) - 140px) !important;
+  max-height: calc(var(--app-h) - 140px) !important;
 }
 
 /* «Сводка по подразделениям»: над таблицей ещё шапка периода + строка вкладок
-   с поиском. При 100vh-140 всё вместе не влезало в .wrap (у него overflow-y:
+   с поиском. При var(--app-h)-140 всё вместе не влезало в .wrap (у него overflow-y:
    auto) — прокручивался сам .wrap и уносил вкладки «По подразделениям / По
    направлениям» вверх. Отдаём таблице ровно то, что остаётся. */
 #dashSumTabBody .tblwrap--page {
-  height: calc(100vh - 166px) !important;
-  min-height: calc(100vh - 166px) !important;
-  max-height: calc(100vh - 166px) !important;
+  height: calc(var(--app-h) - 166px) !important;
+  min-height: calc(var(--app-h) - 166px) !important;
+  max-height: calc(var(--app-h) - 166px) !important;
 }
 
 @media (max-width: 700px) {
@@ -7102,7 +7106,7 @@ label.lbl {
 
 /* ─── ID в справочнике ─── */
 .dict-id {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-sans); font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
@@ -7278,8 +7282,8 @@ html.compact {
 
 .compact .wrap {
   padding: 0 12px 12px 12px;
-  height: calc(100vh - 48px);
-  max-height: calc(100vh - 48px);
+  height: calc(var(--app-h) - 48px);
+  max-height: calc(var(--app-h) - 48px);
   flex: 1;
   box-sizing: border-box;
   /* overflow сюда НЕ ставим: этот блок идёт в файле позже базового .wrap и с
@@ -9056,7 +9060,7 @@ html.compact {
   box-shadow: var(--shadow-sm);
 }
 /* ─── Конструктор ролей и доступов (вкладка «Роли и доступы») ─── */
-.roles2 { display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 0; }
+.roles2 { display: flex; flex-direction: column; height: calc(var(--app-h) - 120px); min-height: 0; }
 .roles2-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; flex-shrink: 0; }
 /* min-width: 0 на обеих колонках — без него grid-элемент не сжимается
    уже своего содержимого (тот же баг, что у flex): длинное ФИО или
@@ -9078,7 +9082,7 @@ html.compact {
 .r2-title { font-weight: 800; font-size: 16px; }
 .r2-title-in { font-weight: 800; font-size: 16px; padding: 6px 10px; width: auto; min-width: 220px;
   border: 1px solid var(--line); border-radius: var(--radius-inputs); background: var(--bg); color: var(--text); }
-.r2-key { font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--subtle);
+.r2-key { font-size: 12px; font-family: var(--font-sans); font-variant-numeric: tabular-nums; color: var(--subtle);
   background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 
 .r2-note { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45;
@@ -11934,4 +11938,1076 @@ p, .home-card-d, .tool-card-d, .cmdk-empty, .empty {
   display: inline-flex;
   color: var(--muted);
   pointer-events: none;
+}
+
+/* Рассылка */
+.bc-root{display:flex;flex-direction:column;gap:12px;min-height:0}
+.bc-grid{display:grid;grid-template-columns:minmax(280px,2fr) 3fr;gap:12px;min-height:0}
+.bc-compose,.bc-people,.bc-hist{padding:12px;display:flex;flex-direction:column;gap:8px}
+.bc-compose textarea{width:100%;resize:vertical;min-height:140px;font:inherit}
+.bc-count{text-align:right;font-size:12px}
+.bc-check{display:flex;gap:6px;align-items:center;font-size:13px}
+.bc-note{font-size:12px}
+.bc-people-head{display:flex;gap:6px;flex-wrap:wrap}
+.bc-people-head input{flex:1;min-width:160px}
+.bc-list{max-height:340px;overflow:auto;display:flex;flex-direction:column}
+.bc-row{display:flex;gap:8px;align-items:baseline;padding:4px 2px;border-bottom:1px solid rgba(128,128,128,.2);cursor:pointer}
+.bc-fio{font-weight:600;white-space:nowrap}
+.bc-meta{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bc-h{padding:8px 0;border-bottom:1px solid rgba(128,128,128,.2);cursor:pointer}
+.bc-h-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px}
+.bc-h-body{margin-top:4px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.bc-h-det{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.bc-chip{font-size:12px;padding:2px 8px;border-radius:10px;background:rgba(128,128,128,.15)}
+.bc-chip-fail,.bc-fail{color:#d33}
+@media(max-width:760px){.bc-grid{grid-template-columns:minmax(0,1fr)}}
+.bc-compose,.bc-people,.bc-hist{min-width:0}
+.bc-compose textarea{box-sizing:border-box}
+
+/* Реальная высота видимой области на телефоне (без области под адресной
+   строкой браузера/панелью Telegram) — см. --app-h в :root. */
+@supports (height: 100dvh) {
+  :root { --app-h: 100dvh; }
+}
+
+/* Нижняя панель телефона: все разделы должны помещаться в ширину экрана,
+   а не уезжать за край (раньше подпись nowrap раздувала кнопки, и видна была
+   только половина). Кнопки равной ширины, подпись мельче, шеврон — над
+   иконкой, а не в потоке после текста. */
+@media (max-width: 640px) {
+  #topNav.nav-tabs { padding-left: 2px; padding-right: 2px; }
+  #topNav .nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 1px;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+  }
+  #topNav .nav-btn > span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #topNav .nav-btn .nav-btn-caret {
+    position: absolute;
+    top: 6px;
+    right: 12%;
+    margin: 0 !important;
+    width: 8px !important;
+    height: 8px !important;
+  }
+}
+
+/* Телефон: нижняя панель навигации — fixed поверх области контента. Рабочая
+   область (.workspace-pane) уходила под неё до самого низа, и последние
+   элементы (кнопки, итоги) были не видны и недосягаемы: запас 60px у .wrap
+   перебивался .has-workspace-tabs { padding:0 !important }. Отступ снизу
+   переносим на сам прокручиваемый контейнер. */
+@media (max-width: 640px) {
+  body.has-topnav .workspace-pane {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Телефон: шапка «Оргструктуры» не помещалась в ширину (заголовок + поиск +
+   кнопки в одну строку уезжали за край) — переносим, поле поиска тянем на
+   всю строку, отступы и заголовок компактнее. */
+@media (max-width: 640px) {
+  .org-tree-header-bar { flex-wrap: wrap; padding: 6px 8px; gap: 6px; }
+  .org-tree-header-left { flex-wrap: wrap; gap: 6px; width: 100%; min-width: 0; }
+  .org-tree-search-wrap { flex: 1 1 100%; min-width: 0; padding: 3px 10px; }
+  .org-tree-search-wrap input { width: 100%; min-width: 0; font-size: 13px; }
+  .org-top-pill-title { font-size: 14px; }
+  .org-toolbar-btns { gap: 4px; width: 100%; }
+}
+
+/* Рассылка: колонка прокручивается вся целиком, карточки не сжимаются и не
+   наезжают друг на друга (раньше overflow:hidden у #adminContent резал низ). */
+#adminContent:has(> .bc-root) { overflow-y: auto; }
+.bc-root { flex: 0 0 auto; }
+.bc-root > * { flex-shrink: 0; }
+
+/* Телефон: любой раздел админки может оказаться выше экрана — даём ему
+   прокрутку, а не обрезание (раньше её включали только для отдельных
+   раскладок через :has(...), остальные разделы молча обрезались). */
+@media (max-width: 640px) {
+  #adminContent { overflow-y: auto; }
+}
+@media (max-width: 640px) {
+  .bc-row { flex-wrap: wrap; row-gap: 0; }
+  .bc-fio { white-space: normal; min-width: 0; }
+  .bc-list { overflow-x: hidden; }
+}
+
+/* Телефон: в таблицах справочников ячейка с бейджами («Направления»)
+   переносила каждый бейдж на новую строку в узкой колонке, и строка вырастала
+   до 130+ px — экран был из пары строк. Держим в одну строку (таблица
+   прокручивается вбок) и делаем ячейки плотнее. */
+@media (max-width: 640px) {
+  .co-tbl td:has(.badge) { white-space: nowrap; }
+  .co-tbl td, .co-tbl th { padding-top: 5px; padding-bottom: 5px; }
+}
+.bc-row { min-width: 0; }
+.bc-meta { flex: 1 1 0; }
+
+/* Главная: карточки-показатели компактнее (как на телефоне) на любой ширине —
+   раньше на широком экране это были крупные пустоватые плитки. */
+.home-stats { gap: 8px; }
+.home-stat { padding: 8px 12px; border-radius: var(--r-sm, 8px); }
+.home-stat-v { font-size: 18px; }
+.home-stat .home-period-name { font-size: 14px; }
+.home-stat-l, .home-stat-h { font-size: 12px; margin-top: 2px; }
+
+/* «Сводка по подразделениям» на телефоне: компактная шапка периода, вкладки и
+   фильтры в ширину экрана, таблицы без горизонтальной прокрутки (второстепенные
+   колонки убраны — ответственный показан мелким текстом под названием). */
+.sum-resp { display: none; }
+@media (max-width: 640px) {
+  .page-head { padding: 10px 12px; gap: 8px; }
+  .page-head-v { font-size: 15px; }
+  .page-head-s { font-size: 12px; }
+  .page-head-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+  .page-head-stats .phs { padding: 6px 8px; }
+  .page-head-stats .phs b { font-size: 16px; }
+  .page-head-stats .phs span { font-size: 11.5px; }
+  .page-head .page-head-act { flex: 1 1 0; min-width: 0; min-height: 34px; padding: 0 8px; font-size: 13px; white-space: normal; line-height: 1.15; }
+
+  .toolbar .sub-tab { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toolbar .sub-tab svg { display: none; }
+  .toolbar > div:has(> .sub-tab) { flex: 1 1 100%; }
+  #dashSumSearchBox { flex: 1 1 100%; min-width: 0; }
+  #dashSumFiltersRow .nselect { flex: 1 1 calc(50% - 3px); min-width: 0; width: auto !important; }
+
+  .sum-units-tbl th:nth-child(2), .sum-units-tbl td:nth-child(2),
+  .sum-units-tbl th:nth-child(4), .sum-units-tbl td:nth-child(4),
+  .sum-units-tbl th:nth-child(7), .sum-units-tbl td:nth-child(7),
+  .sum-dirs-tbl th:nth-child(4), .sum-dirs-tbl td:nth-child(4) { display: none; }
+  .sum-resp { display: block; font-size: 11.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .sum-units-tbl td, .sum-units-tbl th, .sum-dirs-tbl td, .sum-dirs-tbl th { padding: 6px 6px; font-size: 12.5px; }
+  .sum-units-tbl th, .sum-dirs-tbl th { font-size: 10.5px; }
+}
+@media (max-width: 640px) {
+  .page-head-stats { grid-template-columns: repeat(3, 1fr); }
+  .page-head-stats .phs b { font-size: 15px; }
+  .page-head-stats .phs span { font-size: 10.5px; line-height: 1.15; }
+  #dashSumFiltersRow { gap: 6px !important; }
+  #dashSumStatusChips { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+  #dashSumStatusChips button { min-height: 28px; padding: 0 8px; font-size: 11.5px; flex: 1 1 auto; }
+  #dashSumFiltersRow .nselect .nselect-btn { width: 100%; }
+}
+@media (max-width: 640px) {
+  .sum-units-tbl, .sum-dirs-tbl { width: 100%; }
+  .sum-units-tbl th, .sum-dirs-tbl th { white-space: normal; line-height: 1.15; }
+  .sum-units-tbl td.num, .sum-units-tbl th.num, .sum-dirs-tbl td.num, .sum-dirs-tbl th.num { padding-left: 3px; padding-right: 3px; }
+  .sum-units-tbl .pill, .sum-dirs-tbl .pill { padding: 1px 5px; font-size: 11.5px; }
+}
+@media (max-width: 640px) {
+  .sum-units-tbl { table-layout: fixed; }
+  .sum-units-tbl th.num { width: 19%; }
+  .sum-units-tbl td:first-child { overflow-wrap: anywhere; }
+}
+/* Телефон: карточка периода не «залипает» сверху — на высоком экране она
+   занимала треть окна поверх прокручиваемой таблицы. */
+@media (max-width: 640px) {
+  .page-head { position: static; margin-bottom: 8px; }
+}
+@media (max-width: 640px) {
+  .sum-units-tbl th, .sum-dirs-tbl th { font-size: 9.5px; letter-spacing: 0; padding-left: 2px; padding-right: 2px; }
+  .sum-resp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+
+/* Телефон: пункты выпадашек навигации («Дашборд», «Бенчмарк», «Ещё» и т. п.)
+   и меню «⋮» — компактнее: раньше каждая плашка была ~50px высотой, и пять-
+   шесть пунктов занимали пол-экрана. */
+@media (max-width: 640px) {
+  .nav-submenu-pop { padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .nav-submenu-hd { margin-bottom: 6px; font-size: 11px; }
+  .sheet .menu, .nav-submenu-pop .menu { gap: 4px; }
+  .sheet .menu button, .nav-submenu-pop .menu button {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 14px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+  .sheet .menu button svg, .nav-submenu-pop .menu button svg { width: 16px; height: 16px; }
+}
+
+/* Телефон: вкладки рабочей области. Раньше при 4-5 вкладках каждая сжималась
+   до «Г.», «Р.», «О.» — не разобрать. Теперь вкладки не сжимаются в нолик:
+   у каждой читаемое название (с многоточием), полоса прокручивается вбок, а
+   активная вкладка сама подъезжает в видимую область. Крестик остаётся только
+   у активной вкладки (закрыть неактивную — сначала открыть её). */
+@media (max-width: 640px) {
+  .workspace-tabs-bar { padding: 0 6px; gap: 2px; }
+  .ws-tab { flex: none; min-width: 0; max-width: 118px; padding: 0 8px; gap: 4px; font-size: 12px; }
+  .ws-tab.active { max-width: 190px; padding-right: 4px; }
+  .ws-tab:not(.active) .ws-tab-close { display: none; }
+  .ws-tab-new { flex: none; }
+}
+
+/* ═══ Бенчмаркинг → «Сравнение по должности»: карточки источников ═══
+   Плотная вёрстка: заголовок в одну-две строки, перцентили полосой без
+   коробок, тонкая шкала «рынок vs Фаровон» без плавающих подписей. */
+.bm-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 10px);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.bm-head-l { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-width: 0; flex: 1 1 200px; }
+.bm-head-l b { font-size: 14px; color: var(--text); }
+.bm-sub { font-size: 12px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.bm-ic { width: 24px; height: 24px; border-radius: 6px; background: var(--accent-soft); color: var(--ok); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.bm-head-r { display: flex; align-items: baseline; gap: 4px 6px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; text-align: right; font-feature-settings: 'tnum' 1; }
+.bm-head-r b { font-size: 17px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.bm-head-r span { font-size: 11.5px; color: var(--muted); }
+.bm-none { color: var(--muted); font-size: 12.5px; }
+.tone-ok { color: var(--ok) !important; }
+
+.bm-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.bm-st { padding: 5px 2px; text-align: center; min-width: 0; font-feature-settings: 'tnum' 1; }
+.bm-st + .bm-st { border-left: 1px solid var(--line); }
+.bm-st span { display: block; font-size: 10.5px; letter-spacing: 0.03em; color: var(--muted); }
+.bm-st b { display: block; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.bm-st.is-mid b { color: var(--accent); }
+.bm-st.is-mid.tone-ok b { color: var(--ok); }
+
+.bm-barwrap { display: flex; flex-direction: column; gap: 5px; }
+.bm-bar-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.bm-flag { font-size: 11.5px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 1px 8px; border-radius: 10px; border: 1px solid transparent; }
+.bm-flag.is-ok { color: var(--ok); background: var(--ok-soft, rgba(22,163,74,.1)); border-color: var(--ok-border, rgba(22,163,74,.3)); }
+.bm-flag.is-low { color: var(--no); background: var(--no-soft, rgba(220,38,38,.08)); border-color: rgba(220,38,38,.25); }
+.bm-flag.is-high { color: var(--warn); background: rgba(245,158,11,.1); border-color: var(--warn-border, rgba(245,158,11,.35)); }
+
+.bm-bar { position: relative; height: 16px; }
+.bm-bar::before { content: ''; position: absolute; left: 0; right: 0; top: 6px; height: 4px; border-radius: 2px; background: var(--line); }
+.bm-bar i { position: absolute; display: block; }
+.bm-bar-cor { top: 4px; height: 8px; border-radius: 3px; background: var(--accent-soft); border: 1px solid var(--accent-border, var(--accent)); box-sizing: border-box; }
+.bm-bar-our { top: 12px; height: 3px; border-radius: 2px; background: var(--ok); opacity: .55; }
+.bm-bar-p50 { top: 1px; width: 2px; height: 14px; margin-left: -1px; background: var(--accent); border-radius: 1px; }
+.bm-bar-dot { top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--ok); border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--ok); box-sizing: border-box; }
+.bm-bar-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; color: var(--muted); font-feature-settings: 'tnum' 1; }
+.bm-bar-legend b { color: var(--text); font-weight: 600; }
+.bm-bar-legend em { font-style: normal; color: var(--muted); }
+.bm-bar-legend .lg { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.bm-bar-legend .lg-cor { background: var(--accent-soft); border: 1px solid var(--accent-border, var(--accent)); border-radius: 2px; }
+.bm-bar-legend .lg-our { background: var(--ok); }
+
+.bm-gap { font-size: 12.5px; font-weight: 600; font-feature-settings: 'tnum' 1; }
+.bm-gap.is-pos { color: var(--ok); }
+.bm-gap.is-neg { color: var(--no); }
+.bm-gap.big { font-size: 14px; }
+.bm-note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.bm-empty { font-size: 13px; color: var(--muted); padding: 8px 10px; background: var(--card-2, var(--color-paper-mist)); border: 1px dashed var(--line); border-radius: 8px; }
+.bm-empty .btn-ghost { padding: 1px 6px; min-height: 0; font-size: 13px; color: var(--accent); font-weight: 600; }
+
+.bm-summary { gap: 8px; }
+.bm-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.bm-kpi { padding: 0 10px; min-width: 0; }
+.bm-kpi:first-child { padding-left: 0; }
+.bm-kpi + .bm-kpi { border-left: 1px solid var(--line); }
+.bm-kpi span { display: block; font-size: 11px; color: var(--muted); line-height: 1.2; margin-bottom: 2px; }
+.bm-kpi b { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; font-feature-settings: 'tnum' 1; }
+.bm-kpi-gap .bm-gap { display: block; line-height: 1.25; }
+
+@media (max-width: 640px) {
+  .bm-card { padding: 8px 10px; }
+  .bm-kpis { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+  .bm-kpi-gap { grid-column: 1 / -1; border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 6px; }
+  .bm-kpi + .bm-kpi { padding-left: 10px; }
+  .bm-kpi b { font-size: 18px; }
+  .bm-st b { font-size: 12.5px; }
+}
+@media (max-width: 640px) {
+  .bm-kpis .bm-kpi.bm-kpi-gap { padding-left: 0; }
+}
+
+/* Контент рабочей области не должен сжиматься под высоту окна: flex-ребёнок
+   с overflow:visible ужимался до высоты панели, а его реальное содержимое
+   торчало ниже — область прокрутки не учитывала нижний отступ, и последние
+   карточки оставались под нижней панелью навигации без возможности
+   доскроллить. Теперь ребёнок сохраняет свою высоту, и панель прокручивается
+   до конца. Блоки, которые сами занимают всю высоту (flex:1 / height:100%),
+   этим не затрагиваются. */
+.workspace-pane > * { flex-shrink: 0; }
+/* …и «flex:1; min-height:0» (например .bm-content) больше не режет высоту до
+   остатка панели: минимальная высота — по содержимому. Внутренние
+   прокручиваемые блоки (overflow ≠ visible) по-прежнему могут быть ниже
+   содержимого — для них «auto» сводится к нулю. */
+.workspace-pane > * { min-height: auto; }
+
+/* Стрелка вправо у пункта меню, который ведёт не на экран, а на свой список
+   подразделов (например «Пользователи», «Справочники»). */
+.menu-item-caret {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  flex: none;
+  color: var(--subtle, #64748b);
+}
+.menu button.on .menu-item-caret { color: var(--accent); }
+/* Перебиваем общий размер иконок пункта меню (16px) — стрелка должна быть
+   мельче подписи, а не второй иконкой. */
+.sheet .menu button svg.menu-item-caret,
+.nav-submenu-pop .menu button svg.menu-item-caret { width: 14px; height: 14px; }
+
+/* Список подразделений в карточке пользователя. Раньше высота была намертво
+   135px — при двухстрочных пунктах (название + «Отв: …») в окно влезал один
+   с половиной пункт, и выбирать приходилось через крошечную прокрутку.
+   Теперь высота тянется по экрану, но остаётся в разумных рамках. */
+.um-unit-list {
+  max-height: clamp(200px, 42vh, 460px);
+  min-height: 140px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 6px;
+  padding: 6px;
+}
+/* Пункт списка: подпись «направление · Отв: …» занимала до трёх строк, из-за
+   чего в окно влезало полтора пункта. Держим её в одну строку с многоточием. */
+.um-unit-list .pickrow { padding: 5px 6px; align-items: flex-start; }
+.um-unit-list .pickrow > span { min-width: 0; line-height: 1.25; }
+.um-unit-list .pickrow small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+}
+
+/* Персональные права: право роли, отключённое конкретному сотруднику, и
+   право, выданное сверх роли, — разными метками, чтобы исключения из роли
+   было видно с первого взгляда. */
+.r2-cap-tag--off { color: var(--no); background: var(--no-soft, rgba(220,38,38,.08)); border-color: rgba(220,38,38,.3); }
+.r2-cap-tag--add { color: var(--ok); background: var(--ok-soft, rgba(22,163,74,.1)); border-color: rgba(22,163,74,.3); }
+.r2-cap--off > span { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(220,38,38,.5); }
+.r2-cap--off > span .r2-cap-tag { text-decoration: none; }
+
+/* ═══ Бенчмаркинг: сводная ставка, compa-ratio, веса источников ═══ */
+.tone-no { color: var(--no) !important; }
+.bm-k4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.bm-k { background: var(--card-2, var(--color-paper-mist)); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+.bm-k span { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-k b { display: block; font-size: 20px; font-weight: 700; line-height: 1.25; white-space: nowrap; font-feature-settings: 'tnum' 1; color: var(--text); }
+.bm-k em { display: block; font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-k em .bm-flag { font-size: 11px; }
+
+.bm-cr-hd, .bm-cr-ax { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bm-cr-hd span:first-child { font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.bm-cr-bar { position: relative; height: 16px; margin: 3px 0 1px; }
+.bm-cr-bar i { position: absolute; top: 4px; height: 8px; }
+.bm-cr-bar .z1 { left: 0; width: 25%; background: var(--no-soft, rgba(220,38,38,.12)); border-radius: 4px 0 0 4px; }
+.bm-cr-bar .z2 { left: 25%; width: 50%; background: var(--ok-soft, rgba(22,163,74,.14)); }
+.bm-cr-bar .z3 { left: 75%; width: 25%; background: rgba(245,158,11,.18); border-radius: 0 4px 4px 0; }
+.bm-cr-bar b { position: absolute; top: 0; width: 3px; height: 16px; margin-left: -1.5px; background: var(--text); border-radius: 2px; }
+
+.bm-bar-rng { top: 6px; height: 4px; border-radius: 2px; background: var(--color-silver, rgba(100,116,139,.35)); }
+.bm-bar-legend .lg-p50 { width: 2px !important; height: 9px !important; border-radius: 0 !important; background: var(--accent); vertical-align: -1px !important; }
+
+.bmc-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.bmc-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(64px, .9fr) repeat(4, minmax(52px, .7fr)); gap: 6px; align-items: center; padding: 6px 2px; border-bottom: 1px solid var(--line); font-size: 13px; font-feature-settings: 'tnum' 1; }
+.bmc-row > span:nth-child(n+3) { text-align: right; }
+.bmc-hd { font-size: 11px; color: var(--muted); border-bottom-color: var(--color-ash, var(--line)); padding-top: 0; }
+.bmc-row.is-total { border-bottom: 0; font-weight: 600; background: var(--card-2, var(--color-paper-mist)); border-radius: 6px; padding: 7px 6px; margin-top: 2px; }
+.bmc-src { min-width: 0; display: flex; flex-direction: column; }
+.bmc-src b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmc-src small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmc-w { white-space: nowrap; font-size: 12.5px; }
+.bmc-wbar { display: block; height: 3px; background: var(--line); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.bmc-wbar i { display: block; height: 100%; background: var(--accent); }
+.bmc-v i { display: none; font-style: normal; }
+.bmc-v b { font-weight: inherit; white-space: nowrap; }
+.bmc-v .is-ok { color: var(--ok); } .bmc-v .is-low { color: var(--no); } .bmc-v .is-high { color: var(--warn); }
+.bmc-empty { grid-column: 3 / -1; text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.bmc-empty .btn-ghost { padding: 0 4px; min-height: 0; font-size: 12px; color: var(--accent); font-weight: 600; }
+
+.bmw { margin-bottom: 12px; }
+.bmw-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bmw-hd b { font-size: 13px; }
+.bmw-hd .btn-primary { width: auto; min-height: 30px; padding: 0 14px; font-size: 13px; }
+.bmw-row { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr) 72px; gap: 10px; align-items: center; font-size: 13px; }
+.bmw-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmw-v { text-align: right; white-space: nowrap; font-feature-settings: 'tnum' 1; color: var(--muted); }
+.bmw-row input[type=range] { width: 100%; }
+
+@media (max-width: 640px) {
+  .bm-k4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .bm-k b { font-size: 18px; }
+  .bmc-hd { display: none; }
+  .bmc-row { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 4px; padding: 7px 0; }
+  .bmc-src { grid-column: 1 / 4; }
+  .bmc-w { grid-column: 4; text-align: right; align-self: start; }
+  .bmc-v { text-align: center !important; }
+  .bmc-v i { display: block; font-size: 10.5px; color: var(--muted); }
+  .bmc-row.is-total { padding: 7px 6px; }
+  .bmc-empty { grid-column: 1 / -1; text-align: left; }
+  .bmw-row { grid-template-columns: minmax(0, 1fr) 64px; row-gap: 0; }
+  .bmw-row input[type=range] { grid-column: 1 / -1; grid-row: 2; }
+}
+.bm-k em .bm-flag { display: inline-block; padding: 0 7px; line-height: 1.5; }
+
+/* Веса по должности: кнопка в «Составе сводной ставки», встроенный редактор */
+.bmc-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bmc-posw-btn { width: auto; min-height: 28px; padding: 0 10px; font-size: 12.5px; white-space: nowrap; }
+.bmc-posw-btn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.bmc-posw { display: inline-block; margin-left: 6px; font-style: normal; font-size: 10.5px; padding: 0 6px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; vertical-align: 1px; }
+.bmw--pos { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.bmw-tag { font-style: normal; font-size: 11px; color: var(--muted); }
+.bmw-v { display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.bmw-reset { min-height: 0; padding: 2px 4px; color: var(--muted); }
+.bmw-reset[hidden] { display: none; }
+.bmw-act { display: flex; justify-content: flex-end; gap: 8px; }
+.bmw-act .btn-primary, .bmw-act .btn-ghost { width: auto; min-height: 30px; padding: 0 14px; font-size: 13px; }
+@media (max-width: 640px) {
+  .bmc-w .bmc-posw { display: block; margin: 2px 0 0 auto; width: max-content; }
+  .bmw-act { flex-wrap: wrap; }
+  .bmw-act .btn-primary { flex: 1 1 auto; }
+}
+/* Метка «свой вес» — под процентом, а не в строку: иначе в узкой колонке веса не помещается. */
+.bmc-w .bmc-posw { display: block; width: max-content; margin: 2px 0 0; }
+@media (max-width: 640px) { .bmc-w .bmc-posw { margin-left: auto; } }
+.bmw-row input[type=range] { border: 0; background: transparent; box-shadow: none; padding: 0; min-height: 0; height: 22px; }
+
+/* ═══ Веса источников: аккуратный вид вместо стандартных ползунков ═══ */
+.bmw { gap: 6px; }
+.bmw-hd { align-items: flex-start; }
+.bmw-hd > div { min-width: 0; }
+.bmw-sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.bmw-stack { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin: 6px 0 4px; }
+.bmw-stack i { display: block; height: 100%; min-width: 0; transition: width .12s ease; }
+.bmw-stack i + i { box-shadow: inset 1px 0 0 var(--card); }
+.bmw-row { grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 84px; gap: 12px; padding: 3px 0; }
+.bmw-name { display: flex; align-items: center; gap: 7px; min-width: 0; font-weight: 500; }
+.bmw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.bmw-v { font-weight: 600; color: var(--text); }
+.bmw--pos .bmw-name { font-weight: 400; }
+
+/* Ползунок: тонкая дорожка с заливкой до значения и небольшой бегунок */
+.bmw-range { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0; padding: 0; border: 0; background: transparent !important; box-shadow: none; cursor: pointer; --p: 100%; }
+.bmw-range:focus { outline: none; }
+.bmw-range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--accent) 0, var(--accent) var(--p), var(--line) var(--p), var(--line) 100%); }
+.bmw-range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
+.bmw-range::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+.bmw-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); box-shadow: 0 1px 2px rgba(15,23,42,.18); }
+.bmw-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); box-shadow: 0 1px 2px rgba(15,23,42,.18); }
+.bmw-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+.bmw-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--accent-soft); }
+.bmw-range:disabled { cursor: default; opacity: .55; }
+
+@media (max-width: 640px) {
+  .bmw-row { grid-template-columns: minmax(0, 1fr) 72px; row-gap: 0; }
+  .bmw-row .bmw-range { grid-column: 1 / -1; grid-row: 2; }
+}
+
+.bmw-v { flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.bmw-v b { font-weight: 700; color: var(--text); }
+.bmw-v small { font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* Блок весов: один ряд = источник · ползунок · вес · доля */
+.bmw-row, .bmw-cap { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr) 40px 52px; gap: 12px; align-items: center; }
+.bmw--pos .bmw-row, .bmw--pos .bmw-cap { grid-template-columns: minmax(0, 200px) minmax(0, 1fr) 40px 52px 22px; }
+.bmw-cap { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding-top: 4px; }
+.bmw-cap span:nth-child(3), .bmw-cap span:nth-child(4) { text-align: right; }
+.bmw-w { text-align: right; color: var(--muted); font-feature-settings: 'tnum' 1; font-size: 13px; }
+.bmw-v { display: block; text-align: right; font-size: 15px; font-weight: 700; color: var(--text); }
+.bmw-v b, .bmw-v small { all: unset; }
+.bmw-v.is-off { color: var(--muted); font-weight: 500; }
+.bmw--pos { border: 0; padding: 4px 0 0; margin: 8px 0 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.bmw--pos .bmw-cap span:nth-child(5) { width: 22px; }
+.bmw-reset { justify-self: end; }
+@media (max-width: 640px) {
+  .bmw-cap { display: none; }
+  .bmw-row, .bmw--pos .bmw-row { grid-template-columns: minmax(0, 1fr) 36px 48px; row-gap: 0; }
+  .bmw--pos .bmw-row { grid-template-columns: minmax(0, 1fr) 36px 48px 22px; }
+  .bmw-row .bmw-range { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Сравнение по должности: вердикт + компактная таблица источников */
+.bmv-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.bmv-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bmv-badge { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: var(--card-2, var(--line)); color: var(--muted); }
+.bmv-badge.is-ok { background: color-mix(in srgb, var(--ok) 14%, var(--card)); color: var(--ok); }
+.bmv-badge.is-low { background: color-mix(in srgb, var(--no) 14%, var(--card)); color: var(--no); }
+.bmv-badge.is-high { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: var(--warn); }
+.bmv-cr { display: flex; align-items: baseline; gap: 8px; }
+.bmv-cr b { font-size: 34px; line-height: 1; font-weight: 700; letter-spacing: -.02em; font-feature-settings: 'tnum' 1; }
+.bmv-cr span { font-size: 13px; color: var(--muted); }
+.bmv-sub { font-size: 13px; color: var(--muted); }
+.bmv-nums { display: flex; gap: 28px; }
+.bmv-nums > div { display: flex; flex-direction: column; gap: 2px; text-align: right; }
+.bmv-nums span { font-size: 12px; color: var(--muted); }
+.bmv-nums b { font-size: 22px; font-weight: 700; font-feature-settings: 'tnum' 1; }
+.bmv-nums small { font-size: 12px; color: var(--muted); }
+.bm-barwrap.is-lean { margin-top: 14px; }
+.bmr-row { display: grid; grid-template-columns: minmax(0, 1fr) 78px 96px 64px; gap: 8px; align-items: center; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 14px; font-feature-settings: 'tnum' 1; }
+.bmr-hd { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 2px 2px 6px; }
+.bmr-hd span:nth-child(n+2), .bmr-w, .bmr-p, .bmr-c { text-align: right; }
+.bmr-src { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bmr-src b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmr-src small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmr-p { font-weight: 600; }
+.bmr-c { font-weight: 700; }
+.bmr-c.is-ok { color: var(--ok); } .bmr-c.is-low { color: var(--no); } .bmr-c.is-high { color: var(--warn); }
+.bmr-off { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.bmr-w .bmc-posw { display: block; width: max-content; margin: 2px 0 0 auto; }
+.bmr-empty { grid-column: 2 / -1; text-align: right; font-size: 12.5px; color: var(--muted); }
+.bmr-empty .btn-ghost { padding: 0 4px; min-height: 0; font-size: 12.5px; color: var(--accent); font-weight: 600; }
+.bmr-row.is-empty .bmr-src b { font-weight: 500; color: var(--muted); }
+.bmr-row.is-total { border-bottom: 0; background: var(--card-2, var(--line)); border-radius: 8px; padding: 10px 8px; margin-top: 4px; }
+.bmr-row.is-total .bmr-src b { font-weight: 700; }
+@media (max-width: 640px) {
+  .bmv-top { align-items: flex-start; }
+  .bmv-cr b { font-size: 30px; }
+  .bmv-nums { gap: 20px; width: 100%; justify-content: space-between; }
+  .bmv-nums > div { text-align: left; }
+  .bmv-nums b { font-size: 19px; }
+  .bmr-row { grid-template-columns: minmax(0, 1fr) 46px 62px 46px; gap: 6px; font-size: 13px; }
+  .bmr-hd { font-size: 10px; letter-spacing: 0; }
+  .bmr-src small { white-space: normal; }
+}
+
+/* Окно «Источники» */
+.bms-mgr { max-width: 560px; }
+.bms-list { display: flex; flex-direction: column; margin-top: 8px; }
+.bms-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.bms-name { display: flex; flex-direction: column; min-width: 0; }
+.bms-name b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bms-name small { font-size: 12px; color: var(--muted); }
+.bms-row.is-hidden .bms-name b { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.bms-row .btn-line, .bms-row .btn-ghost { width: auto; min-height: 30px; padding: 0 12px; font-size: 13px; }
+.bms-note { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* Скрытие и удаление подразделения */
+.dm-danger { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dm-danger .btn-line, .dm-danger .btn-ghost { width: auto; min-height: 32px; padding: 0 14px; font-size: 13px; }
+.dm-danger .dm-del { color: var(--no); }
+.dm-danger-note { flex-basis: 100%; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* Справочник подразделений */
+.dict-chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.dict-chk input { width: auto; height: auto; }
+.dict-sub { display: block; font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.dict-used { font-size: 12.5px; color: var(--text); }
+.dict-free { font-size: 12.5px; color: var(--muted); }
+.dict-badge { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 9px; background: var(--card-2, var(--line)); color: var(--muted); vertical-align: 1px; }
+.is-hidden-row td { opacity: .6; }
+
+.dict-free { color: var(--ok); }
+.dict-used { color: var(--muted); cursor: help; }
+
+/* Оргструктура на телефоне: кнопки управления компактно, в одну-две строки */
+.org-toolbar-btns .lbl-short { display: none; }
+@media (max-width: 640px) {
+  .org-toolbar-btns { gap: 4px; }
+  .org-toolbar-btns > button { flex: 0 0 auto !important; width: auto !important; min-height: 28px !important; height: 28px !important; padding: 0 9px !important; font-size: 12px !important; gap: 4px !important; border-radius: 7px !important; }
+  .org-toolbar-btns > button svg { display: none; }
+  .org-toolbar-btns .lbl-long { display: none; }
+  .org-toolbar-btns .lbl-short { display: inline; }
+}
+
+/* Оргструктура: шапка в одну строку — переключатель вида, «⋯», счётчик */
+.org-tree-header-left, .org-tree-toolbar .org-tree-header-left { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; }
+.org-top-pill-title { flex: none; white-space: nowrap; }
+.org-tree-search-wrap { flex: 1 1 200px; max-width: 320px; min-width: 120px; }
+.org-tree-search-wrap input { min-width: 0; width: 100%; }
+.org-count { flex: none; white-space: nowrap; font-size: 13px; color: var(--muted); font-feature-settings: 'tnum' 1; }
+.org-count b { color: var(--text); font-size: 14px; margin-right: 2px; }
+.org-toolbar-btns { flex: none; flex-wrap: nowrap; }
+.org-seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: var(--card-2, var(--card-hover, #f8fafc)); }
+.org-seg-b { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.org-seg-b:hover { color: var(--text); }
+.org-seg-b.on { background: var(--card); color: var(--accent); box-shadow: var(--shadow-xs, 0 1px 2px rgba(15,23,42,.12)); }
+.org-toolbar-btns > .org-more { width: 36px; padding: 0; justify-content: center; }
+@media (max-width: 640px) {
+  .org-tree-toolbar, .org-tree-header-bar { flex-wrap: wrap; }
+  .org-tree-header-left { flex-wrap: wrap; }
+  .org-toolbar-btns { width: 100%; justify-content: space-between; }
+  .org-seg-b { height: 26px; padding: 0 12px; font-size: 12.5px; }
+  .org-seg-b svg { display: none; }
+  .org-toolbar-btns > button.org-more { flex: 0 0 auto !important; width: 32px !important; height: 28px !important; padding: 0 !important; }
+  .org-toolbar-btns > button.org-more svg { display: inline; }
+}
+
+.org-seg .org-seg-b { min-height: 28px; height: 28px; }
+.org-tree-toolbar .org-tree-search-wrap, .org-tree-header-bar .org-tree-search-wrap { padding: 0 12px; }
+.org-tree-toolbar .org-tree-search-wrap input, .org-tree-header-bar .org-tree-search-wrap input { min-height: 32px; height: 32px; max-height: 32px; }
+
+/* Форма загрузки датасета: файл, колонки, валюта с онлайн-курсом */
+.bmi-modal { max-width: 820px; max-height: calc(var(--app-h, 100dvh) - 32px); overflow-y: auto; }
+.bmi-drop { margin-top: 12px; padding: 14px 16px; border: 1.5px dashed var(--line); border-radius: 10px; background: var(--card-2, var(--card)); cursor: pointer; text-align: center; }
+.bmi-drop:hover, .bmi-drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.bmi-drop-t { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
+.bmi-drop-s { margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.bmi-drop-s a { color: var(--accent); }
+.bmi-text.hidden { display: none; }
+.bmi-text { margin-top: 10px; }
+.bmi-setup { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.bmi-setup.hidden { display: none; }
+.bmi-row3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.bmi-fx { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; font-size: 13.5px; }
+.bmi-fx:empty { display: none; }
+.bmi-fx-s { font-size: 12px; color: var(--muted); }
+.bmi-fx-err { color: var(--no); font-weight: 600; }
+.bmi-fx-load { color: var(--muted); }
+.bmi-fx-b { width: auto; min-height: 26px; padding: 0 10px; font-size: 12.5px; }
+.bmi-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 12px; }
+.bmi-map-i { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.bmi-map-i select { font-size: 13px; min-height: 32px; height: 32px; }
+.bmi-opts { display: flex; flex-direction: column; gap: 4px; }
+.bmi-opts:empty { display: none; }
+.bmi-chk { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.bmi-chk input { width: auto; height: auto; }
+.bmi-prev { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.bmi-prev-h { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.bmi-prev-h b { color: var(--text); }
+.bmi-tbl { width: 100%; border-collapse: collapse; font-size: 13px; font-feature-settings: 'tnum' 1; }
+.bmi-tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; text-align: left; padding: 4px 6px; }
+.bmi-tbl td { padding: 6px; border-top: 1px solid var(--line); }
+.bmi-tbl .num { text-align: right; white-space: nowrap; }
+.bmi-tbl .bmi-tjs { font-weight: 700; color: var(--ok); }
+.bmi-empty { font-size: 13px; color: var(--muted); padding: 6px 0; }
+
+
+/* ═══ Переделка дизайна, этап 1: верхнее меню одной строкой (от 1024px) ═══
+   Телефон не затронут: там рельса скрыта, работает нижняя панель. */
+body { font-variant-numeric: tabular-nums; }
+
+@media (min-width: 1024px) {
+  #app { flex-direction: column; }
+  .rail, .rail.is-collapsed {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    height: 56px;
+    padding: 0 20px;
+    gap: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+    background: #fff;
+  }
+  .rail-brand, .rail.is-collapsed .rail-brand {
+    border-bottom: 0;
+    margin: 0 18px 0 0;
+    padding: 0;
+    gap: 10px;
+    cursor: default;
+  }
+  .rail-brand:hover { background: transparent; }
+  .rail-brand:hover .rail-brand-icon { transform: none; }
+  .rail.is-collapsed .rail-brand-text { display: block; }
+  .rail-brand-icon { box-shadow: none; background: var(--accent); }
+  .rail-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .rail-sec-label { display: none; }
+  .rail-item, .rail.is-collapsed .rail-item {
+    width: auto;
+    flex: none;
+    padding: 7px 10px;
+    min-height: 34px;
+    gap: 7px;
+    justify-content: flex-start;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--muted);
+    overflow: visible;
+  }
+  .rail.is-collapsed .rail-item span { display: inline; }
+  .rail-item span { flex: none; overflow: visible; }
+  .rail-item svg { display: none; }
+  .rail-item .rail-sub-caret svg { display: block; }
+  .rail-item:hover { background: var(--card-hover); color: var(--text); }
+  .rail-item.on { background: var(--accent-soft); color: var(--accent); }
+  .rail-item.has-sub { padding-right: 4px; }
+  .rail-item.dropdown-open { background: var(--card-hover); color: var(--text); }
+  .rail.is-collapsed .rail-sub-caret { display: inline-flex; }
+  .rail-foot, .rail.is-collapsed .rail-foot {
+    margin: 0 0 0 auto;
+    padding: 4px 6px;
+    border-top: 0;
+    flex: none;
+    max-width: 260px;
+  }
+  .rail.is-collapsed .rail-who { display: block; }
+  .rail-who { flex: none; text-align: right; }
+  .rail-av { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); width: 30px; height: 30px; }
+  .app-main { flex: 1 1 0; height: auto; max-height: none; min-height: 0; }
+}
+
+@media (min-width: 1024px) {
+  .rail-nav { overflow-x: auto; scrollbar-width: none; }
+  .rail-nav::-webkit-scrollbar { display: none; }
+  .rail-item { padding: 7px 8px; font-size: 13px; }
+}
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .rail-who { display: none !important; }
+  .rail-brand-sub { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .rail-dropdown-item { min-height: 34px; justify-content: flex-start; }
+  .rail-dropdown-list { max-height: calc(100vh - 110px); overflow-y: auto; }
+}
+
+
+/* ═══ Переделка дизайна, этап 2: главная и показатели ═══ */
+.home-hi { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.home-hi-name { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--accent); }
+.home-hero { padding: 4px 2px 12px; }
+.home-stats { gap: 12px; }
+.home-stat { padding: 14px 16px; }
+.home-stat-v { font-family: var(--font-sans); font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.home-stat-v.v-ok { color: var(--ok); }
+.home-stat-v.v-acc { color: var(--accent); }
+.home-stat-v.v-warn { color: var(--warn); }
+.home-stat-l { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--subtle); order: -1; margin: 0 0 4px; }
+.home-stat { display: flex; flex-direction: column; }
+
+.home-dirs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.home-dir {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  padding: 12px 14px;
+  box-shadow: var(--sh-1);
+  min-width: 0;
+}
+.home-dir-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13.5px; }
+.home-dir-n { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-bar { height: 8px; border-radius: 9999px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
+.home-bar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+.home-bar.ok i { background: var(--ok); }
+.home-bar.warn i { background: var(--warn); }
+.home-dir-s { font-size: 12px; color: var(--subtle); }
+
+.home-cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.home-card { padding: 12px 14px; column-gap: 10px; }
+.home-card:hover { transform: none; }
+.home-card-ic { width: 34px; height: 34px; }
+.home-card-t { font-weight: 600; font-size: 14px; }
+.home-card-d { font-size: 12.5px; }
+@media (max-width: 720px) {
+  .home-stats { grid-template-columns: repeat(2, 1fr); }
+  .home-stat-v { font-size: 24px; }
+}
+
+
+/* ═══ Переделка дизайна, этап 3: экраны сбора данных ═══ */
+.pos[data-pos-st="part"] { border-left-color: var(--warn); }
+.pos[data-pos-st="none"] { border-left-color: var(--line-strong); }
+.pos[data-pos-st="done"] { border-left-color: var(--ok); }
+.pos-bar { height: 6px; border-radius: 9999px; background: var(--line); margin-top: 8px; overflow: hidden; max-width: 260px; }
+.pos-bar i { display: block; height: 100%; background: var(--warn); border-radius: 9999px; }
+.pos-bar.ok i { background: var(--ok); }
+.pos-name { font-size: 15.5px; }
+.pos:hover { transform: none; }
+
+/* ═══ Переделка дизайна, этап 4: дашборд и бенчмаркинг ═══ */
+.kpi-card { padding: 14px 16px; box-shadow: var(--sh-1); }
+.kpi-t { font-size: 11.5px; letter-spacing: 0.05em; color: var(--subtle); }
+.kpi-v { font-family: var(--font-sans); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; }
+.kpi-s.is-warn { color: var(--warn); font-weight: 600; }
+
+.bm-card.bmv { border-left: 4px solid var(--line-strong); }
+.bm-card.bmv:has(.bmv-badge.is-ok) { border-left-color: var(--ok); }
+.bm-card.bmv:has(.bmv-badge.is-low) { border-left-color: var(--no); }
+.bm-card.bmv:has(.bmv-badge.is-high) { border-left-color: var(--warn); }
+.bmv-main:has(.bmv-badge.is-ok) .bmv-cr b { color: var(--ok); }
+.bmv-main:has(.bmv-badge.is-low) .bmv-cr b { color: var(--no); }
+.bmv-main:has(.bmv-badge.is-high) .bmv-cr b { color: var(--warn); }
+
+
+/* ═══ Переделка дизайна, этап 5: оценка должностей и риски ═══ */
+.gr-progress { padding: 8px 2px 6px; font-size: 13.5px; }
+.gr-progress b { color: var(--text); }
+.gr-progbar { height: 6px; border-radius: 9999px; background: var(--line); margin: 0 2px 12px; overflow: hidden; }
+.gr-progbar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+.gr-progbar.ok i { background: var(--ok); }
+.gr-cstat { display: inline-flex; padding: 2px 9px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: var(--card-2); color: var(--muted); }
+.gr-cstat.is-part { background: var(--warn-soft); color: var(--warn); }
+.gr-cstat.is-done { background: var(--ok-soft); color: var(--ok); }
+.kr-heat .kr-cell.on { font-size: 17px; height: 46px; }
+
+/* Оргструктура на телефоне: панель подразделения — нижняя шторка поверх схемы,
+   а не вторая колонка шириной 340px, которая съедала весь экран. */
+@media (max-width: 700px) {
+  .org-right-drawer {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 46%;
+    border-left: 0;
+    border-top: 1px solid var(--line-strong);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.16);
+  }
+  .org-workspace-body:has(.org-right-drawer) .org-bottom-zoom-pill { bottom: calc(46% + 8px); }
+}
+
+@media (max-width: 700px) {
+  .org-tree-header-bar { flex-wrap: wrap; }
+  .org-tree-header-bar input { width: 100% !important; min-width: 0; }
+}
+
+
+/* Телефон: плавающая нижняя панель, компактный масштаб схемы, шторка в два положения */
+@media (max-width: 640px) {
+  #topNav.nav-tabs {
+    left: 12px;
+    right: 12px;
+    bottom: calc(3px + env(safe-area-inset-bottom));
+    padding: 3px 4px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+  #topNav .nav-btn { min-height: 42px; border-radius: 18px; }
+  #topNav .nav-btn.on { background: var(--accent-soft); }
+  body.has-topnav .wrap { padding-bottom: 76px; }
+}
+
+@media (max-width: 700px) {
+  .org-bottom-zoom-pill { padding: 2px 6px; gap: 4px; left: 8px; }
+  .org-bottom-zoom-pill #btnFindMe { font-size: 11.5px !important; padding: 0 6px !important; min-height: 24px !important; }
+  .org-bottom-zoom-pill .org-zoom-btn { width: 26px; height: 26px; min-width: 26px; min-height: 26px; font-size: 15px; }
+  .org-bottom-zoom-pill .org-zoom-pct { font-size: 11.5px; min-width: 32px; }
+  .org-right-drawer { height: 27%; min-height: 128px; transition: height 0.2s ease; }
+  .org-right-drawer.is-tall { position: fixed; left: 8px; right: 8px; top: 96px; bottom: 76px; width: auto; height: auto; z-index: 60; border-radius: 14px; border: 1px solid var(--line-strong); }
+  .org-workspace-body:has(.org-right-drawer:not(.is-tall)) .org-bottom-zoom-pill { bottom: calc(max(27%, 128px) + 8px); }
+  .org-workspace-body:has(.org-right-drawer.is-tall) .org-bottom-zoom-pill { display: none; }
+  .org-drawer-header { position: relative; padding-top: 16px; cursor: pointer; }
+  .org-drawer-header::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line-strong); }
+}
+
+/* Телефон: в заголовке остаётся только текущий раздел — длинная цепочка
+   «Администрирование › Оргструктура» обрезалась до «Администриров». */
+@media (max-width: 620px) {
+  #ttl.is-crumbs .crumb-link,
+  #ttl.is-crumbs .crumb-sep,
+  #ttl.is-crumbs .crumb-root { display: none; }
+  #ttl.is-crumbs .crumb-cur { padding-left: 4px; }
+}
+
+/* Оргструктура на телефоне: заголовок, поиск и «Фильтр» не помещались в одну
+   строку и обрезались — теперь поиск с фильтром переносятся на вторую строку. */
+@media (max-width: 700px) {
+  .org-tree-header-left { flex-wrap: wrap !important; row-gap: 8px; width: 100%; }
+  .org-top-pill-title { flex: 1 1 auto; }
+  .org-tree-header-left .org-count { order: 1; }
+  .org-tree-search-wrap { flex: 1 1 55%; min-width: 0; width: auto; order: 2; }
+  .org-tree-search-wrap input { width: 100% !important; }
+  .org-tree-header-left .sf-trigger-btn { flex: none; order: 3; }
+}
+
+/* ═══ Окна ввода шагов 1 и 2: шапка в новом стиле ═══ */
+.sheet-hd--step1, .sheet-hd--step2 {
+  border-left: 0;
+  padding-left: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sheet-hd--step1 > div:first-child, .sheet-hd--step2 > div:first-child { flex: 1; min-width: 0; }
+.sheet-hd--step1 .step-pill, .sheet-hd--step2 .step-pill { display: flex; width: fit-content; margin-bottom: 8px; }
+.sheet-hd--step1 > div:first-child > b, .sheet-hd--step2 > div:first-child > b { display: block; font-size: 18px; letter-spacing: -0.01em; }
+.sheet-hd--step1 .btn-ghost, .sheet-hd--step2 .btn-ghost { flex: none; }
+
+/* ═══ Единый вид по макету: фон страницы, кнопки, таблицы ═══
+   Светлая тема: страница светло-серая, карточки и таблицы белые. Тёмная тема
+   берёт прежний фон. Логика и разметка не затронуты — только оформление. */
+:root { --canvas: #f8fafc; }
+:root[data-theme="dark"], .theme-dark { --canvas: var(--bg); }
+body, #app, .app-main, .workspace-pane, .wrap { background: var(--canvas); }
+
+/* Кнопки: вторичная — белая с нейтральной рамкой, главная — синяя */
+.btn-line:not(.btn-danger) {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  font-weight: 600;
+  border-radius: var(--r-xs);
+}
+.btn-line:not(.btn-danger):hover {
+  background: var(--card-hover);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.btn-primary { border-radius: var(--r-xs); font-weight: 600; box-shadow: none; }
+.btn-primary:hover { box-shadow: none; }
+
+/* Таблицы: спокойная шапка, ровные отступы, подсветка строки под курсором */
+.tblwrap { border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.co-tbl th {
+  background: var(--card-2);
+  color: var(--subtle);
+  font-weight: 700;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.co-tbl td { padding: 7px 12px; }
+.co-tbl tbody tr:hover td { background: var(--card-hover); }
+
+/* Меню теперь сверху — нижняя панель сохранения больше не сдвигается под боковое меню */
+@media (min-width: 1024px) {
+  .bar { left: 0; }
+}
+
+/* ═══ По макету: заголовок страницы, отступы ═══
+   Строка заголовка сливается со страницей (без белой плашки и линии), заголовок
+   крупнее — как «h1 + подпись» в макетах. Телефон не затрагивается. */
+@media (min-width: 1024px) {
+  .top {
+    background: var(--canvas);
+    border-bottom: 0;
+    padding: 14px 24px 2px;
+    min-height: 58px;
+  }
+  .top h1, #ttl.is-crumbs { font-size: 21px; font-weight: 700; letter-spacing: -0.015em; }
+  .top .sub { font-size: 13.5px; }
+  .wrap { padding: 0 24px 8px 24px; }
+}
+
+/* Сводка по подразделениям: цифры — крупными плитками, как в макете «Ход сбора» */
+.page-head-stats { gap: 10px; }
+.page-head-stats .phs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 8px 14px;
+  box-shadow: var(--sh-1);
+}
+.page-head-stats .phs b { font-size: 22px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+.page-head-stats .phs span { font-size: 12px; color: var(--subtle); }
+
+
+/* Окно «Шаг 2 · Оклады»: счётчик заполненных анкет в шапке, как в макете */
+.batch-prog { flex: 0 0 220px; width: 220px; min-width: 220px; align-self: center; margin-left: auto; }
+.batch-prog-t { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; color: var(--muted); }
+.batch-prog-t b { color: var(--text); }
+.batch-prog-bar { height: 8px; border-radius: 9999px; background: var(--line); overflow: hidden; }
+.batch-prog-bar i { display: block; height: 100%; width: 0; background: var(--ok); border-radius: 9999px; transition: width 0.2s ease; }
+@media (max-width: 979px) { .batch-prog { display: none; } }
+
+.batch-err {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: var(--r-xs);
+  background: var(--no-soft);
+  border: 1px solid var(--no-border);
+  color: var(--no-hover);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.batch-err[hidden] { display: none; }
+
+/* Дашборд: цвет значения в плитках */
+.kpi-v.kv-warn { color: var(--warn); }
+.kpi-v.kv-ok { color: var(--ok); }
+
+/* Обзор дашборда: вилки по должностям + рейтинг льгот на одном экране */
+.ovf-dual { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; margin-bottom: 12px; align-items: start; }
+@media (max-width: 900px) { .ovf-dual { grid-template-columns: 1fr; } }
+.ovf-card { padding: 14px 16px; }
+.ovf-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.ovf-hd b { font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--subtle); }
+.ovf-hd span { font-size: 12px; color: var(--subtle); text-align: right; }
+.ovf-row { display: grid; grid-template-columns: minmax(110px, 200px) 1fr 76px; gap: 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.ovf-name { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovf-track { position: relative; height: 24px; }
+.ovf-track i { position: absolute; display: block; }
+.ovf-line { top: 11px; height: 2px; background: var(--line-strong); }
+.ovf-box { top: 3px; height: 18px; background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 5px; box-sizing: border-box; }
+.ovf-med { top: 1px; height: 22px; width: 3px; margin-left: -1px; background: var(--accent); border-radius: 2px; }
+.ovf-our { top: 5px; height: 14px; width: 6px; margin-left: -3px; background: var(--text); border-radius: 2px; }
+.ovf-val { text-align: right; font-weight: 700; font-size: 13px; }
+.ovf-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 12px; color: var(--subtle); }
+.ovf-empty { padding: 18px 0; font-size: 13px; color: var(--muted); }
+.ovf-ben { padding: 8px 0; }
+.ovf-ben-h { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 5px; }
+.ovf-ben-h span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovf-ben-bar { height: 8px; border-radius: 9999px; background: var(--line); overflow: hidden; }
+.ovf-ben-bar i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+
+/* Бенчмаркинг: таблица источников как в макете — серая шапка, полоса веса */
+.bmr-hd { background: var(--card-2); border-radius: var(--r-xs); padding: 8px 10px; color: var(--subtle); font-weight: 700; margin-bottom: 2px; }
+.bmr-row { padding: 11px 10px; }
+.bmr-w { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-weight: 700; }
+.bmr-wbar { display: block; width: 100%; height: 6px; border-radius: 9999px; background: var(--line); overflow: hidden; }
+.bmr-wbar b { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+.bmr-row { grid-template-columns: minmax(0, 1fr) 120px 96px 64px; }
+.bmv-nums b { font-size: 24px; letter-spacing: -0.02em; }
+.bmv-cr b { font-size: 38px; }
+
+/* Оценка должностей: карточки блоков и таблица как в макете */
+.gr-groups { gap: 10px; margin-bottom: 14px; }
+.gr-group { align-items: stretch; text-align: left; background: var(--card); box-shadow: var(--sh-1); padding: 12px 14px; }
+.gr-group:hover { border-color: var(--accent-border); }
+.gr-gname { font-size: 15px; font-weight: 700; color: var(--text); }
+.gr-group small { font-size: 12px; }
+.gr-gbar { display: block; height: 6px; border-radius: 9999px; background: var(--line); margin-top: 6px; overflow: hidden; }
+.gr-gbar b { display: block; height: 100%; background: var(--ok); border-radius: 9999px; }
+.gr-group.on { background: var(--accent-soft); border-color: var(--accent); box-shadow: none; }
+.gr-group.on .gr-gname { color: var(--accent); }
+.gr-tbl .gr-num { text-align: right; font-weight: 700; }
+
+/* Риски: плитки, тепловая карта цветными блоками и список «Требуют внимания» */
+.kpi-v.kv-no { color: var(--no); }
+.kr-kpis { margin-bottom: 12px; }
+.kr-dual { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+@media (max-width: 900px) { .kr-dual { grid-template-columns: 1fr; } }
+.kr-heat .kr-cell { padding: 6px; background: transparent; }
+.kr-heat .kr-cell.on { background: transparent; }
+.kr-heat .kr-standard.on { box-shadow: inset 0 0 0 100px rgba(22, 163, 74, .14); }
+.kr-heat .kr-attention.on { box-shadow: inset 0 0 0 100px rgba(234, 179, 8, .22); }
+.kr-heat .kr-critical.on { box-shadow: inset 0 0 0 100px rgba(220, 38, 38, .18); }
+.kr-attn { padding: 0; overflow: hidden; }
+.kr-attn-hd { padding: 12px 16px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--subtle); border-bottom: 1px solid var(--line); }
+.kr-attn-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+.kr-attn-row:last-child { border-bottom: 0; }
+.kr-attn-row b { display: block; font-size: 13px; }
+.kr-attn-row small { color: var(--subtle); font-size: 12px; }
+.kr-attn-empty { padding: 18px 16px; font-size: 13px; color: var(--muted); }
+
+/* Телефон: длинные таблицы больше не «прибиты» к высоте экрана внутри страницы —
+   страница прокручивается целиком, а не таблица внутри неё, которая уходила
+   под нижнюю панель и не давала листать. */
+@media (max-width: 700px) {
+  .tblwrap--page,
+  #dashSumTabBody .tblwrap--page,
+  #dictBox .tblwrap--page,
+  .org-tree-wrapper .tblwrap--page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: visible;
+  }
+  .workspace-pane { padding-bottom: 88px; }
 }

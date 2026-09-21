@@ -70,7 +70,54 @@ class BenchmarkService {
    * Получить список всех источников данных
    */
   async getSources() {
-    return await queryAll('SELECT key, title, kind, is_licensed, default_currency, notes FROM data_sources ORDER BY key');
+    return await queryAll('SELECT key, title, kind, is_licensed, default_currency, notes, COALESCE(weight, 100) AS weight, COALESCE(hidden, 0) AS hidden FROM data_sources ORDER BY key');
+  }
+
+  /**
+   * Веса источников в сводной ставке. weights = { sourceKey: 0..100 }.
+   * 0 — источник показывается, но в сводную не входит.
+   */
+  /**
+   * Веса источников для одной должности. weights = { sourceKey: 0..100 | null }.
+   * null — убрать свой вес у должности (вернуть общий вес источника).
+   */
+  async setPositionWeights(positionId, weights, by) {
+    const pid = Number(positionId);
+    const pos = pid > 0 ? await queryOne('SELECT id FROM dictionary_positions WHERE id = ?', [pid]) : null;
+    if (!pos) throw new Error('Должность не найдена в справочнике');
+    const known = new Set((await queryAll('SELECT key FROM data_sources')).map(r => r.key));
+    const saved = {};
+    for (const [key, raw] of Object.entries(weights || {})) {
+      if (!known.has(key)) continue;
+      if (raw === null || raw === '') {
+        await run('DELETE FROM position_source_weights WHERE dict_position_id = ? AND source_key = ?', [pid, key]);
+        saved[key] = null;
+        continue;
+      }
+      const w = Math.max(0, Math.min(100, Math.round(Number(raw))));
+      if (!Number.isFinite(w)) continue;
+      await run(
+        `INSERT INTO position_source_weights (dict_position_id, source_key, weight, updated_by, updated_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(dict_position_id, source_key) DO UPDATE SET weight = excluded.weight, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+        [pid, key, w, by || null]
+      );
+      saved[key] = w;
+    }
+    return saved;
+  }
+
+  async setSourceWeights(weights) {
+    const known = new Set((await queryAll('SELECT key FROM data_sources')).map(r => r.key));
+    const saved = {};
+    for (const [key, raw] of Object.entries(weights || {})) {
+      if (!known.has(key)) continue;
+      const w = Math.max(0, Math.min(100, Math.round(Number(raw))));
+      if (!Number.isFinite(w)) continue;
+      await run('UPDATE data_sources SET weight = ? WHERE key = ?', [w, key]);
+      saved[key] = w;
+    }
+    return saved;
   }
 
   /**
@@ -90,6 +137,30 @@ class BenchmarkService {
       [cleanKey, title.trim(), kind || 'consultancy', isLicensed ? 1 : 0, defaultCurrency || 'сомони', notes || '']
     );
     return await queryOne('SELECT * FROM data_sources WHERE key = ?', [cleanKey]);
+  }
+
+  /**
+   * Изменить источник: название, тип, валюту, лицензию, примечание, скрытие.
+   * Код источника не меняется. «Внутренний сбор» править и скрывать нельзя.
+   */
+  async updateSource(key, patch) {
+    const src = await queryOne('SELECT key FROM data_sources WHERE key = ?', [String(key || '')]);
+    if (!src) throw new Error('Источник не найден');
+    if (src.key === 'internal') throw new Error('Внутренний сбор нельзя изменить или скрыть');
+    const sets = [];
+    const args = [];
+    if (patch.title !== undefined) {
+      const t = String(patch.title || '').trim();
+      if (!t) throw new Error('Название источника не может быть пустым');
+      sets.push('title = ?'); args.push(t);
+    }
+    if (patch.kind !== undefined) { sets.push('kind = ?'); args.push(String(patch.kind || 'consultancy')); }
+    if (patch.defaultCurrency !== undefined) { sets.push('default_currency = ?'); args.push(String(patch.defaultCurrency || 'сомони')); }
+    if (patch.isLicensed !== undefined) { sets.push('is_licensed = ?'); args.push(patch.isLicensed ? 1 : 0); }
+    if (patch.notes !== undefined) { sets.push('notes = ?'); args.push(String(patch.notes || '')); }
+    if (patch.hidden !== undefined) { sets.push('hidden = ?'); args.push(patch.hidden ? 1 : 0); }
+    if (sets.length) await run('UPDATE data_sources SET ' + sets.join(', ') + ' WHERE key = ?', [...args, src.key]);
+    return await queryOne('SELECT key, title, kind, is_licensed, default_currency, notes, COALESCE(weight, 100) AS weight, COALESCE(hidden, 0) AS hidden FROM data_sources WHERE key = ?', [src.key]);
   }
 
   /**
@@ -289,17 +360,29 @@ class BenchmarkService {
     const mappedSources = await queryAll(`
       SELECT pm.confidence, pm.note AS map_note,
              sp.id AS source_position_id, sp.source_key, sp.code AS source_code, sp.label AS source_label, sp.family,
-             ds.title AS source_title, ds.kind AS source_kind, ds.is_licensed, ds.default_currency
+             ds.title AS source_title, ds.kind AS source_kind, ds.is_licensed, ds.default_currency,
+             COALESCE(ds.weight, 100) AS weight
       FROM position_map pm
       JOIN source_positions sp ON pm.source_position_id = sp.id
       JOIN data_sources ds ON sp.source_key = ds.key
-      WHERE pm.dict_position_id = ?
+      WHERE pm.dict_position_id = ? AND COALESCE(ds.hidden, 0) = 0
     `, [dictPosId]);
 
     const externalBenchmarks = [];
-    const allMarketMedians = [];
+    // Участники сводной ставки: { key, weight, stats }. Сводная — взвешенное
+    // среднее каждого перцентиля по источникам с данными (market composite,
+    // как в CompAnalyst/MarketPay); вес — у источника, а не у должности.
+    const compositeParts = [];
+    // Вес по должности (если задан) перекрывает общий вес источника.
+    const posWeightRows = await queryAll('SELECT source_key, weight FROM position_source_weights WHERE dict_position_id = ?', [dictPosId]);
+    const posWeights = {};
+    posWeightRows.forEach(r => { posWeights[r.source_key] = Number(r.weight); });
+    const weightOf = (key, globalW) => (posWeights[key] != null ? posWeights[key] : globalW);
+    const internalWeightRow = await queryOne("SELECT COALESCE(weight, 100) AS weight FROM data_sources WHERE key = 'internal'");
+    const internalGlobalWeight = internalWeightRow ? Number(internalWeightRow.weight) : 100;
+    const internalWeight = weightOf('internal', internalGlobalWeight);
     if (internalStats.count > 0 && internalStats.p50 > 0) {
-      allMarketMedians.push(internalStats.p50);
+      compositeParts.push({ key: 'internal', weight: internalWeight, stats: internalStats });
     }
 
     for (const src of mappedSources) {
@@ -364,7 +447,7 @@ class BenchmarkService {
       }
 
       if (stats.p50 > 0) {
-        allMarketMedians.push(stats.p50);
+        compositeParts.push({ key: src.source_key, weight: weightOf(src.source_key, Number(src.weight)), stats });
       }
 
       let gapPercent = null;
@@ -386,21 +469,38 @@ class BenchmarkService {
         hasData: true,
         stats,
         gapPercent,
-        gapAmount
+        gapAmount,
+        weight: weightOf(src.source_key, Number(src.weight)),
+        globalWeight: Number(src.weight),
+        positionWeight: posWeights[src.source_key] != null,
+        compaRatio: (ourMid > 0 && stats.p50 > 0) ? Math.round(ourMid / stats.p50 * 100) / 100 : null
       });
     }
 
-    // Сводная рыночная медиана (Composite Market Median)
-    let compositeMedian = 0;
+    // Сводная рыночная ставка (market composite): взвешенное среднее каждого
+    // перцентиля. Источник с весом 0 показывается, но в сводную не входит.
+    // Если у всех участников вес 0 — считаем поровну, иначе сводной не будет.
+    const active = compositeParts.filter(p => p.weight > 0);
+    const parts = active.length ? active : compositeParts.map(p => ({ ...p, weight: 1 }));
+    const wSum = parts.reduce((a, p) => a + p.weight, 0);
+    const shares = {};
+    parts.forEach(p => { shares[p.key] = wSum ? p.weight / wSum : 0; });
+    const compositeStats = {};
+    ['p10', 'p25', 'p50', 'p75', 'p90'].forEach(k => {
+      // Перцентиль берём только у тех, у кого он есть, с перенормировкой весов
+      // — иначе источник без P10 тянул бы сводную P10 к нулю.
+      const have = parts.filter(p => Number(p.stats[k]) > 0);
+      const w = have.reduce((a, p) => a + p.weight, 0);
+      compositeStats[k] = w ? Math.round(have.reduce((a, p) => a + Number(p.stats[k]) * p.weight, 0) / w) : 0;
+    });
+    const compositeMedian = compositeStats.p50 || 0;
     let compositeGapPercent = null;
     let compositeGapAmount = null;
-
-    if (allMarketMedians.length > 0) {
-      compositeMedian = Math.round(allMarketMedians.reduce((a, b) => a + b, 0) / allMarketMedians.length);
-      if (ourMid > 0 && compositeMedian > 0) {
-        compositeGapAmount = Math.round(ourMid - compositeMedian);
-        compositeGapPercent = Math.round(((ourMid - compositeMedian) / compositeMedian) * 100);
-      }
+    let compaRatio = null;
+    if (ourMid > 0 && compositeMedian > 0) {
+      compositeGapAmount = Math.round(ourMid - compositeMedian);
+      compositeGapPercent = Math.round(((ourMid - compositeMedian) / compositeMedian) * 1000) / 10;
+      compaRatio = Math.round(ourMid / compositeMedian * 100) / 100;
     }
 
     return {
@@ -424,14 +524,21 @@ class BenchmarkService {
         totalBonusCount: bonusQuantifiedCount,
         totalSampleCount: internalTotalValues.length,
         gapPercent: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(((ourMid - internalStats.p50) / internalStats.p50) * 100) : null,
-        gapAmount: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid - internalStats.p50) : null
+        gapAmount: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid - internalStats.p50) : null,
+        weight: internalWeight,
+        globalWeight: internalGlobalWeight,
+        positionWeight: posWeights.internal != null,
+        share: shares.internal || 0,
+        compaRatio: (ourMid > 0 && internalStats.p50 > 0) ? Math.round(ourMid / internalStats.p50 * 100) / 100 : null
       },
-      external: externalBenchmarks,
+      external: externalBenchmarks.map(e => ({ ...e, share: e.hasData ? (shares[e.sourceKey] || 0) : 0 })),
       summary: {
-        sourcesCount: allMarketMedians.length,
+        sourcesCount: parts.length,
         compositeMedian,
+        compositeStats,
         compositeGapPercent,
-        compositeGapAmount
+        compositeGapAmount,
+        compaRatio
       }
     };
   }

@@ -40,7 +40,8 @@ const CAPABILITIES = [
   { id: 'grading:factors', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Правка вопросов анкет (формулировки и баллы)' },
   { id: 'grading:blocks', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Управление индустриальными блоками и распределением должностей' },
   { id: 'grading:committee', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Состав комиссии по блокам и принудительное подведение итога' },
-  { id: 'support:manage', resource: 'support', resourceLabel: 'Чат поддержки', label: 'Просмотр и ответы в чате поддержки Telegram-бота' }
+  { id: 'support:manage', resource: 'support', resourceLabel: 'Чат поддержки', label: 'Просмотр и ответы в чате поддержки Telegram-бота' },
+  { id: 'broadcast:send', resource: 'broadcast', resourceLabel: 'Рассылка', label: 'Отправка рассылок сотрудникам через Telegram-бота и просмотр истории' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];

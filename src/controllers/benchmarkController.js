@@ -1,5 +1,7 @@
 const benchmarkService = require('../services/benchmarkService');
 const benchmarkImportService = require('../services/benchmarkImportService');
+const fxService = require('../services/fxService');
+const xlsxReader = require('../services/xlsxReader');
 
 exports.getSources = async (req, res) => {
   try {
@@ -11,6 +13,28 @@ exports.getSources = async (req, res) => {
   }
 };
 
+exports.setPositionWeights = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const saved = await benchmarkService.setPositionWeights(body.positionId, body.weights, req.user && (req.user.fio || req.user.login));
+    res.json({ ok: true, weights: saved });
+  } catch (err) {
+    if (/не найдена/.test(err.message)) return res.status(404).json({ ok: false, error: err.message });
+    console.error('setPositionWeights error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось сохранить веса по должности' });
+  }
+};
+
+exports.setSourceWeights = async (req, res) => {
+  try {
+    const saved = await benchmarkService.setSourceWeights(req.body && req.body.weights);
+    res.json({ ok: true, weights: saved });
+  } catch (err) {
+    console.error('setSourceWeights error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось сохранить веса источников' });
+  }
+};
+
 exports.createSource = async (req, res) => {
   try {
     const { key, title, kind, isLicensed, defaultCurrency, notes } = req.body;
@@ -19,6 +43,21 @@ exports.createSource = async (req, res) => {
   } catch (err) {
     console.error('createSource error:', err);
     res.status(400).json({ ok: false, error: 'Не удалось создать источник данных' });
+  }
+};
+
+exports.updateSource = async (req, res) => {
+  try {
+    const b = req.body || {};
+    const source = await benchmarkService.updateSource(b.key, {
+      title: b.title, kind: b.kind, defaultCurrency: b.defaultCurrency,
+      isLicensed: b.isLicensed, notes: b.notes, hidden: b.hidden
+    });
+    res.json({ ok: true, source });
+  } catch (err) {
+    if (/не найден|нельзя|пустым/.test(err.message)) return res.status(400).json({ ok: false, error: err.message });
+    console.error('updateSource error:', err);
+    res.status(500).json({ ok: false, error: 'Не удалось изменить источник' });
   }
 };
 
@@ -94,11 +133,48 @@ exports.deleteMapping = async (req, res) => {
   }
 };
 
+/** Онлайн-курс валюты к сомони. */
+exports.getFxRate = async (req, res) => {
+  try {
+    const r = await fxService.getRate(req.query.currency);
+    res.json({ ok: true, ...r, currencies: fxService.CURRENCIES });
+  } catch (err) {
+    console.error('getFxRate error:', err.message);
+    res.status(502).json({ ok: false, error: err.message, currencies: fxService.CURRENCIES });
+  }
+};
+
+/** Листы загруженной книги Excel (файл приходит base64-строкой). */
+exports.xlsxSheets = async (req, res) => {
+  try {
+    const buf = Buffer.from(String((req.body || {}).fileBase64 || ''), 'base64');
+    const wb = xlsxReader.loadWorkbook(buf);
+    res.json({ ok: true, sheets: wb.sheetNames() });
+  } catch (err) {
+    console.error('xlsxSheets error:', err.message);
+    res.status(400).json({ ok: false, error: 'Не удалось прочитать файл: ' + err.message });
+  }
+};
+
+/** Содержимое одного листа таблицей (до 3000 строк, до 40 колонок). */
+exports.xlsxGrid = async (req, res) => {
+  try {
+    const b = req.body || {};
+    const buf = Buffer.from(String(b.fileBase64 || ''), 'base64');
+    const wb = xlsxReader.loadWorkbook(buf);
+    const rows = wb.readSheet(String(b.sheet || ''), 3000).map(r => r.slice(0, 40));
+    res.json({ ok: true, rows });
+  } catch (err) {
+    console.error('xlsxGrid error:', err.message);
+    res.status(400).json({ ok: false, error: 'Не удалось прочитать лист: ' + err.message });
+  }
+};
+
 exports.dryRunImport = async (req, res) => {
   try {
-    const { sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title } = req.body;
+    const { sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, fxRate } = req.body;
     const report = await benchmarkImportService.dryRun({
-      sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title
+      sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, fxRate
     });
     res.json({ ok: true, report });
   } catch (err) {
@@ -109,9 +185,17 @@ exports.dryRunImport = async (req, res) => {
 
 exports.commitImport = async (req, res) => {
   try {
-    const { sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title } = req.body;
+    const { sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, fxRate, fxDate, methodology } = req.body;
+    // Курс берём на сервере, а не из тела запроса: иначе загрузку можно было бы
+    // «пересчитать» произвольным числом.
+    let rate = 1, rateDate = '';
+    if (currency && fxService.normCode(currency) !== 'TJS') {
+      const r = await fxService.getRate(currency);
+      rate = r.rate; rateDate = r.date;
+    }
     const result = await benchmarkImportService.commit({
-      sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, user: req.user
+      sourceKey, text, mode, columnMap, currency, reportDate, dataAsOf, title, user: req.user,
+      fxRate: rate, fxDate: rateDate, methodology
     });
     res.json({ ok: true, result, message: 'Датасет успешно импортирован' });
   } catch (err) {

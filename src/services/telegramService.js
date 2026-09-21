@@ -53,6 +53,7 @@ const BOT_COMMANDS = [
   { command: 'status', description: 'Мои подразделения и прогресс' },
   { command: 'unlink', description: 'Отвязать этот Telegram от аккаунта' },
   { command: 'link', description: 'Привязать по номеру телефона' },
+  { command: 'support', description: 'Написать в чат поддержки' },
   { command: 'help', description: 'Список команд' }
 ];
 

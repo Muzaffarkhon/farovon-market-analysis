@@ -228,7 +228,8 @@ function drawGradeBlocks(){
   if(!bar) return;
   bar.innerHTML = (GR.blocks || []).map(function(b){
     return '<button class="gr-group'+(b.key === GR.block ? ' on' : '')+'" data-b="'+esc(b.key)+'">'+
-      esc(b.label)+'<small>'+(b.evaluated_count || 0)+' из '+(b.position_count || 0)+' оценено</small></button>';
+      '<span class="gr-gname">'+esc(b.label)+'</span><small>'+(b.evaluated_count || 0)+' из '+(b.position_count || 0)+' оценено</small>'+
+      '<i class="gr-gbar"><b style="width:'+(b.position_count ? Math.round((b.evaluated_count || 0) / b.position_count * 100) : 0)+'%"></b></i></button>';
   }).join('');
   [].forEach.call(bar.querySelectorAll('[data-b]'), function(btn){
     btn.onclick = function(){
@@ -414,13 +415,14 @@ function drawGradePositions(){
   var h = '<div class="gr-progress">Оценено <b>'+done+'</b> из '+GR.rows.length+' должностей'+
     (hasCommittee ? ' <span class="muted">· комиссия '+GR.committeeSize+' чел.'+(GR.isCommitteeMember ? '' : ', вы не в её составе')+'</span>' : '')+
     '</div>'+
+    '<div class="gr-progbar'+(done === GR.rows.length ? ' ok' : '')+'"><i style="width:'+Math.round(done / GR.rows.length * 100)+'%"></i></div>'+
     // Список растёт по содержимому — под ним не должно оставаться пустого
     // экрана. Пока анкета открыта, этот блок вообще скрыт (см. выше), так
     // что ужимать под неё больше не нужно.
     '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl">'+
     '<thead><tr><th>Должность</th><th>Подразделений</th><th>Штат</th>'+
       (hasCommittee ? '<th>Комиссия</th>' : '')+
-      '<th>Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
+      '<th class="gr-num">Балл</th><th>Уровень</th><th></th></tr></thead><tbody>'+
     GR.rows.map(function(r, i){
       var mySubmitted = !!r.my_submission;
       var hasAnything = !!r.grade_level || mySubmitted || (r.submitted_count || 0) > 0;
@@ -433,7 +435,7 @@ function drawGradePositions(){
       // Остальным членам комиссии чужие голоса до утверждения не показываем —
       // отсюда и «слепая» заявка теряет смысл, если любой мог бы их сверить.
       var committeePlain = (r.grade_level ? 'завершено' : (r.submitted_count || 0)+' из '+GR.committeeSize);
-      var committeeText = committeePlain + (mySubmitted ? ' '+icBare('check', 12) : '');
+      var committeeText = '<span class="gr-cstat '+(r.grade_level ? 'is-done' : ((r.submitted_count || 0) > 0 ? 'is-part' : 'is-none'))+'">'+committeePlain+'</span>' + (mySubmitted ? ' '+icBare('check', 12) : '');
       var committeeCell = (canReset && (r.submitted_count || 0) > 0)
         ? '<button type="button" class="list-cell gr-committee-cell" data-i="'+i+'" data-ctx-label="'+esc('Комиссия: ' + committeePlain)+'">'+committeeText+'</button>'
         : committeeText;
@@ -442,7 +444,7 @@ function drawGradePositions(){
         '<td>'+unitsCell+'</td>'+
         '<td>'+(r.staff_count || 0)+'</td>'+
         (hasCommittee ? '<td>'+committeeCell+'</td>' : '')+
-        '<td>'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
+        '<td class="gr-num">'+(r.weighted_score != null ? esc(String(r.weighted_score)) : '—')+'</td>'+
         '<td>'+(r.grade_level ? '<span class="badge b-active">'+esc(grGradeName(r.grade_level))+'</span>' : '<span class="badge">нет оценки</span>')+'</td>'+
         '<td class="gr-row-acts">'+
           '<button class="btn-line gr-open" data-i="'+i+'">'+btnLabel+'</button>'+
@@ -1286,7 +1288,32 @@ function loadRiskHeatmap(){
     // где «горит».
     rows.sort(function(a, b){ return (b.critical - a.critical) || (b.total - a.total); });
 
-    var h = '<div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl kr-heat">'+
+    var sum = rows.reduce(function(a, x){
+      a.total += x.total || 0; a.critical += x.critical || 0; a.attention += x.attention || 0; a.standard += x.standard || 0;
+      return a;
+    }, { total:0, critical:0, attention:0, standard:0 });
+    var kpi = function(label, v, sub, tone){
+      return '<div class="kpi-card"><div class="kpi-t">'+label+'</div><div class="kpi-v'+(tone ? ' kv-'+tone : '')+'">'+v+'</div>'+
+        '<div class="kpi-s">'+sub+'</div></div>';
+    };
+    var hot = rows.filter(function(x){ return x.critical > 0 || x.attention > 0; })
+      .sort(function(a, b){ return (b.critical - a.critical) || (b.attention - a.attention); }).slice(0, 6);
+    var attn = '<div class="card kr-attn"><div class="kr-attn-hd">Требуют внимания</div>'+
+      (hot.length ? hot.map(function(x){
+        var crit = x.critical > 0;
+        return '<div class="kr-attn-row"><div><b>'+esc(x.dir)+'</b><small>'+(x.critical ? x.critical+' критических' : '')+
+          (x.critical && x.attention ? ' · ' : '')+(x.attention ? x.attention+' в зоне внимания' : '')+'</small></div>'+
+          '<span class="badge '+(crit ? 'kr-critical' : 'kr-attention')+'">'+(crit ? 'Высокий' : 'Средний')+'</span></div>';
+      }).join('') : '<div class="kr-attn-empty">Направлений с повышенным риском нет</div>')+
+    '</div>';
+
+    var h = '<div class="kpi-grid kr-kpis">'+
+      kpi('Оценено сотрудников', sum.total, 'по '+rows.length+' '+declOfNum(rows.length, ['направлению','направлениям','направлениям']), '')+
+      kpi('Критический риск', sum.critical, 'нужен план преемственности', sum.critical ? 'no' : '')+
+      kpi('Зона внимания', sum.attention, 'под наблюдением', sum.attention ? 'warn' : '')+
+      kpi('Штатные', sum.standard, 'риск в норме', sum.standard ? 'ok' : '')+
+    '</div>'+
+    '<div class="kr-dual"><div class="tblwrap gr-tblwrap"><table class="co-tbl gr-tbl kr-heat">'+
       '<thead><tr><th>Направление</th><th>Штатные</th><th>Зона внимания</th><th>Критический риск</th><th>Всего</th></tr></thead><tbody>'+
       rows.map(function(x){
         return '<tr>'+
@@ -1297,7 +1324,7 @@ function loadRiskHeatmap(){
           '<td><b>'+x.total+'</b></td>'+
         '</tr>';
       }).join('')+
-      '</tbody></table></div>';
+      '</tbody></table></div>'+ attn + '</div>';
 
     $('krContent').innerHTML = h;
   })).catch(guardAsyncToTab(function(){
