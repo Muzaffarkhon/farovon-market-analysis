@@ -2976,6 +2976,16 @@ label.lbl {
   .bcard-back svg { transform: rotate(180deg); }
   .bcard-hd { flex-wrap: wrap; }
   .bcard-hd .batch-co-title { width: 100%; order: 3; }
+
+  /* Втроём в одну строку «Предыдущая · 1 из 9 · Следующая» на 390px не
+     помещаются: счётчик уходит наверх, кнопки делят строку поровну. */
+  .bcard-nav { flex-wrap: wrap; gap: 8px; }
+  .bcard-pos { order: -1; width: 100%; text-align: center; }
+  .bcard-nav .btn-line {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+  }
 }
 
 .batch-card {
