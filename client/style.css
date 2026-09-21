@@ -2919,12 +2919,18 @@ label.lbl {
 /* «К списку» нужна только там, где панели не помещаются рядом. */
 .bcard-back { display: none; }
 
+/* Блок полей — отдельная карточка с лёгкой заливкой: тонкой линии-разделителя
+   не хватало, группы сливались в одну ленту. Поля ввода внутри остаются
+   белыми (var(--card)), поэтому фон блока их не «съедает». */
 .bsec {
-  padding: 14px 0 2px;
-  border-top: 1px solid var(--line);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card-2);
 }
 
-.bsec:first-of-type { border-top: 0; }
+.bsec:last-of-type { margin-bottom: 0; }
 
 /* Заголовок блока должен читаться уровнем выше подписей полей (label.lbl —
    13.5px/600/muted), иначе группировка не считывается и экран снова
@@ -2957,6 +2963,22 @@ label.lbl {
 }
 
 .bsec-gap { margin-top: 10px; }
+
+/* Длинные списки вариантов (график, источник, вид премии) — равные колонки
+   вместо рваного переноса: шесть названий разной длины складывались в лесенку
+   из трёх строк. Короткие наборы («да / нет / не знаю») остаются на обычном
+   переносе — в сетке они растягивались на треть ширины каждый. */
+.chips-grid .chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 6px;
+}
+
+.chips-grid .chips button {
+  width: 100%;
+  padding: 0 8px;
+  text-align: center;
+}
 
 .bsec-hint {
   margin: 10px 0 0;
@@ -3020,6 +3042,10 @@ label.lbl {
 
   /* Втроём в одну строку «Предыдущая · 1 из 9 · Следующая» на 390px не
      помещаются: счётчик уходит наверх, кнопки делят строку поровну. */
+  /* На телефоне один столбец из 8 вариантов графика занимал пол-экрана —
+     сужаем колонку, чтобы вставали по две. */
+  .chips-grid .chips { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+
   .bcard-nav { flex-wrap: wrap; gap: 8px; }
   .bcard-pos { order: -1; width: 100%; text-align: center; }
   .bcard-nav .btn-line {

@@ -3033,9 +3033,9 @@ function openBatchSurveySheet(posName){
         '<label class="lbl">Размер</label>'+
         '<input class="b-bon-size" data-bi="'+bi+'" inputmode="decimal" placeholder="Например: 20 или 3000" value="'+esc(b.size || '')+'">'+
         '<label class="lbl" style="margin-top:8px">Вид переменной части</label>'+
-        '<div class="chips" data-chips="bonType" data-bi="'+bi+'">'+bonusTypes.map(function(v){
+        '<div class="chips-grid"><div class="chips" data-chips="bonType" data-bi="'+bi+'">'+bonusTypes.map(function(v){
           return '<button type="button" data-act="bonRowType" data-bi="'+bi+'" data-v="'+esc(v)+'"'+(b.type===v?' class="on"':'')+'>'+esc(v)+'</button>';
-        }).join('')+'</div>'+
+        }).join('')+'</div></div>'+
         '<div class="sub-step">'+
           '<label class="lbl" style="margin:0 0 6px">Периодичность получения</label>'+
           '<div class="chips" data-chips="bonPer" data-bi="'+bi+'">'+bonusPeriods.map(function(v){
@@ -3133,7 +3133,7 @@ function openBatchSurveySheet(posName){
         '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">')+
 
       sec('График работы', true,
-        chips('schedule', scheduleList, item.schedule, false))+
+        '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false)+'</div>')+
 
       sec('Премии и бонусы', true,
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
@@ -3150,10 +3150,10 @@ function openBatchSurveySheet(posName){
         '<label class="lbl bsec-gap">Прочие выплаты</label>'+
         '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">')+
 
+      // Подпись «Источник» повторяла заголовок блока — убрана.
       sec('Откуда данные', true,
-        '<label class="lbl">Источник</label>'+
-        chips('source', sources, item.source, false)+
-        '<label class="lbl bsec-gap">Насколько данным можно доверять</label>'+
+        '<div class="chips-grid">'+chips('source', sources, item.source, false)+'</div>'+
+        '<label class="lbl bsec-gap">Надёжность</label>'+
         chips('trust', trustList, item.trust, false))+
 
       sec('Комментарий', false,
