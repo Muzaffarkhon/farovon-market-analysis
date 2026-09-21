@@ -2896,7 +2896,10 @@ function openBatchSurveySheet(posName){
   S.fillPrefs = S.fillPrefs || {};
   var lastSv = S.surveys.slice().reverse().find(function(s){ return s && (s.cur || s.payPer); });
   var defCur = S.fillPrefs.cur || (lastSv && lastSv.cur) || 'сомони';
-  var defPer = S.fillPrefs.payPer || (lastSv && lastSv.payPer) || 'в месяц';
+  // Сдельную не наследуем: одна сдельная запись иначе делала бы сдельными все
+  // следующие компании по инерции, а такие строки выпадают из медианы рынка.
+  var lastPer = S.fillPrefs.payPer || (lastSv && lastSv.payPer) || 'в месяц';
+  var defPer = payIsPiece(lastPer) ? 'в месяц' : lastPer;
   // — «Стандартный набор» льгот: чаще всего встречающиеся позиции соцпакета,
   //   отмечаются одной кнопкой. Берём только те, что реально есть в справочнике.
   var STD_BENEFITS = [
@@ -3015,6 +3018,8 @@ function openBatchSurveySheet(posName){
     // Строка в списке слева живёт отдельно от карточки — обновляем её тем же
     // действием, иначе статус и оклад в списке отстают от того, что печатают.
     refreshAsideRow(+card.dataset.idx);
+    // Заполнили блок — открываем следующий и освежаем сводки в свёрнутых.
+    revealSections(card, item);
   }
 
   // Один вид переменной части: размер + вид + периодичность. Строк может быть
@@ -3089,14 +3094,104 @@ function openBatchSurveySheet(posName){
     '</button>';
   }
 
-  // Блок полей с заголовком. req — пометка «обязательно»: раньше про
-  // обязательность графика/бонусов/источника/надёжности человек узнавал только
-  // из ошибки при сохранении.
-  function sec(title, req, body){
-    return '<section class="bsec">'+
-      '<h4 class="bsec-t">'+esc(title)+(req ? '<span class="bsec-req">обязательно</span>' : '')+'</h4>'+
-      '<div class="bsec-b">'+body+'</div>'+
+  // ── Блоки анкеты раскрываются по мере заполнения ─────────────────────────
+  // Пустая анкета из семи развёрнутых блоков выглядит как стена работы. Поэтому
+  // у новой компании открыт только «Оклад», остальные свёрнуты в строку с
+  // заголовком; следующий блок открывается сам, как только заполнен текущий.
+  // Уже заполненные блоки открыты всегда — иначе при правке пришлось бы
+  // раскрывать каждый вручную.
+  var SEC_ORDER = ['pay', 'their', 'schedule', 'bonus', 'benefits', 'source', 'note'];
+
+  function secHasData(item, key){
+    switch(key){
+      case 'pay': return !!(String(item.payFrom || '').trim() || String(item.payTo || '').trim());
+      case 'their': return !!(String(item.posTheir || '').trim() || String(item.grade || '').trim());
+      case 'schedule': return !!String(item.schedule || '').trim();
+      case 'bonus': return !!String(item.bonHas || '').trim();
+      case 'benefits': return !!((Array.isArray(item.benefits) && item.benefits.length) || String(item.extra || '').trim());
+      case 'source': return !!(String(item.source || '').trim() || String(item.trust || '').trim());
+      case 'note': return !!String(item.note || '').trim();
+    }
+    return false;
+  }
+
+  // Что показать в шапке свёрнутого блока, чтобы не открывать его ради проверки.
+  function secSummary(item, key){
+    switch(key){
+      case 'pay':
+        return payPreview(item);
+      case 'their':
+        return [item.posTheir, item.grade].filter(Boolean).join(' · ');
+      case 'schedule':
+        return item.schedule || '';
+      case 'bonus': {
+        if(item.bonHas !== 'да') return item.bonHas || '';
+        var rows = (Array.isArray(item.bonuses) ? item.bonuses : []).filter(function(b){
+          return b && (b.type || String(b.size == null ? '' : b.size).trim());
+        });
+        if(!rows.length) return 'да';
+        var first = String(rows[0].size == null ? '' : rows[0].size).trim() || rows[0].type;
+        return 'да · ' + first + (rows.length > 1 ? ' и ещё ' + (rows.length - 1) : '');
+      }
+      case 'benefits': {
+        var parts = [];
+        var n = Array.isArray(item.benefits) ? item.benefits.length : 0;
+        if(n) parts.push(n + ' ' + declOfNum(n, ['льгота', 'льготы', 'льгот']));
+        if(String(item.extra || '').trim()) parts.push('прочие выплаты');
+        return parts.join(' · ');
+      }
+      case 'source':
+        return [item.source, item.trust].filter(Boolean).join(' · ');
+      case 'note': {
+        var t = String(item.note || '').trim();
+        return t.length > 40 ? t.slice(0, 40) + '…' : t;
+      }
+    }
+    return '';
+  }
+
+  /** Первый незаполненный блок — он и есть «текущий шаг». */
+  function firstEmptySec(item){
+    for(var i = 0; i < SEC_ORDER.length; i++){
+      if(!secHasData(item, SEC_ORDER[i])) return SEC_ORDER[i];
+    }
+    return '';
+  }
+
+  // req — пометка «обязательно»: раньше про обязательность графика/бонусов/
+  // источника/надёжности человек узнавал только из ошибки при сохранении.
+  function sec(key, title, req, body, item){
+    var open = secHasData(item, key) || key === firstEmptySec(item);
+    return '<section class="bsec'+(open ? ' open' : '')+'" data-sec="'+key+'">'+
+      '<button type="button" class="bsec-t" data-act="sec-toggle">'+
+        '<span class="bsec-ttl">'+esc(title)+'</span>'+
+        (req ? '<span class="bsec-req">обязательно</span>' : '')+
+        '<span class="bsec-sum">'+esc(secSummary(item, key))+'</span>'+
+        '<span class="bsec-arr">'+ic('chevron', 12)+'</span>'+
+      '</button>'+
+      '<div class="bsec-b'+(open ? '' : ' hidden')+'">'+body+'</div>'+
     '</section>';
+  }
+
+  function setSecOpen(section, open){
+    section.classList.toggle('open', open);
+    var body = section.querySelector('.bsec-b');
+    if(body) body.classList.toggle('hidden', !open);
+  }
+
+  /** Открыть дозревшие блоки и освежить сводки. Только открываем: свернуть
+   *  блок под курсором посреди правки (например, когда поле очистили) —
+   *  худшее, что можно сделать с формой. */
+  function revealSections(card, item){
+    var first = firstEmptySec(item);
+    [].forEach.call(card.querySelectorAll('.bsec'), function(s){
+      var key = s.dataset.sec;
+      if(!s.classList.contains('open') && (secHasData(item, key) || key === first)){
+        setSecOpen(s, true);
+      }
+      var sum = s.querySelector('.bsec-sum');
+      if(sum) sum.textContent = secSummary(item, key);
+    });
   }
 
   function detailHtml(item, idx){
@@ -3109,7 +3204,7 @@ function openBatchSurveySheet(posName){
         renderSurveyStTag(comp)+
       '</div>'+
 
-      sec('Оклад', false,
+      sec('pay', 'Оклад', false,
         '<div class="two">'+
           '<div><label class="lbl">Оклад от</label><input class="b-pay-from" inputmode="decimal" placeholder="например: 6500" value="'+esc(item.payFrom)+'"></div>'+
           '<div><label class="lbl">Оклад до</label><input class="b-pay-to" inputmode="decimal" placeholder="например: 7500" value="'+esc(item.payTo)+'"></div>'+
@@ -3120,9 +3215,9 @@ function openBatchSurveySheet(posName){
         '</div>'+
         '<p class="bsec-hint b-piece-hint'+(payIsPiece(item.payPer) ? '' : ' hidden')+'">'+
           'Сдельная оплата: укажите ставку за одну услугу. В вилки и медиану рынка такие записи не попадают — их нельзя сравнивать с месячным окладом.'+
-        '</p>')+
+        '</p>', item)+
 
-      sec('Должность у них', false,
+      sec('their', 'Должность у них', false,
         '<label class="lbl">Как эта должность называется в компании</label>'+
         // Кнопка сброса нужна: выбранную должность раньше нельзя было снять —
         // пикер умеет только выбрать другую, пустого пункта в нём нет.
@@ -3130,34 +3225,34 @@ function openBatchSurveySheet(posName){
           (item.posTheir ? '<button type="button" class="pick-clear" data-act="clear-their" title="Очистить">'+ic('close', 12)+'</button>' : '')+
           '<i>'+ic('chevron', 12)+'</i></div>'+
         '<label class="lbl bsec-gap">Грейд / Уровень</label>'+
-        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">')+
+        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">', item)+
 
-      sec('График работы', true,
-        '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false)+'</div>')+
+      sec('schedule', 'График работы', true,
+        '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false)+'</div>', item)+
 
-      sec('Премии и бонусы', true,
+      sec('bonus', 'Премии и бонусы', true,
         chips('bonHas', ['да','нет','не знаю'], item.bonHas, false)+
         '<div class="b-bon-box '+(item.bonHas==='да'?'':'hidden')+' bsec-gap">'+
           '<div class="b-bon-list">'+bonRowsHtml(item)+'</div>'+
           '<button type="button" class="btn-line b-bon-add" data-act="bon-add">'+ic('plus',12)+' Добавить вид</button>'+
-        '</div>')+
+        '</div>', item)+
 
-      sec('Льготы и соцпакет', false,
+      sec('benefits', 'Льготы и соцпакет', false,
         (STD_PINNED.length
           ? '<button type="button" class="bx-std-benefits" data-act="std-benefits">'+ic('bolt',12)+'Отметить частые</button>'
           : '')+
         benefitDropdown(item.benefits, benefitGroups, STD_PINNED)+
         '<label class="lbl bsec-gap">Прочие выплаты</label>'+
-        '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">')+
+        '<input class="b-extra" placeholder="13-я зарплата, надбавки…" value="'+esc(item.extra)+'">', item)+
 
       // Подпись «Источник» повторяла заголовок блока — убрана.
-      sec('Откуда данные', true,
+      sec('source', 'Откуда данные', true,
         '<div class="chips-grid">'+chips('source', sources, item.source, false)+'</div>'+
         '<label class="lbl bsec-gap">Надёжность</label>'+
-        chips('trust', trustList, item.trust, false))+
+        chips('trust', trustList, item.trust, false), item)+
 
-      sec('Комментарий', false,
-        '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>')+
+      sec('note', 'Комментарий', false,
+        '<textarea class="b-note" placeholder="Что важно знать об условиях">'+esc(item.note)+'</textarea>', item)+
 
       '<div class="bcard-nav">'+
         '<button type="button" class="btn-line bcard-prev" data-act="go-prev"'+(idx <= 0 ? ' disabled' : '')+'>'+ic('chevron', 12)+'Предыдущая</button>'+
@@ -3333,7 +3428,13 @@ function openBatchSurveySheet(posName){
           firstCard.classList.add('batch-card--needs');
           first.miss.forEach(function(f){
             var box = firstCard.querySelector('.chips[data-chips="' + f.chips + '"]');
-            if(box) box.classList.add('chips--invalid');
+            if(box){
+              box.classList.add('chips--invalid');
+              // Блок с недостающим полем мог быть ещё свёрнут — раскрываем,
+              // иначе подсветка окажется за кулисами.
+              var host = box.closest('.bsec');
+              if(host) setSecOpen(host, true);
+            }
           });
           var firstBox = firstCard.querySelector('.chips--invalid');
           if(firstBox && firstBox.scrollIntoView) firstBox.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -3483,6 +3584,14 @@ function openBatchSurveySheet(posName){
     }
     if(e.target.closest('[data-act="go-prev"]')){ selectCompany(curIdx - 1); return; }
     if(e.target.closest('[data-act="go-next"]')){ selectCompany(curIdx + 1); return; }
+
+    // Свернуть/развернуть блок вручную — автораскрытие ничего не запрещает.
+    var secTog = e.target.closest('[data-act="sec-toggle"]');
+    if(secTog){
+      var secEl = secTog.closest('.bsec');
+      if(secEl) setSecOpen(secEl, !secEl.classList.contains('open'));
+      return;
+    }
 
     // «Отметить частые» — одним кликом проставить закреплённый набор льгот
     // (STD_PINNED). Повторный клик, если весь набор уже стоит, — снимает его.
@@ -3689,7 +3798,10 @@ function openBatchSurveySheet(posName){
     if(e.target.classList.contains('b-cur')){ item.cur = e.target.value; S.fillPrefs.cur = item.cur; }
     if(e.target.classList.contains('b-pay-per')){
       item.payPer = e.target.value;
-      S.fillPrefs.payPer = item.payPer;
+      // Период подставляется следующим компаниям как «обычно вводят в одном и
+      // том же». Сдельную так тянуть нельзя: это исключение, а не норма, и
+      // забытая по инерции сдельная молча выкинет оклад из медианы рынка.
+      if(!payIsPiece(item.payPer)) S.fillPrefs.payPer = item.payPer;
       var hint = card.querySelector('.b-piece-hint');
       if(hint) hint.classList.toggle('hidden', !payIsPiece(item.payPer));
     }

@@ -2938,12 +2938,50 @@ label.lbl {
 .bsec-t {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
-  margin: 0 0 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
+  cursor: pointer;
 }
+
+.bsec.open > .bsec-t { margin-bottom: 10px; }
+
+.bsec-ttl { flex: none; }
+
+/* Сводка по свёрнутому блоку: видно, что внутри, не раскрывая. */
+.bsec-sum {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.bsec.open .bsec-sum { display: none; }
+
+.bsec-arr {
+  flex: none;
+  margin-left: auto; /* у раскрытого блока сводка скрыта — стрелку держим справа */
+  display: inline-flex;
+  color: var(--muted);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.bsec.open .bsec-arr { transform: rotate(-90deg); }
 
 /* Внутри блока отступ сверху задаётся явно (.bsec-gap), а не через margin
    каждой подписи — иначе после заголовка блока зияет двойной отступ. */
