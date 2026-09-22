@@ -74,15 +74,16 @@ router.post('/auth/onboarded', authController.markOnboarded);
 router.post('/telegram/link', telegramController.link);
 router.post('/telegram/unlink', telegramController.unlink);
 
-// Опрос и данные
-router.post('/survey/save', surveyController.saveSurveyData);
-router.post('/survey/save-details', surveyController.saveSurveyDetails);
-router.post('/survey/for-period', surveyController.getSurveysForPeriod);
-router.post('/survey/dictionary/add', surveyController.addDictionaryItem);
+// Опрос и данные. Право survey:fill по умолчанию у всех ролей, но его можно
+// снять ролью или персонально — раньше маршруты были открыты любому авторизованному.
+router.post('/survey/save', requireCapability('survey:fill'), surveyController.saveSurveyData);
+router.post('/survey/save-details', requireCapability('survey:fill'), surveyController.saveSurveyDetails);
+router.post('/survey/for-period', requireCapability('survey:fill'), surveyController.getSurveysForPeriod);
+router.post('/survey/dictionary/add', requireCapability('survey:fill'), surveyController.addDictionaryItem);
 // Position-first Шаг 1: чек-лист компаний для сравнения по каждой должности
 // (заменяет прежний унитарный на весь unit флаг competitors.actual).
-router.post('/survey/position-selections', surveyController.getPositionSelections);
-router.post('/survey/position-selection/save', surveyController.savePositionSelection);
+router.post('/survey/position-selections', requireCapability('survey:fill'), surveyController.getPositionSelections);
+router.post('/survey/position-selection/save', requireCapability('survey:fill'), surveyController.savePositionSelection);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
 // всех HR BP). Кто именно видит её, кроме admin, теперь настраивается в

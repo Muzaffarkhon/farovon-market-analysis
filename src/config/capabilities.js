@@ -16,6 +16,7 @@
  */
 
 const CAPABILITIES = [
+  { id: 'survey:fill', resource: 'survey', resourceLabel: 'Сбор данных', label: 'Заполнение анкет по рынку' },
   { id: 'divisions:view', resource: 'divisions', resourceLabel: 'Оргструктура', label: 'Просмотр' },
   { id: 'divisions:edit', resource: 'divisions', resourceLabel: 'Оргструктура', label: 'Назначение ответственных' },
   { id: 'users:view', resource: 'users', resourceLabel: 'Пользователи', label: 'Просмотр' },
@@ -60,7 +61,7 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // /admin/period.
   // hrbp + новые модули: HR BP смотрит грейды и матрицу рисков по своим
   // направлениям, но анкеты заполняют комиссия (грейды) и руководители (риски).
-  hrbp: ['dashboard:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
+  hrbp: ['survey:fill', 'dashboard:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
     'grading:view', 'keyrisk:view'],
   // dir_head: с PR #25 видит и правит divisions (только свои отделы — это
   // ограничение уже в adminController.saveDivision, не здесь) и читает
@@ -68,13 +69,15 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // dir_head и head заполняют анкеты рисков по своим подразделениям — именно
   // они знают, кто в цехе уникальный носитель знаний. Видимость ограничена
   // закреплёнными подразделениями в самом контроллере (gradingController).
-  dir_head: ['divisions:view', 'divisions:edit', 'users:view',
+  dir_head: ['survey:fill', 'divisions:view', 'divisions:edit', 'users:view',
     'grading:view', 'keyrisk:view', 'keyrisk:edit'],
   // head: видит и может назначать ответственных в подразделениях своей ветки
   // оргструктуры (подотделах), а также просматривать список пользователей.
-  head: ['divisions:view', 'divisions:edit', 'users:view',
+  head: ['survey:fill', 'divisions:view', 'divisions:edit', 'users:view',
     'grading:view', 'keyrisk:view', 'keyrisk:edit'],
-  user: []
+  // user: раньше маршруты сбора были открыты любому авторизованному —
+  // survey:fill по умолчанию сохраняет это поведение, но делает его управляемым.
+  user: ['survey:fill']
 };
 
 /**

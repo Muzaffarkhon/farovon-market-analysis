@@ -174,6 +174,16 @@ async function migrate() {
     }
   }
   console.log('🔧 Миграция: права ролей по умолчанию проверены и синхронизированы');
+  // survey:fill появился позже конструктора ролей: пользовательские роли (не из
+  // ROLES) тоже должны получить его один раз, иначе их сборщики потеряют доступ.
+  try {
+    await run("INSERT OR IGNORE INTO role_capabilities (role, capability) SELECT key, 'survey:fill' FROM roles WHERE key <> 'admin'");
+  } catch (e) { /* таблицы roles ещё нет на самом первом запуске — ROLES уже засеяны выше */ }
+  // survey:fill появился позже конструктора ролей: пользовательские роли (не из
+  // ROLES) тоже должны получить его один раз, иначе их сборщики потеряют доступ.
+  try {
+    await run("INSERT OR IGNORE INTO role_capabilities (role, capability) SELECT key, 'survey:fill' FROM roles WHERE key <> 'admin'");
+  } catch (e) { /* таблицы roles ещё нет на самом первом запуске — ROLES уже засеяны выше */ }
 
   // Персональные права — точечная надбавка поверх роли, чтобы не выдавать
   // право сразу всем с этой ролью (см. hasCapability в middleware/auth.js).
@@ -190,6 +200,9 @@ async function migrate() {
   // роль его даёт (отключение перекрывает роль). Одно право у сотрудника —
   // либо выдано, либо отключено, не оба сразу (тот же первичный ключ).
   await ensureColumn('user_capabilities', 'effect', "TEXT NOT NULL DEFAULT 'grant'");
+  // Срок действия персонального права (null — бессрочно). Проверяется в
+  // hasCapability; просроченная запись равносильна отсутствующей.
+  await ensureColumn('user_capabilities', 'expires_at', 'TEXT');
 
   // Справочник ролей: раньше список ролей был только константой в коде. Теперь
   // он в БД, чтобы админ мог добавлять свои роли (конструктор «Роли и доступы»).

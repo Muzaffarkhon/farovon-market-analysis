@@ -2237,7 +2237,7 @@ exports.getUserCapabilities = async (req, res) => {
       queryAll("SELECT login, fio, role, active FROM users WHERE archived_at IS NULL ORDER BY fio ASC"),
       queryAll(`
         SELECT g.user_login AS "userLogin", COALESCE(u.fio, g.user_login) AS "userFio",
-               u.role AS "userRole", g.capability, COALESCE(g.effect, 'grant') AS effect, g.granted_by AS "grantedBy", g.granted_at AS "grantedAt"
+               u.role AS "userRole", g.capability, COALESCE(g.effect, 'grant') AS effect, g.granted_by AS "grantedBy", g.granted_at AS "grantedAt", g.expires_at AS "expiresAt"
         FROM user_capabilities g
         LEFT JOIN users u ON u.login = g.user_login
         ORDER BY "userFio" ASC, g.capability ASC
@@ -2280,6 +2280,13 @@ exports.setUserCapabilities = async (req, res) => {
   const capabilities = req.body.capabilities;
   // Права, которые роль даёт, а этому сотруднику их лично отключили.
   const denied = req.body.denied;
+  // Срок действия всех прав из этого запроса (null — бессрочно).
+  let expiresAt = null;
+  if (req.body.expiresAt) {
+    const ts = Date.parse(req.body.expiresAt);
+    if (Number.isNaN(ts)) return res.status(400).json({ ok: false, error: 'Неверная дата окончания' });
+    expiresAt = new Date(ts).toISOString();
+  }
 
   if (!userLogin) {
     return res.status(400).json({ ok: false, error: 'Не указан сотрудник' });
@@ -2308,22 +2315,22 @@ exports.setUserCapabilities = async (req, res) => {
     const by = req.user.fio || req.user.login;
     await run('DELETE FROM user_capabilities WHERE user_login = ?', [userLogin]);
     for (const cap of clean) {
-      await run("INSERT INTO user_capabilities (user_login, capability, effect, granted_by, granted_at) VALUES (?, ?, 'grant', ?, CURRENT_TIMESTAMP)", [
-        userLogin, cap, by
+      await run("INSERT INTO user_capabilities (user_login, capability, effect, granted_by, granted_at, expires_at) VALUES (?, ?, 'grant', ?, CURRENT_TIMESTAMP, ?)", [
+        userLogin, cap, by, expiresAt
       ]);
     }
     for (const cap of cleanDenied) {
-      await run("INSERT INTO user_capabilities (user_login, capability, effect, granted_by, granted_at) VALUES (?, ?, 'deny', ?, CURRENT_TIMESTAMP)", [
-        userLogin, cap, by
+      await run("INSERT INTO user_capabilities (user_login, capability, effect, granted_by, granted_at, expires_at) VALUES (?, ?, 'deny', ?, CURRENT_TIMESTAMP, ?)", [
+        userLogin, cap, by, expiresAt
       ]);
     }
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login, 'изменены персональные права',
-      `Сотрудник: ${user.fio} (${userLogin}), выдано лично: ${clean.length}, отключено: ${cleanDenied.length}`
+      `Сотрудник: ${user.fio} (${userLogin}), выдано лично: ${clean.length}, отключено: ${cleanDenied.length}, до: ${expiresAt || 'бессрочно'}`
     ]);
 
-    res.json({ ok: true, capabilities: clean, denied: cleanDenied });
+    res.json({ ok: true, capabilities: clean, denied: cleanDenied, expiresAt });
   } catch (err) {
     console.error('setUserCapabilities error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка сохранения персональных прав' });

@@ -52,3 +52,4 @@ scratch/
 .vercel
 .env*
 client/next/
+web/tsconfig.tsbuildinfo

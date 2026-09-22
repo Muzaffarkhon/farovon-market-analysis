@@ -83,6 +83,13 @@ function requireRoles(...roles) {
   };
 }
 
+/** Персональная запись права активна, если срока нет или он ещё не наступил (ISO-строки сравнимы лексикографически). */
+function isPersonalActive(row, nowIso) {
+  if (!row) return false;
+  if (!row.expires_at) return true;
+  return String(row.expires_at) > String(nowIso);
+}
+
 /**
  * Ядро проверки по конструктору ролей и доступов (см. src/config/capabilities.js).
  * 'admin' всегда возвращает true без обращения к таблице — защищённая роль,
@@ -99,15 +106,15 @@ async function hasCapability(user, capability) {
   try {
     // Личная запись по праву (если есть) перекрывает роль: 'deny' — отключено
     // конкретному сотруднику, даже если роль его даёт; 'grant' — выдано сверху.
-    const row = await queryOne(
-      `SELECT
-         (SELECT COALESCE(effect, 'grant') FROM user_capabilities WHERE user_login = ? AND capability = ?) AS personal,
-         (SELECT 1 FROM role_capabilities WHERE role = ? AND capability = ?) AS by_role`,
-      [user.login, capability, user.role, capability]
-    );
-    if (!row) return false;
-    if (row.personal === 'deny') return false;
-    return row.personal === 'grant' || !!row.by_role;
+    const [personalRow, roleRow] = await Promise.all([
+      queryOne('SELECT effect, expires_at FROM user_capabilities WHERE user_login = ? AND capability = ?', [user.login, capability]),
+      queryOne('SELECT 1 AS by_role FROM role_capabilities WHERE role = ? AND capability = ?', [user.role, capability])
+    ]);
+    // Просроченная персональная запись (expires_at в прошлом) не учитывается —
+    // ни как выдача, ни как отключение.
+    const personal = isPersonalActive(personalRow, new Date().toISOString()) ? (personalRow.effect || 'grant') : null;
+    if (personal === 'deny') return false;
+    return personal === 'grant' || !!(roleRow && roleRow.by_role);
   } catch (err) {
     console.error('hasCapability error:', err.message);
     // Таблицы может не быть, если сервер поднялся раньше миграции (см.
@@ -131,6 +138,7 @@ function requireCapability(...capabilities) {
 }
 
 module.exports = {
+  isPersonalActive,
   authMiddleware,
   requireRoles,
   requireCapability,
