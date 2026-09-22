@@ -60,6 +60,9 @@ function fieldsIn(el: HTMLElement): HTMLElement[] {
   return Array.from(el.querySelectorAll<HTMLElement>('input:not([type="checkbox"]), select, textarea'));
 }
 
+/** Какое поле черновика правит контрол — по data-field (см. разметку ниже). */
+const fieldOf = (el: HTMLElement): string => el.dataset.field ?? '';
+
 export function CompanyForm({ draft, refs, benefits, saving, serverFields, onChange, onSave }: {
   draft: SurveyDraft;
   refs: Ref;
@@ -119,7 +122,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
     if (!el) return;
     el.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
     const target = goTo.field
-      ? el.querySelector<HTMLElement>(`[aria-invalid="true"], #${CSS.escape(goTo.field)}`)
+      ? el.querySelector<HTMLElement>(`[data-field="${CSS.escape(goTo.field)}"], [aria-invalid="true"]`)
       : null;
     const first = target ?? fieldsIn(el)[0];
     first?.focus({ preventScroll: true });
@@ -196,6 +199,22 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
     const body = sections.current[key];
     const controls = body ? fieldsIn(body) : [];
     const i = controls.indexOf(el);
+
+    // Проверяем пройденные поля сразу, не дожидаясь конца блока: иначе «оклад
+    // до меньше от» всплывал бы только на последнем поле, когда человек уже
+    // ушёл мыслями дальше. Ошибка показывается прямо под полем, где она есть.
+    if (i >= 0) {
+      const own = errorsIn(key);
+      const passed = controls.slice(0, i + 1).map(fieldOf).filter(f => own[f]);
+      if (passed.length) {
+        const bad: Record<string, string> = {};
+        for (const f of passed) bad[f] = own[f];
+        showErrors(bad);
+        setGoTo({ key, field: passed[0] });
+        return;
+      }
+    }
+
     if (i >= 0 && i < controls.length - 1) {
       controls[i + 1].focus();
       return;
@@ -237,14 +256,15 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
           {b.key === 'pay' && (
             <>
               <div className={s.row}>
-                <Input label="Оклад от" inputMode="decimal" value={draft.payFrom} error={fieldErrors.payFrom} onChange={e => set({ payFrom: e.target.value })} />
-                <Input label="Оклад до" inputMode="decimal" value={draft.payTo} error={fieldErrors.payTo} onChange={e => set({ payTo: e.target.value })} />
+                <Input data-field="payFrom" label="Оклад от" inputMode="decimal" value={draft.payFrom} error={fieldErrors.payFrom} onChange={e => set({ payFrom: e.target.value })} />
+                <Input data-field="payTo" label="Оклад до" inputMode="decimal" value={draft.payTo} error={fieldErrors.payTo} onChange={e => set({ payTo: e.target.value })} />
               </div>
-              <Select label="Период выплаты" options={PAY_PERIOD_OPTIONS} value={draft.payPer} error={fieldErrors.payPer} onChange={e => set({ payPer: e.target.value })} />
+              <Select data-field="payPer" label="Период выплаты" options={PAY_PERIOD_OPTIONS} value={draft.payPer} error={fieldErrors.payPer} onChange={e => set({ payPer: e.target.value })} />
             </>
           )}
           {b.key === 'schedule' && (
             <Select
+              data-field="schedule"
               label="График работы" placeholder="— выберите —" value={draft.schedule} error={fieldErrors.schedule}
               options={refs.schedules.map(v => ({ value: v, label: v }))}
               onChange={e => set({ schedule: e.target.value })}
@@ -253,6 +273,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
           {b.key === 'bonuses' && (
             <>
               <Select
+                data-field="bonHas"
                 label="Есть ли премии" placeholder="— выберите —" value={draft.bonHas} error={fieldErrors.bonHas}
                 options={[{ value: 'да', label: 'да' }, { value: 'нет', label: 'нет' }, { value: 'не знаю', label: 'не знаю' }]}
                 onChange={e => set({ bonHas: e.target.value, bonuses: e.target.value === 'да' && !draft.bonuses.length ? [{ type: '', size: '', per: '' }] : draft.bonuses })}
@@ -275,11 +296,13 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
           {b.key === 'source' && (
             <div className={s.row}>
               <Select
+                data-field="source"
                 label="Источник" placeholder="— выберите —" value={draft.source} error={fieldErrors.source}
                 options={refs.sources.map(v => ({ value: v, label: v }))}
                 onChange={e => set({ source: e.target.value })}
               />
               <Select
+                data-field="trust"
                 label="Надёжность" placeholder="— выберите —" value={draft.trust} error={fieldErrors.trust}
                 options={refs.trust.map(v => ({ value: v, label: v }))}
                 onChange={e => set({ trust: e.target.value })}

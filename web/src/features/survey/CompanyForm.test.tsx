@@ -85,6 +85,14 @@ test('в блоке из одного поля Enter сразу ведёт да�
   expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
 });
 
+test('Enter проверяет поле сразу: «до» меньше «от» не пропускает дальше', async () => {
+  setup({ ...empty, payFrom: '9000', payTo: '1000' });
+  await openBlock(/^Оклад/);
+  await userEvent.type(screen.getByLabelText('Оклад до'), '{Enter}');
+  expect(screen.getByText('«До» не может быть меньше «от»')).toBeVisible();
+  expect(screen.getByLabelText('Оклад до')).toHaveFocus();
+});
+
 test('Enter не выпускает из блока с ошибкой', async () => {
   setup({ ...empty, payFrom: '9000', payTo: '1000' });
   await openBlock(/^Оклад/);
