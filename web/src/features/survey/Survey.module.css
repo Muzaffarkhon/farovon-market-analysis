@@ -67,3 +67,4 @@
    не понимает, где именно проблема. */
 .blockError { border-color: var(--danger); }
 .warn { color: var(--danger); font-weight: 700; }
+.bonusError { font-size: 13px; color: var(--danger); }

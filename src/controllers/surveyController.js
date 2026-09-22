@@ -344,6 +344,8 @@ exports.saveSurveyDetails = async (req, res) => {
       // Сырое «есть ли премии» до bonusesLegacy — та подставляет 'не знаю'
       // вместо пустого, и по ней «поле не заполнено» уже не отличить.
       _rawBonHas: v.value.bonHas,
+      // Виды премии списком (в bonuses ниже лежит уже JSON-строка).
+      _bonusList: bonList,
       id: s.id,
       company: compName,
       posOur: posOurName,
@@ -387,7 +389,7 @@ exports.saveSurveyDetails = async (req, res) => {
     if (validatedItems.length) {
       const unitForCheck = String(unit).trim();
       const storedRows = await queryAll(
-        "SELECT pos_our, company, schedule, bon_has, source, trust FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
+        "SELECT pos_our, company, schedule, bon_has, source, trust, bonuses, bon_type, bon_size, bon_per FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
         [unitForCheck, period.id]
       );
       const storedByKey = new Map();
@@ -398,10 +400,16 @@ exports.saveSurveyDetails = async (req, res) => {
 
         const row = storedByKey.get(norm(it.posOur) + '|' + norm(it.company));
         const stored = row
-          ? { schedule: row.schedule, bonHas: row.bon_has, source: row.source, trust: row.trust }
+          ? {
+            schedule: row.schedule, bonHas: row.bon_has, source: row.source, trust: row.trust,
+            bonuses: bonusesFromRow(row)
+          }
           : null;
         const missing = missingRequired(
-          { schedule: it.schedule, bonHas: it._rawBonHas, source: it.source, trust: it.trust },
+          {
+            schedule: it.schedule, bonHas: it._rawBonHas, source: it.source, trust: it.trust,
+            bonuses: it._bonusList
+          },
           stored
         );
         const miss = Object.keys(missing);

@@ -165,3 +165,61 @@ test('правка одного поля не гасит ошибки други
   expect(await screen.findByText('Укажите, есть ли премии')).toBeVisible();
   expect(screen.getByRole('button', { name: /Откуда данные/ })).toHaveTextContent('!');
 });
+
+// ── Премии: при «да» каждый вид должен быть заполнен целиком ───────────────
+
+const withBonus = (bonuses: SurveyDraft['bonuses']) => ({
+  ...empty, payFrom: '100', schedule: '5/2 · 40 часов',
+  source: 'Интервью', trust: 'высокая', bonHas: 'да', bonuses
+});
+
+test('вид премии без периодичности не даёт сохранить', async () => {
+  const { onSave } = setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: '' }]));
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(onSave).not.toHaveBeenCalled();
+  expect(await screen.findByText(/укажите вид, размер и периодичность/i)).toBeVisible();
+});
+
+test('незаполненное поле вида премии подсвечено', async () => {
+  setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: '' }]));
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByLabelText('Как часто')).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByLabelText('Размер')).not.toHaveAttribute('aria-invalid');
+});
+
+test('блок премий не считается заполненным, пока вид неполный', () => {
+  setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: '' }]));
+  expect(screen.getByRole('button', { name: /Премии и бонусы/ })).not.toHaveTextContent('✓');
+});
+
+test('полностью заполненный вид премии проходит', async () => {
+  const { onSave } = setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: 'в месяц' }]));
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(onSave).toHaveBeenCalled();
+});
+
+test('случайно добавленный пустой вид не мешает сохранить', async () => {
+  const { onSave } = setup(withBonus([
+    { type: 'KPI / % от оклада', size: '2000', per: 'в месяц' },
+    { type: '', size: '', per: '' }
+  ]));
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(onSave).toHaveBeenCalled();
+});
+
+test('начатый наполовину второй вид сохранить не даёт', async () => {
+  const { onSave } = setup(withBonus([
+    { type: 'KPI / % от оклада', size: '2000', per: 'в месяц' },
+    { type: 'KPI / % от оклада', size: '', per: '' }
+  ]));
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+test('Enter не пропускает дальше неполный вид премии', async () => {
+  // Блок премий неполный, поэтому раскрыт сам — открывать заголовком не нужно.
+  setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: '' }]));
+  await userEvent.type(screen.getByLabelText('Размер'), '{Enter}');
+  expect(screen.getByText(/укажите вид, размер и периодичность/i)).toBeVisible();
+  expect(screen.getByLabelText('Как часто')).toBeVisible();
+});

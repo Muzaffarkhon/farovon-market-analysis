@@ -5,7 +5,7 @@ import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
 import { Textarea } from '../../design/Textarea';
 import { CURRENCIES, PAY_PERIODS, PAY_PERIOD_OPTIONS } from '../../domain/currency';
-import { validateSurveyItem } from '../../domain/validation';
+import { bonusesComplete, validateSurveyItem } from '../../domain/validation';
 import { BenefitsPicker } from './BenefitsPicker';
 import { BonusesEditor } from './BonusesEditor';
 import { FormBlock } from './FormBlock';
@@ -35,7 +35,7 @@ const CHAIN: BlockKey[] = ['pay', 'schedule', 'bonuses', 'source'];
 const BLOCK_FIELDS: Record<BlockKey, string[]> = {
   pay: ['payFrom', 'payTo', 'payPer', 'cur'],
   schedule: ['schedule'],
-  bonuses: ['bonHas'],
+  bonuses: ['bonHas', 'bonuses'],
   benefits: [],
   source: ['source', 'trust'],
   note: []
@@ -45,7 +45,7 @@ function blockFilled(key: BlockKey, d: SurveyDraft): boolean {
   switch (key) {
     case 'pay': return !!(d.payFrom || d.payTo);
     case 'schedule': return !!d.schedule;
-    case 'bonuses': return d.bonHas === 'нет' || d.bonHas === 'не знаю' || d.bonuses.some(b => !!b.size);
+    case 'bonuses': return !!d.bonHas && bonusesComplete(d.bonHas, d.bonuses);
     case 'benefits': return d.benefits.length > 0 || !!d.extra;
     case 'source': return !!(d.source && d.trust);
     case 'note': return !!d.note;
@@ -79,10 +79,13 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   // ошибка по нему снимается, а не висит до следующего сохранения.
   const errorBasis = useRef<Record<string, string>>({});
 
-  const valueOf = useCallback(
-    (field: string) => String((draft as unknown as Record<string, unknown>)[field] ?? ''),
-    [draft]
-  );
+  // Списки (виды премии, льготы) сравниваем по содержимому: String() свёл бы
+  // их к «[object Object]», и правка строки премии не снимала бы ошибку.
+  const valueOf = useCallback((field: string) => {
+    const v = (draft as unknown as Record<string, unknown>)[field];
+    if (v == null) return '';
+    return typeof v === 'object' ? JSON.stringify(v) : String(v);
+  }, [draft]);
 
   const showErrors = useCallback((fields: Record<string, string>) => {
     setFieldErrors(prev => {
@@ -268,7 +271,13 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
                 options={[{ value: 'да', label: 'да' }, { value: 'нет', label: 'нет' }, { value: 'не знаю', label: 'не знаю' }]}
                 onChange={e => set({ bonHas: e.target.value, bonuses: e.target.value === 'да' && !draft.bonuses.length ? [{ type: '', size: '', per: '' }] : draft.bonuses })}
               />
-              {draft.bonHas === 'да' && <BonusesEditor bonuses={draft.bonuses} refs={refs} onChange={bonuses => set({ bonuses })} />}
+              {draft.bonHas === 'да' && (
+                <BonusesEditor
+                  bonuses={draft.bonuses} refs={refs}
+                  error={fieldErrors.bonuses}
+                  onChange={bonuses => set({ bonuses })}
+                />
+              )}
             </>
           )}
           {b.key === 'benefits' && (

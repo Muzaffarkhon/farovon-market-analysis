@@ -12,6 +12,29 @@ export type ValidationResult =
   | { ok: true; value: CleanSurvey }
   | { ok: false; error: string; fields: Record<string, string> };
 
+export const BONUSES_INCOMPLETE = 'У каждого вида премии укажите вид, размер и периодичность';
+
+/**
+ * Премии заполнены полностью (ТЗ 3.2): при «да» должен быть хотя бы один вид,
+ * и у каждого заполнены вид, размер и периодичность.
+ */
+export function bonusesComplete(bonHas: unknown, bonuses: unknown): boolean {
+  if (trim(bonHas).toLowerCase() !== 'да') return true;
+  const all = Array.isArray(bonuses) ? (bonuses as Bonus[]) : [];
+  // Совсем пустая строка — случайное нажатие «Добавить вид», её отбрасываем
+  // (сервер при сохранении делает то же). Начатая наполовину — ошибка.
+  const started = all.filter(b => b && (trim(b.type) || trim(b.size) || trim(b.per)));
+  if (!started.length) return false;
+  return started.every(b => trim(b.type) && trim(b.size) && trim(b.per));
+}
+
+/** Какие поля вида премии пусты — чтобы подсветить именно их. Пустую строку не трогаем. */
+export function bonusRowGaps(b: Bonus): { type: boolean; size: boolean; per: boolean } {
+  const untouched = !trim(b?.type) && !trim(b?.size) && !trim(b?.per);
+  if (untouched) return { type: false, size: false, per: false };
+  return { type: !trim(b?.type), size: !trim(b?.size), per: !trim(b?.per) };
+}
+
 /**
  * Начатая запись — где заполнено хоть что-то содержательное. Ключ
  * (компания/должность), валюта и период выплаты не в счёт: они есть всегда.
@@ -63,6 +86,7 @@ export function validateSurveyItem(item: Partial<SurveyDraft>, refs: ValidationR
     if (!value.bonHas) fields.bonHas = 'Укажите, есть ли премии';
     if (!value.source) fields.source = 'Укажите источник данных';
     if (!value.trust) fields.trust = 'Укажите надёжность';
+    if (!bonusesComplete(value.bonHas, value.bonuses)) fields.bonuses = BONUSES_INCOMPLETE;
   }
 
   const keys = Object.keys(fields);

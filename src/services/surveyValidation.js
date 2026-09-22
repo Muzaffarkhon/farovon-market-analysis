@@ -42,6 +42,24 @@ function isStarted(item) {
  *   соседних, пока их никто не трогал.
  * @returns {{ok:true, value:object} | {ok:false, error:string, fields:Object<string,string>}}
  */
+const BONUSES_INCOMPLETE = 'У каждого вида премии укажите вид, размер и периодичность';
+
+/**
+ * Премии заполнены полностью (ТЗ 3.2): при «да» должен быть хотя бы один вид,
+ * и у каждого заполнены вид, размер и периодичность. При «нет» и «не знаю»
+ * заполнять нечего.
+ */
+function bonusesComplete(bonHas, bonuses) {
+  if (trim(bonHas).toLowerCase() !== 'да') return true;
+  const all = Array.isArray(bonuses) ? bonuses : [];
+  // Совсем пустая строка — случайное нажатие «Добавить вид», её просто
+  // отбрасываем (так же поступает normalizeBonuses при сохранении).
+  // А вот начатая наполовину — настоящая недоработка, о ней сообщаем.
+  const started = all.filter(b => b && (trim(b.type) || trim(b.size) || trim(b.per)));
+  if (!started.length) return false;
+  return started.every(b => trim(b.type) && trim(b.size) && trim(b.per));
+}
+
 function validateSurveyItem(item, refs) {
   const src = item || {};
   const fields = {};
@@ -75,6 +93,7 @@ function validateSurveyItem(item, refs) {
     if (!value.bonHas) fields.bonHas = 'Укажите, есть ли премии';
     if (!value.source) fields.source = 'Укажите источник данных';
     if (!value.trust) fields.trust = 'Укажите надёжность';
+    if (!bonusesComplete(value.bonHas, value.bonuses)) fields.bonuses = BONUSES_INCOMPLETE;
   }
 
   const keys = Object.keys(fields);
@@ -119,10 +138,16 @@ function missingRequired(incoming, stored) {
     const wasFilled = stored ? !!trim(stored[key]) : false;
     if (!stored || wasFilled) fields[key] = message;
   }
+  // Виды премии — по тому же правилу: с новой записи полнота обязательна,
+  // у существующей нельзя испортить то, что уже было заполнено полностью.
+  if (!bonusesComplete(src.bonHas, src.bonuses)) {
+    const wasComplete = stored ? bonusesComplete(stored.bonHas, stored.bonuses) : false;
+    if (!stored || wasComplete) fields.bonuses = BONUSES_INCOMPLETE;
+  }
   return fields;
 }
 
 module.exports = {
   validateSurveyItem, isStarted, parseMoney, MAX_MONEY,
-  missingRequired, REQUIRED_FIELDS
+  missingRequired, bonusesComplete, REQUIRED_FIELDS, BONUSES_INCOMPLETE
 };
