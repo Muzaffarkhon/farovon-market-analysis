@@ -86,10 +86,15 @@ test('компания не из справочника добавляется �
   expect(actions.addCompanyToDictionary).toHaveBeenCalledWith('Зет Групп');
 });
 
-test('заполненная карточка сохраняется с валютой из шапки', async () => {
+test('в анкете нет выбора валюты', () => {
   mockData({ selected: ['Алиф'] });
   renderSheet();
-  await userEvent.selectOptions(screen.getByLabelText('Валюта'), 'usd');
+  expect(screen.queryByLabelText('Валюта')).not.toBeInTheDocument();
+});
+
+test('заполненная карточка сохраняется с сомони по умолчанию', async () => {
+  mockData({ selected: ['Алиф'] });
+  renderSheet();
   await userEvent.type(screen.getByLabelText('Оклад от'), '5000');
   await userEvent.selectOptions(await screen.findByLabelText('График работы'), '5/2 · 40 часов');
   await userEvent.selectOptions(await screen.findByLabelText('Есть ли премии'), 'нет');
@@ -100,7 +105,7 @@ test('заполненная карточка сохраняется с валю
   expect(actions.saveCompany).toHaveBeenCalled();
   const [draft, spread] = actions.saveCompany.mock.calls[0];
   expect(draft.company).toBe('Алиф');
-  expect(draft.cur).toBe('usd');
+  expect(draft.cur).toBe('сомони');
   expect(draft.payFrom).toBe('5000');
   expect(spread).toBe(true);
 });

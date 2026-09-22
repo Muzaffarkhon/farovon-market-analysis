@@ -15,9 +15,15 @@ export function sameName(a: unknown, b: unknown): boolean {
  * с числом начислений, иначе 100% недостижимы.
  */
 export function recordProgress(item: Partial<SurveyDraft>): { done: number; total: 9 } {
+  const checks = recordChecks(item);
+  return { done: checks.filter(Boolean).length, total: 9 };
+}
+
+/** Те же 9 пунктов по порядку — булевыми значениями. Порядок совпадает с POINT_LABELS. */
+function recordChecks(item: Partial<SurveyDraft>): boolean[] {
   const bonHas = trim(item.bonHas);
   const bonuses = Array.isArray(item.bonuses) ? item.bonuses : [];
-  const checks = [
+  return [
     trim(item.payFrom) !== '',
     trim(item.payTo) !== '',
     bonHas !== '',
@@ -30,7 +36,17 @@ export function recordProgress(item: Partial<SurveyDraft>): { done: number; tota
     trim(item.trust) !== '',
     trim(item.note) !== ''
   ];
-  return { done: checks.filter(Boolean).length, total: 9 };
+}
+
+/** Названия пунктов записи — для подсказки «чего не хватает» у счётчика. */
+const POINT_LABELS = [
+  'оклад от', 'оклад до', 'есть ли премии', 'параметры премии',
+  'льготы', 'прочие выплаты', 'источник', 'надёжность', 'комментарий'
+];
+
+/** Какие из 9 пунктов ещё не заполнены. Пустой список — запись полная. */
+export function missingPoints(item: Partial<SurveyDraft>): string[] {
+  return recordChecks(item).flatMap((ok, i) => (ok ? [] : [POINT_LABELS[i]]));
 }
 
 /**

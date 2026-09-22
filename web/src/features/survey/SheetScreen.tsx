@@ -4,10 +4,9 @@ import { ApiError } from '../../api/client';
 import type { SurveyDraft } from '../../api/contract';
 import { Badge } from '../../design/Badge';
 import { Button } from '../../design/Button';
-import { Select } from '../../design/Select';
 import { Skeleton } from '../../design/Skeleton';
-import { CURRENCY_OPTIONS, DEFAULT_CURRENCY, DEFAULT_PAY_PERIOD } from '../../domain/currency';
-import { companyFilled, normName, recordProgress } from '../../domain/progress';
+import { DEFAULT_CURRENCY, DEFAULT_PAY_PERIOD } from '../../domain/currency';
+import { companyFilled, missingPoints, normName, recordProgress } from '../../domain/progress';
 import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
 import { usePeriodId } from '../shell/usePeriodId';
@@ -19,9 +18,12 @@ import { useSheetActions } from './useSheetActions';
 import { useUnitData } from './useUnitData';
 import s from './Survey.module.css';
 
-function emptyDraft(company: string, posOur: string, cur: string): SurveyDraft {
+function emptyDraft(company: string, posOur: string): SurveyDraft {
   return {
-    company, posOur, payFrom: '', payTo: '', cur, payPer: DEFAULT_PAY_PERIOD,
+    // Валюту в анкете не спрашиваем — на рынке Таджикистана это сомони.
+    // У записи она остаётся своей: импортированную строку в долларах правка
+    // через анкету не должна молча перевести в сомони.
+    company, posOur, payFrom: '', payTo: '', cur: DEFAULT_CURRENCY, payPer: DEFAULT_PAY_PERIOD,
     bonHas: '', bonuses: [], benefits: [], extra: '', schedule: '', source: '', trust: '', note: ''
   };
 }
@@ -47,7 +49,6 @@ export function SheetScreen() {
 
   const [active, setActive] = useState('');
   const [draft, setDraft] = useState<SurveyDraft | null>(null);
-  const [cur, setCur] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,26 +56,17 @@ export function SheetScreen() {
   const [spreadAsk, setSpreadAsk] = useState(false);
   const [spreadDecided, setSpreadDecided] = useState<boolean | null>(null);
 
-  // Валюта выбирается один раз в шапке листа и применяется ко всем компаниям
-  // этой должности. От других должностей не наследуется (ТЗ 3.2).
-  useEffect(() => {
-    if (cur) return;
-    setCur(existing.find(e => e.cur)?.cur || DEFAULT_CURRENCY);
-  }, [existing, cur]);
-
   // Первая компания открывается сама; после добавления новой — переключаемся на неё.
   useEffect(() => {
     if (active && selected.some(c => normName(c) === normName(active))) return;
     setActive(selected[0] ?? '');
   }, [selected, active]);
 
-  // Черновик пересобирается при смене компании и при обновлении данных с
-  // сервера. Намеренно НЕ зависит от cur: смена валюты в шапке не должна
-  // стирать то, что человек уже набрал в форме.
+  // Черновик пересобирается при смене компании и при обновлении с сервера.
   useEffect(() => {
     if (!active) { setDraft(null); return; }
     const found = existing.find(e => normName(e.company) === normName(active));
-    setDraft(found ? { ...found } : emptyDraft(active, decodedPos, DEFAULT_CURRENCY));
+    setDraft(found ? { ...found } : emptyDraft(active, decodedPos));
     setServerFields(undefined);
   }, [active, existing, decodedPos]);
 
@@ -88,7 +80,7 @@ export function SheetScreen() {
     setSaving(true);
     setServerFields(undefined);
     try {
-      await actions.saveCompany({ ...draft, cur }, spread);
+      await actions.saveCompany(draft, spread);
     } catch (e) {
       if (e instanceof ApiError) {
         setServerFields(e.fields);
@@ -130,10 +122,6 @@ export function SheetScreen() {
   return (
     <div>
       <div className={s.sheetHead}>
-        <Select
-          className={s.cur} label="Валюта" options={CURRENCY_OPTIONS} value={cur}
-          onChange={e => setCur(e.target.value)}
-        />
         <div className={s.spacer} />
         {selected.length === 0 && (
           <NoComparisonButton
@@ -155,14 +143,23 @@ export function SheetScreen() {
         <div className={s.sheet}>
           <div className={s.companyStrip}>
             {selected.map(c => {
-              const rec = existing.find(e => normName(e.company) === normName(c));
+              // Карточка, открытая прямо сейчас, показывает прогресс по тому,
+              // что человек уже набрал, а не по сохранённому — иначе счётчик
+              // отстаёт от формы на одно сохранение.
+              const rec = normName(c) === normName(active) && draft
+                ? draft
+                : existing.find(e => normName(e.company) === normName(c));
               const p = rec ? recordProgress(rec) : { done: 0, total: 9 };
+              const missing = rec ? missingPoints(rec) : [];
               const full = rec ? companyFilled(rec) : false;
               return (
                 <button
                   key={c} type="button"
                   className={[s.companyBtn, normName(c) === normName(active) ? s.selected : ''].join(' ')}
                   onClick={() => setActive(c)}
+                  // Подсказка по наведению вместо пояснений абзацем (ТЗ 10.4):
+                  // «8 из 9» само по себе не говорит, чего именно не хватает.
+                  title={missing.length ? 'Не заполнено: ' + missing.join(', ') : 'Заполнено полностью'}
                 >
                   <span>{c}</span>
                   <Badge tone={full ? 'ok' : 'neutral'}>{p.done} из {p.total}</Badge>

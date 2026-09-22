@@ -1,4 +1,4 @@
-import { recordProgress, companyFilled, positionState, isDecided, unitProgress, sameName } from './progress';
+import { recordProgress, companyFilled, positionState, isDecided, unitProgress, sameName, missingPoints } from './progress';
 import type { SurveyDraft } from '../api/contract';
 
 const empty: SurveyDraft = {
@@ -89,4 +89,20 @@ test('unitProgress считает по должностям', () => {
     'Бухгалтер': { kind: 'untouched', done: 0, total: 0 }
   };
   expect(unitProgress(Object.keys(states), p => states[p])).toEqual({ decided: 2, total: 4 });
+});
+
+test('missingPoints называет незаполненные пункты', () => {
+  expect(missingPoints({ ...empty, payFrom: '1', payTo: '2', bonHas: 'нет', benefits: ['ДМС'], source: 'Опрос', trust: 'высокая', note: 'x' }))
+    .toEqual(['прочие выплаты']);
+});
+
+test('missingPoints у полной записи пуст', () => {
+  expect(missingPoints({
+    ...empty, payFrom: '1', payTo: '2', bonHas: 'нет', benefits: ['ДМС'],
+    extra: 'обед', source: 'Опрос', trust: 'высокая', note: 'x'
+  })).toEqual([]);
+});
+
+test('missingPoints у пустой записи перечисляет все девять', () => {
+  expect(missingPoints(empty)).toHaveLength(9);
 });

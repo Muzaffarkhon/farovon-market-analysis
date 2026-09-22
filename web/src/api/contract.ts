@@ -13,7 +13,7 @@ export interface Survey {
   id: string; unit: string; company: string; posOur: string; posTheir: string; grade: string;
   payFrom: string | number; payTo: string | number; cur: string; payPer: string;
   bonuses: Bonus[]; bonHas: string; bonSize: string; bonType: string; bonPer: string;
-  schedule: string; benefits: string[]; note: string; source: string; trust: string; by: string; at: string;
+  schedule: string; benefits: string[]; extra: string; note: string; source: string; trust: string; by: string; at: string;
 }
 
 export interface Unit { unit: string; dir: string; group: string; total: number; done: number; surveys: number; note: string }

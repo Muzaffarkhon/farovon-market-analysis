@@ -159,6 +159,9 @@ function mapSurveyRow(s) {
     bonPer: s.bon_per || '',
     schedule: s.schedule || '',
     benefits: benefitsToList(s.benefits),
+    // Прочие выплаты сохранялись в базу, но наружу не отдавались: при открытии
+    // записи поле было пустым, а повторное сохранение затирало его в базе.
+    extra: s.extra || '',
     note: s.note || '',
     source: s.source || '',
     trust: s.trust || '',

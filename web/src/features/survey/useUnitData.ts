@@ -16,7 +16,7 @@ export function surveyToDraft(s: Survey): SurveyDraft {
     bonuses: Array.isArray(s.bonuses) ? s.bonuses : [],
     schedule: s.schedule,
     benefits: Array.isArray(s.benefits) ? s.benefits : [],
-    extra: '', // сервер не отдаёт extra в mapSurveyRow; правка не должна его затирать вслепую
+    extra: s.extra ?? '',
     source: s.source, trust: s.trust, note: s.note
   };
 }
