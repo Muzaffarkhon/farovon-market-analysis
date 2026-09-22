@@ -28,53 +28,70 @@ function setup(draft: SurveyDraft = empty) {
   return { ...utils, onChange, onSave, rerenderWith };
 }
 
+/** Открыть блок заголовком. */
+const openBlock = (title: RegExp) => userEvent.click(screen.getByRole('button', { name: title }));
+
+// ── Один открытый блок за раз ──────────────────────────────────────────────
+
 test('у новой компании раскрыт только «Оклад»', () => {
   setup();
   expect(screen.getByLabelText('Оклад от')).toBeVisible();
   expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
 });
 
-test('заполнили оклад — сам раскрылся «График работы»', async () => {
-  const { rerenderWith } = setup();
-  rerenderWith({ ...empty, payFrom: '100' });
-  expect(await screen.findByLabelText('График работы')).toBeVisible();
+test('карточка открывается на первом незаполненном обязательном блоке', () => {
+  setup({ ...empty, payFrom: '100' });
+  expect(screen.getByLabelText('График работы')).toBeVisible();
+  expect(screen.queryByLabelText('Оклад от')).not.toBeInTheDocument();
 });
 
-test('ручное закрытие блока не переоткрывается автораскрытием', async () => {
-  const { rerenderWith } = setup({ ...empty, payFrom: '100' });
-  await userEvent.click(screen.getByRole('button', { name: /График работы/ }));
-  expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
-  rerenderWith({ ...empty, payFrom: '150' });
-  expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
-});
-
-// ── Enter: «с этим блоком закончил» ────────────────────────────────────────
-
-/** Заполненный блок при открытии карточки свёрнут — раскрываем заголовком. */
-const openBlock = (title: RegExp) => userEvent.click(screen.getByRole('button', { name: title }));
-
-test('Enter в блоке сворачивает его и открывает следующий', async () => {
-  setup();
+test('открытие блока выше закрывает нижний', async () => {
+  setup({ ...empty, payFrom: '100' });
+  expect(screen.getByLabelText('График работы')).toBeVisible();
+  await openBlock(/^Оклад/);
   expect(screen.getByLabelText('Оклад от')).toBeVisible();
+  expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
+});
+
+test('повторный клик по заголовку закрывает блок', async () => {
+  setup();
+  await openBlock(/^Оклад/);
+  expect(screen.queryByLabelText('Оклад от')).not.toBeInTheDocument();
+});
+
+// ── Enter ведёт по полям блока, потом к следующему блоку ───────────────────
+
+test('Enter переходит к следующему полю того же блока', async () => {
+  setup();
   await userEvent.type(screen.getByLabelText('Оклад от'), '{Enter}');
+  expect(screen.getByLabelText('Оклад до')).toHaveFocus();
+  expect(screen.getByLabelText('Оклад от')).toBeVisible();
+});
+
+test('Enter на последнем поле блока закрывает его и открывает следующий', async () => {
+  setup();
+  await userEvent.type(screen.getByLabelText('Оклад от'), '{Enter}');
+  await userEvent.type(screen.getByLabelText('Оклад до'), '{Enter}');
+  await userEvent.type(screen.getByLabelText('Период выплаты'), '{Enter}');
   expect(screen.queryByLabelText('Оклад от')).not.toBeInTheDocument();
   expect(await screen.findByLabelText('График работы')).toBeVisible();
 });
 
-test('Enter при ошибке в блоке не пускает дальше и показывает её сразу', async () => {
-  setup({ ...empty, payFrom: 'абв' });
-  await openBlock(/^Оклад/);
-  await userEvent.type(screen.getByLabelText('Оклад от'), '{Enter}');
-  expect(screen.getByText('Только число')).toBeVisible();
-  expect(screen.getByLabelText('Оклад от')).toBeVisible();
+test('в блоке из одного поля Enter сразу ведёт дальше', async () => {
+  setup({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов' });
+  await openBlock(/^График работы/);
+  await userEvent.type(screen.getByLabelText('График работы'), '{Enter}');
+  expect(await screen.findByLabelText('Есть ли премии')).toBeVisible();
+  expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
 });
 
-test('Enter не пускает дальше, если «от» больше «до»', async () => {
+test('Enter не выпускает из блока с ошибкой', async () => {
   setup({ ...empty, payFrom: '9000', payTo: '1000' });
   await openBlock(/^Оклад/);
-  await userEvent.type(screen.getByLabelText('Оклад до'), '{Enter}');
+  await userEvent.type(screen.getByLabelText('Период выплаты'), '{Enter}');
   expect(screen.getByText('«До» не может быть меньше «от»')).toBeVisible();
   expect(screen.getByLabelText('Оклад до')).toBeVisible();
+  expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
 });
 
 test('Enter в комментарии переносит строку, а не прыгает дальше', async () => {
@@ -82,19 +99,23 @@ test('Enter в комментарии переносит строку, а не �
     ...empty, payFrom: '1', schedule: '5/2 · 40 часов', bonHas: 'нет',
     source: 'Интервью', trust: 'высокая', note: 'первая'
   });
-  await userEvent.click(screen.getByRole('button', { name: /Комментарий/ }));
+  await openBlock(/^Комментарий/);
   await userEvent.type(screen.getByLabelText('Комментарий'), '{Enter}');
   expect(screen.getByLabelText('Комментарий')).toBeVisible();
   expect(onChange).toHaveBeenCalled();
 });
 
-test('пройденный по Enter пустой блок не открывается обратно сам', async () => {
-  setup({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов', bonHas: 'нет' });
-  await userEvent.click(screen.getByRole('button', { name: /Льготы и соцпакет/ }));
-  await userEvent.type(screen.getByLabelText('Прочие выплаты'), '{Enter}');
-  expect(screen.queryByLabelText('Прочие выплаты')).not.toBeInTheDocument();
-  expect(await screen.findByLabelText('Источник')).toBeVisible();
+test('Ctrl+Enter сохраняет из любого поля', async () => {
+  const { onSave } = setup({
+    ...empty, payFrom: '100', payTo: '200', schedule: '5/2 · 40 часов',
+    bonHas: 'нет', source: 'Интервью', trust: 'высокая'
+  });
+  await openBlock(/^Комментарий/);
+  await userEvent.type(screen.getByLabelText('Комментарий'), '{Control>}{Enter}{/Control}');
+  expect(onSave).toHaveBeenCalled();
 });
+
+// ── Проверка при сохранении ────────────────────────────────────────────────
 
 test('сохранение блокируется ошибкой и раскрывает нужный блок', async () => {
   const { onSave } = setup({ ...empty, payFrom: '100' });
@@ -115,8 +136,7 @@ test('полная запись сохраняется', async () => {
 test('блок с ошибкой помечен и в свёрнутом виде', async () => {
   setup({ ...empty, payFrom: '100' });
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  const head = await screen.findByRole('button', { name: /График работы/ });
-  expect(head).toHaveTextContent('!');
+  expect(await screen.findByRole('button', { name: /Откуда данные/ })).toHaveTextContent('!');
 });
 
 test('после неудачного сохранения курсор уводится к полю с ошибкой', async () => {
@@ -136,16 +156,6 @@ test('ошибки сервера показываются под полями',
   expect(screen.getByText('Слишком большое число')).toBeInTheDocument();
 });
 
-test('«есть ли премии: да» открывает список видов', () => {
-  setup({ ...empty, payFrom: '1', schedule: '5/2 · 40 часов', bonHas: 'да', bonuses: [{ type: '', size: '', per: '' }] });
-  expect(screen.getByLabelText('Размер')).toBeInTheDocument();
-});
-
-test('счётчик заполненности не дублируется в форме — он в списке компаний', () => {
-  setup({ ...empty, payFrom: '1', payTo: '2' });
-  expect(screen.queryByText('2 из 9')).not.toBeInTheDocument();
-});
-
 test('ошибка снимается, как только поле исправили', async () => {
   const { rerenderWith } = setup({ ...empty, payFrom: '100' });
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -159,10 +169,8 @@ test('ошибка снимается, как только поле исправ
 test('правка одного поля не гасит ошибки других', async () => {
   const { rerenderWith } = setup({ ...empty, payFrom: '100' });
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  // Заполнили только график — блок «Премии и бонусы» раскрывается сам
-  // следующим, и его ошибка должна остаться на месте.
   rerenderWith({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов' });
-  expect(await screen.findByText('Укажите, есть ли премии')).toBeVisible();
+  expect(screen.getByRole('button', { name: /Премии и бонусы/ })).toHaveTextContent('!');
   expect(screen.getByRole('button', { name: /Откуда данные/ })).toHaveTextContent('!');
 });
 
@@ -171,6 +179,11 @@ test('правка одного поля не гасит ошибки други
 const withBonus = (bonuses: SurveyDraft['bonuses']) => ({
   ...empty, payFrom: '100', schedule: '5/2 · 40 часов',
   source: 'Интервью', trust: 'высокая', bonHas: 'да', bonuses
+});
+
+test('«есть ли премии: да» открывает список видов', () => {
+  setup({ ...empty, payFrom: '1', schedule: '5/2 · 40 часов', bonHas: 'да', bonuses: [{ type: '', size: '', per: '' }] });
+  expect(screen.getByLabelText('Размер')).toBeInTheDocument();
 });
 
 test('вид премии без периодичности не даёт сохранить', async () => {
@@ -216,10 +229,15 @@ test('начатый наполовину второй вид сохранить
   expect(onSave).not.toHaveBeenCalled();
 });
 
-test('Enter не пропускает дальше неполный вид премии', async () => {
-  // Блок премий неполный, поэтому раскрыт сам — открывать заголовком не нужно.
+test('Enter ведёт по полям вида премии и не выпускает из неполного блока', async () => {
+  // Блок премий неполный, поэтому карточка открывается именно на нём.
   setup(withBonus([{ type: 'KPI / % от оклада', size: '2000', per: '' }]));
-  await userEvent.type(screen.getByLabelText('Размер'), '{Enter}');
+  await userEvent.type(screen.getByLabelText('Как часто'), '{Enter}');
   expect(screen.getByText(/укажите вид, размер и периодичность/i)).toBeVisible();
   expect(screen.getByLabelText('Как часто')).toBeVisible();
+});
+
+test('счётчик заполненности не дублируется в форме — он в списке компаний', () => {
+  setup({ ...empty, payFrom: '1', payTo: '2' });
+  expect(screen.queryByText('2 из 9')).not.toBeInTheDocument();
 });

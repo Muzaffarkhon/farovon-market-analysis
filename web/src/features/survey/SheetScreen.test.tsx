@@ -52,6 +52,9 @@ function renderSheet() {
   );
 }
 
+/** Открыть блок заголовком: в карточке раскрыт ровно один блок. */
+const openBlock = (title: RegExp) => userEvent.click(screen.getByRole('button', { name: title }));
+
 beforeEach(() => vi.clearAllMocks());
 
 test('без компаний предлагает добавить или отметить «не с кем»', () => {
@@ -96,9 +99,13 @@ test('заполненная карточка сохраняется с сомо
   mockData({ selected: ['Алиф'] });
   renderSheet();
   await userEvent.type(screen.getByLabelText('Оклад от'), '5000');
-  await userEvent.selectOptions(await screen.findByLabelText('График работы'), '5/2 · 40 часов');
-  await userEvent.selectOptions(await screen.findByLabelText('Есть ли премии'), 'нет');
-  await userEvent.selectOptions(await screen.findByLabelText('Источник'), 'Интервью');
+  // Открыт всегда один блок — переходим по заголовкам.
+  await openBlock(/^График работы/);
+  await userEvent.selectOptions(screen.getByLabelText('График работы'), '5/2 · 40 часов');
+  await openBlock(/^Премии и бонусы/);
+  await userEvent.selectOptions(screen.getByLabelText('Есть ли премии'), 'нет');
+  await openBlock(/^Откуда данные/);
+  await userEvent.selectOptions(screen.getByLabelText('Источник'), 'Интервью');
   await userEvent.selectOptions(screen.getByLabelText('Надёжность'), 'высокая');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
@@ -114,9 +121,13 @@ test('смежная группа: перед сохранением спраш�
   mockData({ selected: ['Алиф'], groupUnits: ['Цех', 'Анхор', 'ТМК'] });
   renderSheet();
   await userEvent.type(screen.getByLabelText('Оклад от'), '100');
-  await userEvent.selectOptions(await screen.findByLabelText('График работы'), '5/2 · 40 часов');
-  await userEvent.selectOptions(await screen.findByLabelText('Есть ли премии'), 'нет');
-  await userEvent.selectOptions(await screen.findByLabelText('Источник'), 'Интервью');
+  // Открыт всегда один блок — переходим по заголовкам.
+  await openBlock(/^График работы/);
+  await userEvent.selectOptions(screen.getByLabelText('График работы'), '5/2 · 40 часов');
+  await openBlock(/^Премии и бонусы/);
+  await userEvent.selectOptions(screen.getByLabelText('Есть ли премии'), 'нет');
+  await openBlock(/^Откуда данные/);
+  await userEvent.selectOptions(screen.getByLabelText('Источник'), 'Интервью');
   await userEvent.selectOptions(screen.getByLabelText('Надёжность'), 'высокая');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 

@@ -23,11 +23,10 @@ const BLOCKS: { key: BlockKey; title: string }[] = [
 ];
 
 /**
- * Блоки, которые ведут человека по анкете при автораскрытии. Льготы и
- * комментарий из цепочки исключены сознательно: они необязательные и
- * «заполненными» не становятся, поэтому автораскрытие застревало бы на них и
- * до обязательного «Откуда данные» человек сам бы не добрался. По Enter
- * пройти можно по всем блокам подряд — см. BLOCKS.
+ * С какого блока открывается карточка: первый незаполненный из обязательных.
+ * Льготы и комментарий сюда не входят — они необязательные и «заполненными»
+ * не становятся, карточка всегда открывалась бы на них. Дальше человек идёт
+ * по Enter или открывает нужный блок заголовком.
  */
 const CHAIN: BlockKey[] = ['pay', 'schedule', 'bonuses', 'source'];
 
@@ -56,6 +55,11 @@ function blockOf(field: string): BlockKey | undefined {
   return BLOCKS.find(b => BLOCK_FIELDS[b.key].includes(field))?.key;
 }
 
+/** Поля блока в порядке обхода. Чипы и кнопки — не поля, Enter на них нажимает. */
+function fieldsIn(el: HTMLElement): HTMLElement[] {
+  return Array.from(el.querySelectorAll<HTMLElement>('input:not([type="checkbox"]), select, textarea'));
+}
+
 export function CompanyForm({ draft, refs, benefits, saving, serverFields, onChange, onSave }: {
   draft: SurveyDraft;
   refs: Ref;
@@ -65,11 +69,9 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   onChange: (next: SurveyDraft) => void;
   onSave: () => void;
 }) {
-  const [manuallyClosed, setManuallyClosed] = useState<Set<BlockKey>>(new Set());
-  const [open, setOpen] = useState<Set<BlockKey>>(() => {
-    const first = CHAIN.find(k => !blockFilled(k, draft));
-    return new Set(first ? [first] : []);
-  });
+  // Открыт ровно один блок: так видно, где ты находишься, и открытие блока
+  // выше само закрывает нижний — не приходится собирать «гармошку» руками.
+  const [open, setOpen] = useState<BlockKey | null>(() => CHAIN.find(k => !blockFilled(k, draft)) ?? 'pay');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Куда увести человека после перерисовки: к блоку с ошибкой или к следующему.
   const [goTo, setGoTo] = useState<{ key: BlockKey; field?: string } | null>(null);
@@ -119,7 +121,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
     const target = goTo.field
       ? el.querySelector<HTMLElement>(`[aria-invalid="true"], #${CSS.escape(goTo.field)}`)
       : null;
-    const first = target ?? el.querySelector<HTMLElement>('input:not([type="checkbox"]), select, textarea');
+    const first = target ?? fieldsIn(el)[0];
     first?.focus({ preventScroll: true });
   }, [goTo]);
 
@@ -131,33 +133,15 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
     const bad = Object.keys(serverFields)[0];
     const key = blockOf(bad);
     if (!key) return;
-    setOpen(prev => (prev.has(key) ? prev : new Set(prev).add(key)));
+    setOpen(key);
     setGoTo({ key, field: bad });
     // showErrors намеренно не в зависимостях: он меняется на каждую правку
     // черновика, и ошибки сервера показывались бы заново после их снятия.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverFields]);
 
-  // Следующий блок раскрывается сам, когда заполнен текущий. Ручное закрытие
-  // уважается — автораскрытие его не переоткрывает (ТЗ 3.2).
-  useEffect(() => {
-    const next = CHAIN.find(k => !blockFilled(k, draft) && !manuallyClosed.has(k));
-    if (!next) return;
-    setOpen(prev => (prev.has(next) ? prev : new Set(prev).add(next)));
-  }, [draft, manuallyClosed]);
-
   function toggle(key: BlockKey) {
-    setOpen(prev => {
-      const n = new Set(prev);
-      if (n.has(key)) {
-        n.delete(key);
-        setManuallyClosed(c => new Set(c).add(key));
-      } else {
-        n.add(key);
-        setManuallyClosed(c => { const m = new Set(c); m.delete(key); return m; });
-      }
-      return n;
-    });
+    setOpen(prev => (prev === key ? null : key));
   }
 
   /** Ошибки только по полям этого блока. */
@@ -170,11 +154,10 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   }, [draft]);
 
   /**
-   * Enter внутри блока = «с этим закончил»: блок проверяется, сворачивается,
-   * и мы спускаемся к следующему. Так ошибка видна сразу, а не всплывает
-   * наверху после сохранения, когда до неё уже надо прокручивать.
+   * Блок пройден: проверяем его целиком, закрываем и открываем следующий.
+   * Вызывается, когда Enter нажат на последнем поле блока.
    */
-  const advance = useCallback((from: BlockKey) => {
+  const leaveBlock = useCallback((from: BlockKey) => {
     const own = errorsIn(from);
     if (Object.keys(own).length) {
       showErrors(own);
@@ -187,33 +170,37 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
       return next;
     });
 
-    const idx = BLOCKS.findIndex(b => b.key === from);
-    const next = BLOCKS[idx + 1];
-    setOpen(prev => {
-      const n = new Set(prev);
-      n.delete(from);
-      if (next) n.add(next.key);
-      return n;
-    });
-    // Пройденный блок помечаем закрытым вручную, иначе автораскрытие тут же
-    // вернёт его обратно, если он необязательный и остался пустым.
-    setManuallyClosed(c => {
-      const m = new Set(c).add(from);
-      if (next) m.delete(next.key);
-      return m;
-    });
+    const next = BLOCKS[BLOCKS.findIndex(b => b.key === from) + 1];
+    setOpen(next ? next.key : null);
     if (next) setGoTo({ key: next.key });
   }, [errorsIn, showErrors]);
 
+  /**
+   * Enter ведёт по полям блока сверху вниз, и только с последнего поля
+   * закрывает блок и открывает следующий. Так человек успевает заполнить
+   * «Оклад до» и период выплаты, а не выскакивает из блока на первом же поле.
+   */
   function onBlockKeyDown(e: KeyboardEvent<HTMLDivElement>, key: BlockKey) {
     if (e.key !== 'Enter' || e.shiftKey) return;
     const el = e.target as HTMLElement;
     const tag = el.tagName;
+
+    // Ctrl+Enter (Cmd+Enter) — сохранить, откуда угодно, включая комментарий.
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); submit(); return; }
+
     // В многострочном поле Enter — перенос строки; на кнопке и чипе — нажатие.
     if (tag === 'TEXTAREA' || tag === 'BUTTON') return;
     if (tag === 'INPUT' && (el as HTMLInputElement).type === 'checkbox') return;
     e.preventDefault();
-    advance(key);
+
+    const body = sections.current[key];
+    const controls = body ? fieldsIn(body) : [];
+    const i = controls.indexOf(el);
+    if (i >= 0 && i < controls.length - 1) {
+      controls[i + 1].focus();
+      return;
+    }
+    leaveBlock(key);
   }
 
   function submit() {
@@ -223,10 +210,9 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
       const bad = Object.keys(v.fields)[0];
       const key = blockOf(bad);
       if (key) {
-        setOpen(prev => new Set(prev).add(key));
-        setManuallyClosed(c => { const m = new Set(c); m.delete(key); return m; });
-        // Прокручиваем к ошибке: раньше она оставалась выше экрана и человек
-        // не понимал, почему не сохраняется.
+        // Раскрываем и прокручиваем к ошибке: раньше она оставалась выше
+        // экрана, и человек не понимал, почему не сохраняется.
+        setOpen(key);
         setGoTo({ key, field: bad });
       }
       return;
@@ -241,7 +227,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
         <FormBlock
           key={b.key}
           title={b.title}
-          open={open.has(b.key)}
+          open={open === b.key}
           filled={blockFilled(b.key, draft)}
           hasError={BLOCK_FIELDS[b.key].some(f => fieldErrors[f])}
           onToggle={() => toggle(b.key)}
