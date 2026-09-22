@@ -1,0 +1,4 @@
+.wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: var(--s-4); }
+.card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-6); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow); }
+.title { margin: 0 0 var(--s-2); font-size: 20px; }
+.error { color: var(--danger); font-size: 14px; }

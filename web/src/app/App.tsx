@@ -1,3 +1,13 @@
+import { BrowserRouter } from 'react-router';
+import { Providers } from './providers';
+import { AppRoutes, BASENAME } from './routes';
+
 export function App() {
-  return <h1>Обзор рынка — новый интерфейс</h1>;
+  return (
+    <Providers>
+      <BrowserRouter basename={BASENAME}>
+        <AppRoutes />
+      </BrowserRouter>
+    </Providers>
+  );
 }
