@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
 const { resolveEditablePeriod } = require('../services/periodAccessService');
 const { getActivePeriod } = require('../services/periodService');
+const { validateSurveyItem, isStarted, contentSignature, missingRequired } = require('../services/surveyValidation');
+const { positionProgressForUnit } = require('../services/analyticsService');
 
 // Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
 // одинаков, а Math.random().slice(2,7) — всего ~60 млн вариантов, при десятках
@@ -304,35 +306,24 @@ exports.saveSurveyDetails = async (req, res) => {
   for (let i = 0; i < (upsert || []).length; i++) {
     const s = upsert[i];
     if (!s) continue;
-    const compName = String(s.company || '').trim();
-    const posOurName = String(s.posOur || '').trim();
-    if (!compName) {
-      return res.status(400).json({ ok: false, error: `В записи #${i + 1} не указано название компании-конкурента` });
+    // Единый контракт валидации (services/surveyValidation, ТЗ 11): те же
+    // правила, что и на клиенте; недопустимая валюта/период — ошибка, а не
+    // молчаливая подмена.
+    //
+    // Обязательность графика/бонусов/источника/надёжности проверяется НЕ здесь,
+    // а ниже — только для новых и изменённых записей (см. «строгая проверка»).
+    // Причина: старый клиент шлёт весь список подразделения целиком при каждом
+    // сохранении, включая нетронутые строки из импорта Excel, где этих полей
+    // нет по определению. Требовать их здесь — значит заблокировать людям
+    // сохранение соседних записей из-за чужой старой строки.
+    const v = validateSurveyItem(s, {
+      currencies: ALLOWED_CURRENCIES, payPeriods: ALLOWED_PAY_PERIODS, requireForStarted: false
+    });
+    if (!v.ok) {
+      const label = String(s.company || '').trim() || 'без компании';
+      return res.status(400).json({ ok: false, error: `Запись #${i + 1} (${label}): ${v.error}`, fields: v.fields, index: i });
     }
-    if (!posOurName) {
-      return res.status(400).json({ ok: false, error: `В записи #${i + 1} (${compName}) не указана должность` });
-    }
-
-    let pFrom = 0, pTo = 0;
-    try {
-      pFrom = cleanNumber(s.payFrom, 'Оклад от');
-      pTo = cleanNumber(s.payTo, 'Оклад до');
-    } catch (err) {
-      return res.status(400).json({ ok: false, error: err.message });
-    }
-
-    if (pFrom > 0 && pTo > 0 && pFrom > pTo) {
-      return res.status(400).json({
-        ok: false,
-        error: `В записи "${compName}" оклад "от" (${pFrom.toLocaleString('ru-RU')}) не может превышать оклад "до" (${pTo.toLocaleString('ru-RU')})`
-      });
-    }
-
-    let cur = String(s.cur || 'сомони').trim().toLowerCase();
-    if (!ALLOWED_CURRENCIES.includes(cur)) cur = 'сомони';
-
-    let payPer = String(s.payPer || 'в месяц').trim().toLowerCase();
-    if (!ALLOWED_PAY_PERIODS.includes(payPer)) payPer = 'в месяц';
+    const { company: compName, posOur: posOurName, payFrom: pFrom, payTo: pTo, cur, payPer } = v.value;
 
     // Переменная часть: фронт шлёт s.bonuses = [{type,size,per}]. Старый клиент
     // (или импорт) шлёт плоские bonHas/bonSize/bonType/bonPer — синтезируем один.
@@ -343,11 +334,18 @@ exports.saveSurveyDetails = async (req, res) => {
     const bonLeg = bonusesLegacy(bonList, s.bonHas);
 
     validatedItems.push({
+      // Номер в исходном запросе и признак «начата» — для строгой проверки
+      // обязательных полей ниже, после сверки с тем, что уже лежит в базе.
+      _index: i,
+      _started: isStarted(s),
+      // Сырое «есть ли премии» до bonusesLegacy — та подставляет 'не знаю'
+      // вместо пустого, и по ней «поле не заполнено» уже не отличить.
+      _rawBonHas: v.value.bonHas,
       id: s.id,
       company: compName,
       posOur: posOurName,
-      posTheir: String(s.posTheir || '').trim(),
-      grade: String(s.grade || '').trim(),
+      posTheir: v.value.posTheir,
+      grade: v.value.grade,
       pFrom,
       pTo,
       cur,
@@ -358,11 +356,11 @@ exports.saveSurveyDetails = async (req, res) => {
       bonType: bonLeg.bonType,
       bonPer: bonLeg.bonPer,
       benefits: benefitsToText(s.benefits),
-      schedule: String(s.schedule || '').trim(),
-      extra: String(s.extra || '').trim(),
-      source: String(s.source || '').trim(),
-      trust: String(s.trust || '').trim(),
-      note: String(s.note || '').trim()
+      schedule: v.value.schedule,
+      extra: v.value.extra,
+      source: v.value.source,
+      trust: v.value.trust,
+      note: v.value.note
     });
   }
 
@@ -372,6 +370,61 @@ exports.saveSurveyDetails = async (req, res) => {
       return res.status(resolved.status).json({ ok: false, error: resolved.error });
     }
     const period = resolved.period;
+
+    // ── Строгая проверка обязательных полей (ТЗ 11) ─────────────────────────
+    // График, наличие бонусов, источник и надёжность обязательны для начатой
+    // записи — и на сервере тоже, иначе через API можно записать то, что
+    // интерфейс сохранить не даст.
+    //
+    // Но требуем их только с НОВЫХ и ИЗМЕНЁННЫХ записей: старый клиент шлёт
+    // весь список подразделения целиком, включая нетронутые строки из импорта
+    // Excel (у них этих полей нет сознательно — у импорта правила мягче).
+    // Нетронутая неполная строка проходит как есть, тронутая — обязана быть
+    // полной. Так дыра закрыта, а живой сбор не встаёт.
+    if (validatedItems.length) {
+      const unitForCheck = String(unit).trim();
+      const storedRows = await queryAll(
+        "SELECT pos_our, company, schedule, bon_has, source, trust, pay_from, pay_to, cur, pay_per, bonuses, bon_size, bon_type, bon_per, benefits, extra, note, pos_their, grade FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
+        [unitForCheck, period.id]
+      );
+      const storedByKey = new Map();
+      storedRows.forEach(r => storedByKey.set(norm(r.pos_our) + '|' + norm(r.company), r));
+
+      for (const it of validatedItems) {
+        const stored = storedByKey.get(norm(it.posOur) + '|' + norm(it.company));
+        if (stored) {
+          const storedSig = contentSignature({
+            payFrom: stored.pay_from, payTo: stored.pay_to, cur: stored.cur, payPer: stored.pay_per,
+            bonuses: stored.bonuses, bonHas: stored.bon_has, bonSize: stored.bon_size,
+            bonType: stored.bon_type, bonPer: stored.bon_per, benefits: stored.benefits,
+            schedule: stored.schedule, extra: stored.extra, source: stored.source,
+            trust: stored.trust, note: stored.note, posTheir: stored.pos_their, grade: stored.grade
+          });
+          const incomingSig = contentSignature({
+            payFrom: it.pFrom, payTo: it.pTo, cur: it.cur, payPer: it.payPer,
+            bonuses: it.bonuses, bonHas: it.bonHas, bonSize: it.bonSize, bonType: it.bonType,
+            bonPer: it.bonPer, benefits: it.benefits, schedule: it.schedule, extra: it.extra,
+            source: it.source, trust: it.trust, note: it.note, posTheir: it.posTheir, grade: it.grade
+          });
+          if (storedSig === incomingSig) continue; // не трогали — пропускаем
+        }
+        if (!it._started) continue; // пустая заготовка — обязательных полей не требуем
+
+        const missing = missingRequired({
+          schedule: it.schedule, bonHas: it._rawBonHas, source: it.source, trust: it.trust
+        });
+        const miss = Object.keys(missing);
+        if (miss.length) {
+          return res.status(400).json({
+            ok: false,
+            error: `Запись #${it._index + 1} (${it.company}): ${missing[miss[0]]}`,
+            fields: missing,
+            index: it._index
+          });
+        }
+      }
+    }
+
     // Проверка «период закрыт → только элевейтед-роли» имеет смысл ТОЛЬКО
     // для текущего (активного) периода — это временное состояние между
     // закрытием и открытием следующего года. Для архивного периода admin
@@ -739,16 +792,16 @@ exports.getPositionSelections = async (req, res) => {
       return res.status(resolved.status).json({ ok: false, error: resolved.error });
     }
 
-    const rows = await queryAll(
-      'SELECT pos_our, company FROM position_company_selections WHERE unit = ? AND period_id = ?',
-      [cleanUnit, resolved.period.id]
-    );
+    const [rows, nocRows] = await Promise.all([
+      queryAll('SELECT pos_our, company FROM position_company_selections WHERE unit = ? AND period_id = ?', [cleanUnit, resolved.period.id]),
+      queryAll('SELECT pos_our FROM position_no_comparison WHERE unit = ? AND period_id = ?', [cleanUnit, resolved.period.id])
+    ]);
     const selections = {};
     rows.forEach(r => {
       (selections[r.pos_our] = selections[r.pos_our] || []).push(r.company);
     });
 
-    res.json({ ok: true, selections });
+    res.json({ ok: true, selections, noComparison: nocRows.map(r => r.pos_our) });
   } catch (err) {
     console.error('getPositionSelections error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки выбора компаний по должностям' });
@@ -885,6 +938,14 @@ exports.savePositionSelection = async (req, res) => {
       ]
     });
 
+    // Выбор хотя бы одной компании снимает отметку «сравнивать не с кем» —
+    // решение по должности теперь другое.
+    if (cleanCompanies.length) {
+      targetUnits.forEach(u => {
+        stmts.push({ sql: 'DELETE FROM position_no_comparison WHERE unit = ? AND period_id = ? AND pos_our = ?', args: [u, period.id, cleanPos] });
+      });
+    }
+
     if (stmts.length) await batch(stmts);
 
     res.json({ ok: true, unit: cleanUnit, posOur: cleanPos, companies: cleanCompanies, unitsAffected: targetUnits.length });
@@ -943,9 +1004,93 @@ exports.getSurveysForPeriod = async (req, res) => {
       [cleanUnit, resolved.period.id]
     );
 
-    res.json({ ok: true, surveys: surveys.map(mapSurveyRow) });
+    const progress = await positionProgressForUnit(cleanUnit, resolved.period.id);
+    res.json({ ok: true, surveys: surveys.map(mapSurveyRow), progress });
   } catch (err) {
     console.error('getSurveysForPeriod error:', err);
     res.status(500).json({ ok: false, error: 'Ошибка загрузки анкет за период' });
   }
 };
+
+// ── «Сравнивать не с кем» ───────────────────────────────────────────────────
+// Осознанное решение по должности (ТЗ 3.1). Хранится в position_no_comparison,
+// разносится по смежной группе туда, где такая должность есть в штатке (как и
+// выбор компаний), обратимо: выбор компании снимает отметку сам.
+
+/** Доступ к подразделению: admin/cb — любое; остальные — свои или из той же смежной группы. */
+async function assertUnitAccess(req, cleanUnit) {
+  if (req.user.role === 'admin' || req.user.role === 'cb') return null;
+  const myUnits = Array.isArray(req.user.units) ? req.user.units : [];
+  if (myUnits.includes(cleanUnit)) return null;
+  if (myUnits.length) {
+    const ph = myUnits.map(() => '?').join(',');
+    const groupRow = await queryOne(
+      `SELECT 1 FROM divisions WHERE unit = ? AND group_key <> '' AND group_key IN (
+         SELECT group_key FROM divisions WHERE unit IN (${ph}) AND group_key <> ''
+       )`,
+      [cleanUnit, ...myUnits]
+    );
+    if (groupRow) return null;
+  }
+  return { status: 403, error: 'Нет доступа к этому подразделению' };
+}
+
+/** Площадки смежной группы, где есть эта должность (плюс сама unit). */
+async function noComparisonTargets(cleanUnit, cleanPos, groupKey) {
+  let key = String(groupKey || '').trim();
+  if (!key) {
+    const own = await queryOne('SELECT group_key FROM divisions WHERE unit = ?', [cleanUnit]);
+    key = own ? String(own.group_key || '').trim() : '';
+  }
+  if (!key) return [cleanUnit];
+  const groupUnits = (await queryAll('SELECT unit FROM divisions WHERE group_key = ?', [key])).map(r => r.unit).filter(Boolean);
+  if (groupUnits.length < 2 || groupUnits.length > 50 || !groupUnits.includes(cleanUnit)) return [cleanUnit];
+  const ph = groupUnits.map(() => '?').join(',');
+  const sibling = await queryAll(`SELECT DISTINCT unit, position FROM unit_positions WHERE unit IN (${ph})`, groupUnits);
+  const ok = new Set(sibling.filter(p => norm(p.position) === norm(cleanPos)).map(p => p.unit));
+  ok.add(cleanUnit);
+  return groupUnits.filter(u => ok.has(u));
+}
+
+async function noComparisonHandler(req, res, mark) {
+  const cleanUnit = String(req.body.unit || '').trim();
+  const cleanPos = String(req.body.posOur || '').trim();
+  if (!cleanUnit || !cleanPos) return res.status(400).json({ ok: false, error: 'Не указано подразделение или должность' });
+  try {
+    const denied = await assertUnitAccess(req, cleanUnit);
+    if (denied) return res.status(denied.status).json({ ok: false, error: denied.error });
+    const resolved = await resolveEditablePeriod(req.body.periodId, req.user);
+    if (!resolved.ok) return res.status(resolved.status).json({ ok: false, error: resolved.error });
+    const period = resolved.period;
+    const latestRow = await getActivePeriod();
+    const isCurrentPeriod = !latestRow || period.id === latestRow.id;
+    if (isCurrentPeriod && period.state === 'закрыт' && !['hrbp', 'admin', 'cb'].includes(req.user.role)) {
+      return res.status(403).json({ ok: false, error: 'Период сбора данных закрыт' });
+    }
+    const units = isCurrentPeriod ? await noComparisonTargets(cleanUnit, cleanPos, req.body.groupKey) : [cleanUnit];
+    const by = req.user.fio || req.user.login;
+    const stmts = [];
+    units.forEach(u => {
+      if (mark) {
+        stmts.push({ sql: 'INSERT OR IGNORE INTO position_no_comparison (unit, period_id, pos_our, marked_by) VALUES (?, ?, ?, ?)', args: [u, period.id, cleanPos, by] });
+        // Отметка и выбранные компании взаимоисключающи.
+        stmts.push({ sql: 'DELETE FROM position_company_selections WHERE unit = ? AND period_id = ? AND pos_our = ?', args: [u, period.id, cleanPos] });
+      } else {
+        stmts.push({ sql: 'DELETE FROM position_no_comparison WHERE unit = ? AND period_id = ? AND pos_our = ?', args: [u, period.id, cleanPos] });
+      }
+    });
+    stmts.push({
+      sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)',
+      args: [req.user.login, mark ? 'должность: сравнивать не с кем' : 'должность: отметка «не с кем» снята',
+        `Подразделение: ${cleanUnit}, должность: ${cleanPos}` + (units.length > 1 ? `, площадок: ${units.length}` : '')]
+    });
+    await batch(stmts);
+    res.json({ ok: true, units });
+  } catch (err) {
+    console.error('noComparison error:', err);
+    res.status(500).json({ ok: false, error: 'Ошибка сохранения отметки' });
+  }
+}
+
+exports.setNoComparison = (req, res) => noComparisonHandler(req, res, true);
+exports.clearNoComparison = (req, res) => noComparisonHandler(req, res, false);

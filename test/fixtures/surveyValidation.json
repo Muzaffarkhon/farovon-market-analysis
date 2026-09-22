@@ -1,0 +1,27 @@
+{
+  "refs": {
+    "currencies": ["сомони", "usd", "rub", "eur"],
+    "payPeriods": ["в месяц", "в час", "в день", "в год", "сдельно (за услугу)"]
+  },
+  "cases": [
+    { "name": "пустая запись — валидна, не начата", "item": { "company": "А", "posOur": "Б" }, "ok": true, "started": false },
+    { "name": "без компании", "item": { "company": "", "posOur": "Б" }, "ok": false, "field": "company" },
+    { "name": "без должности", "item": { "company": "А", "posOur": " " }, "ok": false, "field": "posOur" },
+    { "name": "оклад с пробелами и запятой", "item": { "company": "А", "posOur": "Б", "payFrom": "12 000,50", "payTo": "15 000", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": true, "payFrom": 12000.5, "payTo": 15000 },
+    { "name": "от больше до", "item": { "company": "А", "posOur": "Б", "payFrom": "20000", "payTo": "10000", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "payTo" },
+    { "name": "отрицательный оклад", "item": { "company": "А", "posOur": "Б", "payFrom": "-5", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "payFrom" },
+    { "name": "больше миллиарда", "item": { "company": "А", "posOur": "Б", "payFrom": "1000000001", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "payFrom" },
+    { "name": "не число", "item": { "company": "А", "posOur": "Б", "payFrom": "abc", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "payFrom" },
+    { "name": "валюта не из справочника — ошибка, не подмена", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "cur": "тенге", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "cur" },
+    { "name": "валюта в любом регистре", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "cur": "USD", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": true, "cur": "usd" },
+    { "name": "период выплаты не из справочника", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "payPer": "в неделю", "schedule": "5/2", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "payPer" },
+    { "name": "начата, нет графика", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "bonHas": "нет", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "schedule" },
+    { "name": "начата, нет бонусов", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "schedule": "5/2", "source": "Интервью", "trust": "высокая" }, "ok": false, "field": "bonHas" },
+    { "name": "начата, нет источника", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "schedule": "5/2", "bonHas": "нет", "trust": "высокая" }, "ok": false, "field": "source" },
+    { "name": "начата, нет надёжности", "item": { "company": "А", "posOur": "Б", "payFrom": "100", "schedule": "5/2", "bonHas": "нет", "source": "Интервью" }, "ok": false, "field": "trust" },
+    { "name": "начата только комментарием — обязательные нужны", "item": { "company": "А", "posOur": "Б", "note": "слышал" }, "ok": false, "field": "schedule", "started": true },
+    { "name": "начата бонусом без размера", "item": { "company": "А", "posOur": "Б", "bonuses": [{ "type": "KPI", "size": "", "per": "" }] }, "ok": false, "field": "schedule", "started": true },
+    { "name": "валюта и период по умолчанию не делают запись начатой", "item": { "company": "А", "posOur": "Б", "cur": "сомони", "payPer": "в месяц", "benefits": [], "bonuses": [] }, "ok": true, "started": false },
+    { "name": "обрезка пробелов", "item": { "company": "  А ", "posOur": " Б", "payFrom": "100", "schedule": " 5/2 ", "bonHas": "нет", "source": "Интервью", "trust": "высокая", "note": "  x " }, "ok": true, "company": "А", "note": "x" }
+  ]
+}

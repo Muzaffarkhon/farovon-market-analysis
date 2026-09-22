@@ -84,6 +84,9 @@ router.post('/survey/dictionary/add', requireCapability('survey:fill'), surveyCo
 // (заменяет прежний унитарный на весь unit флаг competitors.actual).
 router.post('/survey/position-selections', requireCapability('survey:fill'), surveyController.getPositionSelections);
 router.post('/survey/position-selection/save', requireCapability('survey:fill'), surveyController.savePositionSelection);
+// «Сравнивать не с кем» — осознанное решение по должности (ТЗ 3.1), обратимо.
+router.post('/survey/no-comparison', requireCapability('survey:fill'), surveyController.setNoComparison);
+router.post('/survey/no-comparison/clear', requireCapability('survey:fill'), surveyController.clearNoComparison);
 
 // Дашборд — сводная аналитика по всему холдингу (вилки конкурентов, прогресс
 // всех HR BP). Кто именно видит её, кроме admin, теперь настраивается в

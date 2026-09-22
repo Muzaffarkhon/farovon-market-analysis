@@ -735,7 +735,50 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   };
 }
 
+// ── Прогресс по должностям (ТЗ 3.4) ─────────────────────────────────────────
+// Главная метрика подразделения: сколько должностей штатки получили решение.
+// Решение — либо хотя бы одна компания с содержательными данными, либо отметка
+// «сравнивать не с кем». Знаменатель — размер штатки, известен заранее.
+const normPosKey = v => String(v == null ? '' : v).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+
+/** Компания «заполнена», если есть хоть что-то существенное: оклад, размер бонуса, льготы, прочие выплаты или комментарий. */
+function surveyHasSubstance(s) {
+  if (Number(s.payFrom) > 0 || Number(s.payTo) > 0) return true;
+  if (Array.isArray(s.bonuses) && s.bonuses.some(b => b && String(b.size || '').trim())) return true;
+  if (Array.isArray(s.benefits) ? s.benefits.length > 0 : String(s.benefits || '').trim()) return true;
+  return !!(String(s.extra || '').trim() || String(s.note || '').trim());
+}
+
+/** Чистая функция: { positions: string[], surveys: [{posOur,...}], noComparison: string[] } → { decided, total }. */
+function positionProgress({ positions, surveys, noComparison }) {
+  const decidedKeys = new Set();
+  (surveys || []).forEach(s => { if (surveyHasSubstance(s)) decidedKeys.add(normPosKey(s.posOur)); });
+  (noComparison || []).forEach(p => decidedKeys.add(normPosKey(p)));
+  const list = positions || [];
+  return { decided: list.filter(p => decidedKeys.has(normPosKey(p))).length, total: list.length };
+}
+
+async function positionProgressForUnit(unit, periodId) {
+  const [pos, surv, noc] = await Promise.all([
+    queryAll('SELECT position FROM unit_positions WHERE unit = ?', [unit]),
+    queryAll("SELECT pos_our, pay_from, pay_to, bonuses, bon_type, bon_size, bon_per, benefits, extra, note FROM surveys WHERE unit = ? AND period_id = ? AND state != 'удалена'", [unit, periodId]),
+    queryAll('SELECT pos_our FROM position_no_comparison WHERE unit = ? AND period_id = ?', [unit, periodId])
+  ]);
+  return positionProgress({
+    positions: pos.map(r => r.position),
+    surveys: surv.map(r => ({
+      posOur: r.pos_our, payFrom: r.pay_from, payTo: r.pay_to,
+      bonuses: parseBonusesCol(r.bonuses, r.bon_type, r.bon_size, r.bon_per),
+      benefits: r.benefits, extra: r.extra, note: r.note
+    })),
+    noComparison: noc.map(r => r.pos_our)
+  });
+}
+
 module.exports = {
+  surveyHasSubstance,
+  positionProgress,
+  positionProgressForUnit,
   calculateSalaryForkStats,
   calculatePercentiles: calculateSalaryForkStats,
   getExtendedAnalytics,

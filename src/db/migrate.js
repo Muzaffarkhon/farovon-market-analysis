@@ -725,6 +725,18 @@ async function createPositionCompanySelections() {
   )`);
   await run('CREATE INDEX IF NOT EXISTS idx_position_company_selections_unit ON position_company_selections(unit, period_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_position_company_selections_pos ON position_company_selections(unit, period_id, pos_our)');
+  // «Сравнивать не с кем» — осознанное решение по должности (ТЗ 3.1): отличает
+  // закрытую должность от забытой. Снимается автоматически, когда по должности
+  // выбирают хотя бы одну компанию (savePositionSelection).
+  await run(`CREATE TABLE IF NOT EXISTS position_no_comparison (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    period_id INTEGER REFERENCES periods(id),
+    pos_our TEXT NOT NULL,
+    marked_by TEXT,
+    marked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(unit, period_id, pos_our)
+  )`);
   console.log('🔧 Миграция: таблица выбора компаний по должностям (position_company_selections) создана');
 }
 
