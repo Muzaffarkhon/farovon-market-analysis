@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { BenefitGroup, Ref, SurveyDraft } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Input } from '../../design/Input';
@@ -70,12 +70,39 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
     const first = CHAIN.find(k => !blockFilled(k, draft));
     return new Set(first ? [first] : []);
   });
-  const [localFields, setLocalFields] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Куда увести человека после перерисовки: к блоку с ошибкой или к следующему.
   const [goTo, setGoTo] = useState<{ key: BlockKey; field?: string } | null>(null);
 
   const sections = useRef<Partial<Record<BlockKey, HTMLElement | null>>>({});
-  const fieldErrors = useMemo(() => ({ ...localFields, ...(serverFields ?? {}) }), [localFields, serverFields]);
+  // Значения полей на момент показа ошибки: как только человек правит поле,
+  // ошибка по нему снимается, а не висит до следующего сохранения.
+  const errorBasis = useRef<Record<string, string>>({});
+
+  const valueOf = useCallback(
+    (field: string) => String((draft as unknown as Record<string, unknown>)[field] ?? ''),
+    [draft]
+  );
+
+  const showErrors = useCallback((fields: Record<string, string>) => {
+    setFieldErrors(prev => {
+      const merged = { ...prev, ...fields };
+      const basis: Record<string, string> = {};
+      for (const k of Object.keys(merged)) basis[k] = valueOf(k);
+      errorBasis.current = basis;
+      return merged;
+    });
+  }, [valueOf]);
+
+  useEffect(() => {
+    setFieldErrors(prev => {
+      const keys = Object.keys(prev);
+      if (!keys.length) return prev;
+      const kept: Record<string, string> = {};
+      for (const k of keys) if (valueOf(k) === errorBasis.current[k]) kept[k] = prev[k];
+      return Object.keys(kept).length === keys.length ? prev : kept;
+    });
+  }, [valueOf]);
 
   const set = (patch: Partial<SurveyDraft>) => onChange({ ...draft, ...patch });
 
@@ -96,12 +123,16 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   // Ошибка сервера может прийти по полю в свёрнутом блоке — тогда человек
   // видит только тост и не понимает, что править. Раскрываем и прокручиваем.
   useEffect(() => {
-    const bad = Object.keys(serverFields ?? {})[0];
-    if (!bad) return;
+    if (!serverFields || !Object.keys(serverFields).length) return;
+    showErrors(serverFields);
+    const bad = Object.keys(serverFields)[0];
     const key = blockOf(bad);
     if (!key) return;
     setOpen(prev => (prev.has(key) ? prev : new Set(prev).add(key)));
     setGoTo({ key, field: bad });
+    // showErrors намеренно не в зависимостях: он меняется на каждую правку
+    // черновика, и ошибки сервера показывались бы заново после их снятия.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverFields]);
 
   // Следующий блок раскрывается сам, когда заполнен текущий. Ручное закрытие
@@ -143,11 +174,11 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   const advance = useCallback((from: BlockKey) => {
     const own = errorsIn(from);
     if (Object.keys(own).length) {
-      setLocalFields(prev => ({ ...prev, ...own }));
+      showErrors(own);
       setGoTo({ key: from, field: Object.keys(own)[0] });
       return;
     }
-    setLocalFields(prev => {
+    setFieldErrors(prev => {
       const next = { ...prev };
       for (const f of BLOCK_FIELDS[from]) delete next[f];
       return next;
@@ -169,7 +200,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
       return m;
     });
     if (next) setGoTo({ key: next.key });
-  }, [errorsIn]);
+  }, [errorsIn, showErrors]);
 
   function onBlockKeyDown(e: KeyboardEvent<HTMLDivElement>, key: BlockKey) {
     if (e.key !== 'Enter' || e.shiftKey) return;
@@ -185,7 +216,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
   function submit() {
     const v = validateSurveyItem(draft, { currencies: CURRENCIES, payPeriods: PAY_PERIODS });
     if (!v.ok) {
-      setLocalFields(v.fields);
+      showErrors(v.fields);
       const bad = Object.keys(v.fields)[0];
       const key = blockOf(bad);
       if (key) {
@@ -197,7 +228,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
       }
       return;
     }
-    setLocalFields({});
+    setFieldErrors({});
     onSave();
   }
 

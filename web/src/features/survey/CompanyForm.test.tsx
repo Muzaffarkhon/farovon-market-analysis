@@ -145,3 +145,23 @@ test('счётчик заполненности не дублируется в �
   setup({ ...empty, payFrom: '1', payTo: '2' });
   expect(screen.queryByText('2 из 9')).not.toBeInTheDocument();
 });
+
+test('ошибка снимается, как только поле исправили', async () => {
+  const { rerenderWith } = setup({ ...empty, payFrom: '100' });
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByText('Укажите график работы')).toBeVisible();
+
+  rerenderWith({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов' });
+  expect(screen.queryByText('Укажите график работы')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /График работы/ })).not.toHaveTextContent('!');
+});
+
+test('правка одного поля не гасит ошибки других', async () => {
+  const { rerenderWith } = setup({ ...empty, payFrom: '100' });
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  // Заполнили только график — блок «Премии и бонусы» раскрывается сам
+  // следующим, и его ошибка должна остаться на месте.
+  rerenderWith({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов' });
+  expect(await screen.findByText('Укажите, есть ли премии')).toBeVisible();
+  expect(screen.getByRole('button', { name: /Откуда данные/ })).toHaveTextContent('!');
+});
