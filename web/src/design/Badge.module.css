@@ -1,0 +1,5 @@
+.badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap; }
+.neutral { background:var(--muted-bg); color:var(--text-muted); }
+.muted { background:var(--muted-bg); color:var(--text-muted); text-decoration:line-through; }
+.warn { background:var(--warn-bg); color:var(--warn); }
+.ok { background:var(--ok-bg); color:var(--ok); }

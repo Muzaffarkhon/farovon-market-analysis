@@ -1,0 +1,2 @@
+.chip { min-height:36px; padding:0 var(--s-3); border:1px solid var(--border); border-radius:999px; background:var(--surface); cursor:pointer; font-size:14px; white-space:nowrap; }
+.active { background:var(--accent); border-color:var(--accent); color:var(--accent-text); }

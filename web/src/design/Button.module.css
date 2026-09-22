@@ -1,0 +1,7 @@
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:var(--s-2); min-height:var(--tap); padding:0 var(--s-4); border:1px solid transparent; border-radius:var(--r-md); cursor:pointer; font-weight:600; white-space:nowrap; }
+.btn:disabled { opacity:.55; cursor:default; }
+.sm { min-height:36px; padding:0 var(--s-3); font-size:14px; }
+.primary { background:var(--accent); color:var(--accent-text); }
+.secondary { background:var(--surface); border-color:var(--border); }
+.ghost { background:transparent; }
+.danger { background:var(--danger); color:#fff; }

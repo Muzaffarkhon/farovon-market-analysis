@@ -1,0 +1,4 @@
+.host { position:fixed; left:0; right:0; bottom:calc(64px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:var(--s-2); pointer-events:none; z-index:60; padding:0 var(--s-4); }
+.toast { max-width:480px; padding:var(--s-3) var(--s-4); border-radius:var(--r-md); background:var(--text); color:var(--bg); box-shadow:var(--shadow); font-size:14px; }
+.ok { background:var(--ok); color:#fff; }
+.error { background:var(--danger); color:#fff; }
