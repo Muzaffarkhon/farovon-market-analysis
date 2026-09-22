@@ -1,12 +1,17 @@
 .shell { min-height: 100dvh; display: flex; flex-direction: column; }
 .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 56px; padding: var(--s-2) var(--s-4); background: var(--surface); border-bottom: 1px solid var(--border); }
-.left { display: flex; align-items: center; gap: var(--s-4); min-width: 0; }
-.right { display: flex; align-items: center; gap: var(--s-2); }
-.title { margin: 0; font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.left { display: flex; align-items: center; gap: var(--s-4); min-width: 0; flex: 1; }
+.right { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
+/* Названия подразделений длинные («Завод металлоконструкций и СП») — на телефоне
+   заголовок переносится на вторую строку, а не обрезается многоточием. */
+.title { margin: 0; font-size: 16px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .topNav { display: none; gap: var(--s-1); }
 .topLink { padding: var(--s-2) var(--s-3); border-radius: var(--r-md); color: var(--text-muted); text-decoration: none; font-weight: 500; }
 .topLink.active { background: var(--surface-2); color: var(--text); }
-.period { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+/* На телефоне период уходит из шапки в меню «ещё» — он там занимал место,
+   которое нужнее заголовку, и при этом не меняется по ходу работы. */
+.period { display: none; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.periodInMenu { padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); }
 .periodSelect { min-height: 36px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--s-2); font-size: 13px; }
 .iconBtn { width: var(--tap); height: var(--tap); border: 0; background: transparent; border-radius: var(--r-md); cursor: pointer; font-size: 20px; color: var(--text-muted); }
 .iconBtn:hover { background: var(--surface-2); }
@@ -24,4 +29,7 @@
   .topNav { display: flex; }
   .bottom { display: none; }
   .main { padding-bottom: var(--s-6); }
+  .title { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .period { display: inline; }
+  .periodInMenu { display: none; }
 }

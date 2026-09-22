@@ -1,0 +1,43 @@
+.head { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-4); }
+.headRow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; }
+.progressLine { display: flex; align-items: center; gap: var(--s-3); }
+.progressLine progress { flex: 1; height: 8px; max-width: 320px; }
+.progressText { font-size: 14px; color: var(--text-muted); white-space: nowrap; }
+.filters { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-1); }
+.list { display: flex; flex-direction: column; gap: var(--s-2); }
+.cardTop { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.cardTitle { font-weight: 600; overflow-wrap: anywhere; }
+.cardSub { margin-top: var(--s-1); font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.empty { color: var(--text-muted); }
+.search { max-width: 320px; }
+
+/* Лист заполнения */
+.sheet { display: grid; grid-template-columns: 1fr; gap: var(--s-4); }
+.sheetHead { display: flex; align-items: flex-end; gap: var(--s-3); flex-wrap: wrap; margin-bottom: var(--s-4); }
+.sheetHead .cur { width: 160px; }
+.spacer { flex: 1; }
+.companyStrip { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-2); }
+.companyBtn { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); padding: 0 var(--s-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); cursor: pointer; white-space: nowrap; }
+.companyBtn.selected { border-color: var(--accent); background: var(--surface-2); }
+.companyCol { display: flex; flex-direction: column; gap: var(--s-2); }
+@media (min-width: 900px) {
+  .sheet { grid-template-columns: 280px 1fr; align-items: start; }
+  .companyStrip { flex-direction: column; overflow: visible; }
+  .companyBtn { width: 100%; justify-content: space-between; }
+}
+
+/* Форма компании */
+.form { display: flex; flex-direction: column; gap: var(--s-2); }
+.block { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.blockHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); width: 100%; min-height: var(--tap); padding: 0 var(--s-4); border: 0; background: transparent; cursor: pointer; font-weight: 600; text-align: left; }
+.blockBody { padding: 0 var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+.bonusRow { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: var(--s-2); align-items: end; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.chipGroup { display: flex; flex-direction: column; gap: var(--s-2); }
+.chipGroupTitle { font-size: 13px; color: var(--text-muted); }
+.actions { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.tick { color: var(--ok); }
+@media (max-width: 520px) {
+  .row, .bonusRow { grid-template-columns: 1fr; }
+}
