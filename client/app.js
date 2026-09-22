@@ -935,7 +935,7 @@ function tourSteps(){
     { sel:'#unitsContainer .unit', waitFor:true, title:'Начните с вашего подразделения',
       body:'Нажмите на карточку — внутри два шага: отметить компании и внести данные по рынку.',
       cta:'Открыть подразделение', ctaClicks:true },
-    { sel:'.pos-grid .pos-edit, .pos-grid [data-open-pos-comp]', waitFor:true, title:'Шаг 1. Компании по должности',
+    { sel:'.pos-grid [data-open-pos-comp]', waitFor:true, title:'Шаг 1. Компании по должности',
       body:'Откройте должность и отметьте компании, с которыми сравниваете по ней оклад. Сравнивать не с кем — оставьте пусто, это тоже нормальный итог.' },
     { sel:'.unit-step-tabs .sub-tab:last-child, [data-tab="survey"]', waitFor:true, title:'Шаг 2. Данные по рынку',
       body:'Здесь главное — внесите оклад, бонусы и льготы по должностям, которые знаете. Неполные данные тоже нужны.' },
@@ -2267,11 +2267,9 @@ function renderTabComp(){
       x += '<div class="pos-sub">'+ (st.selCos && st.selCos.length
             ? esc(st.selCos.slice(0,3).join(', ')) + (st.selCos.length > 3 ? ' и ещё ' + (st.selCos.length-3) : '')
             : 'компании ещё не выбраны') +'</div>'+
-           (st.total ? '<div class="pos-bar'+(stCode === 'done' ? ' ok' : '')+'"><i style="width:'+Math.round(Math.min(1, st.filled / st.total) * 100)+'%"></i></div>' : '')+
            '</div>';
       x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
-      x += '<button type="button" class="btn-ghost pos-edit" data-open-pos-comp="'+esc(g.pos)+'">'+
-             ic('pencil', 14) + (st.total ? 'Компании' : 'Выбрать') + '</button>';
+      x += '<span class="pos-go">'+icBare('chevron', 16)+'</span>';
       x += '</div></div>';
       return x;
     }).join('') + '</div>';
@@ -2587,17 +2585,6 @@ function renderTabSurvey(){
          'Добавьте должность кнопкой ниже — она попадёт и в справочник.<br><br>' +
          'Вносите данные пакетом сразу по всем компаниям.</div>';
   } else {
-    h += '<div class="fill-sec-hd">'+
-      '<b>Данные по рынку</b>'+
-      '<span>' + (mc.totalSlots > 0
-        ? 'заполнено ' + mc.filledCount + ' из ' + mc.totalSlots + ' карточек (' + mc.pct + '%)'
-        : S.surveys.length + ' ' + declOfNum(S.surveys.length, ['запись','записи','записей'])) + '</span>'+
-    '</div>';
-
-    if(mc.totalSlots > 0){
-      h += '<div class="fill-progress'+(mc.pct>=100?' is-done':'')+'" style="margin:0 0 14px"><i style="width:' + mc.pct + '%"></i></div>';
-    }
-
     var posTotalCount = G.groups.length;
     var posDoneCount = 0, posPartCount = 0, posNoneCount = 0;
     G.groups.forEach(function(g){
@@ -2653,8 +2640,7 @@ function renderTabSurvey(){
             ? esc(cos.slice(0,3).join(', ')) + (cos.length > 3 ? ' и ещё ' + (cos.length-3) : '')
             : 'данных пока нет') +'</div></div>';
       x += '<span class="pos-badge '+bClass+'">'+bText+'</span>';
-      x += '<button type="button" class="btn-ghost pos-edit" data-open-pos="'+esc(g.pos)+'">'+
-             ic('pencil', 14) + (filled ? 'Править' : 'Внести') + '</button>';
+      x += '<span class="pos-go">'+icBare('chevron', 16)+'</span>';
       x += '</div>';
       x += '</div>';
       return x;
@@ -2925,7 +2911,6 @@ function openBatchSurveySheet(posName, initialCo){
   }
 
   var ref = S.data.ref || {};
-  var currencies = ref.currencies || ['сомони', 'USD', 'RUB'];
   var payPeriods = ref.payPeriods || ['в месяц', 'в день', 'в час'];
   var bonusTypes = ref.bonusTypes || ['ежемесячный', 'квартальный', 'годовой', 'KPI'];
   var bonusPeriods = ref.bonusPeriods || ['в месяц', 'в квартал', 'в год'];
@@ -2951,13 +2936,14 @@ function openBatchSurveySheet(posName, initialCo){
   var benefitsList = benefitGroups.reduce(function(acc, g){ return acc.concat(g.items || []); }, []);
 
   // Доводка автозаполнения:
-  // — валюта/период новой строки берутся не жёстко «сомони / в месяц», а из
-  //   последнего заполнения в этой сессии (S.fillPrefs) или из последней
-  //   сохранённой записи; человек в одном подразделении обычно вводит всё в
-  //   одной валюте.
+  // — период новой строки берётся из последнего заполнения в этой сессии
+  //   (S.fillPrefs) или из последней сохранённой записи.
   S.fillPrefs = S.fillPrefs || {};
   var lastSv = S.surveys.slice().reverse().find(function(s){ return s && (s.cur || s.payPer); });
-  var defCur = S.fillPrefs.cur || (lastSv && lastSv.cur) || 'сомони';
+  // Выбор валюты убран из анкеты — новые записи всегда в сомони. Унаследовать
+  // валюту последней записи нельзя: одна старая строка в USD молча перевела бы
+  // в USD все следующие, а аналитика группирует рынок именно по валюте.
+  var defCur = 'сомони';
   // Сдельную не наследуем: одна сдельная запись иначе делала бы сдельными все
   // следующие компании по инерции, а такие строки выпадают из медианы рынка.
   var lastPer = S.fillPrefs.payPer || (lastSv && lastSv.payPer) || 'в месяц';
@@ -3010,32 +2996,28 @@ function openBatchSurveySheet(posName, initialCo){
 
   function getSurveyItemCompleteness(item){
     var points = 0;
-    var totalPoints = 11;
+    var totalPoints = 9;
 
     // 1. Оклад от
     if(item.payFrom && String(item.payFrom).trim()) points++;
     // 2. Оклад до
     if(item.payTo && String(item.payTo).trim()) points++;
-    // 3. Должность у них
-    if(item.posTheir && String(item.posTheir).trim()) points++;
-    // 4. Грейд / Уровень
-    if(item.grade && String(item.grade).trim()) points++;
-    // 5. Наличие бонусов
+    // 3. Наличие бонусов
     if(item.bonHas && String(item.bonHas).trim()) points++;
-    // 6. Размер/параметры бонуса (или если бонусов нет)
+    // 4. Размер/параметры бонуса (или если бонусов нет)
     var bonAnyData = Array.isArray(item.bonuses) && item.bonuses.some(function(b){
       return b && (String(b.size == null ? '' : b.size).trim() || b.type);
     });
     if(item.bonHas === 'нет' || (item.bonHas === 'да' && bonAnyData)) points++;
-    // 7. Льготы и соцпакет
+    // 5. Льготы и соцпакет
     if(item.benefits && item.benefits.length > 0) points++;
-    // 8. Прочие выплаты
+    // 6. Прочие выплаты
     if(item.extra && String(item.extra).trim()) points++;
-    // 9. Откуда данные
+    // 7. Откуда данные
     if(item.source && String(item.source).trim()) points++;
-    // 10. Надёжность данных
+    // 8. Надёжность данных
     if(item.trust && String(item.trust).trim()) points++;
-    // 11. Комментарий
+    // 9. Комментарий
     if(item.note && String(item.note).trim()) points++;
 
     if(points === 0) return { pct: 0, status: 'none', label: 'Не заполнено' };
@@ -3049,11 +3031,11 @@ function openBatchSurveySheet(posName, initialCo){
 
   function renderSurveyStTag(comp){
     if(comp.status === 'ok'){
-      return '<span class="batch-st-tag ok">' + ic('check', 12) + 'Заполнено 100%</span>';
+      return '<span class="batch-st-tag ok">' + ic('check', 12) + 'Готово</span>';
     } else if(comp.status === 'part'){
-      return '<span class="batch-st-tag part">' + ic('clock', 12) + 'Частично (' + comp.pct + '%)</span>';
+      return '<span class="batch-st-tag part">' + comp.pct + '%</span>';
     } else {
-      return '<span class="batch-st-tag none">' + ic('clock', 12) + 'Не заполнено</span>';
+      return '<span class="batch-st-tag none">Не начато</span>';
     }
   }
 
@@ -3159,7 +3141,6 @@ function openBatchSurveySheet(posName, initialCo){
   // списке слева, чтобы было видно, куда возвращаться.
   var needsSet = {};
 
-  var curOpts = function(sel){ return currencies.map(function(c){ return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); };
   var perOpts = function(sel){ return payPeriods.map(function(p){ return '<option value="'+esc(p)+'"'+(sel===p?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
 
   // Сдельная оплата: ставка назначается за услугу, а не за отработанное время.
@@ -3200,12 +3181,11 @@ function openBatchSurveySheet(posName, initialCo){
   // заголовком; следующий блок открывается сам, как только заполнен текущий.
   // Уже заполненные блоки открыты всегда — иначе при правке пришлось бы
   // раскрывать каждый вручную.
-  var SEC_ORDER = ['pay', 'their', 'schedule', 'bonus', 'benefits', 'source', 'note'];
+  var SEC_ORDER = ['pay', 'schedule', 'bonus', 'benefits', 'source', 'note'];
 
   function secHasData(item, key){
     switch(key){
       case 'pay': return !!(String(item.payFrom || '').trim() || String(item.payTo || '').trim());
-      case 'their': return !!(String(item.posTheir || '').trim() || String(item.grade || '').trim());
       case 'schedule': return !!String(item.schedule || '').trim();
       case 'bonus': return !!String(item.bonHas || '').trim();
       case 'benefits': return !!((Array.isArray(item.benefits) && item.benefits.length) || String(item.extra || '').trim());
@@ -3220,8 +3200,6 @@ function openBatchSurveySheet(posName, initialCo){
     switch(key){
       case 'pay':
         return payPreview(item);
-      case 'their':
-        return [item.posTheir, item.grade].filter(Boolean).join(' · ');
       case 'schedule':
         return item.schedule || '';
       case 'bonus': {
@@ -3321,23 +3299,12 @@ function openBatchSurveySheet(posName, initialCo){
           '<div><label class="lbl">Оклад от</label><input class="b-pay-from" inputmode="decimal" placeholder="например: 6500" value="'+esc(item.payFrom)+'"></div>'+
           '<div><label class="lbl">Оклад до</label><input class="b-pay-to" inputmode="decimal" placeholder="например: 7500" value="'+esc(item.payTo)+'"></div>'+
         '</div>'+
-        '<div class="two bsec-gap">'+
-          '<div><label class="lbl">Валюта</label><select class="b-cur">'+curOpts(item.cur)+'</select></div>'+
-          '<div><label class="lbl">Период</label><select class="b-pay-per">'+perOpts(item.payPer)+'</select></div>'+
+        '<div class="bsec-gap">'+
+          '<label class="lbl">Период</label><select class="b-pay-per">'+perOpts(item.payPer)+'</select>'+
         '</div>'+
         '<p class="bsec-hint b-piece-hint'+(payIsPiece(item.payPer) ? '' : ' hidden')+'">'+
           'Сдельная оплата: укажите ставку за одну услугу. В вилки и медиану рынка такие записи не попадают — их нельзя сравнивать с месячным окладом.'+
         '</p>', item)+
-
-      sec('their', 'Должность у них', false,
-        '<label class="lbl">Как эта должность называется в компании</label>'+
-        // Кнопка сброса нужна: выбранную должность раньше нельзя было снять —
-        // пикер умеет только выбрать другую, пустого пункта в нём нет.
-        '<div class="pick b-pick-their"><span class="'+(item.posTheir?'':'ph')+'">'+esc(item.posTheir || 'Выберите или добавьте')+'</span>'+
-          (item.posTheir ? '<button type="button" class="pick-clear" data-act="clear-their" title="Очистить">'+ic('close', 12)+'</button>' : '')+
-          '<i>'+ic('chevron', 12)+'</i></div>'+
-        '<label class="lbl bsec-gap">Грейд / Уровень</label>'+
-        '<input class="b-grade" placeholder="например: Middle, 1-й разряд" value="'+esc(item.grade)+'">', item)+
 
       sec('schedule', 'График работы', true,
         '<div class="chips-grid">'+chips('schedule', scheduleList, item.schedule, false, false, SCHEDULE_HOURS)+'</div>', item)+
@@ -3407,8 +3374,7 @@ function openBatchSurveySheet(posName, initialCo){
     el.innerHTML = '<div class="sheet-in batch-sheet batch-sheet--wide">'+
       '<div class="sheet-hd sheet-hd--step2">'+
         '<div>'+
-          '<span class="step-pill step-pill--2">'+ic('wallet', 12)+'Шаг 2 · Оклады</span>'+
-          '<b>Должность: '+esc(posName)+'</b>'+
+          '<b>'+esc(posName)+'</b>'+
         '</div>'+
         '<div class="batch-prog"><div class="batch-prog-t"><span>Оклад указан</span><b id="bpNum"></b></div>'+
           '<div class="batch-prog-bar"><i id="bpBar"></i></div></div>'+
@@ -3425,7 +3391,7 @@ function openBatchSurveySheet(posName, initialCo){
       '<div class="batch-err" id="batchErr" hidden></div>'+
 
       '<div class="batch-foot">'+
-        '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить данные по должности ('+actualCos.length+')</button>'+
+        '<button id="batchSaveBtn" class="btn-primary">' + ic('check', 15) + 'Сохранить</button>'+
       '</div>'+
     '</div>';
 
@@ -3804,50 +3770,6 @@ function openBatchSurveySheet(posName, initialCo){
       return;
     }
 
-    // Сброс выбранной должности у конкурента — проверяем ДО открытия пикера,
-    // иначе клик по крестику внутри .pick откроет выбор вместо очистки.
-    if(e.target.closest('[data-act="clear-their"]')){
-      item.posTheir = '';
-      var pickBox = card.querySelector('.b-pick-their');
-      if(pickBox){
-        var ph = pickBox.querySelector('span');
-        if(ph){ ph.textContent = 'Выберите или добавьте'; ph.className = 'ph'; }
-        var clr = pickBox.querySelector('.pick-clear');
-        if(clr) clr.remove();
-      }
-      updateCardCompleteness(card, item);
-      return;
-    }
-
-    // Пикер должности у конкурента
-    var pickTheir = e.target.closest('.b-pick-their');
-    if(pickTheir){
-      openPicker({
-        title: 'Должность в компании ' + item.co,
-        list: function(){ return S.data.positionsAll || []; },
-        block: 'positions',
-        value: item.posTheir,
-        onPick: function(v){
-          item.posTheir = v;
-          var span = pickTheir.querySelector('span');
-          span.textContent = v || 'Выберите или добавьте';
-          span.className = v ? '' : 'ph';
-          // Крестик появляется вместе с выбранным значением.
-          if(v && !pickTheir.querySelector('.pick-clear')){
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'pick-clear';
-            btn.dataset.act = 'clear-their';
-            btn.title = 'Очистить';
-            btn.innerHTML = ic('close', 12);
-            pickTheir.insertBefore(btn, pickTheir.querySelector('i'));
-          }
-          updateCardCompleteness(card, item);
-        }
-      });
-      return;
-    }
-
     // Чипы
     var chip = e.target.closest('.chips button');
     if(chip){
@@ -3897,7 +3819,6 @@ function openBatchSurveySheet(posName, initialCo){
         e.target.setSelectionRange(pos, pos);
       }
     }
-    if(e.target.classList.contains('b-grade')) item.grade = e.target.value;
     if(e.target.classList.contains('b-bon-size')){
       var szI = +e.target.dataset.bi || 0;
       if(!Array.isArray(item.bonuses) || !item.bonuses.length) item.bonuses = [{ type:'', size:'', per:'' }];
@@ -3927,7 +3848,6 @@ function openBatchSurveySheet(posName, initialCo){
     var idx = +card.dataset.idx;
     var item = entries[idx];
 
-    if(e.target.classList.contains('b-cur')){ item.cur = e.target.value; S.fillPrefs.cur = item.cur; }
     if(e.target.classList.contains('b-pay-per')){
       item.payPer = e.target.value;
       // Период подставляется следующим компаниям как «обычно вводят в одном и
