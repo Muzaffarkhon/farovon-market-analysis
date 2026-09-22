@@ -1346,6 +1346,8 @@ exports.deletePeriod = async (req, res) => {
  * к живой базе у разработчика нет и быть не должно, поэтому загрузку запускает
  * админ кнопкой. Повторный запуск безопасен — INSERT OR IGNORE и UPDATE.
  */
+// Экспортируется для скрипта наполнения базы разработки (src/db/seedDev.js):
+// повторять логику разбора staffing.json во втором месте незачем.
 async function importStaffing() {
   const data = require('../data/staffing.json');
 
@@ -2738,3 +2740,5 @@ exports.deleteStaffDirectory = async (req, res) => {
 };
 
 exports.getAccessibleDivisions = getAccessibleDivisions;
+
+exports.importStaffing = importStaffing;

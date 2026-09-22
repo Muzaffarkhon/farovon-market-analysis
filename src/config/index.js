@@ -16,9 +16,31 @@ const config = {
   dbPath: process.env.DATABASE_PATH || path.join(__dirname, '../../data/market.db'),
   tursoUrl: process.env.TURSO_DATABASE_URL || '',
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
+  devDatabaseUrl: process.env.DEV_DATABASE_URL || '',
+  devDatabaseAuthToken: process.env.DEV_DATABASE_AUTH_TOKEN || '',
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
   webappUrl: process.env.WEBAPP_URL || 'http://localhost:3000'
+};
+
+// На Vercel окружение выставляется платформой; локально «прод» — это только
+// явный NODE_ENV=production. Всё остальное считаем разработкой.
+config.isProduction = !!process.env.VERCEL || config.nodeEnv === 'production';
+
+// ── База для разработки ─────────────────────────────────────────────────────
+// .env хранит боевые доступы (они же нужны офлайн-скриптам и деплою), поэтому
+// локальный запуск по умолчанию бил в ПРОД: миграции и любые сохранения уходили
+// в живую базу со 124 пользователями. DEV_DATABASE_URL перекрывает подключение
+// вне продакшена — например file:./data/dev.db (локальный файл, сеть не нужна).
+if (!config.isProduction && config.devDatabaseUrl) {
+  config.tursoUrl = config.devDatabaseUrl;
+  config.tursoAuthToken = config.devDatabaseAuthToken;
+  config.usingDevDatabase = true;
+}
+
+/** Локальная файловая база — токен для неё не нужен и не проверяется. */
+config.isFileDatabase = function isFileDatabase() {
+  return /^file:/i.test(config.tursoUrl);
 };
 
 const REQUIRED_SECRETS = [
@@ -28,7 +50,12 @@ const REQUIRED_SECRETS = [
 ];
 
 config.missingSecrets = function missingSecrets() {
-  const missing = REQUIRED_SECRETS.filter(([, key]) => !config[key]).map(([envName]) => envName);
+  const missing = REQUIRED_SECRETS
+    .filter(([envName, key]) => {
+      if (envName === 'TURSO_AUTH_TOKEN' && config.isFileDatabase()) return false;
+      return !config[key];
+    })
+    .map(([envName]) => envName);
   // Вебхук-секрет обязателен, только если бот вообще подключён: без него
   // telegramController.webhook отвечает 401 на всё, и бот молча не работает.
   if (config.telegramBotToken && !config.telegramWebhookSecret) {

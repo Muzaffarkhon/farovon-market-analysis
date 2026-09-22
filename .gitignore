@@ -53,3 +53,9 @@ scratch/
 .env*
 client/next/
 web/tsconfig.tsbuildinfo
+
+# Локальная база для разработки (DEV_DATABASE_URL)
+data/dev.db
+data/dev.db-journal
+data/dev.db-wal
+data/dev.db-shm
