@@ -3601,10 +3601,19 @@ label.lbl {
   font-size: 15px;
 }
 
+/* Экран загрузки между входом и приложением — на весь экран, а не только
+   отступ сверху/снизу, иначе крутилка повисает выше середины. */
+#scrLoad {
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* Тот же размер и толщина кольца, что у .global-busy-spin (крутилка поверх
+   экрана на время сохранения) — один спиннер на весь интерфейс, не два разных. */
 .sp i {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--line);
+  width: 40px;
+  height: 40px;
+  border: 3px solid transparent;
   border-top-color: var(--accent);
   border-radius: 50%;
   display: inline-block;
@@ -7903,10 +7912,8 @@ html.compact {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid var(--line);
+  border: 3px solid transparent;
   border-top-color: var(--accent, #2563eb);
-  background: var(--card);
-  box-shadow: 0 4px 18px rgba(0,0,0,.18);
   animation: global-busy-rot .7s linear infinite;
 }
 @keyframes global-busy-rot { to { transform: rotate(360deg); } }

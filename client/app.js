@@ -65,8 +65,17 @@ function doLogout(){
       location.reload();
     });
   };
-  if(!S.dirty){ go(); return; }
-  askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+  if(S.dirty){
+    askDirty('Выйти без сохранения').then(function(yes){ if(yes) go(); });
+    return;
+  }
+  ask({
+    title: 'Выйти из системы?',
+    html: 'Понадобится снова ввести логин и пароль.',
+    ok: 'Выйти',
+    cancel: 'Остаться',
+    danger: true
+  }).then(function(yes){ if(yes) go(); });
 }
 
 /**
@@ -525,7 +534,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.126')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -560,7 +569,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.126')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -621,7 +630,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.125')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.126')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -651,7 +660,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.125')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.126')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -1978,7 +1987,10 @@ function openUnit(unit, backTo){
   // должности этого подразделения (сервер, не локальный черновик — тот же
   // источник, что видят все ответственные). Ключ — norm(должность).
   S.selections = {};
-  loadUnitSelections(unit).then(continueOpenUnit);
+  // guardAsyncToTab: пока грузится выбор компаний, можно успеть переключиться
+  // на другую вкладку — без защиты continueOpenUnit() всё равно дорисует
+  // анкету (и покажет нижнюю панель «Шаг 2») поверх уже открытой чужой вкладки.
+  loadUnitSelections(unit).then(guardAsyncToTab(continueOpenUnit));
 
   function continueOpenUnit(){
     var d = null;
@@ -1999,7 +2011,7 @@ function openUnit(unit, backTo){
             'Хотите продолжить работу с сохранённого места?',
       ok: 'Продолжить работу',
       cancel: 'Начать заново'
-    }).then(function(yes){
+    }).then(guardAsyncToTab(function(yes){
       if(yes){
         S.rows = d.rows || S.rows;
         S.added = d.added || [];
@@ -2012,7 +2024,7 @@ function openUnit(unit, backTo){
         store.del(LS_DRAFT+unit);
       }
       renderUnit();
-    });
+    }));
   }
 }
 
@@ -4392,7 +4404,11 @@ function openDashboard(initialTab){
     ? WorkspaceTabs.getTab(WorkspaceTabs.activeId) : null;
   var prevDashTab = S.dashTab;
 
-  var curTab = initialTab || 'overview';
+  // Без явного initialTab (например, renderCurrentView() после возврата по
+  // истории браузера) держим ту вкладку, что уже восстановлена в S.dashTab —
+  // раньше здесь всегда подставлялось 'overview' и молча затирало восстановленное
+  // значение, поэтому закрытие карточки после навигации назад всегда бросало на «Обзор».
+  var curTab = initialTab || S.dashTab || 'overview';
   S.dashTab = curTab;
   var dashTitles = {
     overview: { title: 'Обзор', icon: 'dashboard' },
@@ -4740,6 +4756,10 @@ function renderDashboard(){
       var rSel = $('dashRegion');
       if(rSel) rSel.style.display = (S.dashTab === 'regions') ? 'none' : '';
       $('dashTabContent').innerHTML = renderCurrentDashTab();
+      // Иначе история браузера помнит только вкладку, с которой открыли
+      // дашборд: закрытие модалки (карточка наблюдения и т.п.) откатывает
+      // историю на шаг назад и молча возвращает на неё.
+      saveNavState();
     };
   });
 
@@ -4797,6 +4817,23 @@ function varPayCell(c){
 /** Реестр данных: то же самое (общая реализация). */
 function regVarPayCell(r){
   return varPayCell(r);
+}
+
+/** Совокупный доход одной записи реестра: оклад (среднее вилки) + премия,
+ *  приведённая к месяцу. Как totalPayCell(), но по конкретной записи, а не
+ *  по компании должности. Часовая ставка исключена — как и остальные
+ *  месячные показатели (см. regIsHourly). */
+function regTotalPay(r){
+  var avg = (r.payFrom && r.payTo) ? (Number(r.payFrom) + Number(r.payTo)) / 2 : (Number(r.payFrom) || Number(r.payTo) || 0);
+  var bm = r.varPay && r.varPay.monthly != null ? r.varPay.monthly : null;
+  if(!(avg > 0) || bm == null || regIsHourly(r)) return null;
+  return Math.round(avg + bm);
+}
+function regTotalPayCell(r){
+  var v = regTotalPay(r);
+  return v == null
+    ? '<span style="color:var(--muted)">—</span>'
+    : '<span style="color:var(--accent);font-weight:600">≈ '+v.toLocaleString('ru-RU')+'</span>';
 }
 
 /** Ячейка «Совокупно, мес.»: средний оклад + премия, приведённая к месяцу
@@ -5115,14 +5152,17 @@ function renderOverviewTab(d){
   // 2. Панели-списки — все сразу, ничего не пропадает при заполнении окладов
   //    Фаровона. Сетка сама раскладывает в 1–3 колонки по ширине экрана.
   var withGap = positions.filter(function(p){ return p.gapPct != null; });
-  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start">';
+  h += '<div class="sec-title" style="margin:4px 2px 8px">Сбор данных и рынок</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start">';
 
-  // 2·0. Кольцевая диаграмма — записи по направлениям (топ-6 + прочие)
+  // 2·0. Кольцевая диаграмма — записи по направлениям (топ-6 + прочие).
+  // При одном направлении круг из одного цвета ничего не показывает —
+  // просто занимает место, поэтому карточку показываем от двух направлений.
   var dirTally = {};
   (d.rows || []).forEach(function(r){ var k = (r.dir || '').trim() || 'Не указано'; dirTally[k] = (dirTally[k] || 0) + 1; });
   var dirArr = Object.keys(dirTally).map(function(k){ return { label: k, value: dirTally[k] }; })
     .sort(function(a, b){ return b.value - a.value; });
-  if(dirArr.length){
+  if(dirArr.length > 1){
     var donutItems = dirArr.slice(0, 6).map(function(it, i){ return { label: it.label, value: it.value, color: DONUT_PALETTE[i] }; });
     var restSum = dirArr.slice(6).reduce(function(s, it){ return s + it.value; }, 0);
     if(restSum) donutItems.push({ label: 'Прочие (' + (dirArr.length - 6) + ')', value: restSum, color: DONUT_PALETTE[6] });
@@ -5488,11 +5528,11 @@ function renderRegistryTab(rows){
       '<th>Дата</th><th>Направление</th><th>Компания</th><th>Регион</th>'+
       '<th>Наша должность</th><th>Должность у них</th>'+
       '<th class="num">Оклад от</th><th class="num">Оклад до</th>'+
-      '<th>Вал. / период</th><th>Переменная часть</th><th>Льготы</th><th></th>'+
+      '<th>Вал. / период</th><th>Переменная часть</th><th class="num">Совокупно, мес.</th><th>Льготы</th><th></th>'+
     '</tr></thead><tbody>';
 
   if(!pageRows.length){
-    h += '<tr><td colspan="12"><div class="empty" style="padding:24px 12px">Ничего не найдено</div></td></tr>';
+    h += '<tr><td colspan="13"><div class="empty" style="padding:24px 12px">Ничего не найдено</div></td></tr>';
   }
 
   pageRows.forEach(function(r){
@@ -5517,6 +5557,7 @@ function renderRegistryTab(rows){
       '<td class="num">'+(r.payTo ? Number(r.payTo).toLocaleString('ru-RU') : '—')+'</td>'+
       '<td><span style="white-space:nowrap">'+esc(per)+'</span></td>'+
       '<td>'+regVarPayCell(r)+'</td>'+
+      '<td class="num">'+regTotalPayCell(r)+'</td>'+
       '<td>'+(benN ? '<span class="pill p-ok" style="font-size:11.5px">'+benN+'</span>' : '<span style="color:var(--muted)">—</span>')+'</td>'+
       '<td><span class="btn-link" style="font-size:12.5px;white-space:nowrap;color:var(--accent);cursor:pointer">открыть ›</span></td>'+
     '</tr>';
@@ -5551,6 +5592,7 @@ function renderRegistryTab(rows){
         esc(regDirShort(r.dir))+' · '+esc(r.region || '—')+' · '+regDate(r.date)+
         (benN ? ' · льгот: '+benN : '')+
         ((r.varPay && r.varPay.label) ? ' · ' + esc(r.varPay.label) : '')+
+        (regTotalPay(r) != null ? ' · совокупно ≈ ' + regTotalPay(r).toLocaleString('ru-RU') : '')+
       '</div>'+
     '</div>';
   });
@@ -5634,6 +5676,10 @@ function openSurveyRecModal(r){
   var ourVal = regIsUnmapped(r)
     ? '<span class="pill p-mid" style="font-size:12px">не сопоставлено</span>'
     : esc(r.posOur);
+  var regTotal = regTotalPay(r);
+  var totalHtml = regTotal != null
+    ? '<b style="font-size:15px;color:var(--accent)">≈ ' + regTotal.toLocaleString('ru-RU') + '</b> <span style="font-size:13px;color:var(--muted)">' + esc(r.cur || 'сомони') + ' / мес.</span>'
+    : '';
 
   function row(dt, dd){
     return '<div style="display:grid;grid-template-columns:130px 1fr;gap:2px 14px;padding:8px 0;border-bottom:1px solid var(--line)">'+
@@ -5650,15 +5696,19 @@ function openSurveyRecModal(r){
       esc(r.company || '—')+' · '+esc(r.region || '—')+' · '+regDate(r.date)+'</div>'+
     '<div style="padding:2px 0 4px">'+
       row('Оклад', '<b style="font-size:15px">'+pay+'</b> <span style="font-size:13px;color:var(--muted)">'+esc(per)+'</span>')+
+      (totalHtml ? row('Совокупный доход', totalHtml) : '')+
       (regIsHourly(r) ? row('Внимание', '<span style="color:var(--warn)">Часовая ставка — в месячные медианы не входит</span>') : '')+
       row('Наша должность', ourVal)+
       row('Направление', esc(r.dir || '—'))+
       row('Подразделение', esc(r.unit || '—'))+
       (r.idbiz ? row('ID_Бизнес', esc(r.idbiz)) : '')+
+      (r.grade ? row('Грейд / Уровень', esc(r.grade)) : '')+
       row('Бонус', bonus)+
+      (r.extra ? row('Прочие выплаты', esc(r.extra)) : '')+
       row('График работы', r.schedule ? esc(r.schedule) : '<span style="color:var(--muted)">не указан</span>')+
       row('Льготы', chips)+
       row('Источник', esc(r.source || '—'))+
+      (r.trust ? row('Надёжность', esc(r.trust)) : '')+
       row('Собрал', esc(r.by || '—'))+
       row('Примечание', r.note ? esc(r.note) : '<span style="color:var(--muted)">—</span>')+
     '</div>'+

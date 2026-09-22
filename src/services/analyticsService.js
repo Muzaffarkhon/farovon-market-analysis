@@ -454,6 +454,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       idbiz: idbizMatch ? idbizMatch[1].trim() : '',
       posOur,
       posTheir: (s.pos_their || '').trim(),
+      grade: (s.grade || '').trim(),
       payFrom: pFrom,
       payTo: pTo,
       cur,
@@ -466,8 +467,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       varPay: rowVarPay,   // свёртка для колонки «Переменная часть»
       benefits, // массив
       schedule: (s.schedule || '').trim(),
+      extra: (s.extra || '').trim(),
       by: (s.created_by || '').trim(),
       source: (s.source || '').trim(),
+      trust: (s.trust || '').trim(),
       note
     });
 
