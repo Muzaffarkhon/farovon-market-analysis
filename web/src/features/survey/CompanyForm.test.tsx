@@ -48,6 +48,54 @@ test('ручное закрытие блока не переоткрываетс
   expect(screen.queryByLabelText('График работы')).not.toBeInTheDocument();
 });
 
+// ── Enter: «с этим блоком закончил» ────────────────────────────────────────
+
+/** Заполненный блок при открытии карточки свёрнут — раскрываем заголовком. */
+const openBlock = (title: RegExp) => userEvent.click(screen.getByRole('button', { name: title }));
+
+test('Enter в блоке сворачивает его и открывает следующий', async () => {
+  setup();
+  expect(screen.getByLabelText('Оклад от')).toBeVisible();
+  await userEvent.type(screen.getByLabelText('Оклад от'), '{Enter}');
+  expect(screen.queryByLabelText('Оклад от')).not.toBeInTheDocument();
+  expect(await screen.findByLabelText('График работы')).toBeVisible();
+});
+
+test('Enter при ошибке в блоке не пускает дальше и показывает её сразу', async () => {
+  setup({ ...empty, payFrom: 'абв' });
+  await openBlock(/^Оклад/);
+  await userEvent.type(screen.getByLabelText('Оклад от'), '{Enter}');
+  expect(screen.getByText('Только число')).toBeVisible();
+  expect(screen.getByLabelText('Оклад от')).toBeVisible();
+});
+
+test('Enter не пускает дальше, если «от» больше «до»', async () => {
+  setup({ ...empty, payFrom: '9000', payTo: '1000' });
+  await openBlock(/^Оклад/);
+  await userEvent.type(screen.getByLabelText('Оклад до'), '{Enter}');
+  expect(screen.getByText('«До» не может быть меньше «от»')).toBeVisible();
+  expect(screen.getByLabelText('Оклад до')).toBeVisible();
+});
+
+test('Enter в комментарии переносит строку, а не прыгает дальше', async () => {
+  const { onChange } = setup({
+    ...empty, payFrom: '1', schedule: '5/2 · 40 часов', bonHas: 'нет',
+    source: 'Интервью', trust: 'высокая', note: 'первая'
+  });
+  await userEvent.click(screen.getByRole('button', { name: /Комментарий/ }));
+  await userEvent.type(screen.getByLabelText('Комментарий'), '{Enter}');
+  expect(screen.getByLabelText('Комментарий')).toBeVisible();
+  expect(onChange).toHaveBeenCalled();
+});
+
+test('пройденный по Enter пустой блок не открывается обратно сам', async () => {
+  setup({ ...empty, payFrom: '100', schedule: '5/2 · 40 часов', bonHas: 'нет' });
+  await userEvent.click(screen.getByRole('button', { name: /Льготы и соцпакет/ }));
+  await userEvent.type(screen.getByLabelText('Прочие выплаты'), '{Enter}');
+  expect(screen.queryByLabelText('Прочие выплаты')).not.toBeInTheDocument();
+  expect(await screen.findByLabelText('Источник')).toBeVisible();
+});
+
 test('сохранение блокируется ошибкой и раскрывает нужный блок', async () => {
   const { onSave } = setup({ ...empty, payFrom: '100' });
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -62,6 +110,19 @@ test('полная запись сохраняется', async () => {
   });
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(onSave).toHaveBeenCalled();
+});
+
+test('блок с ошибкой помечен и в свёрнутом виде', async () => {
+  setup({ ...empty, payFrom: '100' });
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  const head = await screen.findByRole('button', { name: /График работы/ });
+  expect(head).toHaveTextContent('!');
+});
+
+test('после неудачного сохранения курсор уводится к полю с ошибкой', async () => {
+  setup({ ...empty, payFrom: '100' });
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByLabelText('График работы')).toHaveFocus();
 });
 
 test('ошибки сервера показываются под полями', () => {

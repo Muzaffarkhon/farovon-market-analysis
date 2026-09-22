@@ -62,3 +62,8 @@
   .posMain { flex-basis: 100%; }
   .posAction { margin-left: auto; }
 }
+
+/* Блок с ошибкой заметен и в свёрнутом виде — иначе после сохранения человек
+   не понимает, где именно проблема. */
+.blockError { border-color: var(--danger); }
+.warn { color: var(--danger); font-weight: 700; }
