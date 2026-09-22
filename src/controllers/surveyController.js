@@ -566,6 +566,23 @@ exports.saveSurveyDetails = async (req, res) => {
       existing.forEach(x => { ownerBySid[x.sid] = x; });
     }
 
+    // Запись без id — не обязательно новая: повторная отправка (таймаут и
+    // ретрай, две открытые вкладки, вызов через API) приходит без него, и
+    // раньше каждая такая отправка вставляла ЕЩЁ ОДНУ строку по той же паре
+    // «должность + компания». Дубли молча удваивают вес компании в медиане
+    // рынка. Ветка смежных групп ниже давно сопоставляет записи по этой паре —
+    // здесь делаем так же.
+    const sidByPosCompany = {};
+    const activeRows = await queryAll(
+      "SELECT sid, pos_our, company, created_by, source FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
+      [unit, period.id]
+    );
+    activeRows.forEach(r => {
+      const k = norm(r.pos_our) + '|' + norm(r.company);
+      if (!sidByPosCompany[k]) sidByPosCompany[k] = r;
+      ownerBySid[r.sid] = ownerBySid[r.sid] || r;
+    });
+
     // Удаление
     if (Array.isArray(remove) && remove.length) {
       remove.forEach(sid => {
@@ -582,8 +599,17 @@ exports.saveSurveyDetails = async (req, res) => {
     }
 
     // Вставка / Обновление
+    const removedSids = new Set(
+      (Array.isArray(remove) ? remove : []).map(String)
+    );
     validatedItems.forEach(s => {
       let sid = s.id;
+      // id не пришёл — ищем запись по паре «должность + компания»; удалённую в
+      // этом же запросе не воскрешаем.
+      if (!sid || String(sid).startsWith('tmp')) {
+        const match = sidByPosCompany[norm(s.posOur) + '|' + norm(s.company)];
+        if (match && !removedSids.has(String(match.sid))) sid = match.sid;
+      }
       if (sid && !String(sid).startsWith('tmp')) {
         const existing = ownerBySid[sid];
         if (existing && isOwnedByOther(existing.created_by, req.user, existing.source)) {
