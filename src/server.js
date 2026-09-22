@@ -200,6 +200,19 @@ app.get('/sw.js', (req, res) => {
   res.send(content);
 });
 
+// Новый клиент (web/ → client/next). Живёт рядом со старым на /new, пока не
+// закроет всю функциональность; сессия общая (тот же cookie). index.html без
+// кеша, ассеты с хешами в имени — на год.
+const NEXT_DIR = path.join(__dirname, '../client/next');
+app.use('/new', express.static(NEXT_DIR, { index: false, etag: true, maxAge: '1y', immutable: true }));
+app.get(['/new', '/new/*splat'], (req, res, next) => {
+  const indexPath = path.join(NEXT_DIR, 'index.html');
+  if (!fs.existsSync(indexPath)) return next();
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(indexPath);
+});
+
 // Главная страница с динамической версией и защитой от кэширования
 app.get(['/', '/index.html'], (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');

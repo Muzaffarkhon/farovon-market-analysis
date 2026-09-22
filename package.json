@@ -1,17 +1,19 @@
 {
   "name": "farovon-market-analysis",
-  "version": "2.5.127",
+  "version": "2.5.128",
   "description": "Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон",
   "main": "src/server.js",
   "scripts": {
     "build": "echo \"Build complete\"",
     "bump": "node scripts/bumpVersion.js",
     "prepare": "git config core.hooksPath .githooks || true",
-    "vercel-build": "node scripts/bumpVersion.js --sync && node src/db/migrateCli.js && mkdir -p public && touch public/.vercel-keep",
+    "vercel-build": "node scripts/bumpVersion.js --sync && node src/db/migrateCli.js && npm --prefix web ci && npm --prefix web run build && mkdir -p public && touch public/.vercel-keep",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "build:web": "npm --prefix web run build",
+    "dev:web": "npm --prefix web run dev"
   },
   "engines": {
     "node": "22.x"
