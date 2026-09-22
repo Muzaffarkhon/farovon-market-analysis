@@ -6,6 +6,12 @@ import type { SurveyDraft } from '../../api/contract';
 import { positionState } from '../../domain/progress';
 
 vi.mock('../shell/Shell', () => ({ useScreenTitle: () => {} }));
+vi.mock('./useSheetActions', () => ({
+  useSheetActions: () => ({
+    saveCompany: vi.fn(), setCompanies: vi.fn(), addCompanyToDictionary: vi.fn(),
+    setNoComparison: vi.fn().mockResolvedValue(undefined), clearNoComparison: vi.fn().mockResolvedValue(undefined)
+  })
+}));
 
 const empty: SurveyDraft = {
   company: '', posOur: '', payFrom: '', payTo: '', cur: 'сомони', payPer: 'в месяц',

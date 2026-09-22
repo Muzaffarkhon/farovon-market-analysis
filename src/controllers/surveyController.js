@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { queryOne, queryAll, run, batch } = require('../db/database');
 const { resolveEditablePeriod } = require('../services/periodAccessService');
 const { getActivePeriod } = require('../services/periodService');
-const { validateSurveyItem, isStarted, contentSignature, missingRequired } = require('../services/surveyValidation');
+const { validateSurveyItem, isStarted, missingRequired } = require('../services/surveyValidation');
 const { positionProgressForUnit } = require('../services/analyticsService');
 
 // Гарантированно уникальный id строки анкеты/конкурента. Date.now() в цикле
@@ -384,35 +384,23 @@ exports.saveSurveyDetails = async (req, res) => {
     if (validatedItems.length) {
       const unitForCheck = String(unit).trim();
       const storedRows = await queryAll(
-        "SELECT pos_our, company, schedule, bon_has, source, trust, pay_from, pay_to, cur, pay_per, bonuses, bon_size, bon_type, bon_per, benefits, extra, note, pos_their, grade FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
+        "SELECT pos_our, company, schedule, bon_has, source, trust FROM surveys WHERE unit = ? AND state = 'активна' AND period_id = ?",
         [unitForCheck, period.id]
       );
       const storedByKey = new Map();
       storedRows.forEach(r => storedByKey.set(norm(r.pos_our) + '|' + norm(r.company), r));
 
       for (const it of validatedItems) {
-        const stored = storedByKey.get(norm(it.posOur) + '|' + norm(it.company));
-        if (stored) {
-          const storedSig = contentSignature({
-            payFrom: stored.pay_from, payTo: stored.pay_to, cur: stored.cur, payPer: stored.pay_per,
-            bonuses: stored.bonuses, bonHas: stored.bon_has, bonSize: stored.bon_size,
-            bonType: stored.bon_type, bonPer: stored.bon_per, benefits: stored.benefits,
-            schedule: stored.schedule, extra: stored.extra, source: stored.source,
-            trust: stored.trust, note: stored.note, posTheir: stored.pos_their, grade: stored.grade
-          });
-          const incomingSig = contentSignature({
-            payFrom: it.pFrom, payTo: it.pTo, cur: it.cur, payPer: it.payPer,
-            bonuses: it.bonuses, bonHas: it.bonHas, bonSize: it.bonSize, bonType: it.bonType,
-            bonPer: it.bonPer, benefits: it.benefits, schedule: it.schedule, extra: it.extra,
-            source: it.source, trust: it.trust, note: it.note, posTheir: it.posTheir, grade: it.grade
-          });
-          if (storedSig === incomingSig) continue; // не трогали — пропускаем
-        }
         if (!it._started) continue; // пустая заготовка — обязательных полей не требуем
 
-        const missing = missingRequired({
-          schedule: it.schedule, bonHas: it._rawBonHas, source: it.source, trust: it.trust
-        });
+        const row = storedByKey.get(norm(it.posOur) + '|' + norm(it.company));
+        const stored = row
+          ? { schedule: row.schedule, bonHas: row.bon_has, source: row.source, trust: row.trust }
+          : null;
+        const missing = missingRequired(
+          { schedule: it.schedule, bonHas: it._rawBonHas, source: it.source, trust: it.trust },
+          stored
+        );
         const miss = Object.keys(missing);
         if (miss.length) {
           return res.status(400).json({

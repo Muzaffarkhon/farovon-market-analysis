@@ -82,40 +82,47 @@ function validateSurveyItem(item, refs) {
   return { ok: true, value };
 }
 
-/**
- * Подпись содержимого записи. Совпала — значит запись прислали без изменений
- * (старый клиент шлёт весь список подразделения целиком при каждом сохранении).
- * Поля перечислены явно и в фиксированном порядке: ключ (компания/должность)
- * в подпись не входит — по нему записи и сопоставляются.
- */
-const SIGNATURE_FIELDS = [
-  'payFrom', 'payTo', 'cur', 'payPer', 'bonuses', 'bonHas', 'bonSize', 'bonType', 'bonPer',
-  'benefits', 'schedule', 'extra', 'source', 'trust', 'note', 'posTheir', 'grade'
+const REQUIRED_FIELDS = [
+  ['schedule', 'Укажите график работы'],
+  ['bonHas', 'Укажите, есть ли премии'],
+  ['source', 'Укажите источник данных'],
+  ['trust', 'Укажите надёжность']
 ];
 
-function contentSignature(o) {
-  const src = o || {};
-  return SIGNATURE_FIELDS.map(k => String(src[k] == null ? '' : src[k])).join('');
-}
-
 /**
- * Обязательные для начатой записи поля (ТЗ 11). Возвращает объект
- * «поле → текст ошибки»; пустой объект — всё на месте.
+ * Обязательные для начатой записи поля (ТЗ 11): «поле → текст ошибки»,
+ * пустой объект — всё на месте.
  *
- * bonHas ожидается СЫРЫМ (до bonusesLegacy): та подставляет 'не знаю' вместо
- * пустого, и по ней незаполненное поле уже не отличить от осознанного ответа.
+ * @param {object} incoming — что прислали (bonHas ожидается СЫРЫМ, до
+ *   bonusesLegacy: та подставляет 'не знаю' вместо пустого, и по ней
+ *   незаполненное поле уже не отличить от осознанного ответа).
+ * @param {object|null} stored — что лежит в базе по этому же ключу
+ *   «должность + компания», или null, если записи ещё нет.
+ *
+ * Правило: у НОВОЙ записи обязательны все четыре — именно так закрывается дыра
+ * «через API можно записать то, что интерфейс сохранить не даст». У
+ * СУЩЕСТВУЮЩЕЙ проверяются только те поля, которые в базе уже заполнены: их
+ * нельзя очистить, но неполную строку из импорта Excel (у импорта правила
+ * мягче — так задумано) можно переслать как есть. Без этого старый клиент,
+ * который шлёт весь список подразделения целиком при каждом сохранении, упёрся
+ * бы в чужую старую строку и не смог сохранить соседние записи.
+ *
+ * Сравнивать «изменилась ли запись» целиком намеренно не стали: пустой список
+ * премий в базе (NULL) и в запросе ('[]') выглядят по-разному, и нетронутая
+ * строка считалась бы изменённой.
  */
-function missingRequired(item) {
-  const src = item || {};
+function missingRequired(incoming, stored) {
+  const src = incoming || {};
   const fields = {};
-  if (!trim(src.schedule)) fields.schedule = 'Укажите график работы';
-  if (!trim(src.bonHas)) fields.bonHas = 'Укажите, есть ли премии';
-  if (!trim(src.source)) fields.source = 'Укажите источник данных';
-  if (!trim(src.trust)) fields.trust = 'Укажите надёжность';
+  for (const [key, message] of REQUIRED_FIELDS) {
+    if (trim(src[key])) continue;
+    const wasFilled = stored ? !!trim(stored[key]) : false;
+    if (!stored || wasFilled) fields[key] = message;
+  }
   return fields;
 }
 
 module.exports = {
   validateSurveyItem, isStarted, parseMoney, MAX_MONEY,
-  contentSignature, missingRequired, SIGNATURE_FIELDS
+  missingRequired, REQUIRED_FIELDS
 };

@@ -8,6 +8,7 @@ import type { PositionState } from '../../domain/progress';
 import { useScreenTitle } from '../shell/Shell';
 import { usePeriodId } from '../shell/usePeriodId';
 import { PositionCard } from './PositionCard';
+import { useSheetActions } from './useSheetActions';
 import { useUnitData } from './useUnitData';
 import s from './Survey.module.css';
 
@@ -28,8 +29,14 @@ export function UnitScreen() {
   const periodId = usePeriodId();
   const navigate = useNavigate();
   const data = useUnitData(decoded, periodId);
+  const actions = useSheetActions({
+    unit: decoded, periodId, groupKey: data.groupKey, groupUnits: data.groupUnits
+  });
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  // Какая должность сейчас отмечается — чтобы крутилка была на своей кнопке,
+  // а не на всех сразу.
+  const [pending, setPending] = useState('');
 
   const states = useMemo(() => {
     const map = new Map<string, PositionState>();
@@ -77,7 +84,10 @@ export function UnitScreen() {
             position={p}
             state={states.get(p)!}
             companies={data.selections[p] ?? []}
+            busy={pending === p}
             onOpen={() => navigate(`/survey/${encodeURIComponent(decoded)}/${encodeURIComponent(p)}${periodId ? `?period=${periodId}` : ''}`)}
+            onMarkNone={() => { setPending(p); void actions.setNoComparison(p).finally(() => setPending('')); }}
+            onClearNone={() => { setPending(p); void actions.clearNoComparison(p).finally(() => setPending('')); }}
           />
         ))}
         {!shown.length && <p className={s.empty}>Ничего не найдено.</p>}

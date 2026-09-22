@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { surveyApi } from '../../api/survey';
 import type { Survey, SurveyDraft } from '../../api/contract';
@@ -52,12 +53,18 @@ export function useUnitData(unit: string, periodId: number | null): UnitData {
 
   const div = session.allUnits.find(d => d.unit === unit);
   const groupKey = div?.group_key ?? '';
-  const groupUnits = groupKey ? session.allUnits.filter(d => d.group_key === groupKey).map(d => d.unit) : [];
+  const groupUnits = useMemo(
+    () => (groupKey ? session.allUnits.filter(d => d.group_key === groupKey).map(d => d.unit) : []),
+    [session.allUnits, groupKey]
+  );
 
-  const drafts = (q1.data?.surveys ?? []).map(surveyToDraft);
-  const selections = q2.data?.selections ?? {};
-  const noComparison = new Set(q2.data?.noComparison ?? []);
-  const positions = session.positionsByUnit[unit] ?? [];
+  // Всё, что уходит в зависимости эффектов на экранах, обязано быть
+  // стабильным между рендерами: иначе .map()/new Set() на каждом рендере
+  // запускают эффекты по кругу и лист перерисовывается бесконечно.
+  const drafts = useMemo(() => (q1.data?.surveys ?? []).map(surveyToDraft), [q1.data]);
+  const selections = useMemo(() => q2.data?.selections ?? {}, [q2.data]);
+  const noComparison = useMemo(() => new Set(q2.data?.noComparison ?? []), [q2.data]);
+  const positions = useMemo(() => session.positionsByUnit[unit] ?? [], [session.positionsByUnit, unit]);
 
   const stateOf = (position: string): PositionState => positionState({
     selected: selections[position] ?? [],

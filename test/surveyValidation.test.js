@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fx = require('./fixtures/surveyValidation.json');
 const {
-  validateSurveyItem, isStarted, parseMoney, contentSignature, missingRequired
+  validateSurveyItem, isStarted, parseMoney, missingRequired
 } = require('../src/services/surveyValidation');
 
 for (const c of fx.cases) {
@@ -32,39 +32,44 @@ test('requireForStarted:false не отключает остальные пра�
   assert.ok(r.fields.payFrom);
 });
 
-// ── Строгая проверка только для новых и изменённых записей ──────────────────
+// ── Обязательные поля: строго с новых, мягко с нетронутых старых ────────────
 // Старый клиент шлёт весь список подразделения целиком при каждом сохранении;
-// нетронутая неполная строка (импорт Excel) не должна блокировать сохранение.
+// неполная строка из импорта Excel не должна блокировать сохранение соседних.
 
-test('contentSignature: одинаковое содержимое — одинаковая подпись', () => {
-  const a = { payFrom: 100, payTo: 200, cur: 'сомони', schedule: '5/2', note: 'x' };
-  const b = { payFrom: '100', payTo: '200', cur: 'сомони', schedule: '5/2', note: 'x' };
-  assert.equal(contentSignature(a), contentSignature(b));
+const FULL = { schedule: '5/2', bonHas: 'нет', source: 'Опрос', trust: 'высокая' };
+const EMPTY = { schedule: '', bonHas: '', source: '', trust: '' };
+
+test('новая полная запись — пусто', () => {
+  assert.deepEqual(missingRequired(FULL, null), {});
 });
 
-test('contentSignature: изменение любого поля меняет подпись', () => {
-  const base = { payFrom: 100, schedule: '5/2', source: 'Опрос', trust: 'высокая' };
-  assert.notEqual(contentSignature(base), contentSignature({ ...base, payFrom: 101 }));
-  assert.notEqual(contentSignature(base), contentSignature({ ...base, trust: 'низкая' }));
-  assert.notEqual(contentSignature(base), contentSignature({ ...base, note: 'добавили' }));
-});
-
-test('contentSignature: null и пустая строка неразличимы (база отдаёт то одно, то другое)', () => {
-  assert.equal(contentSignature({ note: null }), contentSignature({ note: '' }));
-});
-
-test('missingRequired: полная запись — пусто', () => {
-  assert.deepEqual(missingRequired({ schedule: '5/2', bonHas: 'нет', source: 'Опрос', trust: 'высокая' }), {});
-});
-
-test('missingRequired: называет каждое недостающее поле', () => {
-  const m = missingRequired({ schedule: '', bonHas: '', source: ' ', trust: null });
+test('новая запись без обязательных — названы все четыре', () => {
+  const m = missingRequired({ schedule: '', bonHas: '', source: ' ', trust: null }, null);
   assert.deepEqual(Object.keys(m).sort(), ['bonHas', 'schedule', 'source', 'trust']);
 });
 
-test('missingRequired: пустое «есть ли премии» — ошибка (не путать с «не знаю»)', () => {
-  assert.ok(missingRequired({ schedule: '5/2', bonHas: '', source: 'Опрос', trust: 'высокая' }).bonHas);
-  assert.deepEqual(missingRequired({ schedule: '5/2', bonHas: 'не знаю', source: 'Опрос', trust: 'высокая' }), {});
+test('новая запись: пустое «есть ли премии» — ошибка, «не знаю» — нет', () => {
+  assert.ok(missingRequired({ ...FULL, bonHas: '' }, null).bonHas);
+  assert.deepEqual(missingRequired({ ...FULL, bonHas: 'не знаю' }, null), {});
+});
+
+test('нетронутая неполная строка из импорта проходит как есть', () => {
+  assert.deepEqual(missingRequired(EMPTY, EMPTY), {});
+});
+
+test('заполненное в базе поле нельзя очистить', () => {
+  const m = missingRequired({ ...FULL, trust: '' }, FULL);
+  assert.deepEqual(Object.keys(m), ['trust']);
+});
+
+test('у частично заполненной старой записи требуется только то, что уже было', () => {
+  const stored = { schedule: '5/2', bonHas: '', source: '', trust: '' };
+  assert.deepEqual(missingRequired(EMPTY, stored), { schedule: 'Укажите график работы' });
+});
+
+test('дозаполнение старой неполной записи не требует остального', () => {
+  const stored = EMPTY;
+  assert.deepEqual(missingRequired({ ...EMPTY, schedule: '6/1' }, stored), {});
 });
 
 test('parseMoney', () => {
