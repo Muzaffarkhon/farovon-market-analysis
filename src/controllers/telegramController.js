@@ -134,6 +134,41 @@ const SUPPORT_KEYBOARD = {
   }
 };
 
+// web_app требует HTTPS — на локальном http://localhost Telegram отклонит всё
+// сообщение с такой кнопкой, поэтому там же откатываемся на обычную url-кнопку
+// (встроенный браузер вместо полноэкранного Mini App). Общий хелпер для
+// resetAndSendCredentials и постоянной клавиатуры ниже — раньше эта логика
+// была продублирована на каждом месте отдельно.
+function webAppOpenButton(text) {
+  const platformUrl = config.webappUrl;
+  return /^https:\/\//i.test(platformUrl)
+    ? { text, web_app: { url: platformUrl } }
+    : { text, url: platformUrl };
+}
+
+const PROGRESS_LABEL = '📊 Мой прогресс';
+
+/**
+ * Единственная постоянная reply-клавиатура диалога — раньше клавиатуры
+ * менялись бессистемно (reply на /start, inline на /login, снова reply на
+ * /support) и REMOVE_KEYBOARD стирал их после первого же успешного шага,
+ * ничем не заменяя. Показываем эту клавиатуру после каждой успешной
+ * привязки/входа и держим её до явной отвязки (см. handleUnlink). Функция,
+ * не константа — `config.webappUrl` должен читаться на момент отправки, не
+ * застывать на моменте загрузки модуля (см. webAppOpenButton выше).
+ */
+function mainKeyboard() {
+  return {
+    reply_markup: {
+      keyboard: [
+        [webAppOpenButton('🚀 Открыть систему')],
+        [{ text: PROGRESS_LABEL }, { text: SUPPORT_TEXT_LABEL }]
+      ],
+      resize_keyboard: true
+    }
+  };
+}
+
 /**
  * Диплинк с токеном не всегда доезжает как готовое сообщение — часть клиентов
  * Telegram (особенно если чат с ботом уже когда-то открывали) просто
@@ -180,25 +215,21 @@ async function resetAndSendCredentials(user, source) {
     `⚠️ <i>Рекомендуем сменить этот пароль в профиле сразу после входа.</i>\n\n` +
     `🌐 <b>Ссылка на платформу:</b>\n${platformUrl}`;
 
-  // web_app открывает платформу как полноценный Telegram Mini App (на весь
-  // экран, без адресной строки, с интеграцией темы). Требует HTTPS — на
-  // локальном http://localhost падаем на обычную url-кнопку (встроенный
-  // браузер Telegram), иначе Telegram отклонит всё сообщение и пользователь
-  // останется без учётных данных.
-  const openButton = /^https:\/\//i.test(platformUrl)
-    ? { text: '🚀 Открыть «Обзор рынка»', web_app: { url: platformUrl } }
-    : { text: '🚀 Открыть «Обзор рынка»', url: platformUrl };
-
   // Сначала пытаемся доставить — и только если ушло, меняем хэш. Иначе при
   // недоступном боте пароль бы уже сменился, а пользователь остался бы без
   // нового (лок-аут).
   const sent = await sendTelegramMessage(user.telegram_chat_id, msg, {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [[openButton]]
+      inline_keyboard: [[webAppOpenButton('🚀 Открыть «Обзор рынка»')]]
     }
   });
   if (!sent) return { ok: false, reason: 'send_failed' };
+
+  // Восстанавливаем постоянную клавиатуру отдельным сообщением — Telegram не
+  // позволяет одновременно inline- и reply-разметку на одном сообщении, а
+  // кнопка выше нужна именно inline (открывает конкретно эти учётные данные).
+  await sendTelegramMessage(user.telegram_chat_id, 'Готово. Кнопки ниже 👇', mainKeyboard());
 
   await run('UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ?', [
     bcrypt.hashSync(tempPassword, 12),
@@ -218,6 +249,11 @@ async function resetAndSendCredentials(user, source) {
 }
 
 exports.resetAndSendCredentials = resetAndSendCredentials;
+// Для юнит-тестов клавиатуры (не бизнес-логика, но должны совпадать
+// подписи и переключение web_app/url по протоколу).
+exports.webAppOpenButton = webAppOpenButton;
+exports.mainKeyboard = mainKeyboard;
+exports.PROGRESS_LABEL = PROGRESS_LABEL;
 
 /** Запрос логина и генерация нового пароля после привязки Telegram */
 async function handleLogin(chatId) {
@@ -252,14 +288,14 @@ async function handleStart(chatId, token) {
       ]);
       await sendTelegramMessage(chatId,
         `Готово, ${escHtml(user.fio)}! Telegram привязан — теперь сюда будут приходить напоминания о заполнении обзора рынка.\n\n${HELP_TEXT}`,
-        REMOVE_KEYBOARD);
+        mainKeyboard());
       return;
     }
   }
 
   const already = await findByChatId(chatId);
   if (already) {
-    await sendTelegramMessage(chatId, `Здравствуйте, ${escHtml(already.fio)}! Аккаунт уже привязан.\n\n${HELP_TEXT}`, REMOVE_KEYBOARD);
+    await sendTelegramMessage(chatId, `Здравствуйте, ${escHtml(already.fio)}! Аккаунт уже привязан.\n\n${HELP_TEXT}`, mainKeyboard());
     return;
   }
 
@@ -317,7 +353,7 @@ async function handleContact(chatId, fromId, contact) {
   ]);
   await sendTelegramMessage(chatId,
     `Готово, ${escHtml(match.fio)}! Telegram привязан по номеру телефона.\n\n${HELP_TEXT}`,
-    REMOVE_KEYBOARD);
+    mainKeyboard());
 }
 
 /** «Мои подразделения» — тот же прогресс, что на экране «Мои подразделения» в приложении,
@@ -381,7 +417,11 @@ async function handleUnlink(chatId) {
   if (!user) { await sendTelegramMessage(chatId, NOT_LINKED_MSG, SUPPORT_KEYBOARD); return; }
 
   await run('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id]);
-  await sendTelegramMessage(chatId, `Telegram отвязан от аккаунта ${escHtml(user.fio)}. Привязать заново — командой /link.`);
+  await sendTelegramMessage(
+    chatId,
+    `Telegram отвязан от аккаунта ${escHtml(user.fio)}. Привязать заново — командой /link.`,
+    REMOVE_KEYBOARD
+  );
 }
 
 /** Старые сообщения с inline-кнопками «Да, отвязать»/«Отмена» могли остаться
@@ -526,10 +566,14 @@ async function processTelegramUpdate(body) {
   // не приходилось помнить /support.
   if (/^\/help\b/i.test(text)) { await sendTelegramMessage(chatId, HELP_TEXT, SUPPORT_KEYBOARD); return; }
 
-  // Та же кнопка «Написать администратору», но текстовая (на CONTACT_KEYBOARD,
-  // видна ещё до попытки распознать номер) — не текст в переписку, а
-  // открытие/переоткрытие треда, как и её инлайн-версия (support:start).
+  // Та же кнопка «Написать администратору», но текстовая (на CONTACT_KEYBOARD
+  // и на постоянной mainKeyboard(), видна ещё до попытки распознать номер) —
+  // не текст в переписку, а открытие/переоткрытие треда, как и её
+  // инлайн-версия (support:start).
   if (text === SUPPORT_TEXT_LABEL) { await openSupportThreadForGuest(chatId); return; }
+
+  // Кнопка «Мой прогресс» на постоянной клавиатуре — та же команда, что /status.
+  if (text === PROGRESS_LABEL) { await handleStatus(chatId); return; }
 
   // «Частые вопросы» — самообслуживание: показываем вопрос+ответ сразу, не
   // отправляем нажатие в тред и не ждём администратора. Клавиатура при этом

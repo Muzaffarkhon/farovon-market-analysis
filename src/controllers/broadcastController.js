@@ -96,13 +96,15 @@ async function send(req, res) {
     const broadcastId = Number(ins.lastInsertRowid || ins.insertId || 0);
 
     const platformUrl = config.webappUrl;
-    // Telegram отклоняет сообщение целиком, если адрес кнопки не https
-    // (локальный http://localhost) — тогда шлём без кнопки, а не теряем рассылку.
+    // web_app требует https (Mini App на весь экран) — на локальном
+    // http://localhost откатываемся на обычную url-кнопку (встроенный
+    // браузер), как и везде в боте (см. webAppOpenButton в telegramController).
     const options = { parse_mode: 'HTML' };
-    if (withButton && /^https:\/\//i.test(platformUrl)) {
-      options.reply_markup = {
-        inline_keyboard: [[{ text: '🚀 Открыть «Обзор рынка»', web_app: { url: platformUrl } }]]
-      };
+    if (withButton) {
+      const openButton = /^https:\/\//i.test(platformUrl)
+        ? { text: '🚀 Открыть «Обзор рынка»', web_app: { url: platformUrl } }
+        : { text: '🚀 Открыть «Обзор рынка»', url: platformUrl };
+      options.reply_markup = { inline_keyboard: [[openButton]] };
     }
     const text = `📢 ${escHtml(body)}`;
 
