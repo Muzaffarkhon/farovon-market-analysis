@@ -17,7 +17,10 @@
 /* Таблица прокручивается внутри себя: только так шапка колонок остаётся
    на виду (overflow-x делает обёртку контейнером прокрутки, и sticky
    считается уже от неё, а не от окна). */
-.tableWrap { overflow: auto; max-height: calc(100dvh - 240px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+/* height, не max-height — иначе короткая выдача (мало строк) сжимает бокс
+   таблицы под контент, и полоса прокрутки/нижняя граница повисает
+   посередине страницы вместо того, чтобы стоять у самого низа. */
+.tableWrap { overflow: auto; height: calc(100dvh - 240px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
