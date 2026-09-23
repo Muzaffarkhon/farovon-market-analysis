@@ -4,7 +4,7 @@ import { Button } from '../../design/Button';
 import { Sheet } from '../../design/Sheet';
 import { useSessionData } from '../auth/useSession';
 import { scheduleLabel } from '../../domain/schedule';
-import { money, payRange, perLabel, shortDate } from './format';
+import { money, payRange, perLabel, recordSourceLabel, shortDate } from './format';
 import s from './Registry.module.css';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -44,6 +44,7 @@ export function RecordSheet({ row, onClose }: { row: RegistryRow | null; onClose
         <div className={s.recGrid}>
           <Row label="Дата">{shortDate(row.date)}</Row>
           <Row label="Кто собрал">{row.by || '—'}</Row>
+          <Row label="Источник записи">{recordSourceLabel(row.recordSource)}</Row>
           <Row label="Направление">{row.dir || '—'}</Row>
           <Row label="Подразделение">{row.unit || '—'}</Row>
           <Row label="Регион">{row.region || '—'}</Row>

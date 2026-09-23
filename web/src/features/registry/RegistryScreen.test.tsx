@@ -21,7 +21,7 @@ const row = (over: Partial<RegistryRow> = {}): RegistryRow => ({
   payFrom: 3000, payTo: 5000, cur: 'сомони', payPer: 'в месяц',
   bonHas: 'нет', bonuses: [], varPay: { has: false, label: 'без премии', monthly: null }, totalMonthly: 4000,
   benefits: ['ДМС'], extra: '', schedule: '5/2 · 40 часов',
-  source: 'Интервью', trust: 'высокая', note: '', ...over
+  source: 'Интервью', trust: 'высокая', note: '', recordSource: 'manual', ...over
 });
 
 const answer = (over: Partial<RegistryResponse> = {}): RegistryResponse => ({
@@ -30,7 +30,7 @@ const answer = (over: Partial<RegistryResponse> = {}): RegistryResponse => ({
   facets: {
     dirs: ['Дивизион Север'], hrbps: ['Иванов И.'], regions: ['Худжанд'], units: ['Цех 1'],
     companies: ['Алиф', 'Сиёма'], sources: ['Интервью'], trusts: ['высокая'],
-    schedules: ['5/2 · 40 часов'], currencies: ['сомони'], grades: ['G7']
+    schedules: ['5/2 · 40 часов'], currencies: ['сомони'], grades: ['G7'], recordSources: ['manual', 'import']
   },
   scoped: false, period: { id: 1, name: '2026' }, ...over
 });
@@ -100,7 +100,10 @@ test('колонки надёжности, источника и графика 
   renderScreen();
   await screen.findByRole('cell', { name: 'Алиф' });
   expect(screen.getByRole('columnheader', { name: /Надёжность/ })).toBeInTheDocument();
-  expect(screen.getByRole('columnheader', { name: /Источник/ })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: /^Источник↑?↓?$/ })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: /Источник записи/ })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: /^Комментарий/ })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: /Прочие выплаты/ })).toBeInTheDocument();
   expect(screen.getByRole('columnheader', { name: /График/ })).toBeInTheDocument();
   expect(screen.getByRole('columnheader', { name: /Грейд/ })).toBeInTheDocument();
 });
@@ -143,12 +146,14 @@ test('каждая колонка таблицы сортируется', async 
     'Регион': 'region', 'Наша должность': 'posOur', 'У них': 'posTheir', 'Грейд': 'grade',
     'Оклад от': 'payFrom', 'Оклад до': 'payTo', 'Вал. / период': 'cur',
     'Переменная часть': 'varPayMonthly', 'Совокупно, мес.': 'totalMonthly',
-    'Льготы': 'benefitsCount', 'График': 'schedule', 'Источник': 'source',
-    'Надёжность': 'trust', 'Кто собрал': 'by'
+    'Льготы': 'benefitsCount', 'Прочие выплаты': 'extra', 'График': 'schedule', 'Источник': 'source',
+    'Надёжность': 'trust', 'Комментарий': 'note', 'Кто собрал': 'by', 'Источник записи': 'recordSource'
   };
   for (const [title, key] of Object.entries(sortKeys)) {
     // «Дата» — колонка сортировки по умолчанию, у неё уже стоит стрелка (↓).
-    await userEvent.click(screen.getByRole('button', { name: new RegExp('^' + title) }));
+    // Заголовок сравнивается точно (с необязательной стрелкой ↑/↓ после) —
+    // иначе «Источник» по префиксу задевает и «Источник записи».
+    await userEvent.click(screen.getByRole('button', { name: new RegExp('^' + title + '(↑|↓)?$') }));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: key })));
   }
 }, 15000);
@@ -273,10 +278,11 @@ test('кнопка «Фильтры» открывает панель со вс�
   expect(screen.queryByLabelText('Компания')).not.toBeInTheDocument();
   await openFilters();
   const panel = screen.getByRole('dialog', { name: 'Фильтры' });
-  for (const label of ['Направление', 'Подразделение', 'Регион', 'Компания', 'Грейд', 'График', 'Источник', 'Надёжность', 'Валюта', 'HR BP']) {
+  for (const label of ['Направление', 'Подразделение', 'Регион', 'Компания', 'Грейд', 'График', 'Источник', 'Надёжность', 'Валюта', 'HR BP', 'Источник записи']) {
     expect(within(panel).getByLabelText(label)).toBeInTheDocument();
   }
   expect(within(panel).getByRole('button', { name: /Только с окладом/ })).toBeInTheDocument();
+  expect(within(panel).getByRole('button', { name: /Только с прочими выплатами/ })).toBeInTheDocument();
 });
 
 test('выбранный фильтр виден над таблицей и снимается одним нажатием', async () => {

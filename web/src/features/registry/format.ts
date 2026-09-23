@@ -33,3 +33,13 @@ export function shortDir(v: string): string {
 
 export const UNMAPPED = '(не сопоставлено)';
 export const isUnmapped = (row: Pick<RegistryRow, 'posOur'>) => !row.posOur || row.posOur === UNMAPPED;
+
+/** Свободный текст (комментарий, прочие выплаты) в таблице — коротко, полный текст в title. */
+export function truncate(v: string, max = 40): string {
+  const s = String(v || '');
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+/** «Источник записи» — вручную заведена или пришла импортом из Excel (см. recordSourceOf в registryService.js). */
+export const RECORD_SOURCE_LABEL: Record<string, string> = { manual: 'Вручную', import: 'Импорт из Excel' };
+export const recordSourceLabel = (v: string) => RECORD_SOURCE_LABEL[v] ?? v;

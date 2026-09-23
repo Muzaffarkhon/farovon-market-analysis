@@ -91,11 +91,13 @@ export interface RegistryRow {
   bonHas: string; bonuses: Bonus[]; varPay: VarPay; totalMonthly: number | null;
   benefits: string[]; extra: string; schedule: string;
   source: string; trust: string; note: string;
+  recordSource: 'manual' | 'import';
 }
 
 export interface RegistryFacets {
   dirs: string[]; hrbps: string[]; regions: string[]; units: string[]; companies: string[];
   sources: string[]; trusts: string[]; schedules: string[]; currencies: string[]; grades: string[];
+  recordSources: string[];
 }
 
 export interface RegistryResponse {
@@ -114,7 +116,8 @@ export interface RegistryFilters {
   search?: string;
   dir?: string; hrbp?: string; region?: string; unit?: string; company?: string;
   posOur?: string; source?: string; trust?: string; schedule?: string; cur?: string; grade?: string;
-  onlyUnmapped?: boolean; withPayOnly?: boolean;
+  recordSource?: string;
+  onlyUnmapped?: boolean; withPayOnly?: boolean; withExtraOnly?: boolean;
   sort?: string; order?: 'asc' | 'desc';
   page?: number; perPage?: number;
 }

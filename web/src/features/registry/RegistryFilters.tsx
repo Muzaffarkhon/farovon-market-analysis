@@ -5,12 +5,17 @@ import { Combobox } from '../../design/Combobox';
 import { Select } from '../../design/Select';
 import { Sheet } from '../../design/Sheet';
 import { scheduleLabel } from '../../domain/schedule';
+import { recordSourceLabel } from './format';
 import { PICKERS, type useRegistry } from './useRegistry';
 import s from './Registry.module.css';
 
 type Registry = ReturnType<typeof useRegistry>;
 
-const pickerLabel = (facet: string, v: string) => (facet === 'schedules' ? scheduleLabel(v) : v);
+const pickerLabel = (facet: string, v: string) => {
+  if (facet === 'schedules') return scheduleLabel(v);
+  if (facet === 'recordSources') return recordSourceLabel(v);
+  return v;
+};
 // Длинные справочники (сотни подразделений/компаний) — с поиском; короткие
 // перечисления (регион, грейд, график и т.п.) хватает обычного select.
 const SEARCHABLE = new Set(['unit', 'company']);
@@ -61,6 +66,9 @@ export function RegistryFilters({ r, open, onClose }: { r: Registry; open: boole
         <Chip active={!!r.filters.withPayOnly} onClick={() => r.patch({ withPayOnly: !r.filters.withPayOnly || undefined })}>
           Только с окладом
         </Chip>
+        <Chip active={!!r.filters.withExtraOnly} onClick={() => r.patch({ withExtraOnly: !r.filters.withExtraOnly || undefined })}>
+          Только с прочими выплатами
+        </Chip>
       </div>
     </Sheet>
   );
@@ -75,6 +83,7 @@ export function ActiveFilters({ r }: { r: Registry }) {
   }
   if (r.filters.onlyUnmapped) items.push({ key: 'onlyUnmapped', text: 'Только несопоставленные', clear: () => r.patch({ onlyUnmapped: undefined }) });
   if (r.filters.withPayOnly) items.push({ key: 'withPayOnly', text: 'Только с окладом', clear: () => r.patch({ withPayOnly: undefined }) });
+  if (r.filters.withExtraOnly) items.push({ key: 'withExtraOnly', text: 'Только с прочими выплатами', clear: () => r.patch({ withExtraOnly: undefined }) });
   if (!items.length) return null;
   return (
     <div className={s.flags}>

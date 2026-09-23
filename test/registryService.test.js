@@ -85,17 +85,39 @@ test('фильтры складываются', () => {
   assert.equal(build(mixed, { company: 'Алиф', trust: 'низкая' }).total, 0);
 });
 
-test('поиск идёт по компании, должностям, подразделению и автору', () => {
+test('поиск идёт по компании, должностям, подразделению, автору и комментарию', () => {
   assert.equal(build(mixed, { search: 'сварщик' }).total, 1);
   assert.equal(build(mixed, { search: 'алиф' }).total, 2);
   assert.equal(build(mixed, { search: 'hrbp1' }).total, 3);
   assert.equal(build(mixed, { search: 'ничего' }).total, 0);
+  const withNote = [survey({ note: 'уточнить у бухгалтерии' })];
+  assert.equal(build(withNote, { search: 'бухгалтер' }).total, 1);
 });
 
-test('«только несопоставленные» и «только с окладом»', () => {
-  const rows = [survey(), survey({ id: 2, sid: 's2', pos_our: '(не сопоставлено)' }), survey({ id: 3, sid: 's3', pay_from: 0, pay_to: 0 })];
+test('«только несопоставленные», «только с окладом», «только с прочими выплатами»', () => {
+  const rows = [
+    survey(), survey({ id: 2, sid: 's2', pos_our: '(не сопоставлено)' }),
+    survey({ id: 3, sid: 's3', pay_from: 0, pay_to: 0 }),
+    survey({ id: 4, sid: 's4', extra: 'ГСМ компенсация' })
+  ];
   assert.equal(build(rows, { onlyUnmapped: true }).total, 1);
-  assert.equal(build(rows, { withPayOnly: true }).total, 2);
+  assert.equal(build(rows, { withPayOnly: true }).total, 3);
+  assert.equal(build(rows, { withExtraOnly: true }).total, 1);
+});
+
+// ── Источник записи (вручную / импорт) ──────────────────────────────────────
+
+test('sid с префиксом s_ — запись вручную, imp_ — импорт из Excel', () => {
+  const manual = build([survey({ sid: 's_abc' })]).rows[0];
+  const imported = build([survey({ sid: 'imp_abc' })]).rows[0];
+  assert.equal(manual.recordSource, 'manual');
+  assert.equal(imported.recordSource, 'import');
+});
+
+test('источник записи фильтруется и попадает в грани', () => {
+  const rows = [survey({ sid: 's_a' }), survey({ id: 2, sid: 'imp_b' })];
+  assert.deepEqual(build(rows).facets.recordSources.sort(), ['import', 'manual']);
+  assert.equal(build(rows, { recordSource: 'import' }).total, 1);
 });
 
 // ── Грани ──────────────────────────────────────────────────────────────────
@@ -135,9 +157,17 @@ test('сортировка по полю вне белого списка отк
     survey({ id: 1, sid: 'a', created_at: '2026-09-01 10:00:00', note: 'я' }),
     survey({ id: 2, sid: 'b', created_at: '2026-09-05 10:00:00', note: 'а' })
   ];
-  // По примечанию «а» шла бы первой; раз первой идёт ранняя дата — сортировка
-  // по чужой колонке откинута, а запрошенный порядок сохранён.
-  assert.equal(build(rows, { sort: 'note', order: 'asc' }).rows[0].id, 'a');
+  // Поля не из SORTABLE (выдуманное имя) откатываются на дату — запрошенный
+  // порядок сохранён, а не наугад что-то ещё.
+  assert.equal(build(rows, { sort: 'not_a_real_column', order: 'asc' }).rows[0].id, 'a');
+});
+
+test('комментарий (примечание) тоже сортируется — колонка «Комментарий» кликабельна как остальные', () => {
+  const rows = [
+    survey({ id: 1, sid: 'a', note: 'я' }),
+    survey({ id: 2, sid: 'b', note: 'а' })
+  ];
+  assert.equal(build(rows, { sort: 'note', order: 'asc' }).rows[0].id, 'b');
 });
 
 test('страница режется по размеру, номер зажимается в границы', () => {

@@ -13,7 +13,7 @@ import { useScreenTitle } from '../shell/Shell';
 import { RecordSheet } from './RecordSheet';
 import { ActiveFilters, RegistryFilters } from './RegistryFilters';
 import { useRegistry } from './useRegistry';
-import { isUnmapped, money, payRange, perLabel, shortDate, shortDir } from './format';
+import { isUnmapped, money, payRange, perLabel, recordSourceLabel, shortDate, shortDir, truncate } from './format';
 import s from './Registry.module.css';
 
 /**
@@ -37,10 +37,13 @@ const COLUMNS: { key: string; title: string; num?: boolean }[] = [
   { key: 'varPayMonthly', title: 'Переменная часть' },
   { key: 'totalMonthly', title: 'Совокупно, мес.', num: true },
   { key: 'benefitsCount', title: 'Льготы' },
+  { key: 'extra', title: 'Прочие выплаты' },
   { key: 'schedule', title: 'График' },
   { key: 'source', title: 'Источник' },
   { key: 'trust', title: 'Надёжность' },
-  { key: 'by', title: 'Кто собрал' }
+  { key: 'note', title: 'Комментарий' },
+  { key: 'by', title: 'Кто собрал' },
+  { key: 'recordSource', title: 'Источник записи' }
 ];
 const COLUMN_KEYS = COLUMNS.map(c => c.key);
 
@@ -60,10 +63,13 @@ const CELLS: Record<string, (row: RegistryRow) => { className?: string; title?: 
   varPayMonthly: row => ({ node: row.varPay.label || '—' }),
   totalMonthly: row => ({ className: s.num, node: row.totalMonthly != null ? money(row.totalMonthly) : '—' }),
   benefitsCount: row => ({ node: row.benefits.length ? <Badge tone="ok">{row.benefits.length}</Badge> : <span className={s.muted}>—</span> }),
+  extra: row => ({ className: s.nowrap, title: row.extra || undefined, node: row.extra ? truncate(row.extra) : <span className={s.muted}>—</span> }),
   schedule: row => ({ node: row.schedule ? scheduleLabel(row.schedule) : '—' }),
   source: row => ({ node: row.source || '—' }),
   trust: row => ({ node: row.trust || '—' }),
-  by: row => ({ node: row.by || '—' })
+  note: row => ({ className: s.nowrap, title: row.note || undefined, node: row.note ? truncate(row.note) : <span className={s.muted}>—</span> }),
+  by: row => ({ node: row.by || '—' }),
+  recordSource: row => ({ node: recordSourceLabel(row.recordSource) })
 };
 
 export function RegistryScreen() {

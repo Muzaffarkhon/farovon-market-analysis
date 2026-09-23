@@ -15,12 +15,13 @@ export const PICKERS = [
   { key: 'source', facet: 'sources', label: 'Источник' },
   { key: 'trust', facet: 'trusts', label: 'Надёжность' },
   { key: 'cur', facet: 'currencies', label: 'Валюта' },
-  { key: 'hrbp', facet: 'hrbps', label: 'HR BP' }
+  { key: 'hrbp', facet: 'hrbps', label: 'HR BP' },
+  { key: 'recordSource', facet: 'recordSources', label: 'Источник записи' }
 ] as const;
 
 export type PickerKey = (typeof PICKERS)[number]['key'];
 
-const FLAGS = ['onlyUnmapped', 'withPayOnly'] as const;
+const FLAGS = ['onlyUnmapped', 'withPayOnly', 'withExtraOnly'] as const;
 
 /** Сколько фильтров реально выбрано — число на кнопке «Фильтры». */
 export function activeCount(f: RegistryFilters): number {

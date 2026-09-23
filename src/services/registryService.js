@@ -27,7 +27,7 @@ const MAX_PER_PAGE = 200;
 const SORTABLE = [
   'date', 'company', 'unit', 'dir', 'posOur', 'posTheir', 'grade', 'region',
   'payFrom', 'payTo', 'cur', 'varPayMonthly', 'benefitsCount', 'totalMonthly',
-  'schedule', 'source', 'trust', 'by'
+  'schedule', 'source', 'trust', 'by', 'extra', 'note', 'recordSource'
 ];
 
 /** Числовые колонки — сравниваются как числа, а не строкой («9» после «10»). */
@@ -46,15 +46,25 @@ function numericValue(row, key) {
 /** Поля-грани: из них собираются выпадающие списки фильтров. */
 const FACETS = {
   dirs: 'dir', hrbps: 'hrbp', regions: 'region', units: 'unit', companies: 'company',
-  sources: 'source', trusts: 'trust', schedules: 'schedule', currencies: 'cur', grades: 'grade'
+  sources: 'source', trusts: 'trust', schedules: 'schedule', currencies: 'cur', grades: 'grade',
+  recordSources: 'recordSource'
 };
 
 /** Фильтры «поле равно значению». Ключ фильтра → поле строки. */
 const EXACT = {
   dir: 'dir', hrbp: 'hrbp', region: 'region', unit: 'unit', company: 'company',
   posOur: 'posOur', source: 'source', trust: 'trust', schedule: 'schedule',
-  cur: 'cur', grade: 'grade', bonHas: 'bonHas'
+  cur: 'cur', grade: 'grade', bonHas: 'bonHas', recordSource: 'recordSource'
 };
+
+/** «Вручную» / «Импорт из Excel» — сид анкеты, заведённой импортом, всегда
+ * начинается с imp_ (см. surveyImport.js), у обычной записи — с s_ (newRowId
+ * в surveyController.js). Отдельного столбца в схеме заводить не пришлось —
+ * признак уже целиком в существующем ключе. */
+const RECORD_SOURCE_LABEL = { manual: 'Вручную', import: 'Импорт из Excel' };
+function recordSourceOf(sid) {
+  return String(sid || '').startsWith('imp_') ? 'import' : 'manual';
+}
 
 const trim = (v) => String(v == null ? '' : v).trim();
 const low = (v) => trim(v).toLowerCase();
@@ -124,14 +134,16 @@ function toRow(s, unitInfo) {
     schedule: trim(s.schedule),
     source: trim(s.source),
     trust: trim(s.trust),
-    note
+    note,
+    recordSource: recordSourceOf(s.sid)
   };
 }
 
-/** Поиск идёт по тому, что человек реально помнит: компания, должности, кто собрал. */
+/** Поиск идёт по тому, что человек реально помнит: компания, должности, кто собрал,
+ * и по комментарию — свободный текст, единственное место, где его можно найти. */
 function matchesSearch(row, q) {
   if (!q) return true;
-  return [row.company, row.posOur, row.posTheir, row.by, row.unit, row.dir, row.region]
+  return [row.company, row.posOur, row.posTheir, row.by, row.unit, row.dir, row.region, row.note]
     .some(v => low(v).includes(q));
 }
 
@@ -144,6 +156,7 @@ function applyFilters(rows, f) {
     }
     if (f.onlyUnmapped && !isUnmapped(row)) return false;
     if (f.withPayOnly && !(row.payFrom > 0 || row.payTo > 0)) return false;
+    if (f.withExtraOnly && !row.extra) return false;
     return matchesSearch(row, q);
   });
 }
@@ -260,13 +273,15 @@ const CSV_COLUMNS = [
   ['grade', 'Грейд'], ['payFrom', 'Оклад от'], ['payTo', 'Оклад до'], ['cur', 'Валюта'],
   ['payPer', 'Период выплаты'], ['varPay', 'Переменная часть'], ['totalMonthly', 'Совокупно, мес.'], ['benefits', 'Льготы'],
   ['extra', 'Прочие выплаты'], ['schedule', 'График'], ['source', 'Источник'],
-  ['trust', 'Надёжность'], ['by', 'Кто собрал'], ['note', 'Примечание']
+  ['trust', 'Надёжность'], ['by', 'Кто собрал'], ['note', 'Примечание'],
+  ['recordSourceLabel', 'Источник записи']
 ];
 
 /** Значение ячейки как текст — списки и свёртки разворачиваем читаемо. */
 function cellText(row, key) {
   if (key === 'benefits') return (row.benefits || []).join(', ');
   if (key === 'varPay') return (row.varPay && row.varPay.label) || '';
+  if (key === 'recordSourceLabel') return RECORD_SOURCE_LABEL[row.recordSource] || '';
   const v = row[key];
   return v == null ? '' : String(v);
 }
