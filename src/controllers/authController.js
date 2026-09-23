@@ -80,17 +80,32 @@ function makeToken(user, sessionStart) {
 // #22 — сессия дублируется в httpOnly-куку. В обычном браузере (одно
 // происхождение) её хватает; фронт тогда не кладёт токен в localStorage.
 const SESSION_COOKIE = 'farovon_session';
+const CSRF_COOKIE = 'farovon_csrf';
+const SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
 function setSessionCookie(res, token) {
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: config.nodeEnv === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: SESSION_COOKIE_MAX_AGE,
+    path: '/'
+  });
+  // CSRF (double-submit cookie, см. middleware/csrf.js) — не httpOnly
+  // специально, её должен прочитать клиентский JS. Ставится вместе с
+  // сессионной на каждый вход/резюме сессии, одним и тем же вызовом,
+  // чтобы не забыть добавить в новую точку логина в будущем.
+  res.cookie(CSRF_COOKIE, crypto.randomBytes(24).toString('hex'), {
+    httpOnly: false,
+    secure: config.nodeEnv === 'production',
+    sameSite: 'lax',
+    maxAge: SESSION_COOKIE_MAX_AGE,
     path: '/'
   });
 }
 exports.logout = async (req, res) => {
   res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.clearCookie(CSRF_COOKIE, { path: '/' });
   res.json({ ok: true });
 };
 
@@ -697,6 +712,7 @@ exports.resume = async (req, res) => {
     const sessStart = Number(req.tokenClaims && req.tokenClaims.sess) || 0;
     if (sessStart && Date.now() - sessStart > SESSION_MAX_AGE_MS) {
       res.clearCookie(SESSION_COOKIE, { path: '/' });
+      res.clearCookie(CSRF_COOKIE, { path: '/' });
       return res.status(401).json({
         ok: false, error: 'SESSION_EXPIRED',
         message: 'Сессия истекла — войдите заново'

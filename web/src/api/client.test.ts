@@ -31,3 +31,23 @@ test('обрыв сети — статус 0 и понятный текст', as
   globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as never;
   await expect(request('/x')).rejects.toMatchObject({ status: 0, message: 'Нет связи с сервером' });
 });
+
+test('CSRF: заголовок X-CSRF-Token добавляется на не-GET из куки', async () => {
+  document.cookie = 'farovon_csrf=test-token-123';
+  mockFetch(200, { ok: true });
+  await request('/x', {});
+  const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+  const [, init] = fetchMock.mock.calls[0];
+  expect(init.headers['X-CSRF-Token']).toBe('test-token-123');
+  document.cookie = 'farovon_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+});
+
+test('CSRF: заголовок не добавляется на GET', async () => {
+  document.cookie = 'farovon_csrf=test-token-123';
+  mockFetch(200, { ok: true });
+  await request('/auth/resume');
+  const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+  const [, init] = fetchMock.mock.calls[0];
+  expect(init.headers).toBeUndefined();
+  document.cookie = 'farovon_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+});

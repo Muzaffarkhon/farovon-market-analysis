@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { authMiddleware, requireRoles, requireCapability } = require('../middleware/auth');
+const { csrfProtect } = require('../middleware/csrf');
 const { apiLimiter, authLimiter, webhookLimiter } = require('../middleware/rateLimit');
 const refCache = require('../services/refCache');
 const authController = require('../controllers/authController');
@@ -44,6 +45,13 @@ router.get('/telegram/bot-info', telegramController.botInfo);
 
 // ─── Защищенные роуты (требуют JWT) ───
 router.use(authMiddleware);
+// CSRF (double-submit cookie, см. middleware/csrf.js) — только для
+// запросов, аутентифицированных кукой сессии; заголовок Authorization/
+// X-Token (Telegram Mini App) освобождён от проверки внутри самого
+// csrfProtect. Публичные роуты выше (login/logout/telegram/webhook/cron)
+// её не проходят вовсе — они либо ещё без сессии, либо защищены своим
+// секретом.
+router.use(csrfProtect);
 
 // Сброс кэша справочников (src/services/refCache.js) после успешной правки,
 // затрагивающей справочные наборы. Один хук вместо invalidate() в каждом

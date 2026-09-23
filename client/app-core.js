@@ -741,7 +741,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function uid(){ return 'tmp' + Math.random().toString(36).slice(2,10); }
 
-var APP_VERSION = window.APP_VERSION || 'v2.5.164';
+var APP_VERSION = window.APP_VERSION || 'v2.5.165';
 window.APP_VERSION = APP_VERSION;
 
 /** «Валиев Максудчон Абдуганиевич» → «Валиев М. А.» (фамилия + инициалы).
@@ -1983,6 +1983,16 @@ function busyEnd(){
   }
 }
 
+// Двойная отправка токена (CSRF) — см. src/middleware/csrf.js. Кука
+// farovon_csrf не httpOnly специально: её должен прочитать этот код и
+// вернуть тем же значением в заголовке. Проверяется только для запросов
+// по куке сессии — если есть Authorization (Mini App), сервер её не
+// требует, но послать не вредно.
+function readCsrfCookie(){
+  var m = /(?:^|;\s*)farovon_csrf=([^;]+)/.exec(document.cookie || '');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 function fetchJson(url, opts){
   opts = opts || {};
   var headers = { 'Content-Type': 'application/json' };
@@ -1998,6 +2008,10 @@ function fetchJson(url, opts){
     credentials: 'include'
   };
   var isMutating = (conf.method === 'POST' || conf.method === 'PUT');
+  if(isMutating){
+    var csrfToken = readCsrfCookie();
+    if(csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  }
   if(opts.body && isMutating) {
     conf.body = JSON.stringify(opts.body);
   }
