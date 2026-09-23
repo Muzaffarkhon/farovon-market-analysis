@@ -1,6 +1,11 @@
+/* Фон панели заметно отличается от фона страницы (surface-2, не surface) —
+   иначе на белой теме граница почти не видна (0.8px), и панель без единого
+   пункта в нижней части выглядит «обрезанной», хотя её бокс честно растянут
+   на всю высоту. */
 .sidebar {
-  flex: none; width: 220px; display: flex; flex-direction: column;
-  background: var(--surface); border-right: 1px solid var(--border);
+  flex: none; align-self: flex-start; position: sticky; top: 0;
+  width: 220px; height: 100dvh; display: flex; flex-direction: column;
+  background: var(--surface-2); border-right: 1px solid var(--border);
   transition: width .15s ease;
 }
 .sidebar.collapsed { width: 56px; }
@@ -8,22 +13,21 @@
 .brand {
   display: flex; align-items: center; gap: var(--s-2); min-height: 56px;
   padding: 0 var(--s-2) 0 var(--s-3); border-bottom: 1px solid var(--border);
+  border-left: 0; border-right: 0; border-top: 0;
+  background: transparent; width: 100%; cursor: pointer; text-align: left;
 }
+.brand:hover { background: var(--surface); }
 .brandMark {
   flex: none; width: 28px; height: 28px; border-radius: var(--r-sm);
-  background: var(--accent); color: var(--accent-text);
+  background: linear-gradient(135deg, var(--accent), var(--accent)); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; letter-spacing: .02em;
 }
-.brandName { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.collapseBtn {
-  flex: none; width: 28px; height: 28px; border: 0; background: transparent; border-radius: var(--r-sm);
-  color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1;
-}
-.collapseBtn:hover { background: var(--surface-2); color: var(--text); }
-/* Свёрнуто: рядом с узкой полосой нет места на весь ряд — остаётся только
-   сама кнопка-разворот (это она же и становится «логотипом»). */
-.collapsed .brandName, .collapsed .brandMark { display: none; }
+.brandText { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.brandName { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brandSub { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+/* Свёрнуто: остаётся только сама иконка, по центру узкой полосы — она же
+   кнопка разворота, отдельной стрелки нет. */
+.collapsed .brandText { display: none; }
 .collapsed .brand { justify-content: center; padding: 0; }
 
 .nav { flex: 1; overflow-y: auto; padding: var(--s-2); display: flex; flex-direction: column; gap: 2px; }
@@ -32,8 +36,8 @@
   padding: 0 var(--s-2); border-radius: var(--r-md); text-decoration: none;
   color: var(--text-muted); white-space: nowrap; overflow: hidden;
 }
-.link:hover { background: var(--surface-2); }
-.link.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.link:hover { background: var(--surface); }
+.link.active { background: var(--surface); color: var(--text); font-weight: 600; }
 .icon { flex: none; width: 22px; text-align: center; font-size: 16px; }
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
@@ -48,10 +52,7 @@
   .sidebar.open { transform: translateX(0); }
   .sidebar.collapsed { width: 260px; } /* на телефоне «свёрнуто» = скрыто целиком, а не узкой полосой */
   .sidebar.collapsed .label { display: block; }
-  .sidebar.collapsed .brandName, .sidebar.collapsed .brandMark { display: flex; }
-  .sidebar.collapsed .brand { justify-content: flex-start; padding: 0 var(--s-2) 0 var(--s-3); }
-  /* Разворачивать/сворачивать в узкую полосу — только на десктопе; на
-     телефоне у выдвижного меню нет такого состояния, кнопка тут лишняя. */
-  .collapseBtn { display: none; }
+  .sidebar.collapsed .brandText { display: flex; }
+  .sidebar.collapsed .brand { justify-content: flex-start; padding: 0 var(--s-2) 0 var(--s-3); cursor: default; }
   .backdrop.open { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .4); border: 0; padding: 0; }
 }

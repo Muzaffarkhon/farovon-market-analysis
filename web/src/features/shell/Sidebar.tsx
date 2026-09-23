@@ -25,16 +25,24 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
         aria-label="Закрыть меню" onClick={onCloseMobile}
       />
       <nav className={[s.sidebar, collapsed ? s.collapsed : '', open ? s.open : ''].join(' ')} aria-label="Разделы">
-        <div className={s.brand}>
-          <span className={s.brandMark} aria-hidden="true">ОР</span>
-          <span className={s.brandName}>Обзор рынка</span>
-          <button
-            type="button" className={s.collapseBtn} onClick={onToggleCollapse}
-            aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'} title={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
-          >
-            {collapsed ? '›' : '‹'}
-          </button>
-        </div>
+        {/* Логотип (тот же контур, что в старом клиенте — client/index.html
+            #railBrand) сам и есть кнопка сворачивания: клик по всей строке
+            переключает, отдельная стрелка не нужна — иконка остаётся видна
+            и в свёрнутом виде. */}
+        <button
+          type="button" className={s.brand} onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'} title="Свернуть / развернуть меню"
+        >
+          <span className={s.brandMark} aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 19V10M12 19V5M20 19V13" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className={s.brandText}>
+            <span className={s.brandName}>Обзор рынка</span>
+            <span className={s.brandSub}>Фаровон · C&amp;B</span>
+          </span>
+        </button>
         <div className={s.nav}>
           {items.map(i => (
             <NavLink

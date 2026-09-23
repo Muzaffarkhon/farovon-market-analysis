@@ -54,7 +54,7 @@ export function Shell({ children }: { children?: ReactNode }) {
         <Sidebar
           items={items} collapsed={collapsed} open={mobileOpen}
           onNavigate={() => setMobileOpen(false)} onCloseMobile={() => setMobileOpen(false)}
-          onToggleCollapse={toggleCollapsed}
+          onToggleCollapse={toggleNav}
         />
         <div className={s.column}>
           <TopBar title={title} onToggleNav={toggleNav} />
