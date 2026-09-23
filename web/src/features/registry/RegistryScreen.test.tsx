@@ -18,7 +18,7 @@ const row = (over: Partial<RegistryRow> = {}): RegistryRow => ({
   dir: 'Дивизион Север', hrbp: 'Иванов И.', unit: 'Цех 1', region: 'Худжанд',
   company: 'Алиф', posOur: 'Токарь', posTheir: 'Токарь 3р', grade: 'G7',
   payFrom: 3000, payTo: 5000, cur: 'сомони', payPer: 'в месяц',
-  bonHas: 'нет', bonuses: [], varPay: { has: false, label: 'без премии' }, totalMonthly: 4000,
+  bonHas: 'нет', bonuses: [], varPay: { has: false, label: 'без премии', monthly: null }, totalMonthly: 4000,
   benefits: ['ДМС'], extra: '', schedule: '5/2 · 40 часов',
   source: 'Интервью', trust: 'высокая', note: '', ...over
 });
@@ -154,6 +154,26 @@ test('в карточке наблюдения виден совокупный �
   await userEvent.click(await screen.findByRole('cell', { name: 'Алиф' }));
   const card = await screen.findByRole('dialog', { name: 'Алиф' });
   expect(within(card).getByText(/5 500/)).toBeInTheDocument();
+});
+
+test('в карточке наблюдения видна и премия отдельно от оклада, когда её размер известен', async () => {
+  list.mockResolvedValue(answer({
+    rows: [row({ bonuses: [{ type: 'KPI', size: '10%', per: 'в месяц' }], varPay: { has: true, label: 'KPI · 10%', monthly: 500 } })]
+  }));
+  renderScreen();
+  await userEvent.click(await screen.findByRole('cell', { name: 'Алиф' }));
+  const card = await screen.findByRole('dialog', { name: 'Алиф' });
+  expect(within(card).getByText(/≈ 500 в месяц/)).toBeInTheDocument();
+});
+
+test('строку «≈ N в месяц» не показывает, если размер премии не распознан', async () => {
+  list.mockResolvedValue(answer({
+    rows: [row({ bonHas: 'да', varPay: { has: true, label: 'не указано', monthly: null } })]
+  }));
+  renderScreen();
+  await userEvent.click(await screen.findByRole('cell', { name: 'Алиф' }));
+  const card = await screen.findByRole('dialog', { name: 'Алиф' });
+  expect(within(card).queryByText(/в месяц/)).not.toBeInTheDocument();
 });
 
 test('страницы листаются', async () => {

@@ -68,7 +68,12 @@ export function RecordSheet({ row, onClose }: { row: RegistryRow | null; onClose
           ) : (
             <div className={s.recVal}>{row.varPay.label || (row.bonHas === 'нет' ? 'без премии' : 'не указано')}</div>
           )}
-          {row.varPay.monthlyKnown && row.varPay.monthly
+          {/* Премия отдельно от оклада — сколько именно приносит переменная
+              часть. Не путать с «Совокупно, мес.» выше: там оклад + премия
+              вместе. Сервер кладёт monthly=null, когда размер не распознан —
+              monthlyKnown, на которое проверяли раньше, сюда никогда не
+              приходит и условие не срабатывало. */}
+          {row.varPay.monthly != null
             ? <div className={s.muted}>≈ {money(row.varPay.monthly)} в месяц</div>
             : null}
         </div>

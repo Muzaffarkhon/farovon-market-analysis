@@ -81,7 +81,7 @@ export interface SurveyDraft {
 // ─── Реестр собранных данных ───
 
 /** Свёртка переменной части для колонки «Переменная часть» (считает сервер). */
-export interface VarPay { has: boolean; label: string; monthly?: number; monthlyKnown?: boolean }
+export interface VarPay { has: boolean; label: string; monthly: number | null }
 
 export interface RegistryRow {
   id: string; date: string; by: string;
