@@ -55,6 +55,34 @@ export function useSupportInbox() {
     onError: e => onError(e, 'Не удалось закрыть диалог')
   });
 
+  const linkMutation = useMutation({
+    mutationFn: (userId: number) => supportApi.linkEmployee(activeId as number, userId),
+    onSuccess: r => { invalidate(); toast.show(r.message, 'ok'); },
+    onError: e => onError(e, 'Не удалось привязать сотрудника')
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: () => supportApi.archive(activeId as number),
+    onSuccess: () => { invalidate(); toast.show('Обращение перенесено в архив', 'ok'); },
+    onError: e => onError(e, 'Не удалось перенести в архив')
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: () => supportApi.unarchive(activeId as number),
+    onSuccess: () => { invalidate(); toast.show('Обращение возвращено из архива', 'ok'); },
+    onError: e => onError(e, 'Не удалось вернуть из архива')
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: () => supportApi.remove(activeId as number),
+    onSuccess: () => {
+      setActiveId(null);
+      void qc.invalidateQueries({ queryKey: ['support-inbox'] });
+      toast.show('Обращение удалено', 'ok');
+    },
+    onError: e => onError(e, 'Не удалось удалить обращение')
+  });
+
   return {
     threads: listQuery.data?.rows ?? [],
     threadsLoading: listQuery.isLoading,
@@ -72,6 +100,11 @@ export function useSupportInbox() {
 
     reply: (text: string) => replyMutation.mutate(text), replying: replyMutation.isPending,
     close: () => closeMutation.mutate(), closing: closeMutation.isPending,
+
+    linkEmployee: (userId: number) => linkMutation.mutate(userId), linking: linkMutation.isPending,
+    archive: () => archiveMutation.mutate(), archiving: archiveMutation.isPending,
+    unarchive: () => unarchiveMutation.mutate(), unarchiving: unarchiveMutation.isPending,
+    remove: () => removeMutation.mutate(), removing: removeMutation.isPending,
 
     invalidate
   };

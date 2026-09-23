@@ -4,6 +4,8 @@ import { Button } from '../../../design/Button';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { Textarea } from '../../../design/Textarea';
+import { useSessionData } from '../../auth/useSession';
+import { LinkEmployeePanel } from './LinkEmployeePanel';
 import type { useSupportInbox } from './useSupportInbox';
 import s from './SupportInbox.module.css';
 
@@ -17,13 +19,16 @@ function shortDate(iso: string) {
 /** Детали треда — шторка сбоку по клику на строку (как в реестре, см. RecordSheet). */
 export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInbox> }) {
   const [text, setText] = useState('');
+  const [linking, setLinking] = useState(false);
+  const { user } = useSessionData();
   const open = inbox.activeId != null;
   const t = inbox.thread;
 
   const send = () => { if (text.trim()) { inbox.reply(text.trim()); setText(''); } };
+  const close = () => { setLinking(false); setText(''); inbox.closeDetail(); };
 
   return (
-    <Sheet open={open} onClose={inbox.closeDetail} title={t?.topic || (t?.linked_fio ?? 'Обращение')}>
+    <Sheet open={open} onClose={close} title={t?.topic || (t?.linked_fio ?? 'Обращение')}>
       {inbox.threadLoading || !t ? <Skeleton lines={4} /> : (
         <div>
           <div className={s.detailHead}>
@@ -33,11 +38,37 @@ export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInb
               <Badge tone={t.status === 'open' ? 'ok' : 'muted'}>{t.status === 'open' ? 'Открыт' : 'Закрыт'}</Badge>
             </div>
             <div className={s.detailActions}>
+              {t.source !== 'web' && (
+                <Button size="sm" variant="secondary" onClick={() => setLinking(v => !v)}>
+                  {linking ? 'Отменить привязку' : 'Привязать к сотруднику'}
+                </Button>
+              )}
               {t.status === 'open' && (
                 <Button size="sm" variant="secondary" loading={inbox.closing} onClick={inbox.close}>Закрыть</Button>
               )}
+              {user.role === 'admin' && !t.archived_at && (
+                <Button size="sm" variant="secondary" loading={inbox.archiving} onClick={inbox.archive}>В архив</Button>
+              )}
+              {user.role === 'admin' && t.archived_at && (
+                <Button size="sm" variant="secondary" loading={inbox.unarchiving} onClick={inbox.unarchive}>Вернуть из архива</Button>
+              )}
+              {user.role === 'admin' && (
+                <Button
+                  size="sm" variant="danger" loading={inbox.removing}
+                  onClick={() => { if (confirm('Удалить обращение безвозвратно, вместе с перепиской?')) inbox.remove(); }}
+                >
+                  Удалить
+                </Button>
+              )}
             </div>
           </div>
+
+          {linking && (
+            <LinkEmployeePanel
+              thread={t} linking={inbox.linking}
+              onLink={userId => { inbox.linkEmployee(userId); setLinking(false); }}
+            />
+          )}
 
           <div className={s.messages}>
             {inbox.messages.map(m => (
