@@ -1,6 +1,7 @@
 import type { RegistryResponse } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Chip } from '../../design/Chip';
+import { Combobox } from '../../design/Combobox';
 import { Select } from '../../design/Select';
 import { Sheet } from '../../design/Sheet';
 import { scheduleLabel } from '../../domain/schedule';
@@ -10,6 +11,9 @@ import s from './Registry.module.css';
 type Registry = ReturnType<typeof useRegistry>;
 
 const pickerLabel = (facet: string, v: string) => (facet === 'schedules' ? scheduleLabel(v) : v);
+// Длинные справочники (сотни подразделений/компаний) — с поиском; короткие
+// перечисления (регион, грейд, график и т.п.) хватает обычного select.
+const SEARCHABLE = new Set(['unit', 'company']);
 
 /**
  * Все фильтры реестра — в одной панели за кнопкой «Фильтры». Раньше на
@@ -30,14 +34,25 @@ export function RegistryFilters({ r, open, onClose }: { r: Registry; open: boole
       }
     >
       <div className={s.filterGrid}>
-        {PICKERS.map(p => (
-          <Select
-            key={p.key} label={p.label} placeholder="— все —"
-            value={(r.filters[p.key] as string) ?? ''}
-            options={(data?.facets[p.facet] ?? []).map(v => ({ value: v, label: pickerLabel(p.facet, v) }))}
-            onChange={e => r.patch({ [p.key]: e.target.value || undefined })}
-          />
-        ))}
+        {PICKERS.map(p => {
+          const options = (data?.facets[p.facet] ?? []).map(v => ({ value: v, label: pickerLabel(p.facet, v) }));
+          const value = (r.filters[p.key] as string) ?? '';
+          return SEARCHABLE.has(p.key)
+            ? (
+              <Combobox
+                key={p.key} label={p.label} placeholder="— все —"
+                value={value} options={options}
+                onChange={v => r.patch({ [p.key]: v || undefined })}
+              />
+            )
+            : (
+              <Select
+                key={p.key} label={p.label} placeholder="— все —"
+                value={value} options={options}
+                onChange={e => r.patch({ [p.key]: e.target.value || undefined })}
+              />
+            );
+        })}
       </div>
       <div className={s.flags}>
         <Chip active={!!r.filters.onlyUnmapped} onClick={() => r.patch({ onlyUnmapped: !r.filters.onlyUnmapped || undefined })}>

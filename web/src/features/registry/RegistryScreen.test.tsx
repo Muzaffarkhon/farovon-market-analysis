@@ -56,6 +56,11 @@ let list: ReturnType<typeof vi.fn>;
 let saveTablePrefs: ReturnType<typeof vi.fn>;
 /** Все фильтры — в панели за кнопкой «Фильтры». */
 const openFilters = () => userEvent.click(screen.getByRole('button', { name: /^Фильтры/ }));
+/** Компания/подразделение — Combobox (поиск), не нативный select. */
+async function pickCombo(label: string, optionName: string) {
+  await userEvent.click(screen.getByLabelText(label));
+  await userEvent.click(await screen.findByRole('option', { name: optionName }));
+}
 
 beforeEach(() => {
   lastSearch = '';
@@ -104,7 +109,7 @@ test('выбор фильтра уходит в запрос и в адрес', 
   renderScreen();
   await screen.findByRole('cell', { name: 'Алиф' });
   await openFilters();
-  await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
+  await pickCombo('Компания', 'Сиёма');
   await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ company: 'Сиёма' })));
   expect(lastSearch).toContain('company=%D0%A1');
 });
@@ -235,16 +240,14 @@ test('пусто без фильтров и пусто с фильтрами —
   list.mockResolvedValue(answer({ rows: [], total: 0, totalAll: 12 }));
   renderScreen();
   await openFilters();
-  await screen.findAllByRole('option', { name: 'Сиёма' });
-  await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
+  await pickCombo('Компания', 'Сиёма');
   expect(await screen.findByText(/Ничего не найдено/)).toBeInTheDocument();
 });
 
 test('сброс убирает все фильтры', async () => {
   renderScreen();
   await openFilters();
-  await screen.findAllByRole('option', { name: 'Сиёма' });
-  await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
+  await pickCombo('Компания', 'Сиёма');
   await userEvent.click(within(screen.getByRole('dialog', { name: 'Фильтры' })).getByRole('button', { name: 'Сбросить' }));
   await waitFor(() => expect(lastSearch).toBe(''));
 });
@@ -280,7 +283,7 @@ test('выбранный фильтр виден над таблицей и сн
   renderScreen();
   await screen.findByRole('cell', { name: 'Алиф' });
   await openFilters();
-  await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
+  await pickCombo('Компания', 'Сиёма');
   await userEvent.click(within(screen.getByRole('dialog', { name: 'Фильтры' })).getByRole('button', { name: /^Показать/ }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   await userEvent.click(await screen.findByRole('button', { name: /Компания: Сиёма/ }));

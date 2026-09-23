@@ -19,6 +19,12 @@ const riskFactors: GradingFactor[] = [
 
 let unitEmployees: ReturnType<typeof vi.fn>;
 
+/** Подразделение и сотрудник — Combobox (поиск), не нативный select. */
+async function pick(label: string, optionName: string | RegExp) {
+  await userEvent.click(screen.getByLabelText(label));
+  await userEvent.click(await screen.findByRole('option', { name: optionName }));
+}
+
 function renderForm(props: Partial<Parameters<typeof RiskForm>[0]> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -35,17 +41,17 @@ beforeEach(() => {
 
 test('выбор подразделения подгружает сотрудников этого юнита', async () => {
   renderForm();
-  await userEvent.selectOptions(screen.getByLabelText('Подразделение'), 'Цех 1');
+  await pick('Подразделение', 'Цех 1');
   await waitFor(() => expect(unitEmployees).toHaveBeenCalledWith('Цех 1'));
+  await userEvent.click(screen.getByLabelText('Сотрудник'));
   expect(await screen.findByRole('option', { name: 'Иванов Иван' })).toBeInTheDocument();
 });
 
 test('отправка передаёт подразделение, сотрудника, должность и все четыре ответа', async () => {
   const onSubmit = vi.fn();
   renderForm({ onSubmit });
-  await userEvent.selectOptions(screen.getByLabelText('Подразделение'), 'Цех 1');
-  await screen.findByRole('option', { name: 'Иванов Иван' });
-  await userEvent.selectOptions(screen.getByLabelText('Сотрудник'), 'Иванов Иван');
+  await pick('Подразделение', 'Цех 1');
+  await pick('Сотрудник', 'Иванов Иван');
   await userEvent.selectOptions(screen.getByLabelText('Незаменимость'), '4');
   await userEvent.selectOptions(screen.getByLabelText('Срок замены'), '3');
   await userEvent.selectOptions(screen.getByLabelText('Монополия на знания'), '2');
@@ -66,9 +72,8 @@ test('кнопка выключена, пока не заполнены все �
 test('сотрудник без должности в справочнике — подсказка видна, кнопка не блокируется этим (как в старом клиенте, решает сервер)', async () => {
   unitEmployees.mockResolvedValue({ ok: true, rows: [{ fio: 'Без должности', position: '' }] });
   renderForm();
-  await userEvent.selectOptions(screen.getByLabelText('Подразделение'), 'Цех 1');
-  await screen.findByRole('option', { name: /Без должности/ });
-  await userEvent.selectOptions(screen.getByLabelText('Сотрудник'), 'Без должности');
+  await pick('Подразделение', 'Цех 1');
+  await pick('Сотрудник', /Без должности/);
   expect(await screen.findByText(/не указана в справочнике штата/)).toBeInTheDocument();
   await userEvent.selectOptions(screen.getByLabelText('Незаменимость'), '1');
   await userEvent.selectOptions(screen.getByLabelText('Срок замены'), '1');

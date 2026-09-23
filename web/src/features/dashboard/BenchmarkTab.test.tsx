@@ -64,7 +64,8 @@ test('без выбранной должности — приглашение в
 
 test('выбор должности показывает вердикт, KPI и таблицу источников', async () => {
   renderTab();
-  await userEvent.selectOptions(screen.getByLabelText('Должность'), 'Токарь');
+  await userEvent.click(screen.getByLabelText('Должность'));
+  await userEvent.click(screen.getByRole('option', { name: 'Токарь' }));
   expect(await screen.findByText('Оклад в рынке')).toBeInTheDocument();
   expect(screen.getByText('Внутренний сбор')).toBeInTheDocument();
   expect(screen.getByText('B1 · Таджикистан')).toBeInTheDocument();

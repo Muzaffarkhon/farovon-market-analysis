@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { keyRisksApi } from '../../api/keyRisks';
 import type { GradingFactor, KeyRisk } from '../../api/contract';
 import { Button } from '../../design/Button';
+import { Combobox } from '../../design/Combobox';
 import { Select } from '../../design/Select';
 import { Sheet } from '../../design/Sheet';
 import { Textarea } from '../../design/Textarea';
@@ -60,17 +61,17 @@ export function RiskForm({ riskFactors, editing, onClose, onSubmit, submitting }
   return (
     <Sheet open onClose={onClose} title={editing ? editing.employee_fio : 'Оценить сотрудника'}>
       <div className={s.form}>
-        <Select
+        <Combobox
           label="Подразделение" placeholder="— выберите —" value={unit} disabled={!!editing}
           options={units.map(u => ({ value: u.unit, label: u.unit }))}
-          onChange={e => setUnit(e.target.value)}
+          onChange={setUnit}
         />
-        <Select
+        <Combobox
           label="Сотрудник" placeholder="— выберите —" value={employeeFio} disabled={!unit || !!editing}
           options={(employees.data?.rows ?? []).map(e => ({ value: e.fio, label: e.position ? e.fio : `${e.fio} (нет должности в карточке)` }))}
-          onChange={e => {
-            setEmployeeFio(e.target.value);
-            const emp = employees.data?.rows.find(x => x.fio === e.target.value);
+          onChange={v => {
+            setEmployeeFio(v);
+            const emp = employees.data?.rows.find(x => x.fio === v);
             if (emp) setJobTitle(emp.position);
           }}
         />

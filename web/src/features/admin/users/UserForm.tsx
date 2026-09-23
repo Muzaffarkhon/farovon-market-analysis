@@ -25,8 +25,11 @@ export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submi
   const [position, setPosition] = useState(editing?.position ?? '');
   const [active, setActive] = useState(editing?.active ?? true);
   const [units, setUnits] = useState<string[]>(editing?.units ?? []);
+  const [unitSearch, setUnitSearch] = useState('');
 
   const canSubmit = !!fio.trim();
+  const q = unitSearch.trim().toLowerCase();
+  const shownUnits = q ? unitOptions.filter(u => u.toLowerCase().includes(q)) : unitOptions;
 
   const toggleUnit = (u: string) => {
     setUnits(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]);
@@ -44,14 +47,20 @@ export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submi
         <Input label="Должность" value={position} onChange={e => setPosition(e.target.value)} />
         <div>
           <div className={s.hint} style={{ marginBottom: 4 }}>Подразделения</div>
+          {unitOptions.length > 8 && (
+            <div style={{ marginBottom: 'var(--s-2)' }}>
+              <Input label="Поиск подразделения" value={unitSearch} onChange={e => setUnitSearch(e.target.value)} />
+            </div>
+          )}
           <div className={s.unitList}>
-            {unitOptions.map(u => (
+            {shownUnits.map(u => (
               <label key={u} className={s.unitRow}>
                 <input type="checkbox" checked={units.includes(u)} onChange={() => toggleUnit(u)} />
                 {u}
               </label>
             ))}
             {!unitOptions.length && <span className={s.hint}>Подразделения не найдены</span>}
+            {!!unitOptions.length && !shownUnits.length && <span className={s.hint}>Ничего не найдено</span>}
           </div>
         </div>
         <label className={s.unitRow}>

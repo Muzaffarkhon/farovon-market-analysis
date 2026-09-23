@@ -5,6 +5,7 @@ import { Input } from './Input';
 import { Sheet } from './Sheet';
 import { Badge } from './Badge';
 import { Select } from './Select';
+import { Combobox } from './Combobox';
 import { KpiTile } from './KpiTile';
 import { ForkBar } from './ForkBar';
 import { RankBar } from './RankBar';
@@ -29,6 +30,39 @@ test('Select с placeholder даёт пустой первый вариант', 
   const sel = screen.getByLabelText('График') as HTMLSelectElement;
   expect(sel.options).toHaveLength(2);
   expect(sel.options[0].value).toBe('');
+});
+
+const cities = [{ value: 'khu', label: 'Худжанд' }, { value: 'dus', label: 'Душанбе' }, { value: 'buston', label: 'Бустон' }];
+
+test('Combobox: список открывается по фокусу и фильтруется по вводу', async () => {
+  render(<Combobox label="Город" options={cities} value="" onChange={() => {}} />);
+  const input = screen.getByLabelText('Город');
+  await userEvent.click(input);
+  expect(screen.getByRole('option', { name: 'Худжанд' })).toBeInTheDocument();
+  await userEvent.type(input, 'буст');
+  expect(screen.queryByRole('option', { name: 'Худжанд' })).not.toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Бустон' })).toBeInTheDocument();
+});
+
+test('Combobox: клик по варианту вызывает onChange и закрывает список', async () => {
+  const onChange = vi.fn();
+  render(<Combobox label="Город" options={cities} value="" onChange={onChange} />);
+  await userEvent.click(screen.getByLabelText('Город'));
+  await userEvent.click(screen.getByRole('option', { name: 'Душанбе' }));
+  expect(onChange).toHaveBeenCalledWith('dus');
+  expect(screen.queryByRole('option', { name: 'Душанбе' })).not.toBeInTheDocument();
+});
+
+test('Combobox: выбранное значение показано подписью, не кодом', () => {
+  render(<Combobox label="Город" options={cities} value="khu" onChange={() => {}} />);
+  expect(screen.getByLabelText('Город')).toHaveValue('Худжанд');
+});
+
+test('Combobox: кнопка «Очистить» сбрасывает значение', async () => {
+  const onChange = vi.fn();
+  render(<Combobox label="Город" options={cities} value="khu" onChange={onChange} />);
+  await userEvent.click(screen.getByLabelText('Очистить'));
+  expect(onChange).toHaveBeenCalledWith('');
 });
 
 test('Sheet закрывается по Esc', () => {

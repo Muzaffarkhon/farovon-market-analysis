@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { BenchmarkSourceResult, DashboardResponse } from '../../api/contract';
 import { benchmarkApi } from '../../api/benchmark';
+import { Combobox } from '../../design/Combobox';
 import { KpiTile } from '../../design/KpiTile';
-import { Select } from '../../design/Select';
 import { Skeleton } from '../../design/Skeleton';
 import { money } from '../registry/format';
 import s from './Dashboard.module.css';
@@ -63,10 +63,10 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
         </p>
       )}
 
-      <Select
-        className={s.picker} label="Должность" placeholder="— выберите —"
+      <Combobox
+        label="Должность" placeholder="— выберите —"
         value={pos} options={positions.map(v => ({ value: v, label: v }))}
-        onChange={e => setPos(e.target.value)}
+        onChange={setPos}
       />
 
       {!pos && <p className={s.empty}>Выберите должность, чтобы сравнить с внешними источниками.</p>}
