@@ -1,5 +1,11 @@
 const { queryAll, queryOne } = require('../db/database');
 const { getActivePeriod } = require('./periodService');
+// Только нормализация кода валюты (чистая функция, без сети) — определить,
+// сомони строка или нет, чтобы не смешивать валюты в одной медиане. Живой
+// курс (fxService.getRate — сетевой запрос) сюда сознательно не тянем: живая
+// конвертация в горячем пути дашборда — отдельная задача с кэшированием курса,
+// не часть этого этапа.
+const { normCode } = require('./fxService');
 
 // Стандартный месяц для приведения часовой тарифной ставки (ЧТС) к месячному
 // окладу: 168 часов. Нужно, чтобы часовые ставки не занижали вилки должностей.
@@ -135,6 +141,49 @@ function normPeriod(per) {
   if (/недел/.test(p)) return 'в неделю';
   if (/меся[цч]|monthly|ежемес/.test(p)) return 'в месяц';
   return String(per).trim();
+}
+
+/**
+ * Копит месячные суммы (приведённые к месяцу оклады) в разрезе по одному
+ * ключу — надёжность, источник, график, грейд и т.п. Общая функция для всех
+ * таких разрезов дашборда: каждый — вилка `calculateSalaryForkStats` по своей
+ * группе, форма бакета одинаковая (froms/tos/mids), поэтому копим и считаем
+ * везде одним кодом, а не пятью копиями одного и того же цикла.
+ */
+function pushForkSample(buckets, key, fromM, toM, mid) {
+  if (!(mid > 0)) return;
+  const b = buckets[key] || (buckets[key] = { froms: [], tos: [], mids: [] });
+  if (fromM > 0) b.froms.push(fromM);
+  if (toM > 0) b.tos.push(toM);
+  b.mids.push(mid);
+}
+
+/** Разрез из бакетов froms/tos/mids в готовый ответ — как `region`, только ключ свой. */
+function forkStatsFromBuckets(buckets, keyField, calcStats) {
+  return Object.keys(buckets).map(key => {
+    const b = buckets[key];
+    const st = calcStats(b.froms, b.tos, b.mids);
+    return { [keyField]: key, count: b.mids.length, min: st.min, p25: st.p25, median: st.median, p75: st.p75, max: st.max, avg: st.avg };
+  }).sort((a, b) => b.median - a.median);
+}
+
+/**
+ * Совокупный доход (оклад + премия/мес.) по каждой компании должности —
+ * основа для `totalMedian`. «Нет премии» — известный ноль; премия есть, но
+ * размер не распознан — компания не входит в выборку вовсе, а не гадает
+ * нулём (то же правило, что в `registryService.toRow`, для тех же данных).
+ * Валюта не сомони, без оклада — тоже не входит: живой конвертации нет.
+ * @param {Array<{avg:number, cur:string, bonHas:string, varPay:{monthly:number|null}}>} companies
+ * @returns {number[]}
+ */
+function positionTotalIncomeSamples(companies) {
+  return (companies || []).map(c => {
+    const base = c.avg || 0;
+    if (!(base > 0) || normCode(c.cur) !== 'TJS') return null;
+    const bonusMonthly = c.bonHas === 'нет' ? 0 : ((c.varPay && c.varPay.monthly != null) ? c.varPay.monthly : null);
+    if (bonusMonthly == null) return null;
+    return base + bonusMonthly;
+  }).filter(v => v != null);
 }
 
 /**
@@ -359,6 +408,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
   const rawRows = []; // сырые наблюдения для вкладки «Реестр данных»
   const allSalarySamples = []; // для общей медианы рынка (вкладка «Обзор»)
   const regionSamples = {};    // регион → {froms,tos,mids} для вкладки «По регионам»
+  const trustSamples = {};     // надёжность → {froms,tos,mids}
+  const sourceSamples = {};    // источник → {froms,tos,mids}
+  const scheduleSamples = {};  // график → {froms,tos,mids} (несопоставимые графики не смешиваем в одной медиане)
+  const gradeSamples = {};     // грейд → {froms,tos,mids}; пустой грейд не группируем
   const benefitStats = {};
   const bonusStats = { hasBonus: 0, noBonus: 0, unknown: 0, types: {}, periods: {} };
   const compRank = {};
@@ -374,22 +427,18 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
 
     // Пер-регион вилки для вкладки «По регионам» — собираем ДО фильтра по
     // региону, чтобы в таблице были все регионы сразу (в пределах выбранных
-    // направления / HR BP / видимости пользователя).
+    // направления / HR BP / видимости пользователя). Разные валюты без
+    // конвертации не смешиваем — некомони строка сюда не попадает.
     {
       const rg = (uInfo.region || '').trim();
-      if (rg && !isPieceRate(s.pay_per)) {
+      if (rg && !isPieceRate(s.pay_per) && normCode(s.cur) === 'TJS') {
         const _pf = Number(s.pay_from) || 0;
         const _pt = Number(s.pay_to) || 0;
         const _hr = looksHourly((s.pay_per || '').trim(), _pf, _pt);
         const _pfm = toMonthly(_pf, _hr);
         const _ptm = toMonthly(_pt, _hr);
         const _m = (_pfm > 0 && _ptm > 0) ? (_pfm + _ptm) / 2 : (_pfm || _ptm || 0);
-        if (_m > 0) {
-          const b = regionSamples[rg] || (regionSamples[rg] = { froms: [], tos: [], mids: [] });
-          if (_pfm > 0) b.froms.push(_pfm);
-          if (_ptm > 0) b.tos.push(_ptm);
-          b.mids.push(_m);
-        }
+        pushForkSample(regionSamples, rg, _pfm, _ptm, _m);
       }
     }
 
@@ -431,12 +480,29 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     if (company) compRank[company] = (compRank[company] || 0) + 1;
     curStats[cur] = (curStats[cur] || 0) + 1;
 
+    // Валюта, отличная от сомони, без живой конвертации в общей медиане не
+    // участвует — иначе доллары и сомони складываются как одна и та же сумма.
+    // Строка остаётся в rawRows с исходными cur/payFrom/payTo и меткой
+    // fxMissing — это не «ошибка», просто её нет в разрезах ниже.
+    const isBaseCurrency = normCode(cur) === 'TJS';
+
     // Общая медиана рынка: ЧТС приведена к месяцу (pFromM/pToM). Дневных ставок
     // в данных фактически нет (одна строка «в день» с суммой 5000–10000 —
     // очевидно месячный оклад с ошибкой периода), поэтому берём как есть.
-    {
-      const mid = (pFromM > 0 && pToM > 0) ? (pFromM + pToM) / 2 : (pFromM || pToM || 0);
+    if (isBaseCurrency) {
+      const mid = rowMid;
       if (mid > 0) allSalarySamples.push(mid);
+
+      // Разрезы по надёжности / источнику / графику / грейду — та же сумма,
+      // сгруппированная по своему полю. Пустая надёжность/источник/график
+      // группируется отдельно («не указана» и т.п.), пустой грейд — нет: его
+      // заполняют только импортом (ТЗ, раздел 6), и «грейд не указан» — это
+      // почти все записи, разрез был бы бесполезен.
+      pushForkSample(trustSamples, (s.trust || '').trim() || 'не указана', pFromM, pToM, mid);
+      pushForkSample(sourceSamples, (s.source || '').trim() || 'не указан', pFromM, pToM, mid);
+      pushForkSample(scheduleSamples, (s.schedule || '').trim() || 'не указан', pFromM, pToM, mid);
+      const grade = (s.grade || '').trim();
+      if (grade) pushForkSample(gradeSamples, grade, pFromM, pToM, mid);
     }
 
     // Регион: приоритет — структурный регион подразделения (divisions.region);
@@ -457,6 +523,9 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       payFrom: pFrom,
       payTo: pTo,
       cur,
+      // Валюта не сомони и не сконвертирована — строка не в общей медиане и
+      // не в разрезах по надёжности/источнику/графику/грейду ниже.
+      fxMissing: !isBaseCurrency,
       payPer,
       bonHas,
       bonSize,
@@ -511,10 +580,14 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
       let avgPay = 0;
       if (pFromM > 0 || pToM > 0) {
         recordsWithSalary++;
-        if (pFromM > 0) posMap[posOur].fromSamples.push(pFromM);
-        if (pToM > 0) posMap[posOur].toSamples.push(pToM);
         avgPay = (pFromM > 0 && pToM > 0) ? Math.round((pFromM + pToM) / 2) : (pFromM || pToM);
-        posMap[posOur].salarySamples.push(avgPay);
+        // Вилка должности — тоже только сомони: компания остаётся в списке
+        // (informационно, «avg» посчитан), просто не участвует в min/p25/…
+        if (isBaseCurrency) {
+          if (pFromM > 0) posMap[posOur].fromSamples.push(pFromM);
+          if (pToM > 0) posMap[posOur].toSamples.push(pToM);
+          posMap[posOur].salarySamples.push(avgPay);
+        }
       }
 
       posMap[posOur].companies.push({
@@ -558,12 +631,7 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     // компании». totalMedian показывается фронтом только при ≥3 компаниях.
     const bonCompanies = item.companies.filter(c => c.varPay && c.varPay.has).length;
     const bonQuantified = item.companies.filter(c => c.varPay && c.varPay.monthly != null).length;
-    const totalSamples = item.companies.map(c => {
-      const base = c.avg || 0;
-      if (!(base > 0)) return null;
-      const bm = (c.varPay && c.varPay.monthly != null) ? c.varPay.monthly : 0;
-      return base + bm;
-    }).filter(v => v != null);
+    const totalSamples = positionTotalIncomeSamples(item.companies);
     const perTally = {};
     item.companies.forEach(c => {
       const p = c.varPay && c.varPay.topPer;
@@ -664,6 +732,13 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     return { region: rg, count: b.mids.length, min: st.min, p25: st.p25, median: st.median, p75: st.p75, max: st.max, avg: st.avg };
   }).sort((a, b) => b.median - a.median);
 
+  // Разрезы по надёжности / источнику / графику / грейду — вкладка «Обзор» /
+  // «Зарплатные вилки» показывает их рядом с regionStats, той же вилкой.
+  const trustStats = forkStatsFromBuckets(trustSamples, 'trust', calculateSalaryForkStats);
+  const sourceStats = forkStatsFromBuckets(sourceSamples, 'source', calculateSalaryForkStats);
+  const scheduleStats = forkStatsFromBuckets(scheduleSamples, 'schedule', calculateSalaryForkStats);
+  const gradeStats = forkStatsFromBuckets(gradeSamples, 'grade', calculateSalaryForkStats);
+
   // Топ льгот
   const topBenefits = Object.keys(benefitStats).map(k => ({
     name: k,
@@ -710,6 +785,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
     dirHrbp,
     regions,
     regionStats,
+    trustStats,
+    sourceStats,
+    scheduleStats,
+    gradeStats,
     positions: positionsList,
     rows: rawRows,
     topBenefits,
@@ -793,4 +872,8 @@ module.exports = {
   // нужны реестру, чтобы приводить ЧТС к месяцу теми же правилами
   looksHourly,
   toMonthly,
+  // разрезы дашборда (этап 3) — экспортируются для юнит-проверок без базы
+  pushForkSample,
+  forkStatsFromBuckets,
+  positionTotalIncomeSamples,
 };
