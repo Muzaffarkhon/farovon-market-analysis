@@ -45,13 +45,13 @@
   - `ScaleInput({ value, onChange, options, examples? })` — пять кнопок 1–5,
     под активной — `examples[value-1]`, если передан.
 
-- [ ] **Step 1: Тест `ScaleInput`**
+- [x] **Step 1: Тест `ScaleInput`**
 
 Клик по варианту вызывает `onChange` с номером (1–5); эталон показывается
 только под выбранным, не под всеми сразу.
 
-- [ ] **Step 2: Реализация `ScaleInput` + слой API**
-- [ ] **Step 3: Прогнать, commit**
+- [x] **Step 2: Реализация `ScaleInput` + слой API**
+- [x] **Step 3: Прогнать, commit**
 
 ```bash
 git add web/src/api web/src/design
@@ -65,17 +65,17 @@ git commit -m "feat(web): слой запросов грейдирования �
 **Files:** Create: `web/src/features/grading/GradingScreen.tsx`, `BlocksList.tsx` + тесты, `useGrading.ts`, css
 Modify: `web/src/app/routes.tsx`, `web/src/features/shell/NavItems.ts` (+ тест, право `grading:view`+`grading:edit`)
 
-- [ ] **Step 1: Тест навигации и карточек блоков**
+- [x] **Step 1: Тест навигации и карточек блоков**
 
 Пункт меню виден при `grading:view` или `grading:edit`. Карточка блока
 показывает `N из M`, клик ведёт на `/grading/<key>`.
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `useGrading()` — блок из `useParams`, запрос `blocks()` всегда, `positions(block)`
 только когда блок выбран (`enabled`).
 
-- [ ] **Step 3: Прогнать, вручную, commit**
+- [x] **Step 3: Прогнать, вручную, commit**
 
 ```bash
 git add web/src
@@ -91,7 +91,7 @@ git commit -m "feat(web): раздел «Оценка должностей» —
 **Interfaces:** Consumes: `getPositions` ответ (`isCommitteeMember`,
 `committeeSize`, `my_submission`, `units[]` на подсказку).
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 - Статус строки: `не начата` (нет `evaluation_id` и `submitted_count===0`),
   `идёт оценка N из M` (комиссия, `0 < submitted_count < committeeSize`),
@@ -101,18 +101,18 @@ git commit -m "feat(web): раздел «Оценка должностей» —
 - Три ветки ответа `evaluate` — три разных текста тоста
   (`pending`/`finalized`/обычный)
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `PositionForm` — семь `ScaleInput`, `notes` — `Textarea`, кнопка
 «Отправить оценку» вызывает `gradingApi.evaluate`. Подсказка «список
 подразделений» — `title`/поповер у числа в таблице.
 
-- [ ] **Step 3: Сводка по грейдам**
+- [x] **Step 3: Сводка по грейдам**
 
 Кнопка/блок на экране блоков — `gradingApi.stats()`, таблица блок × грейд,
 без отдельного маршрута.
 
-- [ ] **Step 4: Прогнать, вручную (пройти анкету целиком на dev-данных), commit**
+- [x] **Step 4: Прогнать, вручную (пройти анкету целиком на dev-данных), commit**
 
 ```bash
 git add web/src
@@ -126,7 +126,7 @@ git commit -m "feat(web): список должностей блока, анке
 **Files:** Create: `web/src/features/keyRisks/KeyRisksScreen.tsx`, `RiskHeatmap.tsx`, `RiskList.tsx`, `RiskForm.tsx` + тесты, `useKeyRisks.ts`, css
 Modify: `web/src/app/routes.tsx`, `web/src/features/shell/NavItems.ts` (+ тест, право `keyrisk:view`+`keyrisk:edit`)
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 - Тепловая карта красит ячейку по уровню (класс/цвет меняется от `n`)
 - Список «Требуют внимания» = `attention` + `critical`, отсортирован по
@@ -135,14 +135,14 @@ Modify: `web/src/app/routes.tsx`, `web/src/features/shell/NavItems.ts` (+ тес
 - Анкета: выбор подразделения подгружает `unit-employees`, отправка
   зовёт `evaluate` с верными полями
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `RiskForm` — `Select` подразделения (свои, если не admin/cb — список из
 сессии, как в `SheetScreen`), `Select` сотрудника из `unitEmployees`, четыре
 `Select` вопроса риска (`RISK_FACTORS`), `Textarea` плана действий
 (необязательно — сервер подставит рекомендацию сам).
 
-- [ ] **Step 3: Прогнать, вручную (телефон 375px — сетка тепловой карты в
+- [x] **Step 3: Прогнать, вручную (телефон 375px — сетка тепловой карты в
   столбец), commit**
 
 ```bash
@@ -154,15 +154,15 @@ git commit -m "feat(web): раздел «Риски ключевого перс�
 
 ### Task 5: Финальная проверка этапа
 
-- [ ] **Step 1:** `npm --prefix web test`, `npm --prefix web run build`
+- [x] **Step 1:** `npm --prefix web test`, `npm --prefix web run build`
       (сервер не менялся — `npm test` дополнительно не обязателен, но не
       повредит прогнать для очистки совести)
-- [ ] **Step 2:** Сквозная проверка — под ролью без `grading:*`/`keyrisk:*`
+- [x] **Step 2:** Сквозная проверка — под ролью без `grading:*`/`keyrisk:*`
   пункты меню не видны и по прямой ссылке не открываются; заполнение
   анкеты должности целиком на dev-данных даёт балл и грейд, совпадающие с
   тем, что показывал бы старый клиент на тех же цифрах; анкета риска —
   то же для суммы 4–20 и трёх статусов
-- [ ] **Step 3:** Commit
+- [x] **Step 3:** Commit
 
 ```bash
 git commit -m "docs: этап 5 (оценка должностей и риски) — план выполнен целиком" --allow-empty
