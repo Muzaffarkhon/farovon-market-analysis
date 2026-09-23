@@ -11,7 +11,7 @@
 .period { display: none; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .periodInMenu { padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); }
 .periodSelect { min-height: 36px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--s-2); font-size: 13px; }
-.iconBtn { width: var(--tap); height: var(--tap); border: 0; background: transparent; border-radius: var(--r-md); cursor: pointer; font-size: 20px; color: var(--text-muted); }
+.iconBtn { width: var(--tap); height: var(--tap); display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: var(--r-md); cursor: pointer; font-size: 20px; color: var(--text-muted); }
 .iconBtn:hover { background: var(--surface-2); }
 .offline { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
 .more { position: relative; }
