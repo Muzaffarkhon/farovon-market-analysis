@@ -329,6 +329,70 @@ export interface PendingCommitteeJob { job_title: string; submitted_count: numbe
 export interface CommitteePendingResponse { ok: true; committeeSize: number; rows: PendingCommitteeJob[] }
 export interface OkMessageResponse { ok: true; message: string }
 
+// ─── Администрирование: бенчмаркинг ───
+
+export interface BenchmarkSource {
+  key: string; title: string; kind: string; is_licensed: number; default_currency: string; notes: string; weight: number; hidden: number;
+}
+export interface BenchmarkSourcesResponse { ok: true; sources: BenchmarkSource[] }
+export interface CreateSourcePayload { key: string; title: string; kind: string; isLicensed: boolean; defaultCurrency: string; notes: string }
+export interface UpdateSourcePayload { key: string; title?: string; kind?: string; defaultCurrency?: string; isLicensed?: boolean; notes?: string; hidden?: boolean }
+export interface SourceResponse { ok: true; source: BenchmarkSource }
+export interface SourceWeightsResponse { ok: true; weights: Record<string, number> }
+
+export interface BenchmarkDataset {
+  id: number; source_key: string; source_title: string; title: string; report_date: string | null; data_as_of: string | null;
+  currency: string; uploaded_by: string; state: string; row_count: number; uploaded_at: string;
+}
+export interface DatasetsResponse { ok: true; datasets: BenchmarkDataset[] }
+
+export interface SourcePosition { id: number; source_key: string; code: string | null; label: string; family: string | null; mapped_count: number }
+export interface SourcePositionsResponse { ok: true; positions: SourcePosition[] }
+
+export interface PositionMapping {
+  id: number; confidence: string; note: string; mapped_by: string; mapped_at: string;
+  dict_position_id: number; dict_position_name: string; our_pay_from: number | null; our_pay_to: number | null;
+  source_position_id: number; source_key: string; source_code: string | null; source_label: string; source_title: string; is_licensed: number;
+}
+export interface MappingsResponse { ok: true; mappings: PositionMapping[] }
+export interface SaveMappingPayload { dictPositionId: number; sourcePositionId: number; confidence?: string; note?: string }
+
+export interface MappingSuggestion {
+  sourcePosition: { id: number; label: string; code: string | null; family: string | null };
+  suggestedDictPosition: { id: number; name: string };
+  score?: number;
+}
+export interface SuggestMappingsResponse { ok: true; suggestions: MappingSuggestion[] }
+
+export interface FxRateResponse { ok: true; rate: number; date: string; currencies: string[] }
+export interface XlsxSheetsResponse { ok: true; sheets: string[] }
+export interface XlsxGridResponse { ok: true; rows: string[][] }
+
+export type BenchmarkImportMode = 'percentiles' | 'raw';
+export interface BenchmarkColumnMap {
+  posLabel?: number; code?: number; region?: number; grade?: number; industry?: number;
+  p25?: number; p50?: number; p75?: number; p10?: number; p90?: number; min?: number; max?: number; avg?: number; sampleN?: number;
+  value?: number; payFrom?: number; company?: number;
+}
+export interface BenchmarkImportRequest {
+  sourceKey: string; text: string; mode: BenchmarkImportMode; columnMap: BenchmarkColumnMap;
+  currency: string; reportDate: string; dataAsOf: string; title: string; fxRate?: number;
+}
+export interface BenchmarkImportPreviewRow {
+  line: number; label: string; code: string; region: string; grade: string;
+  p25?: number; p50?: number; p75?: number; p25Tjs?: number; p50Tjs?: number; p75Tjs?: number; sampleN?: number;
+  value?: number; valueTjs?: number; currency: string;
+}
+export interface BenchmarkImportReport {
+  source: { key: string; title: string; isLicensed: boolean };
+  headers: string[]; totalLines: number; validRows: number;
+  newPositionsCount: number; newPositionsList: string[];
+  preview: BenchmarkImportPreviewRow[];
+  errors: { line: number; message: string }[]; warnings: { line: number; message: string }[];
+}
+export interface DryRunImportResponse { ok: true; report: BenchmarkImportReport }
+export interface CommitImportResponse { ok: true; result: { datasetId: number; datasetTitle: string; insertedRowsCount: number }; message: string }
+
 // ─── Риски незаменимости ключевого персонала ───
 
 export interface KeyRisk {
