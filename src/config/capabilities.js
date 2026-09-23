@@ -30,6 +30,7 @@ const CAPABILITIES = [
   { id: 'service:view', resource: 'service', resourceLabel: 'Сервис и Журнал', label: 'Просмотр журнала и статуса данных' },
   { id: 'service:edit', resource: 'service', resourceLabel: 'Сервис и Журнал', label: 'Запуск сервисных задач' },
   { id: 'dashboard:view', resource: 'dashboard', resourceLabel: 'Дашборд', label: 'Аналитическая сводка' },
+  { id: 'coordination:view', resource: 'coordination', resourceLabel: 'Координация', label: 'Прогресс по направлениям и людям' },
   { id: 'benchmarks:view', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр сравнений' },
   { id: 'benchmarks:view_licensed', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Просмотр лицензированных обзоров (B1, Antal)' },
   { id: 'benchmarks:import', resource: 'benchmarks', resourceLabel: 'Бенчмаркинг', label: 'Загрузка и импорт датасетов' },
@@ -61,7 +62,7 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // /admin/period.
   // hrbp + новые модули: HR BP смотрит грейды и матрицу рисков по своим
   // направлениям, но анкеты заполняют комиссия (грейды) и руководители (риски).
-  hrbp: ['survey:fill', 'dashboard:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
+  hrbp: ['survey:fill', 'dashboard:view', 'coordination:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
     'grading:view', 'keyrisk:view'],
   // dir_head: с PR #25 видит и правит divisions (только свои отделы — это
   // ограничение уже в adminController.saveDivision, не здесь) и читает
@@ -69,7 +70,7 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // dir_head и head заполняют анкеты рисков по своим подразделениям — именно
   // они знают, кто в цехе уникальный носитель знаний. Видимость ограничена
   // закреплёнными подразделениями в самом контроллере (gradingController).
-  dir_head: ['survey:fill', 'divisions:view', 'divisions:edit', 'users:view',
+  dir_head: ['survey:fill', 'coordination:view', 'divisions:view', 'divisions:edit', 'users:view',
     'grading:view', 'keyrisk:view', 'keyrisk:edit'],
   // head: видит и может назначать ответственных в подразделениях своей ветки
   // оргструктуры (подотделах), а также просматривать список пользователей.
