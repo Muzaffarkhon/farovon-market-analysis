@@ -41,5 +41,5 @@ export function truncate(v: string, max = 40): string {
 }
 
 /** «Источник записи» — вручную заведена или пришла импортом из Excel (см. recordSourceOf в registryService.js). */
-export const RECORD_SOURCE_LABEL: Record<string, string> = { manual: 'Вручную', import: 'Импорт из Excel' };
+export const RECORD_SOURCE_LABEL: Record<string, string> = { manual: 'Анкета', import: 'Импорт из Excel' };
 export const recordSourceLabel = (v: string) => RECORD_SOURCE_LABEL[v] ?? v;

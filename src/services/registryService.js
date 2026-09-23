@@ -57,11 +57,11 @@ const EXACT = {
   cur: 'cur', grade: 'grade', bonHas: 'bonHas', recordSource: 'recordSource'
 };
 
-/** «Вручную» / «Импорт из Excel» — сид анкеты, заведённой импортом, всегда
+/** «Анкета» / «Импорт из Excel» — сид анкеты, заведённой импортом, всегда
  * начинается с imp_ (см. surveyImport.js), у обычной записи — с s_ (newRowId
  * в surveyController.js). Отдельного столбца в схеме заводить не пришлось —
  * признак уже целиком в существующем ключе. */
-const RECORD_SOURCE_LABEL = { manual: 'Вручную', import: 'Импорт из Excel' };
+const RECORD_SOURCE_LABEL = { manual: 'Анкета', import: 'Импорт из Excel' };
 function recordSourceOf(sid) {
   return String(sid || '').startsWith('imp_') ? 'import' : 'manual';
 }

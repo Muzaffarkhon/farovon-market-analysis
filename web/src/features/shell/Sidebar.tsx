@@ -12,9 +12,12 @@ const GLYPH: Record<string, string> = {
   '/access': '⚿', '/admin': '⚙'
 };
 
-type Props = { items: NavItem[]; collapsed: boolean; open: boolean; onNavigate: () => void; onCloseMobile: () => void };
+type Props = {
+  items: NavItem[]; collapsed: boolean; open: boolean;
+  onNavigate: () => void; onCloseMobile: () => void; onToggleCollapse: () => void;
+};
 
-export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile }: Props) {
+export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onToggleCollapse }: Props) {
   return (
     <>
       <button
@@ -22,6 +25,16 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile }: P
         aria-label="Закрыть меню" onClick={onCloseMobile}
       />
       <nav className={[s.sidebar, collapsed ? s.collapsed : '', open ? s.open : ''].join(' ')} aria-label="Разделы">
+        <div className={s.brand}>
+          <span className={s.brandMark} aria-hidden="true">ОР</span>
+          <span className={s.brandName}>Обзор рынка</span>
+          <button
+            type="button" className={s.collapseBtn} onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'} title={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
+          >
+            {collapsed ? '›' : '‹'}
+          </button>
+        </div>
         <div className={s.nav}>
           {items.map(i => (
             <NavLink

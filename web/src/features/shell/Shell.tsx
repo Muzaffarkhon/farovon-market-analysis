@@ -32,13 +32,17 @@ export function Shell({ children }: { children?: ReactNode }) {
   // перекрывает контент после клика по пункту.
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
+  function toggleCollapsed() {
+    setCollapsed(c => {
+      const next = !c;
+      try { window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* приватный режим */ }
+      return next;
+    });
+  }
+
   function toggleNav() {
     if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
-      setCollapsed(c => {
-        const next = !c;
-        try { window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* приватный режим */ }
-        return next;
-      });
+      toggleCollapsed();
     } else {
       setMobileOpen(o => !o);
     }
@@ -50,6 +54,7 @@ export function Shell({ children }: { children?: ReactNode }) {
         <Sidebar
           items={items} collapsed={collapsed} open={mobileOpen}
           onNavigate={() => setMobileOpen(false)} onCloseMobile={() => setMobileOpen(false)}
+          onToggleCollapse={toggleCollapsed}
         />
         <div className={s.column}>
           <TopBar title={title} onToggleNav={toggleNav} />

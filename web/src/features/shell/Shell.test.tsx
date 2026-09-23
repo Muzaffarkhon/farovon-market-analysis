@@ -70,3 +70,18 @@ test('кнопка «Обновить» есть в шапке', () => {
   renderShell();
   expect(screen.getByRole('button', { name: 'Обновить' })).toBeInTheDocument();
 });
+
+test('название платформы видно в шапке боковой панели', () => {
+  mockViewport(true);
+  renderShell();
+  expect(screen.getByText('Обзор рынка')).toBeInTheDocument();
+});
+
+test('кнопка «Свернуть меню» внутри панели тоже сворачивает и разворачивает её', async () => {
+  mockViewport(true);
+  renderShell();
+  await userEvent.click(screen.getByRole('button', { name: 'Свернуть меню' }));
+  expect(window.localStorage.getItem('nav-collapsed')).toBe('1');
+  await userEvent.click(screen.getByRole('button', { name: 'Развернуть меню' }));
+  expect(window.localStorage.getItem('nav-collapsed')).toBe('0');
+});
