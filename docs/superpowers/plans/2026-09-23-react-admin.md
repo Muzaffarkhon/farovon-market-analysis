@@ -129,15 +129,15 @@ Modify: `web/src/api/admin.ts`, `contract.ts` (`StaffRecord`, `StaffImportReport
 **Interfaces:** `adminApi.staffDirectory()`, `.saveStaffDirectory(row)`,
 `.deleteStaffDirectory(id)`, `.importStaffDirectory(csv, dryRun)`
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 Мастер импорта: выбор файла → показывает отчёт dry-run (не отправляет
 `dryRun:false` до явного подтверждения) → «Подтвердить» вызывает импорт с
 `dryRun:false` и текстом ровно тем же CSV.
 
-- [ ] **Step 2: Реализация — таблица + ручное CRUD одной записи**
-- [ ] **Step 3: Реализация — мастер импорта (dry-run → отчёт → подтвердить)**
-- [ ] **Step 4: Прогнать, вручную (импортировать тестовый CSV на dev-данных
+- [x] **Step 2: Реализация — таблица + ручное CRUD одной записи**
+- [x] **Step 3: Реализация — мастер импорта (dry-run → отчёт → подтвердить)**
+- [x] **Step 4: Прогнать, вручную (импортировать тестовый CSV на dev-данных
   — можно синтетический с 2-3 строками), commit**
 
 ```bash
