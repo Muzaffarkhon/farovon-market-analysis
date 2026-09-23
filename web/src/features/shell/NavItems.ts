@@ -1,6 +1,6 @@
 import type { SessionUser } from '../../api/contract';
 
-export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'shield' };
+export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'scale' | 'shield' };
 
 /** Пункты навигации строятся из роли и прав; admin видит всё. */
 export function navItemsFor(u: SessionUser): NavItem[] {
@@ -10,6 +10,8 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('dashboard:view')) items.push({ to: '/registry', label: 'Реестр', icon: 'table' });
   if (has('dashboard:view')) items.push({ to: '/dashboard', label: 'Дашборды', icon: 'chart' });
   if (has('coordination:view')) items.push({ to: '/coordination', label: 'Координация', icon: 'users' });
+  if (has('grading:view') || has('grading:edit')) items.push({ to: '/grading', label: 'Оценка должностей', icon: 'scale' });
+  if (has('keyrisk:view') || has('keyrisk:edit')) items.push({ to: '/key-risks', label: 'Риски', icon: 'scale' });
   if (u.role === 'admin') items.push({ to: '/access', label: 'Роли и доступы', icon: 'shield' });
   return items;
 }

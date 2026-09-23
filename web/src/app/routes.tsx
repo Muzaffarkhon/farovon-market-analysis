@@ -9,6 +9,7 @@ import { SheetScreen } from '../features/survey/SheetScreen';
 import { RegistryScreen } from '../features/registry/RegistryScreen';
 import { DashboardScreen } from '../features/dashboard/DashboardScreen';
 import { CoordinationScreen } from '../features/coordination/CoordinationScreen';
+import { GradingScreen } from '../features/grading/GradingScreen';
 import { RoleMatrixScreen } from '../features/access/RoleMatrixScreen';
 
 export const BASENAME = '/new';
@@ -25,6 +26,7 @@ export function AppRoutes() {
         <Route path="registry" element={<RegistryScreen />} />
         <Route path="dashboard/:tab?" element={<DashboardScreen />} />
         <Route path="coordination" element={<CoordinationScreen />} />
+        <Route path="grading/:block?" element={<GradingScreen />} />
         <Route path="access" element={<RoleMatrixScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

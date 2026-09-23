@@ -33,6 +33,17 @@ test('без coordination:view «Координация» не видна', () =
   expect(items.map(i => i.to)).not.toContain('/coordination');
 });
 
+test('grading:view или grading:edit даёт «Оценку должностей»', () => {
+  expect(navItemsFor({ ...base, role: 'user', capabilities: ['grading:view'] } as SessionUser).map(i => i.to)).toContain('/grading');
+  expect(navItemsFor({ ...base, role: 'user', capabilities: ['grading:edit'] } as SessionUser).map(i => i.to)).toContain('/grading');
+  expect(navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser).map(i => i.to)).not.toContain('/grading');
+});
+
+test('keyrisk:view или keyrisk:edit даёт «Риски»', () => {
+  expect(navItemsFor({ ...base, role: 'user', capabilities: ['keyrisk:view'] } as SessionUser).map(i => i.to)).toContain('/key-risks');
+  expect(navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser).map(i => i.to)).not.toContain('/key-risks');
+});
+
 test('без survey:fill сбор скрыт', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
   expect(items.map(i => i.to)).not.toContain('/');
