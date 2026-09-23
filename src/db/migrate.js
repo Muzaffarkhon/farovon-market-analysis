@@ -401,6 +401,10 @@ async function migrate() {
   await ensureColumn('benchmark_datasets', 'orig_currency', 'TEXT');
   await ensureColumn('benchmark_datasets', 'fx_rate', 'REAL');
   await ensureColumn('benchmark_datasets', 'fx_date', 'TEXT');
+  // Мягкое удаление (#8 этапа 9) — deleteDataset больше не бьёт DELETE,
+  // ставит archived_at и оставляет строки в benchmark_rows нетронутыми
+  // (историю и охват рынка можно восстановить руками через БД).
+  await ensureColumn('benchmark_datasets', 'archived_at', 'DATETIME');
   // Вес источника для конкретной должности — перекрывает общий вес источника
   // (data_sources.weight) только по ней. Нет строки — действует общий вес.
   await run(`CREATE TABLE IF NOT EXISTS position_source_weights (

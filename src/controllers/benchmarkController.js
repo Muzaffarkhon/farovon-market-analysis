@@ -222,11 +222,11 @@ exports.compare = async (req, res) => {
 exports.deleteDataset = async (req, res) => {
   try {
     const { id } = req.params;
-    await benchmarkService.deleteDataset(Number(id));
+    await benchmarkService.deleteDataset(Number(id), req.user.login);
     res.json({ ok: true, message: 'Датасет успешно удален' });
   } catch (err) {
     console.error('deleteDataset error:', err);
-    res.status(400).json({ ok: false, error: 'Ошибка удаления датасета' });
+    res.status(400).json({ ok: false, error: err.message === 'Датасет не найден' ? err.message : 'Ошибка удаления датасета' });
   }
 };
 

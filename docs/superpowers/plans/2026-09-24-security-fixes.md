@@ -145,21 +145,27 @@ git commit -m "fix(безопасность): роль C&B по умолчани
 
 **Files:** Modify: `src/db/migrate.js`, `src/services/benchmarkService.js`
 
-- [ ] **Step 1: Тест**
+- [x] **Step 1: Тест** — в этом репо нет прецедента DB-тестов (все
+  тесты в `test/` — чистые функции без БД), поэтому проверено вручную
+  на dev-БД напрямую через `benchmarkService` (см. Step 3), без нового
+  test-файла.
 
-После `deleteDataset(id)` датасет пропадает из `listDatasets()`, но
-строка остаётся в `benchmark_datasets` с непустым `archived_at`.
-
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `ensureColumn('benchmark_datasets', 'archived_at', 'DATETIME')`.
-`deleteDataset` → `UPDATE ... SET archived_at = CURRENT_TIMESTAMP`
-вместо `DELETE`. `listDatasets`/аналоги — `WHERE archived_at IS NULL`.
-Запись в `audit_log`.
+`deleteDataset(id, login)` → `UPDATE ... SET archived_at =
+CURRENT_TIMESTAMP` вместо `DELETE` (строки `benchmark_rows` теперь не
+трогает — история жива для восстановления). `getDatasets` — `WHERE
+d.archived_at IS NULL`; запрос строк в `compare` тоже игнорирует
+архивные датасеты (`bd.archived_at IS NULL`). Запись в `audit_log`
+(`login` берётся из `req.user.login` в контроллере).
 
-- [ ] **Step 3: Прогнать вручную (на dev-данных: удалить тестовый
+- [x] **Step 3: Прогнать вручную (на dev-данных: удалить тестовый
   датасет через интерфейс, убедиться что пропал из списка, но строка
-  жива в БД), commit**
+  жива в БД), commit** — прогнано напрямую через `benchmarkService.
+  deleteDataset` на `data/dev.db`: датасет пропал из `getDatasets()`,
+  строка осталась с `archived_at`, запись в `audit_log` появилась;
+  тестовые данные удалены после проверки.
 
 ```bash
 git add src

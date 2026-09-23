@@ -171,7 +171,7 @@ class BenchmarkService {
       SELECT d.*, s.title AS source_title, s.kind AS source_kind, s.is_licensed
       FROM benchmark_datasets d
       JOIN data_sources s ON d.source_key = s.key
-      WHERE 1=1
+      WHERE d.archived_at IS NULL
     `;
     const params = [];
     if (filter.sourceKey) {
@@ -395,7 +395,7 @@ class BenchmarkService {
         SELECT br.*, bd.title AS dataset_title, bd.data_as_of, bd.report_date
         FROM benchmark_rows br
         JOIN benchmark_datasets bd ON br.dataset_id = bd.id
-        WHERE br.source_position_id = ? AND bd.state = 'active'
+        WHERE br.source_position_id = ? AND bd.state = 'active' AND bd.archived_at IS NULL
         ORDER BY bd.data_as_of DESC, br.id ASC
       `, [src.source_position_id]);
 
@@ -544,13 +544,17 @@ class BenchmarkService {
   }
 
   /**
-   * Удаление датасета и его строк
+   * Мягкое удаление датасета — ставит archived_at, строки benchmark_rows
+   * не трогает (в отличие от deleteDivision/dictionaryController.remove,
+   * этот путь раньше бил настоящий DELETE без подтверждения и журнала).
    */
-  async deleteDataset(id) {
+  async deleteDataset(id, login) {
     const dsId = Number(id);
+    const ds = await queryOne('SELECT id, title FROM benchmark_datasets WHERE id = ? AND archived_at IS NULL', [dsId]);
+    if (!ds) throw new Error('Датасет не найден');
     await batch([
-      { sql: 'DELETE FROM benchmark_rows WHERE dataset_id = ?', args: [dsId] },
-      { sql: 'DELETE FROM benchmark_datasets WHERE id = ?', args: [dsId] }
+      { sql: 'UPDATE benchmark_datasets SET archived_at = CURRENT_TIMESTAMP WHERE id = ?', args: [dsId] },
+      { sql: 'INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', args: [login, 'бенчмаркинг: удаление датасета', `«${ds.title}» (id ${dsId})`] }
     ]);
     return { ok: true };
   }
