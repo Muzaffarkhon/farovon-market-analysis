@@ -13,22 +13,28 @@ import { useRegistry } from './useRegistry';
 import { isUnmapped, money, payRange, perLabel, shortDate, shortDir } from './format';
 import s from './Registry.module.css';
 
-/** Колонки таблицы: ключ сортировки (если колонка сортируемая) и заголовок. */
+/**
+ * Колонки таблицы: ключ сортировки и заголовок. Ключ — то же имя, что
+ * сервер понимает в `sort` (см. SORTABLE в registryService.js); у колонок,
+ * которых нет готовым полем строки (переменная часть, льготы), это отдельный
+ * производный ключ — сервер знает, как его посчитать.
+ */
 const COLUMNS: { key?: string; title: string; num?: boolean }[] = [
   { key: 'date', title: 'Дата' },
   { key: 'dir', title: 'Направление' },
   { key: 'unit', title: 'Подразделение' },
   { key: 'company', title: 'Компания' },
-  { title: 'Регион' },
+  { key: 'region', title: 'Регион' },
   { key: 'posOur', title: 'Наша должность' },
-  { title: 'У них' },
-  { title: 'Грейд' },
+  { key: 'posTheir', title: 'У них' },
+  { key: 'grade', title: 'Грейд' },
   { key: 'payFrom', title: 'Оклад от', num: true },
   { key: 'payTo', title: 'Оклад до', num: true },
-  { title: 'Вал. / период' },
-  { title: 'Переменная часть' },
-  { title: 'Льготы' },
-  { title: 'График' },
+  { key: 'cur', title: 'Вал. / период' },
+  { key: 'varPayMonthly', title: 'Переменная часть' },
+  { key: 'totalMonthly', title: 'Совокупно, мес.', num: true },
+  { key: 'benefitsCount', title: 'Льготы' },
+  { key: 'schedule', title: 'График' },
   { key: 'source', title: 'Источник' },
   { key: 'trust', title: 'Надёжность' },
   { key: 'by', title: 'Кто собрал' }
@@ -116,6 +122,7 @@ export function RegistryScreen() {
                     <td className={s.num}>{money(row.payTo)}</td>
                     <td className={s.nowrap}>{perLabel(row)}</td>
                     <td>{row.varPay.label || '—'}</td>
+                    <td className={s.num}>{row.totalMonthly != null ? money(row.totalMonthly) : '—'}</td>
                     <td>{row.benefits.length ? <Badge tone="ok">{row.benefits.length}</Badge> : <span className={s.muted}>—</span>}</td>
                     <td>{row.schedule ? scheduleLabel(row.schedule) : '—'}</td>
                     <td>{row.source || '—'}</td>

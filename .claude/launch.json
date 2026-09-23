@@ -7,6 +7,18 @@
       "runtimeArgs": ["src/server.js"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "farovon-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "farovon-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:web"],
+      "port": 5173
     }
   ]
 }

@@ -51,6 +51,7 @@ export function RecordSheet({ row, onClose }: { row: RegistryRow | null; onClose
           <Row label="У них">{row.posTheir || '—'}</Row>
           {row.grade && <Row label="Грейд">{row.grade}</Row>}
           <Row label="Оклад">{payRange(row)} <span className={s.muted}>{perLabel(row)}</span></Row>
+          {row.totalMonthly != null && <Row label="Совокупно, мес.">≈ {money(row.totalMonthly)}</Row>}
           <Row label="График">{row.schedule ? scheduleLabel(row.schedule) : '—'}</Row>
           <Row label="Источник">{row.source || '—'}</Row>
           <Row label="Надёжность">{row.trust || '—'}</Row>

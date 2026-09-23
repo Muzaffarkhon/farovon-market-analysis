@@ -18,7 +18,7 @@ const row = (over: Partial<RegistryRow> = {}): RegistryRow => ({
   dir: 'Дивизион Север', hrbp: 'Иванов И.', unit: 'Цех 1', region: 'Худжанд',
   company: 'Алиф', posOur: 'Токарь', posTheir: 'Токарь 3р', grade: 'G7',
   payFrom: 3000, payTo: 5000, cur: 'сомони', payPer: 'в месяц',
-  bonHas: 'нет', bonuses: [], varPay: { has: false, label: 'без премии' },
+  bonHas: 'нет', bonuses: [], varPay: { has: false, label: 'без премии' }, totalMonthly: 4000,
   benefits: ['ДМС'], extra: '', schedule: '5/2 · 40 часов',
   source: 'Интервью', trust: 'высокая', note: '', ...over
 });
@@ -103,6 +103,57 @@ test('клик по заголовку сортирует и переворач�
   await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'company', order: 'desc' })));
   await userEvent.click(screen.getByRole('button', { name: /Компания/ }));
   await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'company', order: 'asc' })));
+});
+
+test('каждая колонка таблицы сортируется', async () => {
+  renderScreen();
+  // 18 колонок кликаются последовательно — под нагрузкой полного прогона
+  // (все файлы вместе) дефолтный таймаут может не хватить.
+  await screen.findByRole('cell', { name: 'Алиф' });
+  const sortKeys: Record<string, string> = {
+    'Дата': 'date', 'Направление': 'dir', 'Подразделение': 'unit', 'Компания': 'company',
+    'Регион': 'region', 'Наша должность': 'posOur', 'У них': 'posTheir', 'Грейд': 'grade',
+    'Оклад от': 'payFrom', 'Оклад до': 'payTo', 'Вал. / период': 'cur',
+    'Переменная часть': 'varPayMonthly', 'Совокупно, мес.': 'totalMonthly',
+    'Льготы': 'benefitsCount', 'График': 'schedule', 'Источник': 'source',
+    'Надёжность': 'trust', 'Кто собрал': 'by'
+  };
+  for (const [title, key] of Object.entries(sortKeys)) {
+    // «Дата» — колонка сортировки по умолчанию, у неё уже стоит стрелка (↓).
+    await userEvent.click(screen.getByRole('button', { name: new RegExp('^' + title) }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: key })));
+  }
+}, 15000);
+
+// «5 500» из money() набрано с неразрывным пробелом (Intl ru-RU) — сравниваем
+// текст ячейки как есть, а не через доступное имя (у него нет нормализации
+// пробелов, в отличие от обычных текстовых запросов).
+const totalCellText = () => {
+  const head = screen.getByRole('columnheader', { name: /Совокупно/ });
+  const idx = Array.from(head.parentElement!.children).indexOf(head);
+  return screen.getAllByRole('cell')[idx].textContent;
+};
+
+test('совокупный доход показан колонкой', async () => {
+  list.mockResolvedValue(answer({ rows: [row({ totalMonthly: 5500 })] }));
+  renderScreen();
+  await screen.findByRole('cell', { name: 'Алиф' });
+  expect(totalCellText()).toBe((5500).toLocaleString('ru-RU'));
+});
+
+test('совокупный доход пуст, когда его не из чего посчитать', async () => {
+  list.mockResolvedValue(answer({ rows: [row({ totalMonthly: null })] }));
+  renderScreen();
+  await screen.findByRole('cell', { name: 'Алиф' });
+  expect(totalCellText()).toBe('—');
+});
+
+test('в карточке наблюдения виден совокупный доход', async () => {
+  list.mockResolvedValue(answer({ rows: [row({ totalMonthly: 5500 })] }));
+  renderScreen();
+  await userEvent.click(await screen.findByRole('cell', { name: 'Алиф' }));
+  const card = await screen.findByRole('dialog', { name: 'Алиф' });
+  expect(within(card).getByText(/5 500/)).toBeInTheDocument();
 });
 
 test('страницы листаются', async () => {

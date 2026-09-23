@@ -88,7 +88,7 @@ export interface RegistryRow {
   dir: string; hrbp: string; unit: string; region: string;
   company: string; posOur: string; posTheir: string; grade: string;
   payFrom: number; payTo: number; cur: string; payPer: string;
-  bonHas: string; bonuses: Bonus[]; varPay: VarPay;
+  bonHas: string; bonuses: Bonus[]; varPay: VarPay; totalMonthly: number | null;
   benefits: string[]; extra: string; schedule: string;
   source: string; trust: string; note: string;
 }

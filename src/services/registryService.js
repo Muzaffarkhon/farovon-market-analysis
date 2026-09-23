@@ -24,7 +24,24 @@ const DEFAULT_PER_PAGE = 50;
 const MAX_PER_PAGE = 200;
 
 /** По каким колонкам разрешено сортировать. Всё прочее — по дате, новые сверху. */
-const SORTABLE = ['date', 'company', 'unit', 'dir', 'posOur', 'payFrom', 'payTo', 'trust', 'source', 'by'];
+const SORTABLE = [
+  'date', 'company', 'unit', 'dir', 'posOur', 'posTheir', 'grade', 'region',
+  'payFrom', 'payTo', 'cur', 'varPayMonthly', 'benefitsCount', 'totalMonthly',
+  'schedule', 'source', 'trust', 'by'
+];
+
+/** Числовые колонки — сравниваются как числа, а не строкой («9» после «10»). */
+const NUMERIC_SORT = new Set(['payFrom', 'payTo', 'varPayMonthly', 'benefitsCount', 'totalMonthly']);
+/** Эти два не лежат в строке готовым полем — их считает numericValue ниже.
+ *  Пусто (нет данных) уходит в конец списка независимо от направления
+ *  сортировки — так «сортировка по возрастанию» не начинается с прочерков. */
+const NULLABLE_NUMERIC = new Set(['varPayMonthly', 'totalMonthly']);
+
+function numericValue(row, key) {
+  if (key === 'varPayMonthly') return (row.varPay && row.varPay.monthly != null) ? row.varPay.monthly : null;
+  if (key === 'benefitsCount') return Array.isArray(row.benefits) ? row.benefits.length : 0;
+  return row[key];
+}
 
 /** Поля-грани: из них собираются выпадающие списки фильтров. */
 const FACETS = {
@@ -69,6 +86,15 @@ function toRow(s, unitInfo) {
 
   const bonHas = low(s.bon_has);
   const bonuses = parseBonusesCol(s.bonuses, s.bon_type, s.bon_size, s.bon_per);
+  const varPay = summarizeVarPay(bonuses, bonHas, mid);
+
+  // Совокупно в месяц: оклад + премия, приведённая к месяцу (см. totalPayCell
+  // в старом клиенте). Явное «нет премии» — известный ноль, а не «неизвестно»
+  // (summarizeVarPay сам null не даёт для этого случая — там ему нечего
+  // складывать). Прочерк остаётся только когда нет оклада или размер премии
+  // указан, но не распознан («оклад + неизвестно» хуже пустой ячейки).
+  const bonusMonthly = bonHas === 'нет' ? 0 : varPay.monthly;
+  const totalMonthly = (mid > 0 && bonusMonthly != null) ? Math.round(mid + bonusMonthly) : null;
 
   // Регион: сначала структурный (divisions.region), иначе — из примечания
   // импортированных строк («Собрал: …; Регион: Худжанд; ID_Бизнес: 11»).
@@ -91,7 +117,8 @@ function toRow(s, unitInfo) {
     payPer,
     bonHas,
     bonuses,
-    varPay: summarizeVarPay(bonuses, bonHas, mid),
+    varPay,
+    totalMonthly,
     benefits: s.benefits ? String(s.benefits).split(';').map(trim).filter(Boolean) : [],
     extra: trim(s.extra),
     schedule: trim(s.schedule),
@@ -139,12 +166,20 @@ function buildFacets(rows) {
 function sortRows(rows, sort, order) {
   const key = SORTABLE.includes(sort) ? sort : 'date';
   const sign = low(order) === 'asc' ? 1 : -1;
-  const numeric = key === 'payFrom' || key === 'payTo';
+  if (NUMERIC_SORT.has(key)) {
+    return rows.slice().sort((a, b) => {
+      const x = numericValue(a, key);
+      const y = numericValue(b, key);
+      if (NULLABLE_NUMERIC.has(key)) {
+        if (x == null && y == null) return 0;
+        if (x == null) return 1;
+        if (y == null) return -1;
+      }
+      return ((Number(x) || 0) - (Number(y) || 0)) * sign;
+    });
+  }
   return rows.slice().sort((a, b) => {
-    const x = a[key];
-    const y = b[key];
-    if (numeric) return ((Number(x) || 0) - (Number(y) || 0)) * sign;
-    const cmp = String(x || '').localeCompare(String(y || ''), 'ru');
+    const cmp = String(a[key] || '').localeCompare(String(b[key] || ''), 'ru');
     return cmp * sign;
   });
 }
@@ -223,7 +258,7 @@ const CSV_COLUMNS = [
   ['date', 'Дата'], ['dir', 'Направление'], ['unit', 'Подразделение'], ['region', 'Регион'],
   ['company', 'Компания'], ['posOur', 'Наша должность'], ['posTheir', 'Должность у них'],
   ['grade', 'Грейд'], ['payFrom', 'Оклад от'], ['payTo', 'Оклад до'], ['cur', 'Валюта'],
-  ['payPer', 'Период выплаты'], ['varPay', 'Переменная часть'], ['benefits', 'Льготы'],
+  ['payPer', 'Период выплаты'], ['varPay', 'Переменная часть'], ['totalMonthly', 'Совокупно, мес.'], ['benefits', 'Льготы'],
   ['extra', 'Прочие выплаты'], ['schedule', 'График'], ['source', 'Источник'],
   ['trust', 'Надёжность'], ['by', 'Кто собрал'], ['note', 'Примечание']
 ];

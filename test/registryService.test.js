@@ -154,6 +154,60 @@ test('размер страницы ограничен сверху', () => {
   assert.equal(build([survey()], { perPage: 100000 }).perPage, 200);
 });
 
+test('сортировка работает по любой добавленной колонке, не только по прежним пяти', () => {
+  const rows = [
+    survey({ id: 1, sid: 'a', grade: 'G3', pos_their: 'Б', cur: 'доллар', schedule: '5/2 · 40 часов' }),
+    survey({ id: 2, sid: 'b', grade: 'G9', pos_their: 'А', cur: 'сомони', schedule: '6/1 · 54 часа' })
+  ];
+  assert.equal(build(rows, { sort: 'grade', order: 'asc' }).rows[0].id, 'a');
+  assert.equal(build(rows, { sort: 'posTheir', order: 'asc' }).rows[0].id, 'b');
+  // «доллар» раньше «сомони» по алфавиту.
+  assert.equal(build(rows, { sort: 'cur', order: 'asc' }).rows[0].id, 'a');
+  assert.equal(build(rows, { sort: 'schedule', order: 'asc' }).rows[0].id, 'a');
+});
+
+// ── Совокупно в месяц ────────────────────────────────────────────────────
+
+test('совокупно в месяц: оклад плюс премия, приведённая к месяцу', () => {
+  const r = build([survey({ pay_from: 4000, pay_to: 6000, bon_has: 'да', bon_type: 'KPI', bon_size: '10%', bon_per: 'в месяц' })]).rows[0];
+  // mid = 5000, +10% = 500 → 5500
+  assert.equal(r.totalMonthly, 5500);
+});
+
+test('совокупно в месяц пусто, если размер премии не распознан', () => {
+  const r = build([survey({ bon_has: 'да', bon_type: 'KPI', bon_size: '', bon_per: '' })]).rows[0];
+  assert.equal(r.totalMonthly, null);
+});
+
+test('совокупно в месяц: явное «нет премии» — известный ноль, а не прочерк', () => {
+  const r = build([survey({ pay_from: 4000, pay_to: 6000, bon_has: 'нет' })]).rows[0];
+  assert.equal(r.totalMonthly, 5000);
+});
+
+test('совокупно в месяц пусто без оклада', () => {
+  const r = build([survey({ pay_from: 0, pay_to: 0, bon_has: 'нет' })]).rows[0];
+  assert.equal(r.totalMonthly, null);
+});
+
+test('сортировка по совокупному доходу переносит записи без данных в конец', () => {
+  const rows = [
+    survey({ id: 1, sid: 'a', pay_from: 5000, pay_to: 5000, bon_has: 'нет' }), // totalMonthly = 5000
+    survey({ id: 2, sid: 'b', pay_from: 0, pay_to: 0, bon_has: 'нет' }), // totalMonthly = null
+    survey({ id: 3, sid: 'c', pay_from: 8000, pay_to: 8000, bon_has: 'нет' }) // totalMonthly = 8000
+  ];
+  assert.deepEqual(build(rows, { sort: 'totalMonthly', order: 'asc' }).rows.map(r => r.id), ['a', 'c', 'b']);
+  assert.deepEqual(build(rows, { sort: 'totalMonthly', order: 'desc' }).rows.map(r => r.id), ['c', 'a', 'b']);
+});
+
+test('сортировка по льготам — по их числу', () => {
+  const rows = [
+    survey({ id: 1, sid: 'a', benefits: 'ДМС' }),
+    survey({ id: 2, sid: 'b', benefits: 'ДМС;Обеды;Связь' })
+  ];
+  assert.equal(build(rows, { sort: 'benefitsCount', order: 'asc' }).rows[0].id, 'a');
+  assert.equal(build(rows, { sort: 'benefitsCount', order: 'desc' }).rows[0].id, 'b');
+});
+
 // ── Видимость по роли ──────────────────────────────────────────────────────
 
 test('admin и C&B видят весь рынок', () => {
