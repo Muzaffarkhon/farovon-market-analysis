@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
 import { useSessionData } from '../auth/useSession';
 import { navItemsFor } from './NavItems';
+import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import s from './Shell.module.css';
 
@@ -13,22 +14,47 @@ export function useScreenTitle(title: string) {
   useEffect(() => { set(title); document.title = title + ' — Обзор рынка'; }, [title, set]);
 }
 
+const COLLAPSE_KEY = 'nav-collapsed';
+
+function loadCollapsed(): boolean {
+  try { return window.localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
+}
+
 export function Shell({ children }: { children?: ReactNode }) {
   const { user } = useSessionData();
   const [title, setTitle] = useState('');
   const items = navItemsFor(user);
+  const [collapsed, setCollapsed] = useState(loadCollapsed);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Переход на новый экран закрывает выдвижное меню телефона — иначе оно
+  // перекрывает контент после клика по пункту.
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  function toggleNav() {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+      setCollapsed(c => {
+        const next = !c;
+        try { window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* приватный режим */ }
+        return next;
+      });
+    } else {
+      setMobileOpen(o => !o);
+    }
+  }
+
   return (
     <TitleCtx.Provider value={setTitle}>
       <div className={s.shell}>
-        <TopBar title={title} />
-        <main className={s.main}>{children ?? <Outlet />}</main>
-        {items.length > 1 && (
-          <nav className={s.bottom} aria-label="Разделы">
-            {items.map(i => (
-              <NavLink key={i.to} to={i.to} end={i.to === '/'} className={({ isActive }) => [s.bottomLink, isActive ? s.active : ''].join(' ')}>{i.label}</NavLink>
-            ))}
-          </nav>
-        )}
+        <Sidebar
+          items={items} collapsed={collapsed} open={mobileOpen}
+          onNavigate={() => setMobileOpen(false)} onCloseMobile={() => setMobileOpen(false)}
+        />
+        <div className={s.column}>
+          <TopBar title={title} onToggleNav={toggleNav} />
+          <main className={s.main}>{children ?? <Outlet />}</main>
+        </div>
       </div>
     </TitleCtx.Provider>
   );
