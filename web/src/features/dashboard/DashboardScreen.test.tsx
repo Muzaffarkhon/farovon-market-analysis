@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { DashboardScreen } from './DashboardScreen';
 import * as api from '../../api/dashboard';
+import * as benchmarkApiModule from '../../api/benchmark';
 import type { DashboardResponse, SessionData } from '../../api/contract';
 
 vi.mock('../shell/Shell', () => ({ useScreenTitle: () => {} }));
 
-const session = { user: { role: 'cb', capabilities: ['dashboard:view'] } } as unknown as SessionData;
+const session = { user: { role: 'cb', capabilities: ['dashboard:view'] as string[] } } as unknown as SessionData;
 vi.mock('../auth/useSession', () => ({ useSessionData: () => session }));
 
 const answer = (over: Partial<DashboardResponse> = {}): DashboardResponse => ({
@@ -49,8 +50,13 @@ let get: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   lastSearch = '';
+  session.user.capabilities = ['dashboard:view'];
   get = vi.fn().mockResolvedValue(answer());
   vi.spyOn(api, 'dashboardApi', 'get').mockReturnValue({ get } as never);
+  vi.spyOn(benchmarkApiModule, 'benchmarkApi', 'get').mockReturnValue({
+    compare: vi.fn(),
+    summaryWidgets: vi.fn().mockResolvedValue({ ok: true, widgets: { totalPositions: 0, mappedPositions: 0, coveragePercent: 0, belowMarket: [], aboveMarket: [] } })
+  } as never);
 });
 
 test('без вкладки в адресе показывает «Обзор»', async () => {
@@ -107,6 +113,25 @@ test('пустой рынок — одно сообщение, вкладки н
   renderScreen('/dashboard');
   expect(await screen.findByText('За этот период ещё ничего не собрано.')).toBeInTheDocument();
   expect(screen.queryByText('Медиана рынка (P50)')).not.toBeInTheDocument();
+});
+
+test('вкладка «Бенчмаркинг» не видна без benchmarks:view', async () => {
+  renderScreen('/dashboard');
+  await screen.findByText('Медиана рынка (P50)');
+  expect(screen.queryByRole('link', { name: 'Бенчмаркинг' })).not.toBeInTheDocument();
+});
+
+test('с benchmarks:view вкладка «Бенчмаркинг» видна и открывается', async () => {
+  session.user.capabilities = ['dashboard:view', 'benchmarks:view'];
+  renderScreen('/dashboard');
+  await screen.findByText('Медиана рынка (P50)');
+  await userEvent.click(screen.getByRole('link', { name: 'Бенчмаркинг' }));
+  expect(await screen.findByLabelText('Должность')).toBeInTheDocument();
+});
+
+test('прямая ссылка на «Бенчмаркинг» без права показывает «Обзор»', async () => {
+  renderScreen('/dashboard/benchmark');
+  expect(await screen.findByText('Медиана рынка (P50)')).toBeInTheDocument();
 });
 
 test('ограниченной роли сказано, что видны только свои подразделения', async () => {

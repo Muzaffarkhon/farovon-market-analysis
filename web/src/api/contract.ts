@@ -192,3 +192,34 @@ export interface DashboardFilters {
   period?: number | null;
   dir?: string; hrbp?: string; region?: string; search?: string;
 }
+
+// ─── Бенчмаркинг (только чтение — сравнение по должности) ───
+
+export interface PercentileStats { count: number; min: number; p10: number; p25: number; p50: number; p75: number; p90: number; max: number; avg: number }
+
+export interface BenchmarkSourceResult {
+  sourceKey: string; sourceTitle: string; sourceKind: string; isLicensed: boolean;
+  dataAsOf?: string; hasData: boolean; stats: PercentileStats | null;
+  gapPercent: number | null; gapAmount: number | null;
+  weight: number; share: number; compaRatio: number | null;
+}
+
+export interface BenchmarkInternal {
+  sourceKey: 'internal'; sourceTitle: string;
+  observationsCount: number; stats: PercentileStats;
+  gapPercent: number | null; gapAmount: number | null;
+  weight: number; share: number; compaRatio: number | null;
+}
+
+export interface BenchmarkCompareResult {
+  position: { id: number; name: string; ourPayFrom: number; ourPayTo: number; ourMid: number };
+  internal: BenchmarkInternal;
+  external: BenchmarkSourceResult[];
+  summary: {
+    sourcesCount: number; compositeMedian: number;
+    compositeGapPercent: number | null; compositeGapAmount: number | null; compaRatio: number | null;
+  };
+}
+
+export interface BenchmarkGap { positionId: number; positionName: string; ourMid: number; marketMedian: number; gapPercent: number; gapAmount: number }
+export interface BenchmarkSummaryWidgets { totalPositions: number; mappedPositions: number; coveragePercent: number; belowMarket: BenchmarkGap[]; aboveMarket: BenchmarkGap[] }

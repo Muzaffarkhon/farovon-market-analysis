@@ -1,8 +1,10 @@
 import { NavLink } from 'react-router';
 import type { DashboardResponse } from '../../api/contract';
 import { Skeleton } from '../../design/Skeleton';
+import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
 import { DashboardFilters } from './DashboardFilters';
+import { BenchmarkTab } from './BenchmarkTab';
 import { BenefitsTab } from './BenefitsTab';
 import { OverviewTab } from './OverviewTab';
 import { RegionsTab } from './RegionsTab';
@@ -12,9 +14,8 @@ import s from './Dashboard.module.css';
 
 type TabProps = { data: DashboardResponse };
 
-// Остальные вкладки заполняются по одной в следующих задачах плана; до тех
-// пор — заглушка, чтобы раздел был проверяем целиком уже сейчас.
-function BenchmarkTab(_: TabProps) { return <h2>Бенчмаркинг</h2>; }
+// Прогресс заполняется в следующей задаче плана; до тех пор — заглушка,
+// чтобы раздел был проверяем целиком уже сейчас.
 function ProgressTab(_: TabProps) { return <h2>Прогресс</h2>; }
 
 const PANELS: Record<string, (props: TabProps) => React.JSX.Element> = {
@@ -25,12 +26,16 @@ const PANELS: Record<string, (props: TabProps) => React.JSX.Element> = {
 export function DashboardScreen() {
   useScreenTitle('Дашборды');
   const d = useDashboard();
-  const Panel = PANELS[d.tab];
+  const { user } = useSessionData();
+  const canBenchmark = user.role === 'admin' || user.capabilities.includes('benchmarks:view');
+  const tabs = TABS.filter(t => t.key !== 'benchmark' || canBenchmark);
+  // Без права на вкладку прямая ссылка на неё не должна её показывать.
+  const Panel = tabs.some(t => t.key === d.tab) ? PANELS[d.tab] : PANELS.overview;
 
   return (
     <div>
       <nav className={s.tabs} aria-label="Вкладки дашборда">
-        {TABS.map(t => (
+        {tabs.map(t => (
           <NavLink
             key={t.key} to={`/dashboard/${t.key}`}
             className={({ isActive }) => [s.tab, isActive ? s.tabActive : ''].join(' ')}
