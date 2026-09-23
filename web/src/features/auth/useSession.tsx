@@ -3,6 +3,12 @@ import { authApi } from '../../api/auth';
 import { setUnauthorizedHandler } from '../../api/client';
 import type { SessionData } from '../../api/contract';
 
+declare global {
+  interface Window {
+    Telegram?: { WebApp?: { initData?: string } };
+  }
+}
+
 type State = { status: 'loading' | 'anon' | 'authed'; data?: SessionData };
 type Ctx = State & {
   refresh: () => Promise<void>;
@@ -19,9 +25,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const r = await authApi.resume();
       setState({ status: 'authed', data: r.data });
+      return;
     } catch {
-      setState({ status: 'anon' });
+      // Нет куки-сессии — попробуем автовход ниже перед тем, как показать
+      // экран логина.
     }
+
+    // Открыто как Telegram Mini App (кнопка «Открыть систему» в боте) —
+    // входим по подписи initData вместо пароля. Молча откатываемся на
+    // обычный экран входа, если подпись не прошла (например, чат ещё не
+    // привязан к аккаунту).
+    const initData = window.Telegram?.WebApp?.initData;
+    if (initData) {
+      try {
+        const r = await authApi.telegramLogin(initData);
+        setState({ status: 'authed', data: r.data });
+        return;
+      } catch {
+        // откат ниже
+      }
+    }
+
+    setState({ status: 'anon' });
   }, []);
 
   const logout = useCallback(async () => {

@@ -636,6 +636,57 @@ exports.login = async (req, res) => {
   }
 };
 
+/**
+ * Вход через Telegram Mini App — тот же контракт ответа, что и `login`
+ * выше (`{ ok, token, data }`), но вместо пароля проверяется подпись
+ * `initData` (HMAC, см. telegramService.verifyInitData) и совпадение
+ * telegram-пользователя с уже привязанным `users.telegram_chat_id`.
+ * Альтернативный способ пройти уже существующую привязку (сделанную через
+ * /start или /link в боте) — не отдельная регистрация: не найден/не
+ * активен пользователь — тот же отказ, что у обычного логина, без
+ * автосоздания учётки.
+ */
+exports.telegramLogin = async (req, res) => {
+  const initData = req.body && req.body.initData;
+  if (!initData) {
+    return res.status(400).json({ ok: false, error: 'Нет initData' });
+  }
+
+  const { verifyInitData } = require('../services/telegramService');
+  const tgUser = verifyInitData(initData);
+  if (!tgUser || !tgUser.id) {
+    return res.status(401).json({ ok: false, error: 'Недействительная подпись Telegram' });
+  }
+
+  try {
+    const user = await queryOne(
+      'SELECT * FROM users WHERE telegram_chat_id = ? AND archived_at IS NULL',
+      [String(tgUser.id)]
+    );
+    if (!user) {
+      return res.status(401).json({ ok: false, error: 'Этот Telegram-аккаунт не привязан ни к одному пользователю' });
+    }
+    if (!user.active) {
+      return res.status(403).json({ ok: false, error: 'Учетная запись заблокирована' });
+    }
+
+    const now = new Date().toISOString();
+    await run('UPDATE users SET last_login_at = ? WHERE id = ?', [now, user.id]);
+    await run('INSERT INTO audit_log (login, action, detail, ip) VALUES (?, ?, ?, ?)', [
+      user.login, 'вход через Mini App', 'Авторизация по подписи Telegram initData', req.ip || ''
+    ]);
+
+    const token = makeToken(user);
+    setSessionCookie(res, token);
+    const data = await getUserPayload(user);
+
+    res.json({ ok: true, token, data });
+  } catch (err) {
+    console.error('Telegram login error:', err);
+    res.status(500).json({ ok: false, error: 'Внутренняя ошибка сервера при входе' });
+  }
+};
+
 exports.resume = async (req, res) => {
   try {
     // Абсолютный потолок: сессию, начатую более SESSION_MAX_AGE_MS назад,

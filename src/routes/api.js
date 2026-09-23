@@ -24,6 +24,9 @@ router.use(apiLimiter);
 
 // ─── Публичные роуты авторизации ───
 router.post('/auth/login', authLimiter, authController.login);
+// Вход через Telegram Mini App — initData вместо пароля, тот же лимит,
+// что у обычного логина (см. authController.telegramLogin).
+router.post('/auth/telegram', authLimiter, authController.telegramLogin);
 // Выход — просто гасит httpOnly-куку сессии, JWT для этого не нужен.
 router.post('/auth/logout', authController.logout);
 

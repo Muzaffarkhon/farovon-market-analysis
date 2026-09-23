@@ -1,5 +1,49 @@
+const crypto = require('crypto');
 const config = require('../config');
 const { queryAll } = require('../db/database');
+
+/**
+ * Проверка подписи Telegram Mini App (`window.Telegram.WebApp.initData`) —
+ * стандартный алгоритм Telegram (WebAppData): секретный ключ — HMAC-SHA256
+ * токена бота с константой 'WebAppData', сама подпись — HMAC-SHA256
+ * data-check-string этим ключом. Возвращает распарсенный `user` из initData
+ * при валидной и свежей (не старше суток — как в примерах Telegram)
+ * подписи, иначе null. Не бросает исключений — вызывающий код сам решает,
+ * что ответить (401), а не ловит их сначала.
+ */
+function verifyInitData(initData, botToken = config.telegramBotToken) {
+  if (!initData || !botToken) return null;
+  let params;
+  try {
+    params = new URLSearchParams(initData);
+  } catch {
+    return null;
+  }
+  const hash = params.get('hash');
+  if (!hash) return null;
+  params.delete('hash');
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+  const computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+  const bufComputed = Buffer.from(computed, 'hex');
+  const bufHash = Buffer.from(hash, 'hex');
+  if (bufComputed.length !== bufHash.length || !crypto.timingSafeEqual(bufComputed, bufHash)) return null;
+
+  const authDate = Number(params.get('auth_date') || 0);
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return null;
+
+  try {
+    return JSON.parse(params.get('user') || 'null');
+  } catch {
+    return null;
+  }
+}
 
 // Все сообщения бота уходят с parse_mode: 'HTML'. ФИО и названия подразделений
 // вводит администратор — символы < > & в них ломают разметку. Экранируем.
@@ -247,6 +291,7 @@ module.exports = {
   ensureWebhook,
   sendTelegramMessage,
   answerCallbackQuery,
+  verifyInitData,
   sendMassReminder,
   sendCoordinationReminder,
   notifySupportTeam
