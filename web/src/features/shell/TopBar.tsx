@@ -18,7 +18,7 @@ export function TopBar({ title, onToggleNav }: { title: string; onToggleNav: () 
   return (
     <header className={s.top}>
       <div className={s.left}>
-        <button type="button" className={s.iconBtn} aria-label="Разделы" onClick={onToggleNav}>☰</button>
+        <button type="button" className={[s.iconBtn, s.navToggle].join(' ')} aria-label="Разделы" onClick={onToggleNav}>☰</button>
         <h1 className={s.title}>{title}</h1>
       </div>
       <div className={s.right}>

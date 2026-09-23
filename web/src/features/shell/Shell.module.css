@@ -28,4 +28,8 @@
   .title { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .period { display: inline; }
   .periodInMenu { display: none; }
+  /* Разделы открывает/сворачивает и логотип панели (Sidebar.tsx) — здесь
+     кнопка дублирует его и нужна только на телефоне, где панель скрыта
+     целиком и логотип недоступен, пока её не открыть. */
+  .navToggle { display: none; }
 }

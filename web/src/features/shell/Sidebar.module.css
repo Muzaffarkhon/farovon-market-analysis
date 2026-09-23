@@ -34,11 +34,11 @@
 .link {
   display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap);
   padding: 0 var(--s-2); border-radius: var(--r-md); text-decoration: none;
-  color: var(--text-muted); white-space: nowrap; overflow: hidden;
+  color: var(--text); white-space: nowrap; overflow: hidden;
 }
 .link:hover { background: var(--surface); }
 .link.active { background: var(--surface); color: var(--text); font-weight: 600; }
-.icon { flex: none; width: 22px; text-align: center; font-size: 16px; }
+.icon { flex: none; width: 22px; text-align: center; font-size: 16px; color: var(--accent); }
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
 
