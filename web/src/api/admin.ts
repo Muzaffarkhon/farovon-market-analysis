@@ -1,7 +1,9 @@
 import { request } from './client';
 import type {
   AdminUsersResponse, ArchivedUsersResponse, SaveUserPayload, SaveUserResponse, ResetPasswordResponse,
-  DivisionsResponse, OkResponse
+  DivisionsResponse, OkResponse,
+  SaveDivisionPayload, CreateDivisionPayload, CreateDivisionResponse, MoveDivisionPayload, MoveDivisionResponse,
+  BatchAssignPayload, BatchAssignResponse
 } from './contract';
 
 export const adminApi = {
@@ -13,5 +15,11 @@ export const adminApi = {
   archiveUser: (login: string) => request<OkResponse>(`/admin/users/${encodeURIComponent(login)}/archive`, {}),
   restoreUser: (login: string) => request<OkResponse>(`/admin/users/${encodeURIComponent(login)}/restore`, {}),
 
-  divisions: () => request<DivisionsResponse>('/admin/divisions')
+  divisions: () => request<DivisionsResponse>('/admin/divisions'),
+  saveDivision: (payload: SaveDivisionPayload) => request<OkResponse>('/admin/divisions', payload),
+  createDivision: (payload: CreateDivisionPayload) => request<CreateDivisionResponse>('/admin/divisions/create', payload),
+  moveDivision: (payload: MoveDivisionPayload) => request<MoveDivisionResponse>('/admin/divisions/move', payload),
+  hideDivision: (unit: string, hidden: boolean) => request<OkResponse>('/admin/divisions/hide', { unit, hidden }),
+  deleteDivision: (unit: string) => request<OkResponse>('/admin/divisions/delete', { unit }),
+  batchAssign: (payload: BatchAssignPayload) => request<BatchAssignResponse>('/admin/divisions/batch-assign', payload)
 };

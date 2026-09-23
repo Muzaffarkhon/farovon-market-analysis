@@ -14,6 +14,7 @@ import { KeyRisksScreen } from '../features/keyRisks/KeyRisksScreen';
 import { RoleMatrixScreen } from '../features/access/RoleMatrixScreen';
 import { AdminHub } from '../features/admin/AdminHub';
 import { UsersScreen } from '../features/admin/users/UsersScreen';
+import { DivisionsScreen } from '../features/admin/divisions/DivisionsScreen';
 
 export const BASENAME = '/new';
 
@@ -34,6 +35,7 @@ export function AppRoutes() {
         <Route path="access" element={<RoleMatrixScreen />} />
         <Route path="admin" element={<AdminHub />} />
         <Route path="admin/users" element={<UsersScreen />} />
+        <Route path="admin/divisions" element={<DivisionsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

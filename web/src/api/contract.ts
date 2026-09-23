@@ -356,3 +356,14 @@ export interface Division {
 }
 export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: unknown[] }
 
+export interface SaveDivisionPayload {
+  unit: string; dir?: string; head?: string; resp?: string; hrbp?: string; note?: string;
+  group?: string; region?: string; org_role?: string; is_survey_target?: number;
+}
+export interface CreateDivisionPayload { unit: string; dir?: string; head?: string; resp?: string; hrbp?: string; region?: string; note?: string }
+export interface CreateDivisionResponse { ok: true; division: Division; message: string }
+export interface MoveDivisionPayload { unit: string; targetDir: string; parentUnit?: string | null; cascadeCompetitors?: boolean }
+export interface MoveDivisionResponse { ok: true; message: string; unit: string; newDir: string; newParentUnit: string | null; competitorsUpdated: number }
+export interface BatchAssignPayload { dir: string; roleType: 'head' | 'hrbp' | 'resp'; personName: string }
+export interface BatchAssignResponse { ok: true; message: string; affectedDivisions: number }
+
