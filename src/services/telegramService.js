@@ -182,57 +182,82 @@ async function notifySupportTeam(text) {
   return sentCount;
 }
 
+// `coordinationService.getCoordination().people` (тот же ответ, что уходит
+// клиенту на экран «Координация») сознательно не несёт telegram_chat_id —
+// только hasTelegram. Для реальной отправки берём его отдельным точечным
+// запросом, только для тех логинов, кому действительно будем писать —
+// общий хелпер для sendMassReminder и sendCoordinationReminder ниже.
+async function chatIdsForLogins(logins) {
+  const unique = Array.from(new Set(logins));
+  if (!unique.length) return new Map();
+  const rows = await queryAll(
+    `SELECT login, telegram_chat_id FROM users WHERE login IN (${unique.map(() => '?').join(',')})`,
+    unique
+  );
+  return new Map(rows.map(r => [r.login, r.telegram_chat_id]));
+}
+
+/**
+ * Кто получает массовое напоминание: люди с привязанным Telegram, у
+ * которых хотя бы в одном ИЗ СВОИХ подразделений есть незакрытая
+ * должность. Подразделение без штатки (`positionsTotal === 0`) не в счёт —
+ * `positionsDecided < positionsTotal` для него ложно по построению
+ * `coordinationService.buildCoordination`. Чистая функция — тестируется на
+ * синтетических `units`/`people`, без обращения к реальной базе.
+ */
+function selectReminderCandidates({ units, people }) {
+  const unitByName = new Map(units.map(u => [u.unit, u]));
+  return people.filter(p => p.hasTelegram && p.units.some(name => {
+    const info = unitByName.get(name);
+    return info && info.positionsDecided < info.positionsTotal;
+  }));
+}
+
+/**
+ * Массовая рассылка по кампании — всем, у кого правда есть незакрытые
+ * должности в подразделениях, за которые они отвечают (`users.units`, либо
+ * `resp`/`head` подразделения). Раньше считала охват по упразднённому
+ * флагу `competitors.actual` без фильтра по периоду — фактически не
+ * работала (см. хендофф 22.09.2026). Теперь — та же модель данных, что уже
+ * использует `coordinationService.getCoordination` (этап 4, экран
+ * «Координация» и `/status` в боте): `position_company_selections` +
+ * `surveys` активного периода.
+ */
 async function sendMassReminder(senderFio = 'Администрация C&B') {
-  const divisions = await queryAll('SELECT unit, resp, head, hrbp FROM divisions');
-  const competitors = await queryAll('SELECT unit, actual FROM competitors');
+  const { getCoordination } = require('./coordinationService');
+  const { units, people } = await getCoordination();
+  const unitByName = new Map(units.map(u => [u.unit, u]));
 
-  const unitCounts = {};
-  competitors.forEach(c => {
-    if (!unitCounts[c.unit]) unitCounts[c.unit] = { total: 0, done: 0 };
-    unitCounts[c.unit].total++;
-    const act = (c.actual || '').toLowerCase();
-    if (act === 'актуально' || act === 'не актуально') unitCounts[c.unit].done++;
-  });
+  const candidates = selectReminderCandidates({ units, people });
+  const chatIdByLogin = await chatIdsForLogins(candidates.map(p => p.login));
 
-  const uncompletedUnits = [];
-  divisions.forEach(d => {
-    const c = unitCounts[d.unit] || { total: 0, done: 0 };
-    if (c.total === 0 || c.done < c.total) {
-      uncompletedUnits.push(d);
-    }
-  });
-
-  // Ищем пользователей с telegram_chat_id или телефонами
-  const users = await queryAll('SELECT login, fio, phone, telegram_chat_id, units FROM users WHERE active = 1');
   let sentCount = 0;
+  for (const person of candidates) {
+    const chatId = chatIdByLogin.get(person.login);
+    if (!chatId) continue;
 
-  for (const u of users) {
-    if (!u.telegram_chat_id) continue;
-    const uUnits = (u.units || '').split(';').map(s => s.trim()).filter(Boolean);
-    const userUncompleted = uncompletedUnits.filter(d => uUnits.includes(d.unit) || d.resp === u.fio || d.head === u.fio);
+    const incomplete = person.units
+      .map(u => unitByName.get(u))
+      .filter(u => u && u.positionsDecided < u.positionsTotal);
 
-    if (userUncompleted.length > 0) {
-      const msg = `👋 Здравствуйте, <b>${escHtml(u.fio)}</b>!\n\n` +
-        `Напоминаем о необходимости завершить заполнение формы <b>«Обзор рынка труда и заработных плат»</b>.\n\n` +
-        `Осталось заполнить подразделений: <b>${userUncompleted.length}</b>:\n` +
-        userUncompleted.slice(0, 5).map(x => `• ${escHtml(x.unit)}`).join('\n') +
-        (userUncompleted.length > 5 ? `\n• ... и ещё ${userUncompleted.length - 5}` : '') +
-        `\n\n🔗 Пожалуйста, перейдите в форму и сохраните актуальные данные.`;
+    const msg = `👋 Здравствуйте, <b>${escHtml(person.fio)}</b>!\n\n` +
+      `Напоминаем о необходимости завершить заполнение формы <b>«Обзор рынка труда и заработных плат»</b>.\n\n` +
+      `Осталось заполнить подразделений: <b>${incomplete.length}</b>:\n` +
+      incomplete.slice(0, 5).map(u => `• ${escHtml(u.unit)} (${u.positionsDecided} из ${u.positionsTotal})`).join('\n') +
+      (incomplete.length > 5 ? `\n• ... и ещё ${incomplete.length - 5}` : '') +
+      `\n\n🔗 Пожалуйста, перейдите в форму и сохраните актуальные данные.`;
 
-      const ok = await sendTelegramMessage(u.telegram_chat_id, msg);
-      if (ok) sentCount++;
-    }
+    const ok = await sendTelegramMessage(chatId, msg);
+    if (ok) sentCount++;
   }
 
-  return { ok: true, sent: sentCount, uncompletedCount: uncompletedUnits.length };
+  const uncompletedCount = units.filter(u => u.positionsDecided < u.positionsTotal).length;
+  return { ok: true, sent: sentCount, uncompletedCount };
 }
 
 /**
  * Точечное напоминание выбранным людям с экрана «Координация» (ТЗ 1.4) —
  * персональный список ЕГО незакрытых подразделений, не всего холдинга.
- * Сознательно не переиспользует и не чинит `sendMassReminder` выше: та
- * считает по упразднённому флагу `competitors.actual` (см. хендофф
- * 22.09.2026) — почини и автоматизацию делает этап 7 ТЗ.
  *
  * `unitFilter` — тот же предикат видимости, что у отправителя на экране:
  * логин вне его области действия молча пропускается, а не отправляет ему
@@ -244,14 +269,8 @@ async function sendCoordinationReminder(logins, { unitFilter, senderFio = 'HR BP
   const unitByName = new Map(units.map(u => [u.unit, u]));
   const peopleByLogin = new Map(people.map(p => [p.login, p]));
 
-  // `people` (тот же ответ, что уходит клиенту) сознательно не несёт
-  // telegram_chat_id — только hasTelegram. Для отправки берём его отдельным
-  // точечным запросом, только для реально выбранных логинов.
-  const wanted = new Set(logins || []);
-  const chatIdRows = wanted.size
-    ? await queryAll(`SELECT login, telegram_chat_id FROM users WHERE login IN (${Array.from(wanted).map(() => '?').join(',')})`, Array.from(wanted))
-    : [];
-  const chatIdByLogin = new Map(chatIdRows.map(r => [r.login, r.telegram_chat_id]));
+  const wanted = Array.from(new Set(logins || []));
+  const chatIdByLogin = await chatIdsForLogins(wanted);
 
   let sent = 0;
   let skipped = 0;
@@ -280,7 +299,7 @@ async function sendCoordinationReminder(logins, { unitFilter, senderFio = 'HR BP
 
   // Логины вне области видимости отправителя (не нашлись среди people) —
   // тоже пропущены, а не тихо проигнорированы в счётчике.
-  skipped += Array.from(wanted).filter(l => !peopleByLogin.has(l)).length;
+  skipped += wanted.filter(l => !peopleByLogin.has(l)).length;
 
   return { sent, skipped };
 }
@@ -293,6 +312,7 @@ module.exports = {
   answerCallbackQuery,
   verifyInitData,
   sendMassReminder,
+  selectReminderCandidates,
   sendCoordinationReminder,
   notifySupportTeam
 };
