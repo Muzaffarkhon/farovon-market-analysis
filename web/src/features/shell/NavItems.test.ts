@@ -13,6 +13,16 @@ test('admin видит матрицу ролей', () => {
   expect(items.map(i => i.to)).toContain('/access');
 });
 
+test('dashboard:view даёт и реестр, и дашборды', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: ['dashboard:view'] } as SessionUser);
+  expect(items.map(i => i.to)).toEqual(['/registry', '/dashboard']);
+});
+
+test('без dashboard:view дашборды не видны', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
+  expect(items.map(i => i.to)).not.toContain('/dashboard');
+});
+
 test('без survey:fill сбор скрыт', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
   expect(items.map(i => i.to)).not.toContain('/');
