@@ -367,3 +367,19 @@ export interface MoveDivisionResponse { ok: true; message: string; unit: string;
 export interface BatchAssignPayload { dir: string; roleType: 'head' | 'hrbp' | 'resp'; personName: string }
 export interface BatchAssignResponse { ok: true; message: string; affectedDivisions: number }
 
+// ─── Администрирование: справочник сотрудников ───
+
+export interface StaffRecord { id: number; unit: string; fio: string; position: string }
+export interface StaffDirectoryResponse { ok: true; items: StaffRecord[]; importedAt: string | null }
+export interface SaveStaffPayload { id?: number; unit: string; fio: string; position: string }
+export interface SaveStaffResponse { ok: true; id: number | null }
+
+export interface StaffImportSkippedRow { row: number; reason: string }
+export interface StaffImportUnmatchedUnit { unit: string; count: number }
+export interface StaffImportReport {
+  rowsInFile: number; rowsPrepared: number; rowsSkipped: number; skippedRows: StaffImportSkippedRow[];
+  units: number; unmatchedUnits: StaffImportUnmatchedUnit[]; unmatchedCount: number;
+}
+export interface StaffImportDryRunResponse { ok: true; dryRun: true; report: StaffImportReport }
+export interface StaffImportCommitResponse { ok: true; message: string }
+

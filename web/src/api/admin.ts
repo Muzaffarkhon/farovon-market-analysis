@@ -3,7 +3,8 @@ import type {
   AdminUsersResponse, ArchivedUsersResponse, SaveUserPayload, SaveUserResponse, ResetPasswordResponse,
   DivisionsResponse, OkResponse,
   SaveDivisionPayload, CreateDivisionPayload, CreateDivisionResponse, MoveDivisionPayload, MoveDivisionResponse,
-  BatchAssignPayload, BatchAssignResponse
+  BatchAssignPayload, BatchAssignResponse,
+  StaffDirectoryResponse, SaveStaffPayload, SaveStaffResponse, StaffImportDryRunResponse, StaffImportCommitResponse
 } from './contract';
 
 export const adminApi = {
@@ -21,5 +22,11 @@ export const adminApi = {
   moveDivision: (payload: MoveDivisionPayload) => request<MoveDivisionResponse>('/admin/divisions/move', payload),
   hideDivision: (unit: string, hidden: boolean) => request<OkResponse>('/admin/divisions/hide', { unit, hidden }),
   deleteDivision: (unit: string) => request<OkResponse>('/admin/divisions/delete', { unit }),
-  batchAssign: (payload: BatchAssignPayload) => request<BatchAssignResponse>('/admin/divisions/batch-assign', payload)
+  batchAssign: (payload: BatchAssignPayload) => request<BatchAssignResponse>('/admin/divisions/batch-assign', payload),
+
+  staffDirectory: () => request<StaffDirectoryResponse>('/admin/staff-directory'),
+  saveStaffRecord: (payload: SaveStaffPayload) => request<SaveStaffResponse>('/admin/staff-directory', payload),
+  deleteStaffRecord: (id: number) => request<OkResponse>('/admin/staff-directory/delete', { id }),
+  importStaffDirectoryDryRun: (csv: string) => request<StaffImportDryRunResponse>('/admin/import-staff-directory', { csv, dryRun: true }),
+  importStaffDirectoryCommit: (csv: string) => request<StaffImportCommitResponse>('/admin/import-staff-directory', { csv, dryRun: false })
 };
