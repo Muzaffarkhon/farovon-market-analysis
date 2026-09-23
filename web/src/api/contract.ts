@@ -487,3 +487,49 @@ export interface StaffImportReport {
 export interface StaffImportDryRunResponse { ok: true; dryRun: true; report: StaffImportReport }
 export interface StaffImportCommitResponse { ok: true; message: string }
 
+// ─── Чат поддержки ───
+
+export type SupportSource = 'telegram' | 'web';
+export type SupportStatus = 'open' | 'closed';
+
+export interface SupportMessage {
+  id: number; thread_id: number; direction: 'in' | 'out'; body: string;
+  author_login: string | null; read_at: string | null; read_at_user: string | null; created_at: string;
+}
+
+export interface SupportThreadListItem {
+  id: number; telegram_chat_id: string; phone: string | null; status: SupportStatus;
+  source: SupportSource; topic: string | null; archived_at: string | null;
+  last_message_at: string; created_at: string; linked_fio: string | null;
+  last_body: string | null; last_direction: 'in' | 'out' | null; unread_count: number;
+  matched_in_message_only?: boolean;
+}
+export interface SupportThreadsResponse { ok: true; rows: SupportThreadListItem[] }
+
+export interface SupportThread extends SupportThreadListItem { user_id: number | null }
+export interface SupportThreadResponse { ok: true; thread: SupportThread; messages: SupportMessage[] }
+
+export interface SupportFilters {
+  q?: string; status?: 'open' | 'closed'; reply?: 'pending'; login?: 'missing'; unread?: 'yes'; archived?: 'yes';
+}
+
+export interface SupportQuickReply { id: number; text: string; audience: 'admin' | 'guest'; answer: string | null }
+export interface SupportQuickRepliesResponse { ok: true; rows: SupportQuickReply[] }
+export interface SaveQuickReplyPayload { id?: number; text: string; audience: 'admin' | 'guest'; answer?: string }
+
+export interface SupportFaqItem { id: number; question: string; answer: string }
+export interface SupportFaqResponse { ok: true; rows: SupportFaqItem[] }
+export interface SaveFaqPayload { id?: number; question: string; answer: string }
+
+export interface LinkEmployeeResponse { ok: true; message: string }
+
+// «Моя поддержка» — экран сотрудника
+export interface MySupportThreadListItem {
+  id: number; topic: string | null; status: SupportStatus; last_message_at: string; created_at: string;
+  last_body: string | null; last_direction: 'in' | 'out' | null; unread_count: number;
+}
+export interface MySupportThreadsResponse { ok: true; rows: MySupportThreadListItem[] }
+export interface MySupportThreadResponse { ok: true; thread: SupportThread; messages: SupportMessage[] }
+export interface MySupportStartResponse { ok: true; id: number }
+export interface MySupportUnreadResponse { ok: true; count: number }
+

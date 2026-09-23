@@ -3,9 +3,14 @@ import type { SessionUser } from '../../api/contract';
 
 const base = { id: 1, login: 'u', fio: 'У', units: ['Цех'], onboarded: true, hasTelegram: false };
 
-test('обычный пользователь с survey:fill видит только сбор', () => {
+test('обычный пользователь с survey:fill видит сбор и поддержку', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: ['survey:fill'] } as SessionUser);
-  expect(items.map(i => i.to)).toEqual(['/']);
+  expect(items.map(i => i.to)).toEqual(['/', '/support']);
+});
+
+test('«Поддержка» видна без единого права — доступна любой роли', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
+  expect(items.map(i => i.to)).toContain('/support');
 });
 
 test('admin видит матрицу ролей', () => {
@@ -15,7 +20,7 @@ test('admin видит матрицу ролей', () => {
 
 test('dashboard:view даёт и реестр, и дашборды', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: ['dashboard:view'] } as SessionUser);
-  expect(items.map(i => i.to)).toEqual(['/registry', '/dashboard']);
+  expect(items.map(i => i.to)).toEqual(['/support', '/registry', '/dashboard']);
 });
 
 test('без dashboard:view дашборды не видны', () => {
