@@ -12,11 +12,64 @@
 
 const { queryAll, queryOne, run } = require('../db/database');
 
+// Сообщения уходят в Telegram с parse_mode: 'HTML' (см. telegramService).
+// ФИО сотрудника и номер телефона вводит не сама система — экранируем.
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Не чаще раза в 5 минут на тред — иначе быстрая переписка (несколько
+// сообщений подряд) заваливает admin/cb уведомлениями на каждое из них.
+const NOTIFY_THROTTLE_MS = 5 * 60 * 1000;
+
+/**
+ * Чистая функция: пора ли уведомлять, судя по времени последнего
+ * уведомления. `notifiedAt` — ISO-строка из БД либо null/undefined (ещё ни
+ * разу не уведомляли — всегда «пора»). Вынесена отдельно от похода в БД
+ * ради тестируемости без мока `queryOne`/`run`.
+ */
+function shouldNotify(notifiedAt, now = Date.now()) {
+  if (!notifiedAt) return true;
+  const last = new Date(notifiedAt).getTime();
+  if (Number.isNaN(last)) return true;
+  return now - last >= NOTIFY_THROTTLE_MS;
+}
+
+/**
+ * Единая точка уведомления C&B о новой активности в треде — вызывается из
+ * всех мест, где в тред попадает новое ВХОДЯЩЕЕ сообщение (не ответ
+ * администратора), плюс один ручной случай открытия без сообщения
+ * (openSupportThreadForGuest в telegramController.js). Throttled —
+ * заменяет прежнее более грубое правило «только на открытие/переоткрытие»
+ * (оно же было причиной дыры: у web-тредов такого правила не было вовсе).
+ */
+async function maybeNotifySupportTeam(threadId) {
+  const thread = await queryOne(
+    `SELECT t.id, t.phone, t.source, t.telegram_chat_id, t.notified_at, u.fio AS user_fio
+     FROM support_threads t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = ?`,
+    [threadId]
+  );
+  if (!thread || !shouldNotify(thread.notified_at)) return;
+
+  await run('UPDATE support_threads SET notified_at = ? WHERE id = ?', [new Date().toISOString(), threadId]);
+
+  const { notifySupportTeam } = require('./telegramService');
+  const who = thread.source === 'web'
+    ? (thread.user_fio ? escHtml(thread.user_fio) : 'Сотрудник (не найден)')
+    : (thread.phone ? `номер ${escHtml(thread.phone)}` : `chat ${escHtml(thread.telegram_chat_id)}`);
+  await notifySupportTeam(
+    `💬 <b>Новое сообщение в чате поддержки</b>\n${who}\nОткройте раздел «Чат поддержки» в системе.`
+  );
+}
+
 /**
  * Найти открытый/закрытый тред по chat_id, переоткрыть закрытый.
- * Возвращает { id, opened } — opened=true только когда тред только что
- * создан или переоткрыт из «closed» (именно в этот момент нужно уведомлять
- * C&B), false — если он и так уже был открыт.
+ * Возвращает { id, opened } — только для тех вызывающих, кому важно
+ * различить «новый/переоткрытый» и «уже был открыт» (сейчас — только
+ * openSupportThreadForGuest, ей нужно уведомить сразу, не дожидаясь
+ * первого сообщения). Уведомление о самих сообщениях решается throttled
+ * функцией выше, не этим флагом.
  */
 async function getOrCreateThread(telegramChatId, phone) {
   const chatId = String(telegramChatId);
@@ -46,17 +99,14 @@ async function findThreadByChatId(telegramChatId) {
   return queryOne('SELECT * FROM support_threads WHERE telegram_chat_id = ?', [String(telegramChatId)]);
 }
 
-/**
- * Сохраняет входящее сообщение. Уведомление C&B решается не здесь, а в
- * getOrCreateThread (см. флаг opened) — ровно в момент, когда тред
- * создаётся или переоткрывается, а не на каждое сообщение подряд.
- */
+/** Сохраняет входящее сообщение и throttled уведомляет C&B (см. maybeNotifySupportTeam выше). */
 async function saveIncomingMessage(threadId, body) {
   await run(
     'INSERT INTO support_messages (thread_id, direction, body) VALUES (?, \'in\', ?)',
     [threadId, body]
   );
   await run('UPDATE support_threads SET last_message_at = CURRENT_TIMESTAMP, status = \'open\' WHERE id = ?', [threadId]);
+  await maybeNotifySupportTeam(threadId);
 }
 
 // Тред не хранит «кто это» отдельным полем — вместо этого смотрим, кому
@@ -283,6 +333,7 @@ async function createWebThread(userId, topic, text) {
   );
   const threadId = Number(res.lastInsertRowid || res.insertId || 0);
   await run("INSERT INTO support_messages (thread_id, direction, body) VALUES (?, 'in', ?)", [threadId, text]);
+  await maybeNotifySupportTeam(threadId);
   return threadId;
 }
 
@@ -315,6 +366,7 @@ async function saveOwnMessage(userId, threadId, text) {
   if (!thread) throw new Error('Тред не найден');
   await run("INSERT INTO support_messages (thread_id, direction, body) VALUES (?, 'in', ?)", [threadId, text]);
   await run("UPDATE support_threads SET last_message_at = CURRENT_TIMESTAMP, status = 'open' WHERE id = ?", [threadId]);
+  await maybeNotifySupportTeam(threadId);
 }
 
 /** Для баннера «есть новый ответ поддержки» — считает по всем своим тредам разом. */
@@ -348,6 +400,7 @@ async function deleteFaq(id) {
 }
 
 module.exports = {
+  shouldNotify, maybeNotifySupportTeam,
   getOrCreateThread, findThreadByChatId, saveIncomingMessage,
   listThreads, countUnreadThreads, getThread, getMessages,
   saveOutgoingMessage, closeThread, archiveThread, unarchiveThread, deleteThread, linkEmployee, markThreadRead,

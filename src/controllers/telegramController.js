@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { queryOne, queryAll, run } = require('../db/database');
-const { getBotUsername, sendTelegramMessage, answerCallbackQuery, notifySupportTeam } = require('../services/telegramService');
+const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('../services/telegramService');
 const { getActivePeriod } = require('../services/periodService');
 const supportChat = require('../services/supportChatService');
 
@@ -333,17 +333,14 @@ async function handleContact(chatId, fromId, contact) {
     // Не просто советуем написать в поддержку, а сразу открываем тред с этим
     // номером внутри — иначе номер, который человек только что ввёл, нигде
     // не сохраняется, и C&B нечем воспользоваться, чтобы поправить карточку.
-    const { id: threadId, opened } = await supportChat.getOrCreateThread(chatId, contact.phone_number);
+    // Уведомление C&B — внутри saveIncomingMessage (throttled, единая точка
+    // для обоих каналов, см. supportChatService.maybeNotifySupportTeam).
+    const { id: threadId } = await supportChat.getOrCreateThread(chatId, contact.phone_number);
     await supportChat.saveIncomingMessage(threadId, `Указал номер ${contact.phone_number}, сотрудника с таким номером в системе нет.`);
     await sendTelegramMessage(chatId,
       'Не нашли сотрудника с таким номером в приложении «Обзор рынка». Мы передали ваш номер администратору — ' +
       'он поправит карточку, и вы сможете войти.',
       REMOVE_KEYBOARD);
-    if (opened) {
-      await notifySupportTeam(
-        `📵 <b>Не найден сотрудник по номеру</b>\n${escHtml(contact.phone_number)}\nchat ${chatId}\nОткройте «Чат поддержки», чтобы привязать номер к сотруднику.`
-      );
-    }
     return;
   }
 
@@ -441,13 +438,14 @@ async function handleStaleCallback(cb) {
  * логика для двух точек входа: инлайн-кнопки под сообщением
  * («support:start», см. handleSupportStart) и текстовой кнопки на
  * reply-клавиатуре («💬 Написать администратору», см. SUPPORT_TEXT_LABEL
- * ниже и её обработку в processTelegramUpdate). Уведомляем C&B ровно в
- * момент открытия/переоткрытия, а не на каждое сообщение — иначе при
- * активной переписке бот сыпал бы уведомлениями.
+ * ниже и её обработку в processTelegramUpdate). На этот момент в треде ещё
+ * нет ни одного сообщения (текст придёт следующим апдейтом) — единственное
+ * место, где уведомление C&B вызывается не изнутри записи сообщения, а
+ * явно (throttled той же функцией, см. supportChatService.maybeNotifySupportTeam).
  */
 async function openSupportThreadForGuest(chatId) {
   if (!chatId) return;
-  const { opened } = await supportChat.getOrCreateThread(chatId);
+  const { id: threadId } = await supportChat.getOrCreateThread(chatId);
 
   // Готовые вопросы гостю — reply-клавиатура (не inline): нажатие сразу
   // отправляет текст кнопки обычным сообщением, дальше идёт как любое
@@ -463,11 +461,7 @@ async function openSupportThreadForGuest(chatId) {
   } : undefined;
 
   await sendTelegramMessage(chatId, 'Опишите вопрос — администратор увидит и ответит здесь же.', questionsKeyboard);
-  if (opened) {
-    await notifySupportTeam(
-      `💬 <b>Новое обращение в чат поддержки</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`
-    );
-  }
+  await supportChat.maybeNotifySupportTeam(threadId);
 }
 
 /** Нажатие инлайн-кнопки «Написать администратору» под сообщением бота. */
@@ -479,24 +473,16 @@ async function handleSupportStart(cb) {
 
 /**
  * Обычное (не команда) сообщение от чата, у которого уже есть тред
- * поддержки. Уведомляем admin/cb только если тред был закрыт и это
- * сообщение его переоткрывает — иначе просто сохраняем, без уведомления.
+ * поддержки. Переоткрывает закрытый тред при необходимости; уведомление
+ * C&B — throttled, внутри saveIncomingMessage (см.
+ * supportChatService.maybeNotifySupportTeam), не завязано на «закрыт/открыт».
  */
 async function handleSupportMessage(chatId, thread, text) {
   let threadId = thread.id;
-  let opened = false;
   if (thread.status === 'closed') {
-    const res = await supportChat.getOrCreateThread(chatId);
-    threadId = res.id;
-    opened = res.opened;
+    threadId = (await supportChat.getOrCreateThread(chatId)).id;
   }
   await supportChat.saveIncomingMessage(threadId, text);
-  if (opened) {
-    const who = thread.phone ? `номер ${thread.phone}` : `chat ${chatId}`;
-    await notifySupportTeam(
-      `💬 <b>Новое сообщение в чате поддержки</b>\n${escHtml(who)}\nОткройте раздел «Чат поддержки» в системе.`
-    );
-  }
 }
 
 /** Публичный эндпоинт — сюда Telegram шлёт входящие сообщения после setWebHook.
@@ -619,14 +605,10 @@ async function processTelegramUpdate(body) {
        WHERE telegram_chat_id = ? AND status = 'sent' AND sent_at > datetime('now', '-3 days')
        ORDER BY id DESC LIMIT 1`, [String(chatId)]);
     if (recent) {
-      const { id: threadId, opened } = await supportChat.getOrCreateThread(chatId);
+      // Уведомление C&B — внутри saveIncomingMessage (throttled).
+      const { id: threadId } = await supportChat.getOrCreateThread(chatId);
       await supportChat.saveIncomingMessage(threadId, `↩ Ответ на рассылку #${recent.broadcast_id}:\n${text}`);
       await sendTelegramMessage(chatId, 'Спасибо, ответ передан администратору — он ответит здесь же.');
-      if (opened) {
-        await notifySupportTeam(
-          `💬 <b>Ответ на рассылку #${recent.broadcast_id}</b>\nchat ${chatId}\nОткройте раздел «Чат поддержки» в системе.`
-        );
-      }
       return;
     }
   }

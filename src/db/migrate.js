@@ -698,6 +698,7 @@ async function migrate() {
   await seedSupportChat();
   await extendSupportChatWeb();
   await addSupportThreadArchive();
+  await addSupportThreadNotifiedAt();
   await createPositionCompanySelections();
   await createBroadcasts();
   await createTelegramUpdates();
@@ -1119,6 +1120,15 @@ async function extendSupportChatWeb() {
  */
 async function addSupportThreadArchive() {
   await ensureColumn('support_threads', 'archived_at', 'DATETIME');
+}
+
+/**
+ * Когда последний раз уведомляли admin/cb по этому треду — throttle для
+ * supportChatService.maybeNotifySupportTeam (не чаще раза в 5 минут на
+ * тред, иначе быстрая переписка заваливает уведомлениями).
+ */
+async function addSupportThreadNotifiedAt() {
+  await ensureColumn('support_threads', 'notified_at', 'DATETIME');
 }
 
 /**
