@@ -1,0 +1,29 @@
+.empty { color: var(--text-muted); }
+.head { display: flex; justify-content: flex-end; margin-bottom: var(--s-3); }
+.sectionTitle { margin: var(--s-4) 0 var(--s-2); font-size: 14px; color: var(--text-muted); }
+
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-3); margin-bottom: var(--s-4); }
+@media (max-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
+
+.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13.5px; }
+.table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
+.table thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cellOk { color: var(--ok); font-weight: 700; }
+.cellWarn { color: var(--warn); font-weight: 700; }
+.cellDanger { color: var(--danger); font-weight: 700; }
+
+.list { display: flex; flex-direction: column; gap: var(--s-2); }
+.riskRow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.riskMain { flex: 1; min-width: 200px; }
+.riskTop { display: flex; align-items: center; gap: var(--s-2); }
+.riskMeta { font-size: 13px; color: var(--text-muted); }
+.riskPlan { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.riskActions { display: flex; gap: var(--s-2); flex-shrink: 0; }
+.critical { color: var(--danger); font-weight: 700; }
+
+.form { display: flex; flex-direction: column; gap: var(--s-3); }
+.jobTitleHint { margin: -8px 0 0; font-size: 13px; color: var(--text-muted); }
+.formFoot { display: flex; align-items: center; gap: var(--s-3); }
