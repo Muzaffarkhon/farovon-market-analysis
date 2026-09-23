@@ -701,6 +701,7 @@ async function migrate() {
   await createPositionCompanySelections();
   await createBroadcasts();
   await createTelegramUpdates();
+  await createReminderLog();
   await cleanupLegacySurveyTestData();
 }
 
@@ -798,6 +799,24 @@ async function createTelegramUpdates() {
     processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   console.log('🔧 Миграция: таблица идемпотентности вебхука Telegram создана');
+}
+
+/**
+ * Дневник отправленных тиров рассылки напоминаний (start/weekly/t-14/t-7/
+ * t-1) — не даёт повторному запуску cron'а в тот же день отправить тот же
+ * тир дважды. sent_on входит в ключ (а не только period_id+tier), потому
+ * что «weekly» повторяется много раз за кампанию — это разные события, не
+ * дубликат одного.
+ */
+async function createReminderLog() {
+  await run(`CREATE TABLE IF NOT EXISTS reminder_log (
+    period_id INTEGER NOT NULL REFERENCES periods(id),
+    tier TEXT NOT NULL,
+    sent_on TEXT NOT NULL,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (period_id, tier, sent_on)
+  )`);
+  console.log('🔧 Миграция: таблица дневника напоминаний создана');
 }
 
 async function cleanupLegacySurveyTestData() {

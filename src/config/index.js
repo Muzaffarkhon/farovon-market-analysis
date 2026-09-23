@@ -20,7 +20,11 @@ const config = {
   devDatabaseAuthToken: process.env.DEV_DATABASE_AUTH_TOKEN || '',
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
-  webappUrl: process.env.WEBAPP_URL || 'http://localhost:3000'
+  webappUrl: process.env.WEBAPP_URL || 'http://localhost:3000',
+  // Секрет для POST /api/cron/reminders — тем же способом, что вебхук-секрет
+  // (Authorization: Bearer <cronSecret>, timingSafeEqual), не пускать никого
+  // кроме Vercel Cron дёргать ежедневную рассылку напоминаний.
+  cronSecret: process.env.CRON_SECRET || ''
 };
 
 // На Vercel окружение выставляется платформой; локально «прод» — это только
@@ -60,6 +64,9 @@ config.missingSecrets = function missingSecrets() {
   // telegramController.webhook отвечает 401 на всё, и бот молча не работает.
   if (config.telegramBotToken && !config.telegramWebhookSecret) {
     missing.push('TELEGRAM_WEBHOOK_SECRET');
+  }
+  if (config.telegramBotToken && !config.cronSecret) {
+    missing.push('CRON_SECRET');
   }
   return missing;
 };

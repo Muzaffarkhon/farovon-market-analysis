@@ -18,6 +18,7 @@ const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
 const registryController = require('../controllers/registryController');
 const coordinationController = require('../controllers/coordinationController');
+const cronController = require('../controllers/cronController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -32,6 +33,10 @@ router.post('/auth/logout', authController.logout);
 
 // Сюда Telegram шлёт входящие сообщения — без JWT, проверяется секретным заголовком
 router.post('/telegram/webhook', webhookLimiter, telegramController.webhook);
+
+// Vercel Cron дёргает раз в день — без JWT, проверяется секретным заголовком
+// (см. cronController.dailyReminders).
+router.post('/cron/reminders', webhookLimiter, cronController.dailyReminders);
 
 // Юзернейм бота для экрана входа (кнопка «Открыть бота») — до логина у
 // человека ещё нет JWT, а сам username не секрет.
