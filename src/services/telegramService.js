@@ -183,6 +183,64 @@ async function sendMassReminder(senderFio = 'Администрация C&B') {
   return { ok: true, sent: sentCount, uncompletedCount: uncompletedUnits.length };
 }
 
+/**
+ * Точечное напоминание выбранным людям с экрана «Координация» (ТЗ 1.4) —
+ * персональный список ЕГО незакрытых подразделений, не всего холдинга.
+ * Сознательно не переиспользует и не чинит `sendMassReminder` выше: та
+ * считает по упразднённому флагу `competitors.actual` (см. хендофф
+ * 22.09.2026) — почини и автоматизацию делает этап 7 ТЗ.
+ *
+ * `unitFilter` — тот же предикат видимости, что у отправителя на экране:
+ * логин вне его области действия молча пропускается, а не отправляет ему
+ * чужое напоминание в обход прав.
+ */
+async function sendCoordinationReminder(logins, { unitFilter, senderFio = 'HR BP' } = {}) {
+  const { getCoordination } = require('./coordinationService');
+  const { units, people } = await getCoordination({}, { unitFilter });
+  const unitByName = new Map(units.map(u => [u.unit, u]));
+  const peopleByLogin = new Map(people.map(p => [p.login, p]));
+
+  // `people` (тот же ответ, что уходит клиенту) сознательно не несёт
+  // telegram_chat_id — только hasTelegram. Для отправки берём его отдельным
+  // точечным запросом, только для реально выбранных логинов.
+  const wanted = new Set(logins || []);
+  const chatIdRows = wanted.size
+    ? await queryAll(`SELECT login, telegram_chat_id FROM users WHERE login IN (${Array.from(wanted).map(() => '?').join(',')})`, Array.from(wanted))
+    : [];
+  const chatIdByLogin = new Map(chatIdRows.map(r => [r.login, r.telegram_chat_id]));
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const login of wanted) {
+    const person = peopleByLogin.get(login);
+    const chatId = chatIdByLogin.get(login);
+    if (!person || !person.hasTelegram || !chatId) { skipped++; continue; }
+
+    const incomplete = person.units
+      .map(u => unitByName.get(u))
+      .filter(u => u && u.positionsDecided < u.positionsTotal);
+
+    if (!incomplete.length) { skipped++; continue; }
+
+    const msg = `👋 Здравствуйте, <b>${escHtml(person.fio)}</b>!\n\n` +
+      `${escHtml(senderFio)} просит дозаполнить рынок по вашим подразделениям.\n\n` +
+      `Незакрытые должности:\n` +
+      incomplete.slice(0, 5).map(u => `• ${escHtml(u.unit)} (${u.positionsDecided} из ${u.positionsTotal})`).join('\n') +
+      (incomplete.length > 5 ? `\n• ... и ещё ${incomplete.length - 5}` : '') +
+      `\n\n🔗 Пожалуйста, перейдите в форму и сохраните актуальные данные.`;
+
+    const ok = await sendTelegramMessage(chatId, msg);
+    if (ok) sent++; else skipped++;
+  }
+
+  // Логины вне области видимости отправителя (не нашлись среди people) —
+  // тоже пропущены, а не тихо проигнорированы в счётчике.
+  skipped += Array.from(wanted).filter(l => !peopleByLogin.has(l)).length;
+
+  return { sent, skipped };
+}
+
 module.exports = {
   getBot,
   getBotUsername,
@@ -190,5 +248,6 @@ module.exports = {
   sendTelegramMessage,
   answerCallbackQuery,
   sendMassReminder,
+  sendCoordinationReminder,
   notifySupportTeam
 };

@@ -17,6 +17,7 @@ const supportController = require('../controllers/supportController');
 const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
 const registryController = require('../controllers/registryController');
+const coordinationController = require('../controllers/coordinationController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -98,6 +99,11 @@ router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboa
 // Новый клиент (redesign/react) — те же данные, что /dashboard/extended, под
 // именем без исторической привязки к роли «CB» (см. dashboardController.getDashboard).
 router.post('/dashboard', requireCapability('dashboard:view'), dashboardController.getDashboard);
+// Координация для HR BP (ТЗ 1.4) — прогресс по направлениям и людям,
+// точечное напоминание. Отдельное право: список ролей (HR BP, руководитель
+// направления) не совпадает с dashboard:view — см. coordinationService.js.
+router.get('/coordination', requireCapability('coordination:view'), coordinationController.getCoordination);
+router.post('/coordination/remind', requireCapability('coordination:view'), coordinationController.remind);
 // Реестр собранных данных — каждое наблюдение построчно. Право то же, что у
 // аналитики: это те же данные, только не свёрнутые в медианы.
 router.post('/registry', requireCapability('dashboard:view'), registryController.list);
