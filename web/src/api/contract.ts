@@ -265,6 +265,7 @@ export interface GradingFactorsResponse {
   grades: GradingLevel[];
   riskFactors: GradingFactor[];
   riskLevels: { status: string; label: string; max: number; recommendation: string }[];
+  overrideDirs?: string[];
 }
 
 export interface GradingBlock { key: string; label: string; sort: number; position_count: number; evaluated_count: number }
@@ -306,6 +307,27 @@ export interface GradingEvaluateResponse {
 }
 
 export interface GradingStatsResponse { ok: true; total: number; rows: { block_key: string; grade_level: number; n: number }[] }
+
+// ─── Администрирование: настройка грейдирования ───
+
+export type GradingFactorScope = 'position' | 'risk';
+export interface SaveFactorPayload {
+  scope: GradingFactorScope; idx: number; dir: string; title: string; help: string; options: string[]; examples: string[];
+}
+export interface ResetFactorPayload { scope: GradingFactorScope; idx: number; dir: string }
+
+export interface AdminGradingBlock { key: string; label: string; sort: number; pair_count: number }
+export interface AdminGradingBlocksResponse { ok: true; rows: AdminGradingBlock[] }
+
+export interface AdminBlockPosition { unit: string; position: string; staff_count: number }
+export interface AdminBlockPositionsResponse { ok: true; rows: AdminBlockPosition[]; total: number }
+
+export interface CommitteeMember { login: string; fio: string | null; role: string | null }
+export interface CommitteeResponse { ok: true; rows: CommitteeMember[] }
+
+export interface PendingCommitteeJob { job_title: string; submitted_count: number }
+export interface CommitteePendingResponse { ok: true; committeeSize: number; rows: PendingCommitteeJob[] }
+export interface OkMessageResponse { ok: true; message: string }
 
 // ─── Риски незаменимости ключевого персонала ───
 

@@ -16,6 +16,7 @@ import { AdminHub } from '../features/admin/AdminHub';
 import { UsersScreen } from '../features/admin/users/UsersScreen';
 import { DivisionsScreen } from '../features/admin/divisions/DivisionsScreen';
 import { StaffScreen } from '../features/admin/staff/StaffScreen';
+import { GradingAdminScreen } from '../features/admin/grading/GradingAdminScreen';
 
 export const BASENAME = '/new';
 
@@ -38,6 +39,7 @@ export function AppRoutes() {
         <Route path="admin/users" element={<UsersScreen />} />
         <Route path="admin/divisions" element={<DivisionsScreen />} />
         <Route path="admin/staff" element={<StaffScreen />} />
+        <Route path="admin/grading" element={<GradingAdminScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
