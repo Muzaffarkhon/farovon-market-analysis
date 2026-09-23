@@ -393,6 +393,24 @@ export interface BenchmarkImportReport {
 export interface DryRunImportResponse { ok: true; report: BenchmarkImportReport }
 export interface CommitImportResponse { ok: true; result: { datasetId: number; datasetTitle: string; insertedRowsCount: number }; message: string }
 
+// ─── Администрирование: периоды сбора ───
+
+export interface PeriodRow {
+  id: number; name: string; state: string; isActive: number;
+  fromDate: string | null; toDate: string | null; updatedAt: string | null; updatedBy: string | null; surveysCount: number;
+}
+export interface PeriodGrantRow {
+  userLogin: string; userFio: string; periodId: number; periodName: string; grantedBy: string; grantedAt: string; expiresAt: string;
+}
+export interface PeriodGrantsResponse { ok: true; grants: PeriodGrantRow[]; periods: PeriodRow[] }
+
+export type PeriodAction = 'close' | 'reopen' | 'new' | 'edit' | 'activate';
+export interface SetPeriodPayload { action: PeriodAction; name?: string; from?: string; to?: string; state?: string; id?: number }
+export interface SetPeriodResponse { ok: true; period: DashboardPeriod; already?: boolean }
+
+export interface PeriodGrantUser { login: string; fio: string; active: boolean }
+export interface PeriodGrantUsersResponse { ok: true; users: PeriodGrantUser[] }
+
 // ─── Риски незаменимости ключевого персонала ───
 
 export interface KeyRisk {

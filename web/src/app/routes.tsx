@@ -18,6 +18,7 @@ import { DivisionsScreen } from '../features/admin/divisions/DivisionsScreen';
 import { StaffScreen } from '../features/admin/staff/StaffScreen';
 import { GradingAdminScreen } from '../features/admin/grading/GradingAdminScreen';
 import { BenchmarkAdminScreen } from '../features/admin/benchmark/BenchmarkAdminScreen';
+import { PeriodsScreen } from '../features/admin/periods/PeriodsScreen';
 
 export const BASENAME = '/new';
 
@@ -42,6 +43,7 @@ export function AppRoutes() {
         <Route path="admin/staff" element={<StaffScreen />} />
         <Route path="admin/grading" element={<GradingAdminScreen />} />
         <Route path="admin/benchmark" element={<BenchmarkAdminScreen />} />
+        <Route path="admin/periods" element={<PeriodsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
