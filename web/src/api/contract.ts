@@ -251,3 +251,78 @@ export interface CoordinationResponse {
 }
 
 export interface RemindResponse { ok: true; sent: number; skipped: number }
+
+// ─── Оценка должностей (грейдирование) ───
+
+export interface GradingFactor { code: string; title: string; help: string; options: string[]; examples: string[] }
+export interface GradingLevel { grade: number; from: number; name: string; label: string }
+
+export interface GradingFactorsResponse {
+  ok: true;
+  criteria: GradingFactor[];
+  weights: number[];
+  maxGrade: number;
+  grades: GradingLevel[];
+  riskFactors: GradingFactor[];
+  riskLevels: { status: string; label: string; max: number; recommendation: string }[];
+}
+
+export interface GradingBlock { key: string; label: string; sort: number; position_count: number; evaluated_count: number }
+
+export interface GradingPositionUnit { unit: string; staffCount: number }
+
+export interface GradingSubmission { factor_1: number; factor_2: number; factor_3: number; factor_4: number; factor_5: number; factor_6: number; factor_7: number; notes: string }
+
+export interface GradingPosition {
+  job_title: string; unit_count: number; staff_count: number;
+  evaluation_id: number | null;
+  factor_1: number | null; factor_2: number | null; factor_3: number | null; factor_4: number | null;
+  factor_5: number | null; factor_6: number | null; factor_7: number | null;
+  weighted_score: number | null; grade_level: number | null; evaluated_by: string | null; notes: string | null; updated_at: string | null;
+  submitted_count: number;
+  units: GradingPositionUnit[];
+  committee_size?: number;
+  my_submission?: GradingSubmission | null;
+}
+
+export interface GradingPositionsResponse {
+  ok: true;
+  block: { key: string; label: string };
+  committeeSize: number;
+  isCommitteeMember: boolean;
+  factorCount: number;
+  rows: GradingPosition[];
+}
+
+export interface GradingEvaluateResponse {
+  ok: true;
+  message: string;
+  weightedScore?: number;
+  gradeLevel?: number;
+  pending?: boolean;
+  finalized?: boolean;
+  submittedCount?: number;
+  committeeSize?: number;
+}
+
+export interface GradingStatsResponse { ok: true; total: number; rows: { block_key: string; grade_level: number; n: number }[] }
+
+// ─── Риски незаменимости ключевого персонала ───
+
+export interface KeyRisk {
+  id: number; unit: string; employee_fio: string; job_title: string;
+  bus_factor: number; replacement_time: number; knowledge_monopoly: number; financial_risk: number;
+  total_risk_score: number; risk_status: 'standard' | 'attention' | 'critical';
+  action_plan: string; evaluator_fio: string; updated_at: string;
+}
+
+export interface KeyRiskLevel { status: string; label: string; max: number }
+export interface KeyRisksListResponse { ok: true; levels: KeyRiskLevel[]; rows: KeyRisk[] }
+
+export interface UnitEmployee { fio: string; position: string }
+export interface UnitEmployeesResponse { ok: true; rows: UnitEmployee[] }
+
+export interface HeatmapRow { dir: string; standard: number; attention: number; critical: number; total: number }
+export interface HeatmapResponse { ok: true; rows: HeatmapRow[] }
+
+export interface RiskEvaluateResponse { ok: true; totalScore: number; status: string; statusLabel: string; actionPlan: string; message: string }

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Sheet } from './Sheet';
@@ -7,6 +8,7 @@ import { Select } from './Select';
 import { KpiTile } from './KpiTile';
 import { ForkBar } from './ForkBar';
 import { RankBar } from './RankBar';
+import { ScaleInput } from './ScaleInput';
 
 test('Button loading блокирует и помечает aria-busy', () => {
   render(<Button loading>Сохранить</Button>);
@@ -62,4 +64,25 @@ test('RankBar показывает процент и подпись, ширин�
   expect(screen.getByText(/130%/)).toBeInTheDocument();
   const bar = container.querySelector('i') as HTMLElement;
   expect(bar.style.width).toBe('100%');
+});
+
+const scaleOptions = ['Первый вариант', 'Второй вариант', 'Третий вариант', 'Четвёртый вариант', 'Пятый вариант'];
+const scaleExamples = ['Уборщик', 'Кассир', 'Мастер', 'Директор направления', 'Генеральный директор'];
+
+test('ScaleInput: клик по варианту вызывает onChange с номером', async () => {
+  const onChange = vi.fn();
+  render(<ScaleInput label="К1" value={0} onChange={onChange} options={scaleOptions} />);
+  await userEvent.click(screen.getByRole('button', { name: '3' }));
+  expect(onChange).toHaveBeenCalledWith(3);
+});
+
+test('ScaleInput: эталон показан только под выбранным вариантом', () => {
+  render(<ScaleInput label="К1" value={2} onChange={() => {}} options={scaleOptions} examples={scaleExamples} />);
+  expect(screen.getByText(/Кассир/)).toBeInTheDocument();
+  expect(screen.queryByText(/Мастер/)).not.toBeInTheDocument();
+});
+
+test('ScaleInput: без выбора текст варианта не показан', () => {
+  render(<ScaleInput label="К1" value={0} onChange={() => {}} options={scaleOptions} />);
+  expect(screen.queryByText('Первый вариант')).not.toBeInTheDocument();
 });
