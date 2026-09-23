@@ -118,3 +118,77 @@ export interface RegistryFilters {
   sort?: string; order?: 'asc' | 'desc';
   page?: number; perPage?: number;
 }
+
+// ─── Дашборды (аналитика) ───
+
+/** Вилка: min/p25/median/p75/max/avg — общая форма для всех разрезов ниже. */
+export interface ForkStats { count: number; min: number; p25: number; median: number; p75: number; max: number; avg: number }
+export interface RegionStat extends ForkStats { region: string }
+export interface TrustStat extends ForkStats { trust: string }
+export interface SourceStat extends ForkStats { source: string }
+export interface ScheduleStat extends ForkStats { schedule: string }
+export interface GradeStat extends ForkStats { grade: string }
+
+export interface CompanyStat {
+  company: string; unit: string; dir: string; pFrom: number; pTo: number; avg: number;
+  hourly: boolean; hourFrom: number; hourTo: number; cur: string; payPer: string;
+  bonHas: string; bonSize: string; bonType: string; bonPer: string;
+  bonuses: Bonus[]; varPay: VarPay; benefits: string[]; note: string;
+}
+
+/** Одна должность в «Зарплатных вилках»: вилка рынка + гэп к Фаровону + совокупный доход. */
+export interface PositionStat extends ForkStats {
+  pos: string; count: number; withSalaryCount: number;
+  bonCompanies: number; bonQuantified: number; totalSampleCount: number; bonTopPer: string;
+  totalMedian: number; forkSpreadPct: number;
+  ourFrom: number; ourTo: number; ourMid: number; gapPct: number | null;
+  companies: CompanyStat[];
+}
+
+export interface UnitProgress { unitsTotal: number; unitsDone: number; compTotal: number; compDone: number; surveysTotal: number; pct: number }
+export interface HrbpProgress extends UnitProgress { hrbp: string }
+export interface DirProgress extends UnitProgress { dir: string }
+
+export interface TopBenefit { name: string; count: number; pct: number }
+export interface TopCompetitor { company: string; count: number }
+export interface BonusStats { hasBonus: number; noBonus: number; unknown: number; types: Record<string, number>; periods: Record<string, number> }
+
+export interface DashboardSummary {
+  totalDivisions: number; completedDivisions: number; divCompletionPct: number;
+  totalCompetitorLinks: number; checkedCompetitorLinks: number; compCompletionPct: number;
+  totalSurveyRecords: number; recordsWithSalary: number; positionsCount: number;
+  companiesInSurvey: number; unmappedRecords: number;
+  salaryMedian: number; salaryP25: number; salaryP75: number;
+}
+
+export interface DashboardPeriod { name: string; state: string; from: string; to: string; by: string; at: string }
+export interface DashboardPeriodOption { id: number; name: string; fromDate: string; toDate: string; at: string }
+
+export interface DashboardResponse {
+  ok: true;
+  summary: DashboardSummary;
+  hrbpProgress: HrbpProgress[];
+  dirProgress: DirProgress[];
+  dirHrbp: Record<string, string[]>;
+  regions: string[];
+  regionStats: RegionStat[];
+  trustStats: TrustStat[];
+  sourceStats: SourceStat[];
+  scheduleStats: ScheduleStat[];
+  gradeStats: GradeStat[];
+  positions: PositionStat[];
+  topBenefits: TopBenefit[];
+  bonuses: BonusStats;
+  topCompetitors: TopCompetitor[];
+  currencies: Record<string, number>;
+  period: DashboardPeriod;
+  periodsList: DashboardPeriodOption[];
+  viewingPeriodId: number | null;
+  scoped: boolean;
+}
+
+/** Фильтры дашборда = параметры адреса (как у RegistryFilters). */
+export interface DashboardFilters {
+  period?: number | null;
+  dir?: string; hrbp?: string; region?: string; search?: string;
+}

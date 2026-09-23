@@ -1,0 +1,6 @@
+.item { display: flex; flex-direction: column; gap: 4px; }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); font-size: 13px; }
+.label { overflow-wrap: anywhere; }
+.count { color: var(--text-muted); font-weight: 400; }
+.bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }

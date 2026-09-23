@@ -1,0 +1,6 @@
+.tile { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); min-width: 0; }
+.label { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+.value { font-size: 26px; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.value.ok { color: var(--ok); }
+.value.warn { color: var(--warn); }
+.unit { margin-left: 4px; font-size: 14px; font-weight: 600; color: var(--text-muted); }
