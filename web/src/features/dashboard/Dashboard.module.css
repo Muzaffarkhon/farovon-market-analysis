@@ -25,3 +25,12 @@
   .overviewBody { flex-direction: column; }
   .overviewSide { flex-basis: auto; width: 100%; }
 }
+
+.sortRow { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
+.forkRowBtn { display: block; width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.forkRowBtn:hover { background: var(--surface-2); }
+
+.companyList { display: flex; flex-direction: column; gap: var(--s-3); }
+.companyRow { padding-bottom: var(--s-2); border-bottom: 1px solid var(--border); }
+.companyTop { display: flex; justify-content: space-between; gap: var(--s-2); font-weight: 600; }
+.companySub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }

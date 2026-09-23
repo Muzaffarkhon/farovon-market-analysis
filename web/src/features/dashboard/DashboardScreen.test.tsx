@@ -60,7 +60,7 @@ test('без вкладки в адресе показывает «Обзор»'
 
 test('вкладка из адреса открывается сразу', async () => {
   renderScreen('/dashboard/salaries');
-  expect(await screen.findByRole('heading', { name: 'Зарплатные вилки' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'По числу наблюдений' })).toBeInTheDocument();
 });
 
 test('клик по вкладке переключает панель и адрес', async () => {

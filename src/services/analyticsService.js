@@ -176,14 +176,16 @@ function forkStatsFromBuckets(buckets, keyField, calcStats) {
  * @param {Array<{avg:number, cur:string, bonHas:string, varPay:{monthly:number|null}}>} companies
  * @returns {number[]}
  */
+function companyTotalIncome(c) {
+  const base = c.avg || 0;
+  if (!(base > 0) || normCode(c.cur) !== 'TJS') return null;
+  const bonusMonthly = c.bonHas === 'нет' ? 0 : ((c.varPay && c.varPay.monthly != null) ? c.varPay.monthly : null);
+  if (bonusMonthly == null) return null;
+  return base + bonusMonthly;
+}
+
 function positionTotalIncomeSamples(companies) {
-  return (companies || []).map(c => {
-    const base = c.avg || 0;
-    if (!(base > 0) || normCode(c.cur) !== 'TJS') return null;
-    const bonusMonthly = c.bonHas === 'нет' ? 0 : ((c.varPay && c.varPay.monthly != null) ? c.varPay.monthly : null);
-    if (bonusMonthly == null) return null;
-    return base + bonusMonthly;
-  }).filter(v => v != null);
+  return (companies || []).map(c => (c.total != null ? c.total : companyTotalIncome(c))).filter(v => v != null);
 }
 
 /**
@@ -608,6 +610,10 @@ async function getExtendedAnalytics(filters = {}, opts = {}) {
         bonPer,
         bonuses: bonusArr,
         varPay: rowVarPay,
+        // Совокупно (оклад + премия/мес.) для карточки компании на дашборде —
+        // то же правило, что суммирует totalSamples ниже: «нет премии» —
+        // известный ноль, размер не распознан — null (не гадаем).
+        total: companyTotalIncome({ avg: avgPay, cur, bonHas, varPay: rowVarPay }),
         benefits,
         note
       });
@@ -876,4 +882,5 @@ module.exports = {
   pushForkSample,
   forkStatsFromBuckets,
   positionTotalIncomeSamples,
+  companyTotalIncome,
 };

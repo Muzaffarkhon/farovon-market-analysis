@@ -133,7 +133,7 @@ export interface CompanyStat {
   company: string; unit: string; dir: string; pFrom: number; pTo: number; avg: number;
   hourly: boolean; hourFrom: number; hourTo: number; cur: string; payPer: string;
   bonHas: string; bonSize: string; bonType: string; bonPer: string;
-  bonuses: Bonus[]; varPay: VarPay; benefits: string[]; note: string;
+  bonuses: Bonus[]; varPay: VarPay; total: number | null; benefits: string[]; note: string;
 }
 
 /** Одна должность в «Зарплатных вилках»: вилка рынка + гэп к Фаровону + совокупный доход. */

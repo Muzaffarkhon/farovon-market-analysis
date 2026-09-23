@@ -4,6 +4,7 @@ import { Skeleton } from '../../design/Skeleton';
 import { useScreenTitle } from '../shell/Shell';
 import { DashboardFilters } from './DashboardFilters';
 import { OverviewTab } from './OverviewTab';
+import { SalariesTab } from './SalariesTab';
 import { TABS, useDashboard } from './useDashboard';
 import s from './Dashboard.module.css';
 
@@ -11,7 +12,6 @@ type TabProps = { data: DashboardResponse };
 
 // Остальные вкладки заполняются по одной в следующих задачах плана; до тех
 // пор — заглушка, чтобы раздел был проверяем целиком уже сейчас.
-function SalariesTab(_: TabProps) { return <h2>Зарплатные вилки</h2>; }
 function RegionsTab(_: TabProps) { return <h2>По регионам</h2>; }
 function BenefitsTab(_: TabProps) { return <h2>Льготы и бонусы</h2>; }
 function BenchmarkTab(_: TabProps) { return <h2>Бенчмаркинг</h2>; }
