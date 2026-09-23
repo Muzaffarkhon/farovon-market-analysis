@@ -700,6 +700,7 @@ async function migrate() {
   await addSupportThreadArchive();
   await createPositionCompanySelections();
   await createBroadcasts();
+  await createTelegramUpdates();
   await cleanupLegacySurveyTestData();
 }
 
@@ -781,6 +782,22 @@ async function createBroadcasts() {
   await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_bc ON broadcast_recipients(broadcast_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_broadcast_recipients_chat ON broadcast_recipients(telegram_chat_id, sent_at)');
   console.log('🔧 Миграция: таблицы рассылок (broadcasts, broadcast_recipients) созданы');
+}
+
+/**
+ * Telegram может доставить один и тот же апдейт дважды (не дождался ответа в
+ * таймаут и повторил) — без этой таблицы вебхук обрабатывал его заново:
+ * дублировал сообщения в чат поддержки, второй раз привязывал/отвязывал
+ * аккаунт и т.п. update_id монотонно растёт у Telegram, поэтому просто
+ * PRIMARY KEY без отдельного индекса — старые строки не чистим отдельным
+ * job'ом, таблица занимает по одному инту на апдейт.
+ */
+async function createTelegramUpdates() {
+  await run(`CREATE TABLE IF NOT EXISTS telegram_updates (
+    update_id INTEGER PRIMARY KEY,
+    processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  console.log('🔧 Миграция: таблица идемпотентности вебхука Telegram создана');
 }
 
 async function cleanupLegacySurveyTestData() {

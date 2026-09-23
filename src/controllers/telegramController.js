@@ -517,6 +517,22 @@ exports.webhook = async (req, res) => {
     return res.status(401).end();
   }
 
+  // Telegram иногда доставляет один и тот же апдейт дважды (не дождался
+  // ответа в свой таймаут и повторил) — без дедупликации по update_id это
+  // обрабатывалось заново: дублировало сообщения в чате поддержки, второй
+  // раз привязывало/отвязывало аккаунт и т.п. INSERT OR IGNORE — уже был,
+  // выходим без повторной обработки, но всё равно отвечаем 200 (иначе
+  // Telegram решит, что доставка не удалась, и продолжит повторять).
+  const updateId = req.body && req.body.update_id;
+  if (updateId != null) {
+    try {
+      const inserted = await run('INSERT OR IGNORE INTO telegram_updates (update_id) VALUES (?)', [updateId]);
+      if (!inserted.rowsAffected) return res.status(200).end();
+    } catch (err) {
+      console.error('Telegram webhook dedup error:', err);
+    }
+  }
+
   // ВАЖНО: на serverless (Vercel) исполнение функции замораживается сразу после
   // отправки ответа — всё, что запланировано «на потом» через await, не
   // доедет. Поэтому обработку (и отправку ответа боту) завершаем ДО res.end(),
