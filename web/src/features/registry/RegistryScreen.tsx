@@ -106,8 +106,11 @@ export function RegistryScreen() {
             </span>
           )}
           <ColumnPicker columns={COLUMNS} visible={prefs.visible} onToggle={prefs.toggle} />
-          <Button variant="secondary" size="sm" disabled={!data?.total} onClick={() => submitRegistryExport(r.filters)}>
-            Выгрузить
+          <Button
+            variant="secondary" size="sm" disabled={!data?.total} onClick={() => submitRegistryExport(r.filters)}
+            aria-label="Выгрузить" title="Выгрузить"
+          >
+            ↓
           </Button>
         </div>
       </div>

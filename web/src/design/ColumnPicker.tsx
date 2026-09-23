@@ -15,8 +15,8 @@ export function ColumnPicker({ columns, visible, onToggle }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <div className={s.wrap}>
-      <Button variant="secondary" size="sm" onClick={() => setOpen(o => !o)} aria-expanded={open}>
-        Колонки
+      <Button variant="secondary" size="sm" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label="Колонки" title="Колонки">
+        ⚙
       </Button>
       {open && (
         <div className={s.menu} role="menu" onMouseLeave={() => setOpen(false)}>
