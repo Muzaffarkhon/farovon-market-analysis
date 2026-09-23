@@ -223,3 +223,31 @@ export interface BenchmarkCompareResult {
 
 export interface BenchmarkGap { positionId: number; positionName: string; ourMid: number; marketMedian: number; gapPercent: number; gapAmount: number }
 export interface BenchmarkSummaryWidgets { totalPositions: number; mappedPositions: number; coveragePercent: number; belowMarket: BenchmarkGap[]; aboveMarket: BenchmarkGap[] }
+
+// ─── Координация для HR BP ───
+
+export interface CoordinationUnit {
+  unit: string; dir: string; hrbp: string; resp: string; head: string;
+  positionsTotal: number; positionsDecided: number;
+  state: 'не начато' | 'в процессе' | 'полностью';
+  lastActivityAt: string;
+}
+
+export interface CoordinationPerson {
+  login: string; fio: string; units: string[];
+  positionsTotal: number; positionsDecided: number;
+  lastLoginAt: string; hasTelegram: boolean;
+}
+
+export interface CoordinationFeedItem {
+  unit: string; dir: string; company: string; posOur: string; by: string; at: string;
+}
+
+export interface CoordinationResponse {
+  ok: true;
+  units: CoordinationUnit[];
+  people: CoordinationPerson[];
+  feed: CoordinationFeedItem[];
+}
+
+export interface RemindResponse { ok: true; sent: number; skipped: number }

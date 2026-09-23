@@ -23,6 +23,16 @@ test('без dashboard:view дашборды не видны', () => {
   expect(items.map(i => i.to)).not.toContain('/dashboard');
 });
 
+test('coordination:view даёт пункт «Координация»', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: ['coordination:view'] } as SessionUser);
+  expect(items.map(i => i.to)).toContain('/coordination');
+});
+
+test('без coordination:view «Координация» не видна', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
+  expect(items.map(i => i.to)).not.toContain('/coordination');
+});
+
 test('без survey:fill сбор скрыт', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
   expect(items.map(i => i.to)).not.toContain('/');
