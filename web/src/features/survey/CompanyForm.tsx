@@ -5,6 +5,7 @@ import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
 import { Textarea } from '../../design/Textarea';
 import { CURRENCIES, PAY_PERIODS, PAY_PERIOD_OPTIONS } from '../../domain/currency';
+import { scheduleLabel } from '../../domain/schedule';
 import { bonusesComplete, validateSurveyItem } from '../../domain/validation';
 import { BenefitsPicker } from './BenefitsPicker';
 import { BonusesEditor } from './BonusesEditor';
@@ -40,12 +41,18 @@ const BLOCK_FIELDS: Record<BlockKey, string[]> = {
   note: []
 };
 
+/**
+ * Галочка блока обязана означать ровно то же, что пункты счётчика в
+ * `domain/progress.ts`: иначе бывают «все блоки зелёные, а 8 из 9» и человек
+ * не понимает, чего от него хотят. Поэтому здесь «и», а не «или»:
+ * вилка целиком, льготы отдельно от необязательных прочих выплат.
+ */
 function blockFilled(key: BlockKey, d: SurveyDraft): boolean {
   switch (key) {
-    case 'pay': return !!(d.payFrom || d.payTo);
+    case 'pay': return !!(d.payFrom && d.payTo);
     case 'schedule': return !!d.schedule;
     case 'bonuses': return !!d.bonHas && bonusesComplete(d.bonHas, d.bonuses);
-    case 'benefits': return d.benefits.length > 0 || !!d.extra;
+    case 'benefits': return d.benefits.length > 0;
     case 'source': return !!(d.source && d.trust);
     case 'note': return !!d.note;
   }
@@ -266,7 +273,7 @@ export function CompanyForm({ draft, refs, benefits, saving, serverFields, onCha
             <Select
               data-field="schedule"
               label="График работы" placeholder="— выберите —" value={draft.schedule} error={fieldErrors.schedule}
-              options={refs.schedules.map(v => ({ value: v, label: v }))}
+              options={refs.schedules.map(v => ({ value: v, label: scheduleLabel(v) }))}
               onChange={e => set({ schedule: e.target.value })}
             />
           )}

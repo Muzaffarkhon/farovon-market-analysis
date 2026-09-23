@@ -7,6 +7,7 @@ import { Chip } from '../../design/Chip';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
 import { Skeleton } from '../../design/Skeleton';
+import { scheduleLabel } from '../../domain/schedule';
 import { useScreenTitle } from '../shell/Shell';
 import { RecordSheet } from './RecordSheet';
 import { PICKERS, useRegistry } from './useRegistry';
@@ -78,7 +79,7 @@ export function RegistryScreen() {
             <Select
               key={p.key} className={s.picker} label={p.label} placeholder="— все —"
               value={(r.filters[p.key] as string) ?? ''}
-              options={options.map(v => ({ value: v, label: v }))}
+              options={options.map(v => ({ value: v, label: p.facet === 'schedules' ? scheduleLabel(v) : v }))}
               onChange={e => r.patch({ [p.key]: e.target.value || undefined })}
             />
           );
@@ -137,7 +138,7 @@ export function RegistryScreen() {
                     <td className={s.nowrap}>{perLabel(row)}</td>
                     <td>{row.varPay.label || '—'}</td>
                     <td>{row.benefits.length ? <Badge tone="ok">{row.benefits.length}</Badge> : <span className={s.muted}>—</span>}</td>
-                    <td>{row.schedule || '—'}</td>
+                    <td>{row.schedule ? scheduleLabel(row.schedule) : '—'}</td>
                     <td>{row.source || '—'}</td>
                     <td>{row.trust || '—'}</td>
                     <td>{row.by || '—'}</td>

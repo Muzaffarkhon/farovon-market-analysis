@@ -40,13 +40,13 @@ test('у новой компании раскрыт только «Оклад»'
 });
 
 test('карточка открывается на первом незаполненном обязательном блоке', () => {
-  setup({ ...empty, payFrom: '100' });
+  setup({ ...empty, payFrom: '100', payTo: '200' });
   expect(screen.getByLabelText('График работы')).toBeVisible();
   expect(screen.queryByLabelText('Оклад от')).not.toBeInTheDocument();
 });
 
 test('открытие блока выше закрывает нижний', async () => {
-  setup({ ...empty, payFrom: '100' });
+  setup({ ...empty, payFrom: '100', payTo: '200' });
   expect(screen.getByLabelText('График работы')).toBeVisible();
   await openBlock(/^Оклад/);
   expect(screen.getByLabelText('Оклад от')).toBeVisible();
@@ -185,12 +185,12 @@ test('правка одного поля не гасит ошибки други
 // ── Премии: при «да» каждый вид должен быть заполнен целиком ───────────────
 
 const withBonus = (bonuses: SurveyDraft['bonuses']) => ({
-  ...empty, payFrom: '100', schedule: '5/2 · 40 часов',
+  ...empty, payFrom: '100', payTo: '200', schedule: '5/2 · 40 часов',
   source: 'Интервью', trust: 'высокая', bonHas: 'да', bonuses
 });
 
 test('«есть ли премии: да» открывает список видов', () => {
-  setup({ ...empty, payFrom: '1', schedule: '5/2 · 40 часов', bonHas: 'да', bonuses: [{ type: '', size: '', per: '' }] });
+  setup({ ...empty, payFrom: '1', payTo: '2', schedule: '5/2 · 40 часов', bonHas: 'да', bonuses: [{ type: '', size: '', per: '' }] });
   expect(screen.getByLabelText('Размер')).toBeInTheDocument();
 });
 

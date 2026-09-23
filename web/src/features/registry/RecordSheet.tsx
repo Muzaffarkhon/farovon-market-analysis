@@ -3,6 +3,7 @@ import type { RegistryRow } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Sheet } from '../../design/Sheet';
 import { useSessionData } from '../auth/useSession';
+import { scheduleLabel } from '../../domain/schedule';
 import { money, payRange, perLabel, shortDate } from './format';
 import s from './Registry.module.css';
 
@@ -50,7 +51,7 @@ export function RecordSheet({ row, onClose }: { row: RegistryRow | null; onClose
           <Row label="У них">{row.posTheir || '—'}</Row>
           {row.grade && <Row label="Грейд">{row.grade}</Row>}
           <Row label="Оклад">{payRange(row)} <span className={s.muted}>{perLabel(row)}</span></Row>
-          <Row label="График">{row.schedule || '—'}</Row>
+          <Row label="График">{row.schedule ? scheduleLabel(row.schedule) : '—'}</Row>
           <Row label="Источник">{row.source || '—'}</Row>
           <Row label="Надёжность">{row.trust || '—'}</Row>
         </div>

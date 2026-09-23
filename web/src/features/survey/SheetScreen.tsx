@@ -56,7 +56,8 @@ export function SheetScreen() {
   const [spreadAsk, setSpreadAsk] = useState(false);
   const [spreadDecided, setSpreadDecided] = useState<boolean | null>(null);
 
-  // Первая компания открывается сама; после добавления новой — переключаемся на неё.
+  // Первая компания открывается сама. Добавление компаний в шторке активную не
+  // трогает — при закрытии шторки открывается первая (см. closePicker).
   useEffect(() => {
     if (active && selected.some(c => normName(c) === normName(active))) return;
     setActive(selected[0] ?? '');
@@ -81,6 +82,12 @@ export function SheetScreen() {
     setServerFields(undefined);
     try {
       await actions.saveCompany(draft, spread);
+      // Компания заполнена целиком — сразу ведём к следующей, где ещё есть
+      // пробелы, чтобы не искать её глазами в списке.
+      if (missingPoints(draft).length === 0) {
+        const next = nextIncomplete(draft.company);
+        if (next) setActive(next);
+      }
     } catch (e) {
       if (e instanceof ApiError) {
         setServerFields(e.fields);
@@ -90,6 +97,21 @@ export function SheetScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Следующая после current компания с незаполненными пунктами (по кругу). */
+  function nextIncomplete(current: string): string | undefined {
+    const i = selected.findIndex(c => normName(c) === normName(current));
+    const order = [...selected.slice(i + 1), ...selected.slice(0, Math.max(i, 0))];
+    return order.find(c => {
+      const rec = existing.find(e => normName(e.company) === normName(c));
+      return !rec || missingPoints(rec).length > 0;
+    });
+  }
+
+  function closePicker() {
+    setPickerOpen(false);
+    setActive(selected[0] ?? '');
   }
 
   function save() {
@@ -104,7 +126,6 @@ export function SheetScreen() {
         ? [...selected, name]
         : selected.filter(c => normName(c) !== normName(name));
       await actions.setCompanies(decodedPos, next);
-      if (checked) setActive(name);
     } catch { /* тост показал useSheetActions */ } finally { setBusy(false); }
   }
 
@@ -113,7 +134,6 @@ export function SheetScreen() {
     try {
       await actions.addCompanyToDictionary(name);
       await actions.setCompanies(decodedPos, [...selected, name]);
-      setActive(name);
     } catch { /* тост показал useSheetActions */ } finally { setBusy(false); }
   }
 
@@ -168,17 +188,27 @@ export function SheetScreen() {
             })}
           </div>
           {draft && (
-            <CompanyForm
-              draft={draft} refs={session.ref} benefits={session.benefits}
-              saving={saving} serverFields={serverFields}
-              onChange={setDraft} onSave={save}
-            />
+            <div className={s.companyCol}>
+              {/* Счётчик «7 из 9» сам по себе не говорит, чего не хватает, а
+                  подсказки по наведению на телефоне не существует — поэтому
+                  открытая компания называет недостающие пункты прямо строкой. */}
+              <p className={s.missing}>
+                {missingPoints(draft).length
+                  ? 'Не заполнено: ' + missingPoints(draft).join(', ')
+                  : 'Заполнено полностью'}
+              </p>
+              <CompanyForm
+                draft={draft} refs={session.ref} benefits={session.benefits}
+                saving={saving} serverFields={serverFields}
+                onChange={setDraft} onSave={save}
+              />
+            </div>
           )}
         </div>
       )}
 
       <CompanyPicker
-        open={pickerOpen} onClose={() => setPickerOpen(false)}
+        open={pickerOpen} onClose={closePicker}
         selected={selected} poolCompanies={poolCompanies} busy={busy}
         onToggle={(name, checked) => void toggleCompany(name, checked)}
         onAddNew={name => void addNew(name)}

@@ -9,6 +9,7 @@
 .cardTitle { font-weight: 600; overflow-wrap: anywhere; }
 .cardSub { margin-top: var(--s-1); font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
 .empty { color: var(--text-muted); }
+.missing { margin: 0; font-size: 13px; color: var(--text-muted); }
 .search { max-width: 320px; }
 
 /* Лист заполнения */
@@ -36,6 +37,14 @@
 .chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .chipGroup { display: flex; flex-direction: column; gap: var(--s-2); }
 .chipGroupTitle { font-size: 13px; color: var(--text-muted); }
+.benefitHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.benefitGroups { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); }
+.benefitGroup { display: flex; flex-direction: column; gap: var(--s-2); padding: 0 var(--s-3); }
+.benefitGroup + .benefitGroup { border-top: 1px solid var(--border); }
+.benefitGroup:has(.chips), .benefitGroup:has(.benefitPicked) { padding-bottom: var(--s-3); }
+.benefitGroupHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); min-height: var(--tap); padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.benefitGroupMeta { display: flex; align-items: center; gap: var(--s-2); color: var(--text-muted); }
+.benefitPicked { font-size: 13px; color: var(--text-muted); }
 .actions { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 .tick { color: var(--ok); }
 @media (max-width: 520px) {

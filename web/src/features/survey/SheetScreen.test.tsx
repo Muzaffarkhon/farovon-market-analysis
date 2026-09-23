@@ -152,3 +152,44 @@ test('отметка «не с кем» и её снятие', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Передумал' }));
   expect(actions.clearNoComparison).toHaveBeenCalledWith('Токарь');
 });
+
+const fullDraft = (company: string): SurveyDraft => ({
+  company, posOur: 'Токарь', payFrom: '100', payTo: '200', cur: 'сомони', payPer: 'в месяц',
+  bonHas: 'нет', bonuses: [], benefits: ['ДМС'], extra: '', schedule: '5/2 · 40 часов',
+  source: 'Интервью', trust: 'высокая', note: 'ок'
+});
+
+const isActive = (name: string) => screen.getByRole('button', { name: new RegExp('^' + name) }).className.includes('selected');
+
+test('полностью заполненная компания после сохранения переключает на следующую незаполненную', async () => {
+  mockData({ selected: ['Алиф', 'Банк Эсхата'], drafts: [fullDraft('Алиф')] });
+  renderSheet();
+  expect(isActive('Алиф')).toBe(true);
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(actions.saveCompany).toHaveBeenCalled();
+  expect(isActive('Банк Эсхата')).toBe(true);
+});
+
+test('неполная компания после сохранения остаётся открытой', async () => {
+  mockData({ selected: ['Алиф', 'Банк Эсхата'], drafts: [{ ...fullDraft('Алиф'), note: '' }] });
+  renderSheet();
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(actions.saveCompany).toHaveBeenCalled();
+  expect(isActive('Алиф')).toBe(true);
+});
+
+test('после закрытия шторки выбора открыта первая компания', async () => {
+  mockData({ selected: ['Алиф', 'Банк Эсхата'] });
+  renderSheet();
+  await userEvent.click(screen.getByRole('button', { name: /^Банк Эсхата/ }));
+  expect(isActive('Банк Эсхата')).toBe(true);
+  await userEvent.click(screen.getByRole('button', { name: 'Добавить компанию' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Закрыть' }));
+  expect(isActive('Алиф')).toBe(true);
+});
+
+test('над формой названы незаполненные пункты', () => {
+  mockData({ selected: ['Алиф'], drafts: [{ ...fullDraft('Алиф'), schedule: '' }] });
+  renderSheet();
+  expect(screen.getByText('Не заполнено: график')).toBeInTheDocument();
+});

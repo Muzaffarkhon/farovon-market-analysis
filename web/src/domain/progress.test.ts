@@ -13,14 +13,14 @@ test('пустая запись — 0 из 9', () => {
 test('полная запись без премий — 9 из 9', () => {
   expect(recordProgress({
     ...empty, payFrom: '1', payTo: '2', bonHas: 'нет', benefits: ['ДМС'],
-    extra: 'x', source: 'Опрос', trust: 'высокая', note: 'y', schedule: '5/2'
+    source: 'Опрос', trust: 'высокая', note: 'y', schedule: '5/2'
   })).toEqual({ done: 9, total: 9 });
 });
 
 test('полная запись с премиями — 9 из 9', () => {
   expect(recordProgress({
     ...empty, payFrom: '1', payTo: '2', bonHas: 'да', bonuses: [{ type: 'KPI', size: '10%', per: 'в месяц' }],
-    benefits: ['ДМС'], extra: 'x', source: 'Опрос', trust: 'высокая', note: 'y', schedule: '5/2'
+    benefits: ['ДМС'], source: 'Опрос', trust: 'высокая', note: 'y', schedule: '5/2'
   })).toEqual({ done: 9, total: 9 });
 });
 
@@ -92,14 +92,14 @@ test('unitProgress считает по должностям', () => {
 });
 
 test('missingPoints называет незаполненные пункты', () => {
-  expect(missingPoints({ ...empty, payFrom: '1', payTo: '2', bonHas: 'нет', benefits: ['ДМС'], source: 'Опрос', trust: 'высокая', note: 'x' }))
-    .toEqual(['прочие выплаты']);
+  expect(missingPoints({ ...empty, payFrom: '1', payTo: '2', schedule: '5/2', bonHas: 'нет', benefits: [], source: 'Опрос', trust: 'высокая', note: 'x' }))
+    .toEqual(['льготы']);
 });
 
 test('missingPoints у полной записи пуст', () => {
   expect(missingPoints({
-    ...empty, payFrom: '1', payTo: '2', bonHas: 'нет', benefits: ['ДМС'],
-    extra: 'обед', source: 'Опрос', trust: 'высокая', note: 'x'
+    ...empty, payFrom: '1', payTo: '2', schedule: '5/2', bonHas: 'нет', benefits: ['ДМС'],
+    source: 'Опрос', trust: 'высокая', note: 'x'
   })).toEqual([]);
 });
 
