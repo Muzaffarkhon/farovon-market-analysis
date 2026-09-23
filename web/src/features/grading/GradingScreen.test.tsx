@@ -58,11 +58,22 @@ test('без блока в адресе показывает карточки б
 test('клик по блоку загружает его должности', async () => {
   renderScreen('/grading');
   await userEvent.click(await screen.findByRole('link', { name: /Офис/ }));
-  await screen.findByText(/должностей в блоке/);
+  await screen.findByText('Бухгалтер');
   expect(positionsFn).toHaveBeenCalledWith('office');
 });
 
 test('блок из адреса открывается сразу', async () => {
   renderScreen('/grading/office');
-  expect(await screen.findByText(/1 должностей в блоке «Офис»/)).toBeInTheDocument();
+  expect(await screen.findByText('Бухгалтер')).toBeInTheDocument();
+});
+
+test('клик по должности открывает анкету', async () => {
+  vi.mocked(factorsFn).mockResolvedValue({
+    ok: true, weights: [], maxGrade: 1, grades: [], riskFactors: [], riskLevels: [],
+    criteria: [{ code: 'К1', title: 'Квалификация', help: '', options: ['1', '2', '3', '4', '5'], examples: [] }]
+  });
+  renderScreen('/grading/office');
+  await userEvent.click(await screen.findByText('Бухгалтер'));
+  expect(await screen.findByRole('dialog', { name: 'Бухгалтер' })).toBeInTheDocument();
+  expect(screen.getByText(/К1\. Квалификация/)).toBeInTheDocument();
 });
