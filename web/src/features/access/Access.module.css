@@ -1,9 +1,9 @@
 .screen { display: flex; flex-direction: column; gap: var(--s-4); }
 .tabs { display: flex; gap: var(--s-2); }
-.tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 220px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
 .table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
-.table th { font-weight: 600; white-space: nowrap; }
+.table th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
 .table th.role { text-align: center; }
 .table td.cell { text-align: center; }
 .groupRow td { background: var(--surface-2); font-weight: 600; color: var(--text-muted); font-size: 13px; }

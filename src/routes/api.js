@@ -18,6 +18,7 @@ const supportController = require('../controllers/supportController');
 const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
 const registryController = require('../controllers/registryController');
+const tablePrefsController = require('../controllers/tablePrefsController');
 const coordinationController = require('../controllers/coordinationController');
 const cronController = require('../controllers/cronController');
 
@@ -124,6 +125,12 @@ router.post('/coordination/remind', requireCapability('coordination:view'), coor
 // аналитики: это те же данные, только не свёрнутые в медианы.
 router.post('/registry', requireCapability('dashboard:view'), registryController.list);
 router.post('/registry/export', requireCapability('dashboard:view'), registryController.exportCsv);
+
+// Личные настройки таблиц (какие колонки показывать) — свои для каждого
+// логина, доступ не привязан к отдельному праву: если человек видит таблицу,
+// он может настроить её вид под себя.
+router.get('/table-prefs/:tableKey', tablePrefsController.get);
+router.post('/table-prefs/:tableKey', tablePrefsController.save);
 
 // Журнал выгрузок: фронт вызывает перед скачиванием CSV (файл собирается в браузере).
 router.post('/audit/export', requireCapability('dashboard:view'), dashboardController.logExport);

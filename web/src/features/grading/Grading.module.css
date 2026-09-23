@@ -12,10 +12,10 @@
 .tab { flex-shrink: 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-md) var(--r-md) 0 0; color: var(--text-muted); text-decoration: none; font-weight: 600; white-space: nowrap; }
 .tabActive { color: var(--accent); background: var(--surface-2); }
 
-.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; max-height: calc(100dvh - 260px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
-.table thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
 .table tbody tr { cursor: pointer; }
 .table tbody tr:hover { background: var(--surface-2); }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import type { RegistryRow } from '../../api/contract';
 import { submitRegistryExport } from '../../api/registry';
 import { Badge } from '../../design/Badge';
 import { Button } from '../../design/Button';
+import { ColumnPicker } from '../../design/ColumnPicker';
 import { Input } from '../../design/Input';
 import { Skeleton } from '../../design/Skeleton';
+import { useTablePrefs } from '../../design/useTablePrefs';
 import { scheduleLabel } from '../../domain/schedule';
 import { useScreenTitle } from '../shell/Shell';
 import { RecordSheet } from './RecordSheet';
@@ -19,7 +22,7 @@ import s from './Registry.module.css';
  * которых нет готовым полем строки (переменная часть, льготы), это отдельный
  * производный ключ — сервер знает, как его посчитать.
  */
-const COLUMNS: { key?: string; title: string; num?: boolean }[] = [
+const COLUMNS: { key: string; title: string; num?: boolean }[] = [
   { key: 'date', title: 'Дата' },
   { key: 'dir', title: 'Направление' },
   { key: 'unit', title: 'Подразделение' },
@@ -39,15 +42,40 @@ const COLUMNS: { key?: string; title: string; num?: boolean }[] = [
   { key: 'trust', title: 'Надёжность' },
   { key: 'by', title: 'Кто собрал' }
 ];
+const COLUMN_KEYS = COLUMNS.map(c => c.key);
+
+/** Содержимое ячейки по ключу колонки — используется и для видимых, и для скрытых колонок одинаково. */
+const CELLS: Record<string, (row: RegistryRow) => { className?: string; title?: string; node: ReactNode }> = {
+  date: row => ({ className: [s.nowrap, s.muted].join(' '), node: shortDate(row.date) }),
+  dir: row => ({ className: s.nowrap, title: row.dir, node: shortDir(row.dir) }),
+  unit: row => ({ node: row.unit || '—' }),
+  company: row => ({ node: <b>{row.company || '—'}</b> }),
+  region: row => ({ node: row.region || '—' }),
+  posOur: row => ({ node: isUnmapped(row) ? <Badge tone="warn">не сопоставлено</Badge> : row.posOur }),
+  posTheir: row => ({ node: row.posTheir || '—' }),
+  grade: row => ({ node: row.grade || '—' }),
+  payFrom: row => ({ className: s.num, node: money(row.payFrom) }),
+  payTo: row => ({ className: s.num, node: money(row.payTo) }),
+  cur: row => ({ className: s.nowrap, node: perLabel(row) }),
+  varPayMonthly: row => ({ node: row.varPay.label || '—' }),
+  totalMonthly: row => ({ className: s.num, node: row.totalMonthly != null ? money(row.totalMonthly) : '—' }),
+  benefitsCount: row => ({ node: row.benefits.length ? <Badge tone="ok">{row.benefits.length}</Badge> : <span className={s.muted}>—</span> }),
+  schedule: row => ({ node: row.schedule ? scheduleLabel(row.schedule) : '—' }),
+  source: row => ({ node: row.source || '—' }),
+  trust: row => ({ node: row.trust || '—' }),
+  by: row => ({ node: row.by || '—' })
+};
 
 export function RegistryScreen() {
   useScreenTitle('Реестр данных');
   const r = useRegistry();
   const [openRow, setOpenRow] = useState<RegistryRow | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const prefs = useTablePrefs('registry', COLUMN_KEYS);
 
   const data = r.data;
   const rows = data?.rows ?? [];
+  const visibleColumns = COLUMNS.filter(c => prefs.visible.has(c.key));
 
   const mark = (key?: string) =>
     key && r.filters.sort === key ? <span className={s.sortMark}>{r.filters.order === 'asc' ? '↑' : '↓'}</span> : null;
@@ -71,6 +99,7 @@ export function RegistryScreen() {
                 : `${data.total} из ${data.totalAll}`}
             </span>
           )}
+          <ColumnPicker columns={COLUMNS} visible={prefs.visible} onToggle={prefs.toggle} />
           <Button variant="secondary" size="sm" disabled={!data?.total} onClick={() => submitRegistryExport(r.filters)}>
             Выгрузить
           </Button>
@@ -98,11 +127,9 @@ export function RegistryScreen() {
             <table className={s.table}>
               <thead>
                 <tr>
-                  {COLUMNS.map(c => (
-                    <th key={c.title} className={c.num ? s.num : undefined}>
-                      {c.key
-                        ? <button type="button" className={s.sortBtn} onClick={() => r.sortBy(c.key!)}>{c.title}{mark(c.key)}</button>
-                        : c.title}
+                  {visibleColumns.map(c => (
+                    <th key={c.key} className={c.num ? s.num : undefined}>
+                      <button type="button" className={s.sortBtn} onClick={() => r.sortBy(c.key)}>{c.title}{mark(c.key)}</button>
                     </th>
                   ))}
                 </tr>
@@ -110,24 +137,10 @@ export function RegistryScreen() {
               <tbody>
                 {rows.map(row => (
                   <tr key={row.id} onClick={() => setOpenRow(row)}>
-                    <td className={[s.nowrap, s.muted].join(' ')}>{shortDate(row.date)}</td>
-                    <td className={s.nowrap} title={row.dir}>{shortDir(row.dir)}</td>
-                    <td>{row.unit || '—'}</td>
-                    <td><b>{row.company || '—'}</b></td>
-                    <td>{row.region || '—'}</td>
-                    <td>{isUnmapped(row) ? <Badge tone="warn">не сопоставлено</Badge> : row.posOur}</td>
-                    <td>{row.posTheir || '—'}</td>
-                    <td>{row.grade || '—'}</td>
-                    <td className={s.num}>{money(row.payFrom)}</td>
-                    <td className={s.num}>{money(row.payTo)}</td>
-                    <td className={s.nowrap}>{perLabel(row)}</td>
-                    <td>{row.varPay.label || '—'}</td>
-                    <td className={s.num}>{row.totalMonthly != null ? money(row.totalMonthly) : '—'}</td>
-                    <td>{row.benefits.length ? <Badge tone="ok">{row.benefits.length}</Badge> : <span className={s.muted}>—</span>}</td>
-                    <td>{row.schedule ? scheduleLabel(row.schedule) : '—'}</td>
-                    <td>{row.source || '—'}</td>
-                    <td>{row.trust || '—'}</td>
-                    <td>{row.by || '—'}</td>
+                    {visibleColumns.map(c => {
+                      const cell = CELLS[c.key](row);
+                      return <td key={c.key} className={cell.className} title={cell.title}>{cell.node}</td>;
+                    })}
                   </tr>
                 ))}
               </tbody>

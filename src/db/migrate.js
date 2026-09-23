@@ -707,6 +707,7 @@ async function migrate() {
   await createBroadcasts();
   await createTelegramUpdates();
   await createReminderLog();
+  await createUserTablePrefs();
   await cleanupLegacySurveyTestData();
 }
 
@@ -822,6 +823,23 @@ async function createReminderLog() {
     PRIMARY KEY (period_id, tier, sent_on)
   )`);
   console.log('🔧 Миграция: таблица дневника напоминаний создана');
+}
+
+/**
+ * Личные настройки таблиц (какие колонки показывать) — по логину и ключу
+ * таблицы («registry» и т.п.), переживают между устройствами. columns —
+ * JSON-массив ключей видимых колонок; порядок в массиве и есть порядок
+ * отображения.
+ */
+async function createUserTablePrefs() {
+  await run(`CREATE TABLE IF NOT EXISTS user_table_prefs (
+    login TEXT NOT NULL,
+    table_key TEXT NOT NULL,
+    columns TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (login, table_key)
+  )`);
+  console.log('🔧 Миграция: таблица личных настроек колонок создана');
 }
 
 async function cleanupLegacySurveyTestData() {

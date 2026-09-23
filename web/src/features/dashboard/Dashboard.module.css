@@ -35,10 +35,10 @@
 .companyTop { display: flex; justify-content: space-between; gap: var(--s-2); font-weight: 600; }
 .companySub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
-.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; max-height: calc(100dvh - 260px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
-.table thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .gapDown { color: var(--warn); font-weight: 700; }

@@ -13,6 +13,16 @@ test('«Поддержка» видна без единого права — д�
   expect(items.map(i => i.to)).toContain('/support');
 });
 
+test('у кого есть support:manage (свой инбокс) — личная «Поддержка» скрыта', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: ['support:manage'] } as SessionUser);
+  expect(items.map(i => i.to)).not.toContain('/support');
+});
+
+test('admin (свой инбокс по роли) тоже не видит личную «Поддержка»', () => {
+  const items = navItemsFor({ ...base, role: 'admin', capabilities: [] } as SessionUser);
+  expect(items.map(i => i.to)).not.toContain('/support');
+});
+
 test('admin видит матрицу ролей', () => {
   const items = navItemsFor({ ...base, role: 'admin', capabilities: [] } as SessionUser);
   expect(items.map(i => i.to)).toContain('/access');

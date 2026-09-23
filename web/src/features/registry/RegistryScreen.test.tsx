@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { RegistryScreen } from './RegistryScreen';
 import * as api from '../../api/registry';
+import * as tablePrefsApiModule from '../../api/tablePrefs';
 import type { RegistryResponse, RegistryRow, SessionData } from '../../api/contract';
 
 vi.mock('../shell/Shell', () => ({ useScreenTitle: () => {} }));
@@ -52,6 +53,7 @@ function renderScreen() {
 }
 
 let list: ReturnType<typeof vi.fn>;
+let saveTablePrefs: ReturnType<typeof vi.fn>;
 /** Все фильтры — в панели за кнопкой «Фильтры». */
 const openFilters = () => userEvent.click(screen.getByRole('button', { name: /^Фильтры/ }));
 
@@ -59,6 +61,11 @@ beforeEach(() => {
   lastSearch = '';
   list = vi.fn().mockResolvedValue(answer());
   vi.spyOn(api, 'registryApi', 'get').mockReturnValue({ list } as never);
+  saveTablePrefs = vi.fn().mockImplementation((_key, columns) => Promise.resolve({ ok: true, columns }));
+  vi.spyOn(tablePrefsApiModule, 'tablePrefsApi', 'get').mockReturnValue({
+    get: vi.fn().mockResolvedValue({ ok: true, columns: null }),
+    save: saveTablePrefs
+  } as never);
 });
 
 test('показывает собранные наблюдения таблицей', async () => {
@@ -66,6 +73,22 @@ test('показывает собранные наблюдения таблиц�
   expect(await screen.findByRole('cell', { name: 'Алиф' })).toBeInTheDocument();
   expect(screen.getByRole('cell', { name: 'Токарь' })).toBeInTheDocument();
   expect(screen.getByText('1 записей')).toBeInTheDocument();
+});
+
+test('«Колонки» скрывает и снова показывает колонку, сохраняя выбор на сервере', async () => {
+  renderScreen();
+  await screen.findByRole('cell', { name: 'Алиф' });
+  expect(screen.getByRole('columnheader', { name: /Грейд/ })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Колонки' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Грейд' }));
+
+  await waitFor(() => expect(screen.queryByRole('columnheader', { name: /Грейд/ })).not.toBeInTheDocument());
+  expect(saveTablePrefs).toHaveBeenLastCalledWith('registry', expect.not.arrayContaining(['grade']));
+
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Грейд' }));
+  await waitFor(() => expect(screen.getByRole('columnheader', { name: /Грейд/ })).toBeInTheDocument());
+  expect(saveTablePrefs).toHaveBeenLastCalledWith('registry', expect.arrayContaining(['grade']));
 });
 
 test('колонки надёжности, источника и графика есть в таблице', async () => {

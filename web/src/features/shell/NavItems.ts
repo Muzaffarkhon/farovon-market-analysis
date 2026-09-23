@@ -7,7 +7,10 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   const has = (c: string) => u.role === 'admin' || u.capabilities.includes(c);
   const items: NavItem[] = [];
   if (has('survey:fill')) items.push({ to: '/', label: 'Сбор данных', icon: 'list' });
-  items.push({ to: '/support', label: 'Поддержка', icon: 'chat' });
+  // Личная «Поддержка» — написать свой вопрос. У кого уже есть админский
+  // инбокс (support:manage), незачем писать самому себе отдельной формой —
+  // он просто отвечает в своём инбоксе (см. client/app.js:267, тот же приём).
+  if (!has('support:manage')) items.push({ to: '/support', label: 'Поддержка', icon: 'chat' });
   if (has('dashboard:view')) items.push({ to: '/registry', label: 'Реестр', icon: 'table' });
   if (has('dashboard:view')) items.push({ to: '/dashboard', label: 'Дашборды', icon: 'chart' });
   if (has('coordination:view')) items.push({ to: '/coordination', label: 'Координация', icon: 'users' });
