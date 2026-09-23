@@ -13,6 +13,7 @@ const SECTIONS: Section[] = [
   { to: '/admin/grading', title: 'Грейдирование — настройка', note: 'Формулировки анкеты, блоки, комиссия', visible: u => has(u, 'grading:factors') || has(u, 'grading:blocks') || has(u, 'grading:committee') },
   { to: '/admin/benchmark', title: 'Бенчмаркинг', note: 'Импорт источников и сопоставление позиций', visible: u => has(u, 'benchmarks:import') || has(u, 'benchmarks:map') },
   { to: '/admin/periods', title: 'Периоды сбора', note: 'Открытие/закрытие периода, доступ к архиву', visible: u => has(u, 'period:view') },
+  { to: '/admin/support', title: 'Чат поддержки', note: 'Инбокс, привязка к сотруднику, готовые фразы', visible: u => has(u, 'support:manage') },
   { to: '/access', title: 'Роли и доступы', note: 'Права ролей и личные исключения', visible: u => u.role === 'admin' }
 ];
 

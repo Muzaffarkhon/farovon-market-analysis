@@ -21,7 +21,7 @@ export function navItemsFor(u: SessionUser): NavItem[] {
 const ADMIN_CAPS = [
   'users:view', 'divisions:view', 'dictionary:view',
   'grading:factors', 'grading:blocks', 'grading:committee',
-  'benchmarks:import', 'benchmarks:map', 'period:view'
+  'benchmarks:import', 'benchmarks:map', 'period:view', 'support:manage'
 ];
 
 function isAdminAreaVisible(u: SessionUser): boolean {
