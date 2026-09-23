@@ -46,18 +46,18 @@ TanStack Query.
 
 **Files:** Modify: `src/config/capabilities.js`
 
-- [ ] **Step 1: Добавить и включить по умолчанию**
+- [x] **Step 1: Добавить и включить по умолчанию**
 
 `CAPABILITIES` — новая запись `{ id: 'coordination:view', resource:
 'coordination', resourceLabel: 'Координация', label: 'Просмотр' }`.
 `DEFAULT_ROLE_CAPABILITIES.hrbp` и `.dir_head` — добавить
 `'coordination:view'` в массив.
 
-- [ ] **Step 2: Прогнать существующие тесты конструктора ролей**
+- [x] **Step 2: Прогнать существующие тесты конструктора ролей**
 
 Если есть тесты на полный список capabilities/дефолтов — обновить ожидания.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/config/capabilities.js
@@ -75,7 +75,7 @@ git commit -m "feat(права): coordination:view для HR BP и руково�
 - Produces: `async getCoordination({ periodId, unitFilter }) → { units, people, feed }`
   (форма в спеке, раздел 3.2).
 
-- [ ] **Step 1: Тесты — пишутся первыми**
+- [x] **Step 1: Тесты — пишутся первыми**
 
 Синтетические `divisions`/`unit_positions`/`surveys`/`position_no_comparison`/
 `users` (как фикстуры `registryService.test.js`, без реальной базы —
@@ -86,9 +86,9 @@ git commit -m "feat(права): coordination:view для HR BP и руково�
 - `feed` отсортирована по `created_at desc`, обрезана до 30
 - `unitFilter` сокращает и `units`, и `people`, и `feed`
 
-- [ ] **Step 2: Прогнать — падает**
+- [x] **Step 2: Прогнать — падает**
 
-- [ ] **Step 3: Реализация**
+- [x] **Step 3: Реализация**
 
 Три bulk-запроса (как в `getHRBPDashboard`): `unit_positions` → Map
 unit→Set(positions); `surveys` (текущий период, `state != 'удалена'`) →
@@ -105,7 +105,7 @@ Map unit→{decided-ключи по `pos_our` с содержательными 
 
 Лента: `surveys` той же выборки, сортировка по `created_at`, срез 30.
 
-- [ ] **Step 4: Прогнать тесты, commit**
+- [x] **Step 4: Прогнать тесты, commit**
 
 ```bash
 git add src/services/coordinationService.js test/
@@ -125,7 +125,7 @@ git commit -m "feat(координация): сервис прогресса п�
 - Produces: `GET /api/coordination`, `POST /api/coordination/remind { logins: string[] } → { ok, sent, skipped }`
 - Produces: `telegramService.sendCoordinationReminder(logins, coordination) → { sent, skipped }`
 
-- [ ] **Step 1: Тест `sendCoordinationReminder`**
+- [x] **Step 1: Тест `sendCoordinationReminder`**
 
 Мокнуть `sendTelegramMessage` (или проверить через возвращаемые счётчики
 без реальной отправки, как уже сделано для похожих функций, если есть
@@ -133,7 +133,7 @@ git commit -m "feat(координация): сервис прогресса п�
 человек с закрытым охватом (`positionsDecided === positionsTotal`) →
 пропущен без отправки, а не «отправлено 0 незакрытых».
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `sendCoordinationReminder` — рядом с `sendMassReminder`, использует
 `coordinationService.getCoordination` для расчёта личного охвата каждого
@@ -145,14 +145,14 @@ git commit -m "feat(координация): сервис прогресса п�
 `coordinationController.remind` — та же проверка, вызывает
 `sendCoordinationReminder`.
 
-- [ ] **Step 3: Маршруты**
+- [x] **Step 3: Маршруты**
 
 ```js
 router.get('/coordination', requireCapability('coordination:view'), coordinationController.getCoordination);
 router.post('/coordination/remind', requireCapability('coordination:view'), coordinationController.remind);
 ```
 
-- [ ] **Step 4: Прогнать все серверные тесты, ручная проверка через curl, commit**
+- [x] **Step 4: Прогнать все серверные тесты, ручная проверка через curl, commit**
 
 ```bash
 git add src/controllers/coordinationController.js src/routes/api.js src/services/telegramService.js test/
@@ -170,34 +170,34 @@ git commit -m "feat(сервер): маршруты координации и т
 **Interfaces:**
 - Produces: маршрут `/coordination`; `coordinationApi.get()`, `coordinationApi.remind(logins)`.
 
-- [ ] **Step 1: Тест навигации** — пункт меню виден только при `coordination:view`.
+- [x] **Step 1: Тест навигации** — пункт меню виден только при `coordination:view`.
 
-- [ ] **Step 2: Типы и слой API**
+- [x] **Step 2: Типы и слой API**
 
 `CoordinationResponse` в `contract.ts` (форма из спеки 3.2).
 
-- [ ] **Step 3: `UnitsProgress`**
+- [x] **Step 3: `UnitsProgress`**
 
 Список подразделений с `RankBar`/полосой прогресса, сортировка «сначала
 отстающие» — тест: подразделение 0 из 5 выше, чем 4 из 5.
 
-- [ ] **Step 4: `PeopleProgress`**
+- [x] **Step 4: `PeopleProgress`**
 
 Список людей с чекбоксами выбора, дата последнего входа, охват. Тест:
 выбор людей копится в состоянии; человек без Telegram помечен, но
 выбираем.
 
-- [ ] **Step 5: `ActivityFeed`**
+- [x] **Step 5: `ActivityFeed`**
 
 Простой список последних 30 записей.
 
-- [ ] **Step 6: `CoordinationScreen` и кнопка «Напомнить»**
+- [x] **Step 6: `CoordinationScreen` и кнопка «Напомнить»**
 
 Собирает три блока; кнопка вызывает `coordinationApi.remind(selectedLogins)`,
 тост с `sent`/`skipped` из ответа. Тест: клик отправляет ровно выбранные
 логины, тост показывает числа из ответа сервера.
 
-- [ ] **Step 7: Прогнать всё, вручную (телефон 375px), commit**
+- [x] **Step 7: Прогнать всё, вручную (телефон 375px), commit**
 
 ```bash
 git add web/src
@@ -208,13 +208,13 @@ git commit -m "feat(web): экран «Координация» — прогре
 
 ### Task 5: Финальная проверка этапа
 
-- [ ] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
-- [ ] **Step 2:** Сквозная проверка — под hrbp и dir_head экран виден и показывает
+- [x] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
+- [x] **Step 2:** Сквозная проверка — под hrbp и dir_head экран виден и показывает
   только свои направления; под head и user — не виден ни в меню, ни по
   прямой ссылке (редирект/403); напоминание реально уходит выбранным (проверить
   на dev-пользователе с `telegram_chat_id`, если он есть в сидах, иначе —
   через мок/логи)
-- [ ] **Step 3:** Commit
+- [x] **Step 3:** Commit
 
 ```bash
 git commit -m "docs: этап 4 (координация) — план выполнен целиком" --allow-empty
