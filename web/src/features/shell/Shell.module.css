@@ -13,6 +13,14 @@
 .periodSelect { min-height: 36px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); padding: 0 var(--s-2); font-size: 13px; }
 .iconBtn { width: var(--tap); height: var(--tap); display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: var(--r-md); cursor: pointer; font-size: 20px; color: var(--text-muted); }
 .iconBtn:hover { background: var(--surface-2); }
+/* Кнопка «Разделы» на телефоне — сама марка платформы (тот же значок, что
+   в шапке панели, Sidebar.module.css .brandMark), не гамбургер: пока панель
+   не открыта, это единственное место, где логотип вообще виден. */
+.brandBtn {
+  width: 32px; height: 32px; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  background: var(--accent); display: flex; align-items: center; justify-content: center; flex: none;
+}
+.brandBtn:hover { filter: brightness(1.08); }
 .offline { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
 .more { position: relative; }
 .menu { position: absolute; right: 0; top: 100%; min-width: 200px; padding: var(--s-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); display: flex; flex-direction: column; }
