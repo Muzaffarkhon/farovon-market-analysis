@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
+const crypto = require('crypto');
 
 // Автоматическая сериализация BigInt для JSON (LibSQL возвращает lastInsertRowid как BigInt)
 BigInt.prototype.toJSON = function() {
@@ -124,13 +125,68 @@ app.use(cors({
   // запасной путь через заголовок Authorization + localStorage-токен.
   credentials: true
 }));
+// web/index.html держит один статический инлайн-скрипт — читает тему из
+// localStorage до первой отрисовки (иначе вспышка не той темы). Это не
+// onclick-обработчик, а честный <script> — под script-src-attr:'none' не
+// подпадает, но script-src без unsafe-inline его всё равно блокирует.
+// Вместо unsafe-inline — hash-источник, посчитанный от реального
+// содержимого собранного файла: переживёт правку скрипта без ручной
+// синхронизации, сборки без /new (файла ещё нет) не ломает.
+const NEXT_DIR = path.join(__dirname, '../client/next');
+function getNewClientInlineScriptHashes() {
+  try {
+    const html = fs.readFileSync(path.join(NEXT_DIR, 'index.html'), 'utf8');
+    const hashes = [];
+    const re = /<script>([\s\S]*?)<\/script>/g;
+    let m;
+    while ((m = re.exec(html))) {
+      // Браузер нормализует \r\n → \n при парсинге HTML перед хешированием
+      // инлайн-скрипта для CSP — без этого хеш не совпадёт на Windows-сборке.
+      const normalized = m[1].replace(/\r\n/g, '\n');
+      hashes.push(`'sha256-${crypto.createHash('sha256').update(normalized).digest('base64')}'`);
+    }
+    return hashes;
+  } catch (e) {
+    return [];
+  }
+}
+
+// Новый клиент (web/src) — ноль инлайн-обработчиков (JSX экранирует по
+// умолчанию), может работать без 'unsafe-inline' уже сегодня. Старый
+// (client/) держит инлайновые onclick= и инлайновые <script> — ему
+// unsafe-inline ещё нужен. app.use по пути НЕ прерывает цепочку сам по
+// себе (express не останавливается на первом совпадении), поэтому оба
+// helmet-инстанса собраны в один мидлвар ниже, который выбирает нужный
+// по req.path — второй не выполняется и не перезаписывает заголовок.
+const newClientCsp = helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", 'https://telegram.org', ...getNewClientInlineScriptHashes()],
+      'script-src-attr': ["'none'"],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'font-src': ["'self'", 'data:'],
+      'img-src': ["'self'", 'data:'],
+      'connect-src': ["'self'"],
+      'frame-ancestors': ["'self'", 'https://web.telegram.org', 'https://*.telegram.org'],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+      'upgrade-insecure-requests': null
+    }
+  },
+  frameguard: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+});
 // CSP вместо полностью выключенного. script-src/style-src оставляют
 // 'unsafe-inline' — во фронте много инлайнового JS/CSS, хешировать его без
 // переписывания нельзя; но внешние ресурсы, framing и base-uri теперь под
 // контролем. Разрешён единственный внешний ресурс — Telegram Web SDK
 // (telegram.org). Шрифты системные (см. index.html), внешних font/style нет.
 // Встраивать страницу в iframe может только Telegram.
-app.use(helmet({
+const oldClientCsp = helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
@@ -153,7 +209,11 @@ app.use(helmet({
   frameguard: false,
   crossOriginEmbedderPolicy: false, // иначе Telegram Mini App не грузится в iframe
   crossOriginResourcePolicy: { policy: 'cross-origin' }
-}));
+});
+app.use((req, res, next) => {
+  const isNewClient = req.path === '/new' || req.path.startsWith('/new/');
+  return (isNewClient ? newClientCsp : oldClientCsp)(req, res, next);
+});
 app.use(compression());
 
 // Тело запроса: обычным роутам хватает с запасом 512 КБ. Большой JSON нужен
@@ -205,8 +265,7 @@ app.get('/sw.js', (req, res) => {
 
 // Новый клиент (web/ → client/next). Живёт рядом со старым на /new, пока не
 // закроет всю функциональность; сессия общая (тот же cookie). index.html без
-// кеша, ассеты с хешами в имени — на год.
-const NEXT_DIR = path.join(__dirname, '../client/next');
+// кеша, ассеты с хешами в имени — на год. NEXT_DIR объявлен выше, у CSP.
 app.use('/new', express.static(NEXT_DIR, { index: false, etag: true, maxAge: '1y', immutable: true }));
 app.get(['/new', '/new/*splat'], (req, res, next) => {
   const indexPath = path.join(NEXT_DIR, 'index.html');
