@@ -254,16 +254,16 @@ git commit -m "feat(web): раздел «Периоды сбора»"
 
 ### Task 7: Финальная проверка этапа
 
-- [ ] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
-- [ ] **Step 2:** Сквозная проверка прав — под ролью без единого
+- [x] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
+- [x] **Step 2:** Сквозная проверка прав — под ролью без единого
   административного права пункт «Администрирование» не виден и `/admin/*`
   не открывается по прямой ссылке (редирект/403, как у прочих разделов);
   под `role==='admin'` видны все семь карточек хаба.
-- [ ] **Step 3:** Телефон 375px — хотя бы один из тяжёлых экранов
+- [x] **Step 3:** Телефон 375px — хотя бы один из тяжёлых экранов
   (`BenchmarkImportWizard` или таблица пользователей) не ломает раскладку.
-- [ ] **Step 4:** Обновить `farovon-react-redesign-branch.md` (память) —
+- [x] **Step 4:** Обновить `farovon-react-redesign-branch.md` (память) —
   статус этапа 6.
-- [ ] **Step 5:** Commit
+- [x] **Step 5:** Commit
 
 ```bash
 git commit -m "docs: этап 6 (администрирование) — план выполнен целиком" --allow-empty
