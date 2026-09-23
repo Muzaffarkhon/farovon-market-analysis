@@ -67,7 +67,7 @@ test('клик по вкладке переключает панель и адр
   renderScreen('/dashboard');
   await screen.findByText('Медиана рынка (P50)');
   await userEvent.click(screen.getByRole('link', { name: 'По регионам' }));
-  expect(await screen.findByRole('heading', { name: 'По регионам' })).toBeInTheDocument();
+  expect(await screen.findByText(/регион не определён/)).toBeInTheDocument();
 });
 
 test('выбор направления уходит в запрос и в адрес, сбрасывает HR BP', async () => {

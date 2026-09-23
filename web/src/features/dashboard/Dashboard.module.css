@@ -34,3 +34,9 @@
 .companyRow { padding-bottom: var(--s-2); border-bottom: 1px solid var(--border); }
 .companyTop { display: flex; justify-content: space-between; gap: var(--s-2); font-weight: 600; }
 .companySub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+.tableWrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 13.5px; }
+.table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
+.table thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
