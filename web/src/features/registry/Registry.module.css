@@ -8,10 +8,10 @@
 .count { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .scopeNote { font-size: 12px; color: var(--text-muted); }
 
-/* Выпадающие фильтров: на телефоне спрятаны за кнопкой «Фильтры». */
-.pickers { display: none; flex-wrap: wrap; gap: var(--s-2); }
-.pickersOpen { display: flex; }
-.picker { flex: 0 1 180px; min-width: 150px; }
+/* Панель фильтров (RegistryFilters): списки в две колонки, где хватает места. */
+.filterGrid { display: grid; grid-template-columns: 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }
+.filterFoot { display: flex; justify-content: space-between; gap: var(--s-2); }
+@media (min-width: 400px) { .filterGrid { grid-template-columns: 1fr 1fr; } }
 .flags { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 
 /* Таблица прокручивается внутри себя: только так шапка колонок остаётся
@@ -52,7 +52,4 @@
 @media (max-width: 899px) {
   .tableWrap { display: none; }
   .cards { display: flex; }
-}
-@media (min-width: 900px) {
-  .pickers { display: flex; }
 }

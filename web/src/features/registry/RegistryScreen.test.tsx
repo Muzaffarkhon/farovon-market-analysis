@@ -52,6 +52,9 @@ function renderScreen() {
 }
 
 let list: ReturnType<typeof vi.fn>;
+/** Все фильтры — в панели за кнопкой «Фильтры». */
+const openFilters = () => userEvent.click(screen.getByRole('button', { name: /^Фильтры/ }));
+
 beforeEach(() => {
   lastSearch = '';
   list = vi.fn().mockResolvedValue(answer());
@@ -77,6 +80,7 @@ test('колонки надёжности, источника и графика 
 test('выбор фильтра уходит в запрос и в адрес', async () => {
   renderScreen();
   await screen.findByRole('cell', { name: 'Алиф' });
+  await openFilters();
   await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
   await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ company: 'Сиёма' })));
   expect(lastSearch).toContain('company=%D0%A1');
@@ -136,6 +140,7 @@ test('пусто без фильтров и пусто с фильтрами —
 
   list.mockResolvedValue(answer({ rows: [], total: 0, totalAll: 12 }));
   renderScreen();
+  await openFilters();
   await screen.findAllByRole('option', { name: 'Сиёма' });
   await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
   expect(await screen.findByText(/Ничего не найдено/)).toBeInTheDocument();
@@ -143,9 +148,10 @@ test('пусто без фильтров и пусто с фильтрами —
 
 test('сброс убирает все фильтры', async () => {
   renderScreen();
+  await openFilters();
   await screen.findAllByRole('option', { name: 'Сиёма' });
   await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
-  await userEvent.click(await screen.findByRole('button', { name: 'Сбросить' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Фильтры' })).getByRole('button', { name: 'Сбросить' }));
   await waitFor(() => expect(lastSearch).toBe(''));
 });
 
@@ -159,6 +165,30 @@ test('несопоставленные помечены и фильтруютс�
   list.mockResolvedValue(answer({ rows: [row({ posOur: '(не сопоставлено)' })], unmapped: 1 }));
   renderScreen();
   expect(await screen.findByText('не сопоставлено')).toBeInTheDocument();
+  await openFilters();
   await userEvent.click(screen.getByRole('button', { name: /Только несопоставленные/ }));
   await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ onlyUnmapped: true })));
+});
+
+test('кнопка «Фильтры» открывает панель со всеми фильтрами', async () => {
+  renderScreen();
+  await screen.findByRole('cell', { name: 'Алиф' });
+  expect(screen.queryByLabelText('Компания')).not.toBeInTheDocument();
+  await openFilters();
+  const panel = screen.getByRole('dialog', { name: 'Фильтры' });
+  for (const label of ['Направление', 'Подразделение', 'Регион', 'Компания', 'Грейд', 'График', 'Источник', 'Надёжность', 'Валюта', 'HR BP']) {
+    expect(within(panel).getByLabelText(label)).toBeInTheDocument();
+  }
+  expect(within(panel).getByRole('button', { name: /Только с окладом/ })).toBeInTheDocument();
+});
+
+test('выбранный фильтр виден над таблицей и снимается одним нажатием', async () => {
+  renderScreen();
+  await screen.findByRole('cell', { name: 'Алиф' });
+  await openFilters();
+  await userEvent.selectOptions(screen.getByLabelText('Компания'), 'Сиёма');
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Фильтры' })).getByRole('button', { name: /^Показать/ }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await userEvent.click(await screen.findByRole('button', { name: /Компания: Сиёма/ }));
+  await waitFor(() => expect(lastSearch).not.toContain('company='));
 });

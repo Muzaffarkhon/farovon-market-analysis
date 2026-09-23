@@ -3,14 +3,13 @@ import type { RegistryRow } from '../../api/contract';
 import { submitRegistryExport } from '../../api/registry';
 import { Badge } from '../../design/Badge';
 import { Button } from '../../design/Button';
-import { Chip } from '../../design/Chip';
 import { Input } from '../../design/Input';
-import { Select } from '../../design/Select';
 import { Skeleton } from '../../design/Skeleton';
 import { scheduleLabel } from '../../domain/schedule';
 import { useScreenTitle } from '../shell/Shell';
 import { RecordSheet } from './RecordSheet';
-import { PICKERS, useRegistry } from './useRegistry';
+import { ActiveFilters, RegistryFilters } from './RegistryFilters';
+import { useRegistry } from './useRegistry';
 import { isUnmapped, money, payRange, perLabel, shortDate, shortDir } from './format';
 import s from './Registry.module.css';
 
@@ -54,7 +53,7 @@ export function RegistryScreen() {
           className={s.search} label="Поиск" placeholder="Компания, должность, кто собрал"
           value={r.searchInput} onChange={e => r.setSearchInput(e.target.value)}
         />
-        <Button variant="secondary" size="sm" onClick={() => setFiltersOpen(v => !v)}>
+        <Button variant="secondary" size="sm" onClick={() => setFiltersOpen(true)}>
           Фильтры{r.active ? ` · ${r.active}` : ''}
         </Button>
         {r.active > 0 && <Button variant="ghost" size="sm" onClick={r.reset}>Сбросить</Button>}
@@ -72,29 +71,9 @@ export function RegistryScreen() {
         </div>
       </div>
 
-      <div className={[s.pickers, filtersOpen ? s.pickersOpen : ''].join(' ')}>
-        {PICKERS.map(p => {
-          const options = data?.facets[p.facet] ?? [];
-          return (
-            <Select
-              key={p.key} className={s.picker} label={p.label} placeholder="— все —"
-              value={(r.filters[p.key] as string) ?? ''}
-              options={options.map(v => ({ value: v, label: p.facet === 'schedules' ? scheduleLabel(v) : v }))}
-              onChange={e => r.patch({ [p.key]: e.target.value || undefined })}
-            />
-          );
-        })}
-      </div>
-
-      <div className={s.flags}>
-        <Chip active={!!r.filters.onlyUnmapped} onClick={() => r.patch({ onlyUnmapped: !r.filters.onlyUnmapped || undefined })}>
-          Только несопоставленные{data ? ` (${data.unmapped})` : ''}
-        </Chip>
-        <Chip active={!!r.filters.withPayOnly} onClick={() => r.patch({ withPayOnly: !r.filters.withPayOnly || undefined })}>
-          Только с окладом
-        </Chip>
-        {data?.scoped && <span className={s.scopeNote}>Показаны только ваши подразделения</span>}
-      </div>
+      <ActiveFilters r={r} />
+      {data?.scoped && <span className={s.scopeNote}>Показаны только ваши подразделения</span>}
+      <RegistryFilters r={r} open={filtersOpen} onClose={() => setFiltersOpen(false)} />
 
       {r.error && <p className={s.empty}>{r.error.message}</p>}
       {r.isLoading && <Skeleton lines={6} />}
