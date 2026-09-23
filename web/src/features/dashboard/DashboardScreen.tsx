@@ -1,20 +1,23 @@
 import { NavLink } from 'react-router';
+import type { DashboardResponse } from '../../api/contract';
 import { Skeleton } from '../../design/Skeleton';
 import { useScreenTitle } from '../shell/Shell';
 import { DashboardFilters } from './DashboardFilters';
+import { OverviewTab } from './OverviewTab';
 import { TABS, useDashboard } from './useDashboard';
 import s from './Dashboard.module.css';
 
-// Вкладки заполняются по одной в следующих задачах плана; до тех пор — место-
-// заполнитель, чтобы раздел был проверяем целиком уже сейчас.
-function OverviewTab() { return <h2>Обзор</h2>; }
-function SalariesTab() { return <h2>Зарплатные вилки</h2>; }
-function RegionsTab() { return <h2>По регионам</h2>; }
-function BenefitsTab() { return <h2>Льготы и бонусы</h2>; }
-function BenchmarkTab() { return <h2>Бенчмаркинг</h2>; }
-function ProgressTab() { return <h2>Прогресс</h2>; }
+type TabProps = { data: DashboardResponse };
 
-const PANELS: Record<string, () => React.JSX.Element> = {
+// Остальные вкладки заполняются по одной в следующих задачах плана; до тех
+// пор — заглушка, чтобы раздел был проверяем целиком уже сейчас.
+function SalariesTab(_: TabProps) { return <h2>Зарплатные вилки</h2>; }
+function RegionsTab(_: TabProps) { return <h2>По регионам</h2>; }
+function BenefitsTab(_: TabProps) { return <h2>Льготы и бонусы</h2>; }
+function BenchmarkTab(_: TabProps) { return <h2>Бенчмаркинг</h2>; }
+function ProgressTab(_: TabProps) { return <h2>Прогресс</h2>; }
+
+const PANELS: Record<string, (props: TabProps) => React.JSX.Element> = {
   overview: OverviewTab, salaries: SalariesTab, regions: RegionsTab,
   benefits: BenefitsTab, benchmark: BenchmarkTab, progress: ProgressTab
 };
@@ -44,7 +47,7 @@ export function DashboardScreen() {
       {!d.isLoading && !d.error && d.data && d.data.summary.totalSurveyRecords === 0 && (
         <p className={s.empty}>За этот период ещё ничего не собрано.</p>
       )}
-      {!d.isLoading && !d.error && d.data && d.data.summary.totalSurveyRecords > 0 && <Panel />}
+      {!d.isLoading && !d.error && d.data && d.data.summary.totalSurveyRecords > 0 && <Panel data={d.data} />}
     </div>
   );
 }

@@ -55,7 +55,7 @@ beforeEach(() => {
 
 test('без вкладки в адресе показывает «Обзор»', async () => {
   renderScreen('/dashboard');
-  expect(await screen.findByRole('heading', { name: 'Обзор' })).toBeInTheDocument();
+  expect(await screen.findByText('Медиана рынка (P50)')).toBeInTheDocument();
 });
 
 test('вкладка из адреса открывается сразу', async () => {
@@ -65,14 +65,14 @@ test('вкладка из адреса открывается сразу', async
 
 test('клик по вкладке переключает панель и адрес', async () => {
   renderScreen('/dashboard');
-  await screen.findByRole('heading', { name: 'Обзор' });
+  await screen.findByText('Медиана рынка (P50)');
   await userEvent.click(screen.getByRole('link', { name: 'По регионам' }));
   expect(await screen.findByRole('heading', { name: 'По регионам' })).toBeInTheDocument();
 });
 
 test('выбор направления уходит в запрос и в адрес, сбрасывает HR BP', async () => {
   renderScreen('/dashboard');
-  await screen.findByRole('heading', { name: 'Обзор' });
+  await screen.findByText('Медиана рынка (P50)');
   await userEvent.selectOptions(screen.getByLabelText('Направление'), 'Дивизион Север');
   await waitFor(() => expect(get).toHaveBeenLastCalledWith(expect.objectContaining({ dir: 'Дивизион Север' })));
   expect(lastSearch).toContain('dir=');
@@ -80,7 +80,7 @@ test('выбор направления уходит в запрос и в ад�
 
 test('HR BP предлагает только тех, кто относится к выбранному направлению', async () => {
   renderScreen('/dashboard');
-  await screen.findByRole('heading', { name: 'Обзор' });
+  await screen.findByText('Медиана рынка (P50)');
   await userEvent.selectOptions(screen.getByLabelText('Направление'), 'Дивизион Юг');
   await waitFor(() => expect(screen.getByLabelText('HR BP')).toHaveTextContent('Петров П.'));
   expect(screen.getByLabelText('HR BP')).not.toHaveTextContent('Иванов И.');
@@ -88,7 +88,7 @@ test('HR BP предлагает только тех, кто относится 
 
 test('поиск уходит одним запросом с задержкой', async () => {
   renderScreen('/dashboard');
-  await screen.findByRole('heading', { name: 'Обзор' });
+  await screen.findByText('Медиана рынка (P50)');
   await userEvent.type(screen.getByLabelText('Поиск'), 'токарь');
   expect(get).toHaveBeenCalledTimes(1);
   await waitFor(() => expect(get).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'токарь' })));
@@ -96,7 +96,7 @@ test('поиск уходит одним запросом с задержкой'
 
 test('сброс убирает направление, HR BP и регион из адреса', async () => {
   renderScreen('/dashboard');
-  await screen.findByRole('heading', { name: 'Обзор' });
+  await screen.findByText('Медиана рынка (P50)');
   await userEvent.selectOptions(screen.getByLabelText('Направление'), 'Дивизион Север');
   await userEvent.click(await screen.findByRole('button', { name: 'Сбросить' }));
   await waitFor(() => expect(lastSearch).toBe(''));
@@ -106,7 +106,7 @@ test('пустой рынок — одно сообщение, вкладки н
   get.mockResolvedValue(answer({ summary: { ...answer().summary, totalSurveyRecords: 0 } }));
   renderScreen('/dashboard');
   expect(await screen.findByText('За этот период ещё ничего не собрано.')).toBeInTheDocument();
-  expect(screen.queryByRole('heading', { name: 'Обзор' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Медиана рынка (P50)')).not.toBeInTheDocument();
 });
 
 test('ограниченной роли сказано, что видны только свои подразделения', async () => {
