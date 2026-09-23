@@ -1,6 +1,7 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
 const { getActivePeriod } = require('../services/periodService');
 const { isHiddenCompany } = require('../services/companyFilter');
+const { unitScopeFilter } = require('../services/scopeService');
 const { queryAll, queryOne, run } = require('../db/database');
 
 /**
@@ -40,25 +41,10 @@ exports.logExport = async (req, res) => {
 };
 
 /**
- * Область видимости дашборда. admin/cb видят весь рынок (null — без
- * ограничения). Остальные роли — только доступные им подразделения; логика
- * ролей та же, что в getHRBPDashboard: HR BP — подразделения, где он указан
- * HR BP (либо HR BP не задан вовсе); dir_head и прочие ограниченные роли —
- * закреплённые за ними подразделения/направления (users.units).
- *
- * Возвращает предикат по строке divisions {unit, dir, hrbp, …} либо null.
+ * Область видимости дашборда — общий предикат для всех разделов рынка,
+ * см. services/scopeService. Имя сохранено, чтобы не трогать вызовы ниже.
  */
-function dashboardUnitFilter(user) {
-  if (!user || user.role === 'admin' || user.role === 'cb') return null;
-  const units = Array.isArray(user.units) ? user.units : [];
-  const fio = String(user.fio || '').toLowerCase();
-  return (d) => {
-    if (user.role === 'hrbp') {
-      return d.hrbp ? String(d.hrbp).toLowerCase() === fio : true;
-    }
-    return units.includes(d.unit) || (!!d.dir && units.includes(d.dir));
-  };
-}
+const dashboardUnitFilter = unitScopeFilter;
 
 exports.getCBDashboard = async (req, res) => {
   try {

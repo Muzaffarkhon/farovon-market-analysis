@@ -1,0 +1,58 @@
+/* Реестр — рабочий экран: плотно, без «лендинговых» пустот. Таблица шире
+   контентной колонки оболочки, поэтому раздвигаем её на всю ширину окна. */
+.screen { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }
+.search { flex: 1 1 240px; min-width: 180px; max-width: 360px; }
+.barRight { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; }
+.count { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.scopeNote { font-size: 12px; color: var(--text-muted); }
+
+/* Выпадающие фильтров: на телефоне спрятаны за кнопкой «Фильтры». */
+.pickers { display: none; flex-wrap: wrap; gap: var(--s-2); }
+.pickersOpen { display: flex; }
+.picker { flex: 0 1 180px; min-width: 150px; }
+.flags { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+
+/* Таблица прокручивается внутри себя: только так шапка колонок остаётся
+   на виду (overflow-x делает обёртку контейнером прокрутки, и sticky
+   считается уже от неё, а не от окна). */
+.tableWrap { overflow: auto; max-height: calc(100dvh - 240px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
+.table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.table tbody tr { cursor: pointer; }
+.table tbody tr:hover { background: var(--surface-2); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+.muted { color: var(--text-muted); }
+.sortBtn { border: 0; background: transparent; padding: 0; font: inherit; font-weight: 600; cursor: pointer; color: inherit; white-space: nowrap; }
+.sortMark { color: var(--accent); margin-left: 2px; }
+
+/* Карточный список для узких экранов — парный к таблице выше. */
+.cards { display: none; flex-direction: column; gap: var(--s-2); }
+.card { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-align: left; cursor: pointer; }
+.cardTop { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.cardTitle { font-weight: 600; overflow-wrap: anywhere; }
+.cardPay { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cardSub { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+
+.pager { display: flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-2) 0; }
+.pagerInfo { font-size: 13px; color: var(--text-muted); }
+
+.empty { padding: var(--s-6) var(--s-4); text-align: center; color: var(--text-muted); }
+
+/* Карточка наблюдения */
+.rec { display: flex; flex-direction: column; gap: var(--s-3); }
+.recGrid { display: grid; grid-template-columns: minmax(96px, auto) 1fr; gap: 4px var(--s-3); font-size: 14px; }
+.recKey { color: var(--text-muted); }
+.recVal { overflow-wrap: anywhere; }
+.recList { margin: 0; padding-left: 18px; }
+
+@media (max-width: 899px) {
+  .tableWrap { display: none; }
+  .cards { display: flex; }
+}
+@media (min-width: 900px) {
+  .pickers { display: flex; }
+}

@@ -66,7 +66,10 @@ let migrationStatus = 'pending';
 async function bootstrap() {
   try {
     const userRes = await queryOne('SELECT COUNT(*) as count FROM users');
-    console.log(`✅ Подключение к Turso LibSQL успешно. Пользователей в базе: ${userRes ? userRes.count : 0}`);
+    // Пишем РЕАЛЬНЫЙ адрес базы: раньше в логе всегда стояло «Turso» и
+    // config.dbPath, из-за чего локальный запуск на боевой базе выглядел
+    // ровно так же, как на тестовой.
+    console.log(`✅ База подключена: ${config.tursoUrl}. Пользователей: ${userRes ? userRes.count : 0}`);
   } catch (err) {
     console.warn('⚠️ Ошибка подключения к базе данных:', err.message);
   }
@@ -291,7 +294,7 @@ if (require.main === module) {
 
   app.listen(config.port, () => {
     console.log(`\n🚀 Сервер Farovon Market Analysis запущен: http://localhost:${config.port}`);
-    console.log(`📁 База данных: ${config.dbPath}`);
+    console.log(`📁 База данных: ${config.tursoUrl}`);
     console.log(`🌐 Окружение: ${config.nodeEnv}\n`);
   });
 }

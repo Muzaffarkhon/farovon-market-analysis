@@ -77,3 +77,44 @@ export interface SurveyDraft {
   schedule: string; benefits: string[]; extra: string;
   source: string; trust: string; note: string;
 }
+
+// ─── Реестр собранных данных ───
+
+/** Свёртка переменной части для колонки «Переменная часть» (считает сервер). */
+export interface VarPay { has: boolean; label: string; monthly?: number; monthlyKnown?: boolean }
+
+export interface RegistryRow {
+  id: string; date: string; by: string;
+  dir: string; hrbp: string; unit: string; region: string;
+  company: string; posOur: string; posTheir: string; grade: string;
+  payFrom: number; payTo: number; cur: string; payPer: string;
+  bonHas: string; bonuses: Bonus[]; varPay: VarPay;
+  benefits: string[]; extra: string; schedule: string;
+  source: string; trust: string; note: string;
+}
+
+export interface RegistryFacets {
+  dirs: string[]; hrbps: string[]; regions: string[]; units: string[]; companies: string[];
+  sources: string[]; trusts: string[]; schedules: string[]; currencies: string[]; grades: string[];
+}
+
+export interface RegistryResponse {
+  ok: true;
+  rows: RegistryRow[];
+  total: number; totalAll: number; unmapped: number;
+  page: number; pages: number; perPage: number;
+  facets: RegistryFacets;
+  scoped: boolean;
+  period: { id: number; name: string } | null;
+}
+
+/** Ключи фильтров реестра = имена параметров в адресе. */
+export interface RegistryFilters {
+  period?: number | null;
+  search?: string;
+  dir?: string; hrbp?: string; region?: string; unit?: string; company?: string;
+  posOur?: string; source?: string; trust?: string; schedule?: string; cur?: string; grade?: string;
+  onlyUnmapped?: boolean; withPayOnly?: boolean;
+  sort?: string; order?: 'asc' | 'desc';
+  page?: number; perPage?: number;
+}

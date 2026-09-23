@@ -6,6 +6,7 @@ import { Shell } from '../features/shell/Shell';
 import { UnitsScreen } from '../features/survey/UnitsScreen';
 import { UnitScreen } from '../features/survey/UnitScreen';
 import { SheetScreen } from '../features/survey/SheetScreen';
+import { RegistryScreen } from '../features/registry/RegistryScreen';
 import { RoleMatrixScreen } from '../features/access/RoleMatrixScreen';
 
 export const BASENAME = '/new';
@@ -19,6 +20,7 @@ export function AppRoutes() {
         <Route index element={<UnitsScreen />} />
         <Route path="survey/:unit" element={<UnitScreen />} />
         <Route path="survey/:unit/:position" element={<SheetScreen />} />
+        <Route path="registry" element={<RegistryScreen />} />
         <Route path="access" element={<RoleMatrixScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

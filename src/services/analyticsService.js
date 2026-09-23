@@ -790,4 +790,7 @@ module.exports = {
   isPieceRate,
   summarizeVarPay,
   resolveDashboardPeriodId,
+  // нужны реестру, чтобы приводить ЧТС к месяцу теми же правилами
+  looksHourly,
+  toMonthly,
 };

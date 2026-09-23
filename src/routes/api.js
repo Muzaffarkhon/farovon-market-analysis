@@ -16,6 +16,7 @@ const gradingController = require('../controllers/gradingController');
 const supportController = require('../controllers/supportController');
 const broadcastController = require('../controllers/broadcastController');
 const myServiceController = require('../controllers/myServiceController');
+const registryController = require('../controllers/registryController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -94,6 +95,11 @@ router.post('/survey/no-comparison/clear', requireCapability('survey:fill'), sur
 router.post('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
 router.post('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
 router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboardController.exportCSV);
+// Реестр собранных данных — каждое наблюдение построчно. Право то же, что у
+// аналитики: это те же данные, только не свёрнутые в медианы.
+router.post('/registry', requireCapability('dashboard:view'), registryController.list);
+router.post('/registry/export', requireCapability('dashboard:view'), registryController.exportCsv);
+
 // Журнал выгрузок: фронт вызывает перед скачиванием CSV (файл собирается в браузере).
 router.post('/audit/export', requireCapability('dashboard:view'), dashboardController.logExport);
 
