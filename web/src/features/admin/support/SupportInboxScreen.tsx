@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
 import { Input } from '../../../design/Input';
 import { Skeleton } from '../../../design/Skeleton';
 import { useScreenTitle } from '../../shell/Shell';
+import { SupportSettingsSheet } from './SupportSettingsSheet';
 import { ThreadDetail } from './ThreadDetail';
 import { ThreadList } from './ThreadList';
 import { useSupportInbox } from './useSupportInbox';
@@ -11,6 +13,7 @@ import s from './SupportInbox.module.css';
 export function SupportInboxScreen() {
   useScreenTitle('Чат поддержки');
   const inbox = useSupportInbox();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div>
@@ -26,7 +29,10 @@ export function SupportInboxScreen() {
         <Chip active={inbox.filters.unread === 'yes'} onClick={() => inbox.setFilter({ unread: inbox.filters.unread === 'yes' ? undefined : 'yes' })}>Непрочитанные</Chip>
         <Chip active={inbox.filters.archived === 'yes'} onClick={() => inbox.setFilter({ archived: inbox.filters.archived === 'yes' ? undefined : 'yes' })}>Архив</Chip>
         {inbox.active && <Button variant="ghost" size="sm" onClick={inbox.resetFilters}>Сбросить</Button>}
+        <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>Настройки</Button>
       </div>
+
+      <SupportSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {inbox.threadsLoading ? <Skeleton lines={5} /> : inbox.threadsError ? (
         <p className={s.empty}>{inbox.threadsError.message}</p>

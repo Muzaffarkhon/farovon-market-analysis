@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
+import { Chip } from '../../../design/Chip';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { Textarea } from '../../../design/Textarea';
 import { useSessionData } from '../../auth/useSession';
 import { LinkEmployeePanel } from './LinkEmployeePanel';
+import { useSupportSettings } from './useSupportSettings';
 import type { useSupportInbox } from './useSupportInbox';
 import s from './SupportInbox.module.css';
 
@@ -20,7 +22,9 @@ function shortDate(iso: string) {
 export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInbox> }) {
   const [text, setText] = useState('');
   const [linking, setLinking] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { user } = useSessionData();
+  const { adminReplies } = useSupportSettings();
   const open = inbox.activeId != null;
   const t = inbox.thread;
 
@@ -79,6 +83,19 @@ export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInb
             ))}
             {!inbox.messages.length && <p className={s.empty}>Сообщений пока нет.</p>}
           </div>
+
+          {adminReplies.length > 0 && (
+            <div>
+              <Button size="sm" variant="ghost" onClick={() => setPickerOpen(v => !v)}>Готовые фразы</Button>
+              {pickerOpen && (
+                <div className={s.rowTags}>
+                  {adminReplies.map(r => (
+                    <Chip key={r.id} onClick={() => { setText(r.text); setPickerOpen(false); }}>{r.text}</Chip>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className={s.replyRow}>
             <Textarea
