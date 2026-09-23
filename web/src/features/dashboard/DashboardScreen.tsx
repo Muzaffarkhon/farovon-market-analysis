@@ -7,16 +7,13 @@ import { DashboardFilters } from './DashboardFilters';
 import { BenchmarkTab } from './BenchmarkTab';
 import { BenefitsTab } from './BenefitsTab';
 import { OverviewTab } from './OverviewTab';
+import { ProgressTab } from './ProgressTab';
 import { RegionsTab } from './RegionsTab';
 import { SalariesTab } from './SalariesTab';
 import { TABS, useDashboard } from './useDashboard';
 import s from './Dashboard.module.css';
 
 type TabProps = { data: DashboardResponse };
-
-// Прогресс заполняется в следующей задаче плана; до тех пор — заглушка,
-// чтобы раздел был проверяем целиком уже сейчас.
-function ProgressTab(_: TabProps) { return <h2>Прогресс</h2>; }
 
 const PANELS: Record<string, (props: TabProps) => React.JSX.Element> = {
   overview: OverviewTab, salaries: SalariesTab, regions: RegionsTab,
