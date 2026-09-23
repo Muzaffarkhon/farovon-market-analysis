@@ -48,3 +48,18 @@ test('без survey:fill сбор скрыт', () => {
   const items = navItemsFor({ ...base, role: 'user', capabilities: [] } as SessionUser);
   expect(items.map(i => i.to)).not.toContain('/');
 });
+
+test('право users:view даёт пункт «Администрирование»', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: ['users:view'] } as SessionUser);
+  expect(items.map(i => i.to)).toContain('/admin');
+});
+
+test('без единого административного права «Администрирование» не видна', () => {
+  const items = navItemsFor({ ...base, role: 'user', capabilities: ['survey:fill'] } as SessionUser);
+  expect(items.map(i => i.to)).not.toContain('/admin');
+});
+
+test('admin видит «Администрирование» без явных прав', () => {
+  const items = navItemsFor({ ...base, role: 'admin', capabilities: [] } as SessionUser);
+  expect(items.map(i => i.to)).toContain('/admin');
+});

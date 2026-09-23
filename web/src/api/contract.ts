@@ -326,3 +326,33 @@ export interface HeatmapRow { dir: string; standard: number; attention: number; 
 export interface HeatmapResponse { ok: true; rows: HeatmapRow[] }
 
 export interface RiskEvaluateResponse { ok: true; totalScore: number; status: string; statusLabel: string; actionPlan: string; message: string }
+
+// ─── Администрирование: пользователи ───
+
+export interface AdminUser {
+  id: number; login: string; fio: string; role: Role; phone: string; position: string;
+  units: string[]; active: boolean; lastIn: string; hasTelegram: boolean; hasPassword: boolean;
+}
+export interface AdminUsersResponse { ok: true; users: AdminUser[] }
+
+export interface ArchivedUser {
+  id: number; login: string; fio: string; role: Role; phone: string; units: string[]; archivedAt: string;
+}
+export interface ArchivedUsersResponse { ok: true; users: ArchivedUser[] }
+
+export interface SaveUserPayload {
+  login?: string; fio: string; role: string; phone: string; position: string; units: string[]; active: boolean;
+}
+export interface SaveUserResponse { ok: true; login: string; message: string }
+export interface ResetPasswordResponse { ok: true; login: string; delivered: boolean }
+
+// ─── Администрирование: оргструктура ───
+
+export interface Division {
+  id: number; num: number | null; dir: string; unit: string; level: string | null;
+  head: string; resp: string; hrbp: string; cnt: number | null; note: string;
+  group_key: string | null; region: string | null; org_role: string | null;
+  is_survey_target: number; is_hidden: number; parent_unit: string | null;
+}
+export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: unknown[] }
+

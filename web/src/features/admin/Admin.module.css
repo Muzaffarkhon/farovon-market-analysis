@@ -1,0 +1,22 @@
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
+.card { display: block; padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
+.card:hover { background: var(--surface-2); }
+.cardTitle { font-weight: 600; margin-bottom: var(--s-1); }
+.cardNote { font-size: 13px; color: var(--text-muted); }
+.empty { color: var(--text-muted); }
+
+.head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); flex-wrap: wrap; }
+.tabs { display: flex; gap: var(--s-2); }
+
+.tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13.5px; }
+.table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; white-space: nowrap; }
+.table thead th { background: var(--surface-2); font-weight: 600; }
+.rowInactive { color: var(--text-muted); }
+
+.form { display: flex; flex-direction: column; gap: var(--s-3); }
+.unitList { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-2); }
+.unitRow { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
+.formFoot { display: flex; align-items: center; gap: var(--s-3); justify-content: flex-end; }
+.hint { font-size: 13px; color: var(--text-muted); }
+.linkBtn { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }

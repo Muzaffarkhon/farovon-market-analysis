@@ -1,6 +1,6 @@
 import type { SessionUser } from '../../api/contract';
 
-export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'scale' | 'shield' };
+export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'scale' | 'shield' | 'gear' };
 
 /** Пункты навигации строятся из роли и прав; admin видит всё. */
 export function navItemsFor(u: SessionUser): NavItem[] {
@@ -13,5 +13,16 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('grading:view') || has('grading:edit')) items.push({ to: '/grading', label: 'Оценка должностей', icon: 'scale' });
   if (has('keyrisk:view') || has('keyrisk:edit')) items.push({ to: '/key-risks', label: 'Риски', icon: 'scale' });
   if (u.role === 'admin') items.push({ to: '/access', label: 'Роли и доступы', icon: 'shield' });
+  if (isAdminAreaVisible(u)) items.push({ to: '/admin', label: 'Администрирование', icon: 'gear' });
   return items;
+}
+
+const ADMIN_CAPS = [
+  'users:view', 'divisions:view', 'dictionary:view',
+  'grading:factors', 'grading:blocks', 'grading:committee',
+  'benchmarks:import', 'benchmarks:map', 'period:view'
+];
+
+function isAdminAreaVisible(u: SessionUser): boolean {
+  return u.role === 'admin' || ADMIN_CAPS.some(c => u.capabilities.includes(c));
 }
