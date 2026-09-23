@@ -9,4 +9,3 @@
 /.claude
 /src/data/seedBundle.json
 *.test.js
-/test
