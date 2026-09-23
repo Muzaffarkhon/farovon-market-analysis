@@ -534,7 +534,7 @@ function openNavMenu(){
   var el = document.createElement('div');
   el.className = 'menu-scrim';
   el.innerHTML = '<div class="menu-pop">'+
-    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.162')+'</span></div>'+
+    '<div class="menu-pop-hd"><div style="display:flex;align-items:center;gap:8px"><b>'+esc(userLabel())+'</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.163')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close',16)+'</button></div>'+
     '<div class="menu">'+ body +'</div></div>';
   document.body.appendChild(el);
@@ -569,7 +569,7 @@ function openNavSubmenu(item){
   var el = document.createElement('div');
   el.className = 'menu-scrim nav-sub-scrim';
   el.innerHTML = '<div class="nav-submenu-pop" role="menu">'+
-    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.162')+'</span></div>'+
+    '<div class="nav-submenu-hd"><div style="display:flex;align-items:center;gap:8px">'+ic(item.icon, 14)+esc(item.label)+'<span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.163')+'</span></div>'+
       '<button class="menu-x" data-x="1" aria-label="Закрыть">'+icBare('close', 16)+'</button></div>'+
     '<div class="menu">'+
       item.submenu.map(function(s){ return navRenderBtn(s, 'menu-item'); }).join('')+
@@ -630,7 +630,7 @@ function openProfile(){
   var el = document.createElement('div');
   el.className = 'sheet';
   el.innerHTML = '<div class="sheet-in profile-sheet">'+
-    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.162')+'</span></div>'+
+    '<div class="sheet-hd"><div style="display:flex;align-items:center;gap:8px"><b>Профиль</b><span class="sheet-ver-badge">'+(window.APP_VERSION || 'v2.5.163')+'</span></div>'+
       '<button class="btn-ghost" data-x="1">Закрыть</button></div>'+
     '<div class="profile-card">'+
       '<div class="profile-av">'+esc(fio.trim().slice(0,1).toUpperCase() || '?')+'</div>'+
@@ -660,7 +660,7 @@ function openProfile(){
     '<button id="prRefresh" class="btn-line">'+ic('refresh')+'Обновить данные</button>'+
     '<div class="profile-sep"></div>'+
     '<button id="prOut" class="btn-line btn-danger">'+ic('logout')+'Выйти из системы</button>'+
-    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.162')+'</div>'+
+    '<div class="profile-ver">Обзор рынка вознаграждений · Фаровон · '+(window.APP_VERSION || 'v2.5.163')+'</div>'+
     '</div>';
   document.body.appendChild(el);
 
@@ -6734,7 +6734,7 @@ function drawAdminGradingBlockPositions(rows, total){
 
 function renderAdminSupport(){
   // Скелетон только на первый заход — свой поллинг раздела (supPollTick,
-  // раз в 8с) и так обновляет переписку бесшовно; полная перерисовка сюда
+  // раз в 20с) и так обновляет переписку бесшовно; полная перерисовка сюда
   // же ещё и от общего live-обновления (раз в 20-90с) добавляла бы вспышку
   // «Загрузка...» поверх уже открытого чата.
   //
@@ -7030,7 +7030,7 @@ function loadAdminSupportThread(id){
     drawAdminSupportThread();
     drawAdminSupportList(); // подсветить активную строку и снять её из непрочитанных
     // Сервер уже пометил входящие треда прочитанными — обновляем бейдж сразу,
-    // не дожидаясь следующего тика автообновления (иначе «висит» до 8 сек).
+    // не дожидаясь следующего тика автообновления (иначе «висит» до 20 сек).
     refreshSupportUnreadBadge();
   })).catch(function(){ toast('Нет связи с сервером', 'error'); });
 }
@@ -7541,7 +7541,7 @@ function drawMySupportHome(){
   }
 
   // S.mySupFormOpen переживает фоновую перерисовку (см. mySupPollTick,
-  // раз в 8с) — без этого открытую форму сносило первым же тиком автообновления.
+  // раз в 20с) — без этого открытую форму сносило первым же тиком автообновления.
   var formOpen = !!S.mySupFormOpen;
   h += '<div class="sup-guest-quick-hd">Мои обращения</div>'+
     '<button type="button" class="btn'+(formOpen ? ' hidden' : '')+'" id="mySupStartBtn">'+icBare('plus', 16)+'Написать в поддержку</button>'+
@@ -7704,7 +7704,7 @@ function drawMySupportThread(){
 }
 
 /** Поллинг раздела, пока он открыт — тот же приём, что и у админского
- *  инбокса (supPollTick), раз в 8с, останавливается сам при уходе. */
+ *  инбокса (supPollTick), раз в 20с, останавливается сам при уходе. */
 var mySupPollTimer = null;
 function startMySupPoll(){
   if(mySupPollTimer) return;

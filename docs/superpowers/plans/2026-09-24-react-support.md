@@ -52,13 +52,13 @@
 **Files:** Modify: `src/db/migrate.js`, `supportChatService.js`,
 `telegramController.js`
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 Throttle-логика (чистая функция `shouldNotify(notifiedAt, now)`,
 вынесенная отдельно от похода в БД): `null`/просроченный `notified_at`
 (>5 мин) → true; свежий (<5 мин) → false.
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 Колонка `notified_at`. `maybeNotifySupportTeam(threadId)` в
 `supportChatService.js` (см. спеку §3.1) — вызовы из
@@ -69,7 +69,7 @@ Throttle-логика (чистая функция `shouldNotify(notifiedAt, now
 `supportChat.maybeNotifySupportTeam` в `openSupportThreadForGuest` (там
 ещё нет сообщения на момент открытия).
 
-- [ ] **Step 3: Прогнать вручную (на dev-данных: написать в поддержку с
+- [x] **Step 3: Прогнать вручную (на dev-данных: написать в поддержку с
   тестового пользователя через `/support/my/start`, убедиться, что
   admin/cb с `telegram_chat_id` получает уведомление; отправить второе
   сообщение сразу — уведомления не будет; подождать/подменить
@@ -92,18 +92,18 @@ Modify: `contract.ts` (`SupportThread`, `SupportMessage`, `FaqItem`),
 **Interfaces:** `supportApi.myThreads()`, `.myThread(id)`,
 `.start(topic, text)`, `.reply(threadId, text)`, `.faq()`
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 Нет открытого треда → форма создания; есть → переписка + поле ответа;
 FAQ рендерится списком вопрос/ответ; пункт «Поддержка» в меню виден без
 проверки прав (любая роль).
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 `SupportScreen` — переключение форма/переписка по наличию треда.
 Поллинг открытого треда 20с (`refetchInterval`).
 
-- [ ] **Step 3: Прогнать вручную (создать тред на dev-данных с тестового
+- [x] **Step 3: Прогнать вручную (создать тред на dev-данных с тестового
   пользователя, ответить из старого клиента админкой, убедиться что
   ответ приходит в новом клиенте по поллингу), commit**
 
@@ -124,17 +124,17 @@ Modify: `web/src/api/support.ts`, `contract.ts`, `AdminHub.tsx`,
 **Interfaces:** `supportApi.adminThreads(filters)`, `.adminThread(id)`,
 `.adminReply(threadId, text)`, `.close(threadId)`, `.unreadCount()`
 
-- [ ] **Step 1: Тесты**
+- [x] **Step 1: Тесты**
 
 Фильтры уходят в запрос; строка с непрочитанным подсвечена; узкий экран —
 список/детали переключаются, не сплит.
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
 Список + поиск/фильтры + детали + поллинг 20с. Карточка в `AdminHub` на
 `support:manage`.
 
-- [ ] **Step 3: Прогнать вручную (на dev-данных: открыть инбокс, найти
+- [x] **Step 3: Прогнать вручную (на dev-данных: открыть инбокс, найти
   тестовый тред из Task 2 по поиску, ответить, убедиться что ответ дошёл
   до сотрудника), commit**
 
@@ -153,15 +153,15 @@ Modify: `SupportInboxScreen.tsx`, `useSupportInbox.ts`
 **Interfaces:** `supportApi.linkEmployee(threadId, userId)`,
 `.archive(threadId)`, `.unarchive(threadId)`, `.delete(threadId)`
 
-- [ ] **Step 1: Тест**
+- [x] **Step 1: Тест**
 
 Поиск по ФИО фильтрует список сотрудников; подтверждение предупреждает
 о переносе Telegram, если уже привязан к другому; кнопки архива/удаления
 скрыты не-admin ролям (cb с `support:manage`, но не `role==='admin'`).
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
-- [ ] **Step 3: Прогнать вручную (на dev-данных: привязать тестовый
+- [x] **Step 3: Прогнать вручную (на dev-данных: привязать тестовый
   гостевой тред к тестовому сотруднику, убедиться что пароль ушёл в
   Telegram — либо, если Telegram недоступен, что сервер откатился на
   текстовое сообщение), commit**
@@ -182,15 +182,15 @@ Modify: `SupportInboxScreen.tsx`
 `.saveQuickReply(...)`, `.deleteQuickReply(id)`, `.faq()`, `.saveFaq(...)`,
 `.deleteFaq(id)`
 
-- [ ] **Step 1: Тест**
+- [x] **Step 1: Тест**
 
 Три вкладки (фразы для админов / вопросы-кнопки для гостей / FAQ)
 переключаются независимо; подсказка фразы в поле ответа вставляет текст,
 не отправляет само сообщение.
 
-- [ ] **Step 2: Реализация**
+- [x] **Step 2: Реализация**
 
-- [ ] **Step 3: Прогнать вручную (добавить тестовую готовую фразу на
+- [x] **Step 3: Прогнать вручную (добавить тестовую готовую фразу на
   dev-данных, вставить её в ответ из ThreadDetail), commit**
 
 ```bash
@@ -202,12 +202,12 @@ git commit -m "feat(web): готовые фразы, вопросы-кнопки
 
 ### Task 6: Финальная проверка этапа
 
-- [ ] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
-- [ ] **Step 2:** Сквозная проверка прав — `/support` открывается под
+- [x] **Step 1:** `npm test`, `npm --prefix web test`, `npm --prefix web run build`
+- [x] **Step 2:** Сквозная проверка прав — `/support` открывается под
   любой ролью; `/admin/support` — 403/скрыт без `support:manage`.
-- [ ] **Step 3:** Телефон 375px — инбокс не ломает раскладку
+- [x] **Step 3:** Телефон 375px — инбокс не ломает раскладку
   (список↔детали, не сплит).
-- [ ] **Step 4:** Commit
+- [x] **Step 4:** Commit
 
 ```bash
 git commit -m "docs: этап 8 (поддержка) — план выполнен целиком" --allow-empty
