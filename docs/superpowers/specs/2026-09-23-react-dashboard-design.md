@@ -30,15 +30,22 @@
 
 ## 3. Сервер
 
-### 3.1 Один эндпоинт вместо двух
+### 3.1 Новый маршрут вместо `/dashboard/extended`
 
-`getCBDashboard` и `getHRBPDashboard` в `dashboardController.js` сегодня — два
-маршрута с одинаковым телом (`getExtendedAnalytics` + тот же `unitFilter`),
-исторически разведённые под старую ролевую проверку. Раздел 12 ТЗ отдельно
-отмечает: доступ уже идёт через `requireCapability('dashboard:view')`, разница
-в маршруте ничего не значит. Новый клиент ходит в один `POST /api/dashboard`;
-старые `/dashboard/extended` и `/dashboard/hrbp` остаются нетронутыми для
-старого клиента до его отключения (этап 9).
+**Уточнение при реализации:** `getHRBPDashboard` — не то же самое, что
+`getCBDashboard`. Это не альтернативная ролевая обёртка над той же
+аналитикой, а отдельный экран координации: строка на подразделение
+(«не начато» / «в процессе» / «заполнено», кто последний вносил данные) —
+своя выборка из `divisions`/`position_company_selections`/`surveys`, без
+`getExtendedAnalytics`. По разделу 14 ТЗ это «Координация для HR BP» —
+**этап 4**, не этап 3, и в этой спеке не трогается.
+
+`getCBDashboard` в `dashboardController.js` — тонкая обёртка над
+`getExtendedAnalytics(filters, { unitFilter })` с ролевым предикатом из
+`scopeService`. Новый клиент ходит в `POST /api/dashboard` — тот же вызов,
+явно названный маршрутом, а не завязанный на историческое имя «CB». Старый
+`/dashboard/extended` остаётся нетронутым для старого клиента до его
+отключения (этап 9); `getHRBPDashboard`/`/dashboard/hrbp` не трогаются вовсе.
 
 Запрос — те же фильтры, что уже принимает `getExtendedAnalytics`:
 `{ period?, dir?, hrbp?, region? }`. Ответ — форма `getExtendedAnalytics` из

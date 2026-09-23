@@ -95,6 +95,9 @@ router.post('/survey/no-comparison/clear', requireCapability('survey:fill'), sur
 router.post('/dashboard/extended', requireCapability('dashboard:view'), dashboardController.getCBDashboard);
 router.post('/dashboard/hrbp', requireCapability('dashboard:view'), dashboardController.getHRBPDashboard);
 router.get('/dashboard/export-csv', requireCapability('dashboard:view'), dashboardController.exportCSV);
+// Новый клиент (redesign/react) — те же данные, что /dashboard/extended, под
+// именем без исторической привязки к роли «CB» (см. dashboardController.getDashboard).
+router.post('/dashboard', requireCapability('dashboard:view'), dashboardController.getDashboard);
 // Реестр собранных данных — каждое наблюдение построчно. Право то же, что у
 // аналитики: это те же данные, только не свёрнутые в медианы.
 router.post('/registry', requireCapability('dashboard:view'), registryController.list);

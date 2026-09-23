@@ -107,22 +107,26 @@ git commit -m "feat(аналитика): разрезы по надёжност�
 
 ---
 
-### Task 2: Один эндпоинт `/api/dashboard`
+### Task 2: Маршрут `/api/dashboard`
+
+**Уточнение при реализации:** `getHRBPDashboard` — отдельный экран
+координации (этап 4), не альтернатива `getExtendedAnalytics`; трогаем
+только `getCBDashboard` (см. правку спеки, раздел 3.1).
 
 **Files:**
 - Modify: `src/controllers/dashboardController.js`, `src/routes/api.js`
-- Create: `test/dashboardRoute.test.js` (если маршрутных тестов ещё нет для дашборда — по образцу существующих для реестра)
+- Create/modify: тест маршрута (по образцу существующих для реестра)
 
 **Interfaces:**
 - Produces: `POST /api/dashboard` — `requireCapability('dashboard:view')`, тело
-  `{ period?, dir?, hrbp?, region? }`, ответ — форма `getExtendedAnalytics` из
-  спеки (раздел 3.1–3.2).
+  `{ period?, dir?, hrbp?, region? }`, ответ — форма `getExtendedAnalytics`.
 
 - [ ] **Step 1: Реализация**
 
-`dashboardController.getDashboard` — тело `getCBDashboard`, без дублирования:
-`getCBDashboard`/`getHRBPDashboard` остаются, но оба зовут ту же внутреннюю
-функцию, что и новый маршрут (никакого копипаста логики в третий раз).
+`dashboardController.getDashboard` — то же тело, что у `getCBDashboard`
+(вызов `getExtendedAnalytics(filters, { unitFilter })` с тем же
+`scoped`-флагом); `getCBDashboard`/`/dashboard/extended` остаются как есть
+для старого клиента, `getHRBPDashboard`/`/dashboard/hrbp` не трогаются.
 
 - [ ] **Step 2: Тест доступа**
 

@@ -61,6 +61,13 @@ exports.getCBDashboard = async (req, res) => {
   }
 };
 
+// Новый клиент (redesign/react, этап 3) ходит сюда за теми же данными — имя
+// «CB» историческое, роль на выбор данных не влияет: единственное ограничение
+// уже даёт unitFilter выше. Не путать с getHRBPDashboard ниже — это другой
+// экран («Отчёт по подразделениям» / координация, этап 4), не альтернативная
+// подача той же аналитики.
+exports.getDashboard = exports.getCBDashboard;
+
 exports.getHRBPDashboard = async (req, res) => {
   try {
     const periodRaw = await getActivePeriod();
