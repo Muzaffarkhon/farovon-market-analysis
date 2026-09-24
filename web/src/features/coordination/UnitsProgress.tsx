@@ -54,6 +54,7 @@ export function UnitsProgress({ units }: { units: CoordinationUnit[] }) {
                 label={`${g.dir} · ${g.list.length}`}
                 pct={g.total > 0 ? Math.round((g.decided / g.total) * 100) : 0}
                 count={g.total ? g.decided : undefined}
+                bold
               />
               <span className={[s.dirChevron, expanded ? s.dirChevronOpen : ''].join(' ')} aria-hidden="true">›</span>
             </button>
