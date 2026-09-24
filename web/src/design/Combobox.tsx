@@ -14,6 +14,8 @@ type Props = {
   hint?: string;
   disabled?: boolean;
   id?: string;
+  /** Список ещё грузится — показать «Загрузка…» вместо обманчивого «Ничего не найдено». */
+  loading?: boolean;
 };
 
 /**
@@ -23,7 +25,7 @@ type Props = {
  * Select: value/onChange те же ключи, но onChange отдаёт готовую строку,
  * не событие — реального change-события у текстового поля со списком нет.
  */
-export function Combobox({ label, options, value, onChange, placeholder, error, hint, disabled, id }: Props) {
+export function Combobox({ label, options, value, onChange, placeholder, error, hint, disabled, id, loading }: Props) {
   const auto = useId();
   const inputId = id ?? auto;
   const [open, setOpen] = useState(false);
@@ -76,7 +78,8 @@ export function Combobox({ label, options, value, onChange, placeholder, error, 
       )}
       {open && !disabled && (
         <ul className={s.list} role="listbox">
-          {!filtered.length && <li className={s.empty}>Ничего не найдено</li>}
+          {loading && <li className={s.empty}>Загрузка…</li>}
+          {!loading && !filtered.length && <li className={s.empty}>Ничего не найдено</li>}
           {filtered.slice(0, 200).map(o => (
             <li
               key={o.value} role="option" aria-selected={o.value === value}

@@ -64,7 +64,10 @@ export function RequestScreen() {
               label="Тип заявки" value={r.requestType} options={requestTypes.map(t => ({ value: t.code, label: t.label }))}
               onChange={e => req.updateHeader({ requestType: e.target.value as typeof r.requestType })}
             />
-            <Combobox label="Подразделение" options={unitOptions} value={r.unit} onChange={unit => req.updateHeader({ unit })} />
+            <Combobox
+              label="Подразделение" options={unitOptions.options} loading={unitOptions.loading}
+              value={r.unit} onChange={unit => req.updateHeader({ unit })}
+            />
             <Input label="Дата вступления в силу" type="date" value={r.effectiveDate ?? ''} onChange={e => req.updateHeader({ effectiveDate: e.target.value })} />
             <Input label="Документ-основание" value={r.basisDocument} onChange={e => req.updateHeader({ basisDocument: e.target.value })} />
           </div>

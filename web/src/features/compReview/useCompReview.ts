@@ -11,10 +11,11 @@ import type {
 /** Названия подразделений для выпадающего списка в шапке заявки (список читает то же право divisions:view, что и справочник в админке). */
 export function useUnitOptions() {
   const q = useQuery({ queryKey: ['admin-divisions'], queryFn: () => adminApi.divisions() });
-  return useMemo(
+  const options = useMemo(
     () => (q.data?.divisions ?? []).map(d => ({ value: d.unit, label: d.unit })).sort((a, b) => a.label.localeCompare(b.label, 'ru')),
     [q.data]
   );
+  return { options, loading: q.isLoading };
 }
 
 export function useCompAccess() {
