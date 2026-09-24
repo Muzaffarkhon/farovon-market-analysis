@@ -29,8 +29,15 @@ export function TabBar({ items, onOpenMenu }: { items: NavItem[]; onOpenMenu: ()
           <span>{SHORT_LABEL[i.to] ?? i.label}</span>
         </NavLink>
       ))}
+      {/* Логотип платформы (тот же контур, что и в Sidebar.tsx .brandMark) —
+          не гамбургер: открывает ту же шторку, но без «сворачивания» —
+          на телефоне сворачивания панели вообще нет, это просто марка. */}
       <button type="button" className={s.tabItem} aria-label="Ещё разделы" onClick={onOpenMenu}>
-        <span className={s.tabIcon} aria-hidden="true">☰</span>
+        <span className={s.tabIcon} aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M4 19V10M12 19V5M20 19V13" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+        </span>
         <span>Ещё</span>
       </button>
     </nav>
