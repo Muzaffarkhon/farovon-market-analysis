@@ -19,6 +19,7 @@ const { getActivePeriod } = require('../services/periodService');
 const { isHiddenCompany } = require('../services/companyFilter');
 const { mapSurveyRow } = require('./surveyController');
 const { CAPABILITIES } = require('../config/capabilities');
+const { resyncUserScope } = require('../services/userScopeService');
 
 function hashPassword(pwd) {
   return bcrypt.hashSync(String(pwd || ''), 12);
@@ -889,6 +890,7 @@ exports.setUnits = async (req, res) => {
   try {
     const unitsStr = cleanedUnits.join('; ');
     await run('UPDATE users SET units = ? WHERE id = ?', [unitsStr, req.user.id]);
+    await resyncUserScope(req.user.id, unitsStr);
 
     const updatedUser = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
     const data = await getUserPayload(updatedUser);
