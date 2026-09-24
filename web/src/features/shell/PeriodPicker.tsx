@@ -9,13 +9,17 @@ import s from './Shell.module.css';
  * variant «menu» — тот же выбор, но строкой в меню «Ещё» на телефоне: сам
  * select в шапке там не помещался и раздувал её до переноса заголовка на
  * две строки.
+ * variant «inline» — та же строка меню, но без своих отступов: используется
+ * в Sidebar.tsx рядом с именем пользователя в одном ряду, отступ и фон
+ * задаёт сам ряд-обёртка (.accountRow).
  */
-export function PeriodPicker({ variant = 'bar' }: { variant?: 'bar' | 'menu' }) {
+export function PeriodPicker({ variant = 'bar' }: { variant?: 'bar' | 'menu' | 'inline' }) {
   const { period, myPeriodGrants } = useSessionData();
   const periodId = usePeriodId();
   const [params, setParams] = useSearchParams();
 
   if (!myPeriodGrants.length) {
+    if (variant === 'inline') return <span>Период: {period.name}</span>;
     return variant === 'menu'
       ? <div className={s.periodInMenu}>Период: {period.name}</div>
       : <span className={s.period} title="Период сбора">{period.name}</span>;
@@ -23,7 +27,7 @@ export function PeriodPicker({ variant = 'bar' }: { variant?: 'bar' | 'menu' }) 
   const options = [{ id: '', name: period.name + ' (текущий)' }, ...myPeriodGrants.map(g => ({ id: String(g.periodId), name: g.periodName }))];
   return (
     <select
-      className={variant === 'menu' ? s.periodSelectMenu : s.periodSelect}
+      className={variant === 'inline' ? s.periodSelectInline : variant === 'menu' ? s.periodSelectMenu : s.periodSelect}
       aria-label="Период"
       value={periodId === null ? '' : String(periodId)}
       onChange={e => {

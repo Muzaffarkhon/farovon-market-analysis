@@ -60,8 +60,11 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
               (Тема/Период/Пароль/Выйти): гамбургер в TabBar.tsx — единственный
               вход в меню на телефоне, дублировать его незачем. */}
           <div className={s.mobileAccount}>
-            <div className={s.accountUser}>{user.fio}</div>
-            <PeriodPicker variant="menu" />
+            <div className={s.accountRow}>
+              <span className={s.accountUser}>{user.fio}</span>
+              <span aria-hidden="true">·</span>
+              <PeriodPicker variant="inline" />
+            </div>
             <button type="button" className={s.accountItem} onClick={() => toggleTheme()}>Сменить тему</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/change-password'); }}>Сменить пароль</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); void logout(); }}>Выйти</button>
