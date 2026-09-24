@@ -28,6 +28,26 @@ function emptyDraft(company: string, posOur: string): SurveyDraft {
   };
 }
 
+// Незасохранённые правки живут в localStorage, пока не нажали «Сохранить» —
+// если вкладку закрыли случайно или соединение оборвалось, при повторном
+// входе на ту же анкету поля возвращаются такими, какими их оставили.
+const DRAFT_PREFIX = 'survey-draft:';
+function draftKey(unit: string, pos: string, company: string, periodId: number | null) {
+  return `${DRAFT_PREFIX}${unit}::${pos}::${company}::${periodId ?? 'cur'}`;
+}
+function loadLocalDraft(key: string): SurveyDraft | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as SurveyDraft) : null;
+  } catch { return null; }
+}
+function saveLocalDraft(key: string, draft: SurveyDraft) {
+  try { localStorage.setItem(key, JSON.stringify(draft)); } catch { /* приватный режим и т.п. — не критично */ }
+}
+function clearLocalDraft(key: string) {
+  try { localStorage.removeItem(key); } catch { /* noop */ }
+}
+
 export function SheetScreen() {
   const { unit = '', position = '' } = useParams();
   const decodedUnit = decodeURIComponent(unit);
@@ -64,12 +84,22 @@ export function SheetScreen() {
   }, [selected, active]);
 
   // Черновик пересобирается при смене компании и при обновлении с сервера.
+  // Если для этой компании есть несохранённая локальная копия (не успели
+  // нажать «Сохранить» — закрыли вкладку, обновили страницу, разрядился
+  // телефон), поднимаем её вместо чистого/серверного варианта.
   useEffect(() => {
     if (!active) { setDraft(null); return; }
     const found = existing.find(e => normName(e.company) === normName(active));
-    setDraft(found ? { ...found } : emptyDraft(active, decodedPos));
+    const base = found ? { ...found } : emptyDraft(active, decodedPos);
+    const local = loadLocalDraft(draftKey(decodedUnit, decodedPos, active, periodId));
+    setDraft(local ?? base);
     setServerFields(undefined);
-  }, [active, existing, decodedPos]);
+  }, [active, existing, decodedPos, decodedUnit, periodId]);
+
+  function updateDraft(next: SurveyDraft) {
+    setDraft(next);
+    if (active) saveLocalDraft(draftKey(decodedUnit, decodedPos, active, periodId), next);
+  }
 
   if (data.isLoading) return <Skeleton lines={8} />;
   if (data.error) return <p className={s.empty}>{data.error instanceof ApiError ? data.error.message : 'Не удалось загрузить данные'}</p>;
@@ -82,6 +112,9 @@ export function SheetScreen() {
     setServerFields(undefined);
     try {
       await actions.saveCompany(draft, spread);
+      // Сохранили на сервер — локальный черновик больше не нужен, иначе он
+      // молча перезапишет актуальные данные при следующем открытии анкеты.
+      clearLocalDraft(draftKey(decodedUnit, decodedPos, draft.company, periodId));
       // Компания заполнена целиком — сразу ведём к следующей, где ещё есть
       // пробелы, чтобы не искать её глазами в списке.
       if (missingPoints(draft).length === 0) {
@@ -200,7 +233,7 @@ export function SheetScreen() {
               <CompanyForm
                 draft={draft} refs={session.ref} benefits={session.benefits}
                 saving={saving} serverFields={serverFields}
-                onChange={setDraft} onSave={save}
+                onChange={updateDraft} onSave={save}
               />
             </div>
           )}
