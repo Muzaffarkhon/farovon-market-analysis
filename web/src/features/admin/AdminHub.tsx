@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { SessionUser } from '../../api/contract';
+import { Badge } from '../../design/Badge';
 import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
+import { useSupportUnreadCount } from './support/useSupportUnreadCount';
 import s from './Admin.module.css';
 
 type IconName = 'users' | 'units' | 'book' | 'dict' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money' | 'tools';
@@ -63,7 +65,7 @@ function has(u: SessionUser, c: string) {
   return u.role === 'admin' || u.capabilities.includes(c);
 }
 
-function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections: Section[] }) {
+function AdminGroupBlock({ groupKey, sections, badges }: { groupKey: GroupKey; sections: Section[]; badges: Record<string, number> }) {
   const storageKey = `admin-group-${groupKey}`;
   const [expanded, setExpanded] = useState(() => {
     try { return localStorage.getItem(storageKey) !== '0'; } catch { return true; }
@@ -89,7 +91,10 @@ function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections:
             <Link key={sec.to} to={sec.to} className={s.card}>
               <span className={s.cardIcon}><Icon name={sec.icon} /></span>
               <span>
-                <div className={s.cardTitle}>{sec.title}</div>
+                <div className={s.cardTitle}>
+                  {sec.title}
+                  {!!badges[sec.to] && <> <Badge tone="warn">{badges[sec.to] > 99 ? '99+' : badges[sec.to]}</Badge></>}
+                </div>
                 <div className={s.cardNote}>{sec.note}</div>
               </span>
             </Link>
@@ -103,6 +108,8 @@ function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections:
 export function AdminHub() {
   useScreenTitle('Администрирование');
   const { user } = useSessionData();
+  const support = useSupportUnreadCount();
+  const badges: Record<string, number> = { '/admin/support': support.count };
   const visible = SECTIONS.filter(sec => sec.visible(user));
   const groups = GROUP_ORDER
     .map(key => ({ key, sections: visible.filter(sec => sec.group === key) }))
@@ -110,7 +117,7 @@ export function AdminHub() {
 
   return (
     <div className={s.groupList}>
-      {groups.map(g => <AdminGroupBlock key={g.key} groupKey={g.key} sections={g.sections} />)}
+      {groups.map(g => <AdminGroupBlock key={g.key} groupKey={g.key} sections={g.sections} badges={badges} />)}
       {!visible.length && <p className={s.empty}>Нет доступных разделов администрирования.</p>}
     </div>
   );

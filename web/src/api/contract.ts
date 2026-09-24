@@ -707,4 +707,5 @@ export interface MySupportThreadsResponse { ok: true; rows: MySupportThreadListI
 export interface MySupportThreadResponse { ok: true; thread: SupportThread; messages: SupportMessage[] }
 export interface MySupportStartResponse { ok: true; id: number }
 export interface MySupportUnreadResponse { ok: true; count: number }
+export interface AdminSupportUnreadResponse { ok: true; count: number }
 
