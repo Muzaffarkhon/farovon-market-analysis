@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { Shell } from './Shell';
@@ -39,8 +39,9 @@ beforeEach(() => {
 test('пункты меню видны в боковой панели', () => {
   mockViewport(true);
   renderShell();
-  expect(screen.getByRole('link', { name: 'Реестр' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Администрирование' })).toBeInTheDocument();
+  const sidebar = within(screen.getByRole('navigation', { name: 'Разделы' }));
+  expect(sidebar.getByRole('link', { name: 'Реестр' })).toBeInTheDocument();
+  expect(sidebar.getByRole('link', { name: 'Администрирование' })).toBeInTheDocument();
 });
 
 test('на широком экране кнопка «Разделы» сворачивает панель и запоминает это', async () => {
@@ -57,7 +58,7 @@ test('на телефоне кнопка «Разделы» открывает �
   mockViewport(false);
   renderShell();
   const toggle = screen.getByRole('button', { name: 'Разделы' });
-  const registryLink = screen.getByRole('link', { name: 'Реестр' });
+  const registryLink = within(screen.getByRole('navigation', { name: 'Разделы' })).getByRole('link', { name: 'Реестр' });
   expect(registryLink.closest('nav')?.className).not.toMatch(/\bopen\b/);
   await userEvent.click(toggle);
   expect(registryLink.closest('nav')?.className).toMatch(/\bopen\b/);

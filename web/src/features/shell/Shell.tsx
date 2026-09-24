@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router';
 import { useSessionData } from '../auth/useSession';
 import { navItemsFor } from './NavItems';
 import { Sidebar } from './Sidebar';
+import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
 import s from './Shell.module.css';
 
@@ -59,6 +60,7 @@ export function Shell({ children }: { children?: ReactNode }) {
         <div className={s.column}>
           <TopBar title={title} onToggleNav={toggleNav} />
           <main className={s.main}>{children ?? <Outlet />}</main>
+          <TabBar items={items} />
         </div>
       </div>
     </TitleCtx.Provider>
