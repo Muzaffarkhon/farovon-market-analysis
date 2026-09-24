@@ -13,7 +13,7 @@ import { useCompCommittee } from './useCompCommittee';
  * открытое/закрытое переключается здесь же и действует на новые заявки.
  */
 export function CompCommitteeScreen() {
-  useScreenTitle('Пересмотр ЗП — комиссия');
+  useScreenTitle('Изменение ЗП');
   const c = useCompCommittee();
   const confirm = useConfirm();
   const [login, setLogin] = useState('');

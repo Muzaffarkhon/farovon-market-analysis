@@ -45,7 +45,7 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('broadcast:send')) items.push({ to: '/admin/broadcast', label: 'Рассылка', icon: 'chat' });
   if (has('service:view')) items.push({ to: '/admin/audit-log', label: 'Журнал изменений', icon: 'gear' });
   if (has('service:view')) items.push({ to: '/admin/service', label: 'Обслуживание и статус данных', icon: 'gear' });
-  if (has('comp:admin')) items.push({ to: '/admin/comp-committee', label: 'Пересмотр ЗП — комиссия', icon: 'money' });
+  if (has('comp:admin')) items.push({ to: '/admin/comp-committee', label: 'Изменение ЗП', icon: 'money' });
 
   return items;
 }
