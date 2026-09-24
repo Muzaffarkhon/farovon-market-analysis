@@ -6,11 +6,50 @@ import { useConfirm } from '../../design/Confirm';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
 import { useSessionData } from '../auth/useSession';
-import { useCompReasons, useVariablePayKinds } from './useCompReview';
+import { compReviewApi } from '../../api/compReview';
+import { useCompReasons, useVariablePayKinds, useAttachments } from './useCompReview';
 import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 const pct = (n: number | null) => (n == null ? '—' : `${n > 0 ? '+' : ''}${n}%`);
+const fmtSize = (bytes: number | null) => {
+  if (bytes == null) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+};
+
+function AttachmentsSection({ employeeId, canRemove }: { employeeId: number; canRemove: boolean }) {
+  const att = useAttachments(employeeId);
+  return (
+    <div className={s.vpRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--s-1)' }}>
+      <div className={s.hint} style={{ fontWeight: 600 }}>Файлы{att.rows.length ? ` (${att.rows.length}/10)` : ''}</div>
+      {att.rows.map(a => (
+        <div key={a.id} className={s.vpRow}>
+          <a href={compReviewApi.attachmentDownloadUrl(a.id)} target="_blank" rel="noreferrer">{a.fileName}</a>
+          <span className={s.hint}>{fmtSize(a.sizeBytes)}</span>
+          {canRemove && <Button size="sm" variant="ghost" onClick={() => att.remove(a.id)}>Убрать</Button>}
+        </div>
+      ))}
+      {!att.rows.length && <span className={s.hint}>Пока нет прикреплённых файлов</span>}
+      {att.rows.length < 10 && (
+        <Button
+          size="sm" variant="secondary" loading={att.requestingToken}
+          onClick={async () => {
+            try {
+              const r = await att.requestToken();
+              window.open(r.deepLink, '_blank');
+            } catch {
+              // тост об ошибке уже показан внутри useAttachments (onError мутации)
+            }
+          }}
+        >
+          📎 Прикрепить через Telegram
+        </Button>
+      )}
+      {att.polling && <span className={s.hint}>Ждём файл из Telegram — появится здесь сам…</span>}
+    </div>
+  );
+}
 
 const EMP_STATUS_LABEL: Record<CompEmployeeStatus, string> = {
   active: 'В процессе', rejected_hrd: 'Отклонён HRD', rejected_committee: 'Отклонён комиссией',
@@ -214,6 +253,8 @@ export function EmployeeCard({ e, request, access, actions }: {
           </Button>
         </div>
       )}
+
+      <AttachmentsSection employeeId={e.id} canRemove={request.status === 'draft'} />
 
       {request.status === 'draft' && actions.remove && (
         <div className={s.cardFoot}>

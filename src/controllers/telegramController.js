@@ -5,6 +5,7 @@ const { queryOne, queryAll, run } = require('../db/database');
 const { getBotUsername, sendTelegramMessage, answerCallbackQuery } = require('../services/telegramService');
 const { getActivePeriod } = require('../services/periodService');
 const supportChat = require('../services/supportChatService');
+const compReview = require('../services/compReviewService');
 
 const LINK_TTL_MINUTES = 10;
 
@@ -421,6 +422,38 @@ async function handleUnlink(chatId) {
   );
 }
 
+/**
+ * Ссылка «Прикрепить файл через Telegram» из заявки на пересмотр ЗП ведёт сюда
+ * (`/start att_<token>`, см. compReviewService.createAttachToken) — привязываем
+ * этот чат к токену, дальше любой присланный документ уходит handleDocument.
+ */
+async function handleAttachStart(chatId, token) {
+  const claimed = await compReview.claimAttachToken(token, chatId);
+  if (!claimed) {
+    await sendTelegramMessage(chatId, 'Ссылка для прикрепления файла устарела. Откройте кнопку «Прикрепить файл» в заявке ещё раз.');
+    return;
+  }
+  await sendTelegramMessage(chatId,
+    `Пришлите файл(ы) для «${escHtml(claimed.fio)}» (заявка #${claimed.request_id}) — как документ (не фото), ` +
+    `до 10 файлов на сотрудника. Ссылка действует ${ATTACH_TOKEN_TTL_MINUTES} минут.`);
+}
+const ATTACH_TOKEN_TTL_MINUTES = 15;
+
+/** Документ, присланный боту, пока в этом чате есть активный attach-токен из заявки на пересмотр ЗП. */
+async function handleDocument(chatId, doc) {
+  const tokenRow = await compReview.findActiveAttachTokenByChat(chatId);
+  if (!tokenRow) {
+    await sendTelegramMessage(chatId, 'Не могу принять файл — сначала откройте кнопку «Прикрепить файл через Telegram» в заявке.');
+    return;
+  }
+  try {
+    const result = await compReview.saveAttachmentFromTelegram(tokenRow, doc);
+    await sendTelegramMessage(chatId, `✅ Файл «${escHtml(result.fileName)}» прикреплён к заявке (${result.count} из ${result.max}).`);
+  } catch (err) {
+    await sendTelegramMessage(chatId, `⚠️ Не удалось прикрепить файл: ${escHtml(err.message)}`);
+  }
+}
+
 /** Старые сообщения с inline-кнопками «Да, отвязать»/«Отмена» могли остаться
  *  в истории чата у тех, кто видел прошлую версию /unlink, — без ответа на
  *  callback_query кнопка так и висит с крутящимся индикатором. Отвечаем, но
@@ -551,11 +584,21 @@ async function processTelegramUpdate(body) {
     return;
   }
 
+  if (msg.document) {
+    await handleDocument(chatId, msg.document);
+    return;
+  }
+
   if (!msg.text) return;
   const text = msg.text.trim();
 
-  const startMatch = text.match(/^\/start(?:\s+([a-f0-9]{32}))?$/i);
-  if (startMatch) { await handleStart(chatId, startMatch[1]); return; }
+  const startMatch = text.match(/^\/start(?:\s+((?:att_)?[a-f0-9]{32}))?$/i);
+  if (startMatch) {
+    const param = startMatch[1];
+    if (param && param.toLowerCase().startsWith('att_')) { await handleAttachStart(chatId, param.slice(4)); return; }
+    await handleStart(chatId, param);
+    return;
+  }
 
   // Ручной запасной путь — если диплинк из приложения не подставил
   // /start в поле ввода, человек всё равно может набрать /link сам.

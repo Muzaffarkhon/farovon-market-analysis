@@ -8,9 +8,10 @@
  * docs/superpowers/specs/2026-09-22-comp-review-design.md
  */
 
+const crypto = require('crypto');
 const { queryAll, queryOne, run } = require('../db/database');
 const benchmarkService = require('./benchmarkService');
-const { sendTelegramMessage } = require('./telegramService');
+const { sendTelegramMessage, downloadTelegramFile, getBotUsername } = require('./telegramService');
 const {
   REQUEST_TYPES, REASON_CODES, checkEligibility, growthPercent, compaRatio, vilkaPosition,
   committeeOutcome, nextStatusAfterHrd, CompReviewError
@@ -491,6 +492,117 @@ async function markPayrollEntered(employeeId, actorLogin) {
   return getRequest(req.id);
 }
 
+// ─── Вложения (через Telegram-бота) ───
+
+const ATTACH_TOKEN_TTL_MINUTES = 15;
+const MAX_ATTACHMENTS_PER_EMPLOYEE = 10;
+const MAX_ATTACHMENT_BYTES = 19 * 1024 * 1024; // getFile Bot API сам не отдаёт файлы тяжелее ~20 МБ
+
+async function requireEmployeeVisible(employeeId, user, hasCap) {
+  const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
+  if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
+  const req = await getRequestRow(row.request_id);
+  if (!(await canView(mapRequest(req), user, hasCap))) throw new CompReviewError('Недостаточно прав');
+  return row;
+}
+
+/** Кнопка «Прикрепить через Telegram» — одноразовая ссылка на бота (`/start att_<token>`),
+ *  живёт ATTACH_TOKEN_TTL_MINUTES минут; всё, что боту пришлют в этом чате за это
+ *  время документом, уйдёт именно этому сотруднику этой заявки (см. handleDocument
+ *  в telegramController). */
+async function createAttachToken(employeeId, user, hasCap) {
+  const row = await requireEmployeeVisible(employeeId, user, hasCap);
+  const count = await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE employee_row_id = ?', [employeeId]);
+  const current = Number(count.n);
+  if (current >= MAX_ATTACHMENTS_PER_EMPLOYEE) {
+    throw new CompReviewError(`У сотрудника уже максимум файлов (${MAX_ATTACHMENTS_PER_EMPLOYEE})`);
+  }
+
+  const username = await getBotUsername();
+  if (!username) throw new CompReviewError('Telegram-бот не подключён');
+
+  const token = crypto.randomBytes(16).toString('hex');
+  await run(
+    `INSERT INTO comp_attach_tokens (token, request_id, employee_row_id, created_by_login, expires_at)
+     VALUES (?, ?, ?, ?, datetime('now', '+${ATTACH_TOKEN_TTL_MINUTES} minutes'))`,
+    [token, row.request_id, employeeId, user.login]);
+
+  return {
+    deepLink: `https://t.me/${username}?start=att_${token}`,
+    expiresInMinutes: ATTACH_TOKEN_TTL_MINUTES,
+    remaining: MAX_ATTACHMENTS_PER_EMPLOYEE - current
+  };
+}
+
+/** Найти активный (непросроченный) attach-токен, привязанный к этому Telegram-чату —
+ *  вызывается telegramController'ом, когда в чат приходит документ. */
+async function findActiveAttachTokenByChat(chatId) {
+  return queryOne(
+    "SELECT * FROM comp_attach_tokens WHERE chat_id = ? AND expires_at > datetime('now') ORDER BY created_at DESC LIMIT 1",
+    [String(chatId)]);
+}
+
+/** Помечает токен как «привязан к этому чату» после /start att_<token> — до этого
+ *  момента полученный токен ещё ничей чат не занял. */
+async function claimAttachToken(token, chatId) {
+  const row = await queryOne("SELECT * FROM comp_attach_tokens WHERE token = ? AND expires_at > datetime('now')", [token]);
+  if (!row) return null;
+  await run('UPDATE comp_attach_tokens SET chat_id = ? WHERE token = ?', [String(chatId), token]);
+  const emp = await queryOne('SELECT fio FROM comp_request_employees WHERE id = ?', [row.employee_row_id]);
+  return { ...row, fio: emp ? emp.fio : '' };
+}
+
+/** Сохраняет файл, присланный в Telegram, как вложение сотрудника — см. handleDocument
+ *  в telegramController (chat уже привязан токеном к employeeRowId/requestId). */
+async function saveAttachmentFromTelegram(tokenRow, doc) {
+  const { employee_row_id: employeeRowId, request_id: requestId, created_by_login: actorLogin } = tokenRow;
+  const count = await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE employee_row_id = ?', [employeeRowId]);
+  const current = Number(count.n);
+  if (current >= MAX_ATTACHMENTS_PER_EMPLOYEE) {
+    throw new CompReviewError(`Уже прикреплено максимум файлов (${MAX_ATTACHMENTS_PER_EMPLOYEE})`);
+  }
+  if (doc.file_size && doc.file_size > MAX_ATTACHMENT_BYTES) {
+    throw new CompReviewError('Файл слишком большой — Telegram отдаёт ботам файлы не тяжелее ~19 МБ');
+  }
+
+  const data = await downloadTelegramFile(doc.file_id);
+  const fileName = doc.file_name || 'файл';
+  await run(
+    'INSERT INTO comp_attachments (request_id, employee_row_id, file_name, mime_type, size_bytes, data) VALUES (?, ?, ?, ?, ?, ?)',
+    [requestId, employeeRowId, fileName, doc.mime_type || null, data.length, data]);
+  await logActivity(requestId, employeeRowId, actorLogin, 'прикрепил файл через Telegram', fileName);
+
+  return { fileName, count: current + 1, max: MAX_ATTACHMENTS_PER_EMPLOYEE };
+}
+
+function mapAttachment(a) {
+  return { id: a.id, fileName: a.file_name, mimeType: a.mime_type, sizeBytes: a.size_bytes, createdAt: a.created_at };
+}
+
+async function listAttachments(employeeId, user, hasCap) {
+  await requireEmployeeVisible(employeeId, user, hasCap);
+  const rows = await queryAll(
+    'SELECT id, file_name, mime_type, size_bytes, created_at FROM comp_attachments WHERE employee_row_id = ? ORDER BY id', [employeeId]);
+  return rows.map(mapAttachment);
+}
+
+async function getAttachmentForDownload(attachmentId, user, hasCap) {
+  const a = await queryOne('SELECT * FROM comp_attachments WHERE id = ?', [attachmentId]);
+  if (!a) throw new CompReviewError('Файл не найден');
+  const req = await getRequestRow(a.request_id);
+  if (!(await canView(mapRequest(req), user, hasCap))) throw new CompReviewError('Недостаточно прав');
+  return a;
+}
+
+async function removeAttachment(attachmentId, actorLogin) {
+  const a = await queryOne('SELECT * FROM comp_attachments WHERE id = ?', [attachmentId]);
+  if (!a) throw new CompReviewError('Файл не найден');
+  await requireDraft(a.request_id);
+  await run('DELETE FROM comp_attachments WHERE id = ?', [attachmentId]);
+  await logActivity(a.request_id, a.employee_row_id, actorLogin, 'удалил файл', a.file_name);
+  return { ok: true };
+}
+
 // ─── Реестр, видимость, комментарии ───
 
 async function canView(request, user, hasCap) {
@@ -604,5 +716,7 @@ module.exports = {
   addVariablePay, removeVariablePay, deleteDraft, submitDraft,
   cbSetMarketData, cbReturn, cbForward, hrdApprove, hrdReject,
   vote, forceDecide, pendingVoters, remindVoters, remindStaleCommitteeVotes, markPayrollEntered,
-  getRequest, listRequests, canView, addComment
+  getRequest, listRequests, canView, addComment,
+  createAttachToken, findActiveAttachTokenByChat, claimAttachToken, saveAttachmentFromTelegram,
+  listAttachments, getAttachmentForDownload, removeAttachment
 };

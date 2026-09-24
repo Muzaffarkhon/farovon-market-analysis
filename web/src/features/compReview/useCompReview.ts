@@ -58,6 +58,45 @@ export function useEmployeeSearch(unit?: string) {
   return { query, setQuery, rows, loading: q.isLoading };
 }
 
+/**
+ * Файлы сотрудника, прикреплённые через Telegram-бота (см. createAttachToken
+ * в compReviewService — веб-загрузки нет, только через бота). `polling`
+ * включает частый рефетч на несколько минут после запроса ссылки — файл
+ * приходит асинхронно, отдельным сообщением боту, и должен сам появиться
+ * в карточке без ручного обновления страницы.
+ */
+export function useAttachments(employeeId: number) {
+  const qc = useQueryClient();
+  const onError = useToastError();
+  const [polling, setPolling] = useState(false);
+  const q = useQuery({
+    queryKey: ['comp-attachments', employeeId],
+    queryFn: () => compReviewApi.attachments(employeeId),
+    refetchInterval: polling ? 4000 : false
+  });
+
+  const requestTokenMutation = useMutation({
+    mutationFn: () => compReviewApi.createAttachToken(employeeId),
+    onSuccess: (r) => {
+      setPolling(true);
+      setTimeout(() => setPolling(false), r.expiresInMinutes * 60 * 1000);
+    },
+    onError: e => onError(e, 'Не удалось создать ссылку на бота')
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (attachmentId: number) => compReviewApi.deleteAttachment(attachmentId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['comp-attachments', employeeId] }),
+    onError: e => onError(e, 'Не удалось удалить файл')
+  });
+
+  return {
+    rows: q.data?.rows ?? [], loading: q.isLoading, polling,
+    requestToken: requestTokenMutation.mutateAsync, requestingToken: requestTokenMutation.isPending,
+    remove: removeMutation.mutate
+  };
+}
+
 function useToastError() {
   const toast = useToast();
   return (e: unknown, fallback: string) => toast.show(e instanceof ApiError ? e.message : fallback, 'error');

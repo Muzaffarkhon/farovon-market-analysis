@@ -154,6 +154,20 @@ async function sendTelegramMessage(chatId, text, options = {}) {
   }
 }
 
+/** Скачивает файл, присланный боту (getFile → прямая ссылка на файл Bot API),
+ *  и возвращает его содержимое как Buffer — используется прикреплением файлов
+ *  к заявкам на пересмотр ЗП (comp-review). Telegram сам не отдаёт ботам файлы
+ *  тяжелее ~20 МБ через getFile — этим и ограничен размер вложения. */
+async function downloadTelegramFile(fileId) {
+  const tg = getBot();
+  if (!tg) throw new Error('Telegram-бот не подключён');
+  const info = await tg.getFile({ file_id: fileId });
+  if (!info || !info.file_path) throw new Error('Telegram не вернул путь к файлу');
+  const resp = await fetch(`https://api.telegram.org/file/bot${config.telegramBotToken}/${info.file_path}`);
+  if (!resp.ok) throw new Error('Не удалось скачать файл из Telegram');
+  return Buffer.from(await resp.arrayBuffer());
+}
+
 /** Убирает "часики" на нажатой inline-кнопке — без этого Telegram сам снимет их
  *  через несколько секунд таймаутом, но кнопка выглядит зависшей. */
 async function answerCallbackQuery(callbackQueryId, text) {
@@ -309,6 +323,7 @@ module.exports = {
   getBotUsername,
   ensureWebhook,
   sendTelegramMessage,
+  downloadTelegramFile,
   answerCallbackQuery,
   verifyInitData,
   sendMassReminder,

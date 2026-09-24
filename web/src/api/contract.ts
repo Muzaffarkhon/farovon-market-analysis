@@ -667,6 +667,10 @@ export interface CompSettings { voteMode: CompVoteMode }
 export interface CompSettingsResponse { ok: true; settings: CompSettings }
 export interface CompRemindResponse { ok: true; remindedCount: number }
 
+export interface CompAttachment { id: number; fileName: string; mimeType: string | null; sizeBytes: number | null; createdAt: string }
+export interface CompAttachmentsResponse { ok: true; rows: CompAttachment[] }
+export interface CompAttachTokenResponse { ok: true; deepLink: string; expiresInMinutes: number; remaining: number }
+
 // ─── Чат поддержки ───
 
 export type SupportSource = 'telegram' | 'web';
