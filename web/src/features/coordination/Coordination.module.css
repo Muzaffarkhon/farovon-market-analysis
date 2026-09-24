@@ -1,9 +1,31 @@
 .head { display: flex; justify-content: flex-end; margin-bottom: var(--s-3); }
 .empty { color: var(--text-muted); }
 
+/* На телефоне список подразделений часто длиннее экрана — кнопка «Напомнить»
+   раньше стояла только сверху и терялась из виду, пока листаешь до списка
+   людей и отмечаешь чекбоксы. Прижимаем её к низу экрана (над панелью
+   разделов, TabBar.tsx), чтобы она была под рукой в любой момент прокрутки.
+   position: fixed, не sticky — .head стоит в самом начале очень длинного
+   контейнера (.main), а sticky с bottom не «прилипает», когда до конца
+   собственного родителя ещё далеко прокручивать (родитель много выше
+   элемента); fixed относительно окна такой оговорки не имеет. */
+@media (max-width: 767px) {
+  .head {
+    position: fixed; left: 0; right: 0; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 15;
+    padding: var(--s-2) var(--s-4); margin-bottom: 0;
+    background: var(--surface); border-top: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+}
+
 .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-4); align-items: start; }
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
+}
+/* .head зафиксирована (см. выше) и больше не занимает место в потоке —
+   без этого отступа последние строки списков (People/Feed) прятались бы
+   под ней у самого низа экрана. */
+@media (max-width: 767px) {
+  .grid { padding-bottom: 68px; }
 }
 
 .column { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
