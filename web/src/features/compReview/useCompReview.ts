@@ -1,11 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { compReviewApi } from '../../api/compReview';
+import { adminApi } from '../../api/admin';
 import { ApiError } from '../../api/client';
 import { useToast } from '../../design/Toast';
 import type {
   AddEmployeePayload, AddVariablePayPayload, CreateDraftPayload, UpdateHeaderPayload, UpdateEmployeePayload
 } from '../../api/contract';
+
+/** Названия подразделений для выпадающего списка в шапке заявки (список читает то же право divisions:view, что и справочник в админке). */
+export function useUnitOptions() {
+  const q = useQuery({ queryKey: ['admin-divisions'], queryFn: () => adminApi.divisions() });
+  return useMemo(
+    () => (q.data?.divisions ?? []).map(d => ({ value: d.unit, label: d.unit })).sort((a, b) => a.label.localeCompare(b.label, 'ru')),
+    [q.data]
+  );
+}
 
 export function useCompAccess() {
   const q = useQuery({ queryKey: ['comp-my-access'], queryFn: compReviewApi.myAccess });

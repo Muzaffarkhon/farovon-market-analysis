@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Badge, type BadgeTone } from '../../design/Badge';
 import { Button } from '../../design/Button';
+import { Combobox } from '../../design/Combobox';
 import { useConfirm } from '../../design/Confirm';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
@@ -11,7 +12,7 @@ import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
 import { EmployeeAddForm } from './EmployeeAddForm';
 import { EmployeeCard } from './EmployeeCard';
-import { useCompAccess, useCompReasons, useCompRequest } from './useCompReview';
+import { useCompAccess, useCompReasons, useCompRequest, useUnitOptions } from './useCompReview';
 import type { CompRequestStatus } from '../../api/contract';
 import s from './CompReview.module.css';
 
@@ -33,6 +34,7 @@ export function RequestScreen() {
   const { requestTypes } = useCompReasons();
   const confirm = useConfirm();
   const req = useCompRequest(requestId);
+  const unitOptions = useUnitOptions();
   const [cbReturnComment, setCbReturnComment] = useState('');
   const [hrdRejectComment, setHrdRejectComment] = useState('');
   const [comment, setComment] = useState('');
@@ -62,7 +64,7 @@ export function RequestScreen() {
               label="Тип заявки" value={r.requestType} options={requestTypes.map(t => ({ value: t.code, label: t.label }))}
               onChange={e => req.updateHeader({ requestType: e.target.value as typeof r.requestType })}
             />
-            <Input label="Подразделение" value={r.unit} onChange={e => req.updateHeader({ unit: e.target.value })} />
+            <Combobox label="Подразделение" options={unitOptions} value={r.unit} onChange={unit => req.updateHeader({ unit })} />
             <Input label="Дата вступления в силу" type="date" value={r.effectiveDate ?? ''} onChange={e => req.updateHeader({ effectiveDate: e.target.value })} />
             <Input label="Документ-основание" value={r.basisDocument} onChange={e => req.updateHeader({ basisDocument: e.target.value })} />
           </div>
