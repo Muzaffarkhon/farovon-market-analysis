@@ -89,7 +89,9 @@ export function UsersScreen() {
                   <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
                   <td>{row.login}</td>
                   <td>{row.role}</td>
-                  <td>{row.units.join(', ')}</td>
+                  <td className={s.wrapCell} title={row.units.join('\n')}>
+                    {row.units.length > 3 ? `${row.units.slice(0, 3).join(', ')} и ещё ${row.units.length - 3}` : row.units.join(', ')}
+                  </td>
                   <td>{row.phone}</td>
                   <td>{row.position}</td>
                   <td>
