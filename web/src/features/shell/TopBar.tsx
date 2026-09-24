@@ -31,10 +31,16 @@ export function TopBar({ title }: { title: string }) {
       <div className={s.right}>
         {!online && <span className={s.offline} role="status">Нет связи</span>}
         <PeriodPicker />
-        <button type="button" className={s.iconBtn} aria-label="Обновить" onClick={() => void qc.invalidateQueries()}>⟳</button>
-        <button type="button" className={s.iconBtn} aria-label="Тема" onClick={() => toggleTheme()}>◐</button>
+        <button type="button" className={s.iconBtn} aria-label="Обновить" onClick={() => void qc.invalidateQueries()}>
+          <span className={s.iconGlyph} aria-hidden="true">⟳</span>
+        </button>
+        <button type="button" className={s.iconBtn} aria-label="Тема" onClick={() => toggleTheme()}>
+          <span className={s.iconGlyph} aria-hidden="true">◐</span>
+        </button>
         <div className={s.more}>
-          <button type="button" className={s.iconBtn} aria-label="Ещё" aria-expanded={menu} onClick={() => setMenu(m => !m)}>⋯</button>
+          <button type="button" className={s.iconBtn} aria-label="Ещё" aria-expanded={menu} onClick={() => setMenu(m => !m)}>
+            <span className={s.iconGlyph} aria-hidden="true">⋯</span>
+          </button>
           {menu && (
             <div className={s.menu} role="menu" onMouseLeave={() => setMenu(false)}>
               <div className={s.menuUser}>{user.fio}</div>

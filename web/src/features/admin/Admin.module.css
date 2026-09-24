@@ -14,7 +14,10 @@
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
 .card { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
 .card:hover { background: var(--surface-2); }
-.cardIcon { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); background: var(--surface-2); color: var(--accent); }
+.cardIcon {
+  flex: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md); background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow); color: var(--accent);
+}
 .cardTitle { font-weight: 600; margin-bottom: var(--s-1); }
 .cardNote { font-size: 13px; color: var(--text-muted); }
 .empty { color: var(--text-muted); }

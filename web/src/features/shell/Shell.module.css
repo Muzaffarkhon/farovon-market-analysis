@@ -20,7 +20,8 @@
    Sidebar.tsx, дублировать незачем). */
 .logoMark {
   display: none; flex: none; width: 26px; height: 26px; border-radius: var(--r-sm);
-  background: var(--accent); align-items: center; justify-content: center;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
+  box-shadow: var(--icon-3d-shadow); align-items: center; justify-content: center;
 }
 @media (max-width: 767px) {
   .logoMark { display: flex; }
@@ -42,7 +43,12 @@
    пользователя (Sidebar.module.css, .accountRow). */
 .periodSelectInline { min-height: 28px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); padding: 0 var(--s-2); font-size: 13px; color: inherit; }
 .iconBtn { width: var(--tap); height: var(--tap); display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: var(--r-md); cursor: pointer; font-size: 20px; color: var(--text-muted); }
-.iconBtn:hover { background: var(--surface-2); }
+.iconBtn:hover .iconGlyph { filter: brightness(1.05); }
+.iconGlyph {
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); font-size: 15px; line-height: 1;
+  background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow); color: var(--accent);
+}
 .offline { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
 .more { position: relative; }
 .menu { position: absolute; right: 0; top: 100%; min-width: 200px; padding: var(--s-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); display: flex; flex-direction: column; }
@@ -87,15 +93,17 @@
 /* transition — переход в приподнятый кружок (и обратно) плавный, кружок
    не «прыгает» мгновенно с одного раздела на другой. */
 .tabIcon {
-  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px;
-  border-radius: 999px; transition: width .18s ease, height .18s ease, margin-top .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 15px;
+  border-radius: var(--r-sm); background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow);
+  transition: width .18s ease, height .18s ease, margin-top .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
 }
 /* «Сбор данных» — главное действие, по центру и приподнято кружком с
    акцентом, а не рядовой пункт с остальными. */
 .tabItem.tabPrimary { color: var(--text); }
 .tabItem.tabPrimary .tabIcon {
-  width: 44px; height: 44px; margin-top: -18px;
-  background: var(--accent); color: #fff; font-size: 20px; box-shadow: var(--shadow);
+  width: 44px; height: 44px; margin-top: -18px; border-radius: 999px;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
+  color: #fff; font-size: 20px; box-shadow: var(--icon-3d-shadow), var(--shadow);
 }
 .tabItem.tabPrimary.tabActive .tabIcon { filter: brightness(1.1); }
 /* Правило "скрыть на ПК" должно стоять в файле ПОСЛЕ базового .tabBar
