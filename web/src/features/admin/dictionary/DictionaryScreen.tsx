@@ -5,6 +5,7 @@ import { Chip } from '../../../design/Chip';
 import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import { Combobox } from '../../../design/Combobox';
+import { Select } from '../../../design/Select';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { useSessionData } from '../../auth/useSession';
@@ -35,6 +36,7 @@ export function DictionaryScreen() {
 
   const [kind, setKind] = useState<DictKind>('companies');
   const [query, setQuery] = useState('');
+  const [dirFilter, setDirFilter] = useState('');
   const [editing, setEditing] = useState<DictItem | 'new' | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
   const confirm = useConfirm();
@@ -51,13 +53,14 @@ export function DictionaryScreen() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const items = dict.items ?? [];
-    if (!q) return items;
-    return items.filter(it =>
-      it.name.toLowerCase().includes(q) ||
-      (isCompany(it) && (it.segment.toLowerCase().includes(q) || it.region.toLowerCase().includes(q))) ||
-      ((isCompany(it) || isPosition(it)) && it.dirs.some(d => d.toLowerCase().includes(q)))
-    );
-  }, [dict.items, query]);
+    return items.filter(it => {
+      const matchQ = !q || it.name.toLowerCase().includes(q) ||
+        (isCompany(it) && (it.segment.toLowerCase().includes(q) || it.region.toLowerCase().includes(q))) ||
+        ((isCompany(it) || isPosition(it)) && it.dirs.some(d => d.toLowerCase().includes(q)));
+      const matchDir = !dirFilter || ((isCompany(it) || isPosition(it)) && it.dirs.includes(dirFilter));
+      return matchQ && matchDir;
+    });
+  }, [dict.items, query, dirFilter]);
 
   async function handleDelete(name: string) {
     const u = await dict.usage(name);
@@ -75,7 +78,7 @@ export function DictionaryScreen() {
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <div className={s.tabs}>
-          {KINDS.map(k => <Chip key={k.id} active={kind === k.id} onClick={() => { setKind(k.id); setQuery(''); }}>{k.label}</Chip>)}
+          {KINDS.map(k => <Chip key={k.id} active={kind === k.id} onClick={() => { setKind(k.id); setQuery(''); setDirFilter(''); }}>{k.label}</Chip>)}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {canMerge && (kind === 'companies' || kind === 'positions') && (
@@ -85,7 +88,19 @@ export function DictionaryScreen() {
         </div>
       </div>
 
-      <Input label="Поиск" placeholder="Название, сегмент, регион, направление" value={query} onChange={e => setQuery(e.target.value)} />
+      <div className={s.head}>
+        <Input label="Поиск" placeholder="Название, сегмент, регион, направление" value={query} onChange={e => setQuery(e.target.value)} />
+        {(kind === 'companies' || kind === 'positions') && (
+          <Select
+            label="Направление" value={dirFilter} placeholder={`Все направления (${(dict.items ?? []).length})`}
+            onChange={e => setDirFilter(e.target.value)}
+            options={dict.dirs.map(d => ({ value: d, label: d }))}
+          />
+        )}
+      </div>
+      <p className={s.hint}>
+        {filtered.length === (dict.items ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(dict.items ?? []).length} записей`}
+      </p>
 
       {dict.error ? <p className={s.empty}>{dict.error.message}</p> : dict.loading ? <Skeleton lines={8} /> : (
         <div className={s.tableWrapFill}>
@@ -118,7 +133,7 @@ export function DictionaryScreen() {
                   </td>
                 </tr>
               ))}
-              {!filtered.length && <tr><td colSpan={6} className={s.empty}>{query ? 'Ничего не найдено' : `Справочник «${meta.label}» пока пуст`}</td></tr>}
+              {!filtered.length && <tr><td colSpan={6} className={s.empty}>{(dict.items ?? []).length ? 'Ничего не найдено' : `Справочник «${meta.label}» пока пуст`}</td></tr>}
             </tbody>
           </table>
         </div>

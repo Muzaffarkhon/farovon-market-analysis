@@ -3,6 +3,7 @@ import type { Division } from '../../../api/contract';
 import { Button } from '../../../design/Button';
 import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
+import { Select } from '../../../design/Select';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
 import { useSort } from '../../../design/useSort';
@@ -23,6 +24,7 @@ export function DivisionsScreen() {
   const d = useDivisions();
   const confirm = useConfirm();
   const [query, setQuery] = useState('');
+  const [dirFilter, setDirFilter] = useState('');
   const [editing, setEditing] = useState<Division | null>(null);
   const [moving, setMoving] = useState<Division | null>(null);
   const [creating, setCreating] = useState(false);
@@ -41,9 +43,11 @@ export function DivisionsScreen() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = d.divisions ?? [];
-    if (!q) return rows;
-    return rows.filter(r => r.unit.toLowerCase().includes(q) || (r.dir ?? '').toLowerCase().includes(q));
-  }, [d.divisions, query]);
+    return rows.filter(r =>
+      (!q || r.unit.toLowerCase().includes(q) || (r.dir ?? '').toLowerCase().includes(q)) &&
+      (!dirFilter || r.dir === dirFilter)
+    );
+  }, [d.divisions, query, dirFilter]);
 
   const dirOptions = useMemo(() => [...new Set((d.divisions ?? []).map(r => r.dir).filter(Boolean))] as string[], [d.divisions]);
 
@@ -67,12 +71,21 @@ export function DivisionsScreen() {
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
+        <Select
+          label="Направление" value={dirFilter} placeholder={`Все направления (${(d.divisions ?? []).length})`}
+          onChange={e => setDirFilter(e.target.value)}
+          options={dirOptions.map(o => ({ value: o, label: o }))}
+        />
         <div style={{ display: 'flex', gap: 8 }}>
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setGroupsOpen(true)}>Смежные группы{groupCounts.size ? ` (${groupCounts.size})` : ''}</Button>}
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setBatchOpen(true)}>Массовое назначение</Button>}
           {isAdmin && <Button size="sm" onClick={() => setCreating(true)}>Создать</Button>}
         </div>
       </div>
+
+      <p className={s.hint}>
+        {filtered.length === (d.divisions ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(d.divisions ?? []).length} записей`}
+      </p>
 
       <div className={s.tableWrapFill}>
         <table className={s.table}>

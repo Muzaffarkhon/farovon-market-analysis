@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AdminUser } from '../../../api/contract';
 import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
 import { useConfirm } from '../../../design/Confirm';
+import { Input } from '../../../design/Input';
+import { Select } from '../../../design/Select';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
 import { useSort } from '../../../design/useSort';
@@ -23,10 +25,21 @@ export function UsersScreen() {
   // admin, сервер отклонит запрос, поэтому кнопку им не показываем.
   const canCreate = user.login.toLowerCase() === 'admin';
   const [tab, setTab] = useState<'active' | 'archive'>('active');
+  const [query, setQuery] = useState('');
+  const [role, setRole] = useState('');
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const activeSort = useSort(u.users ?? [], (row, key) => {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = u.users ?? [];
+    return rows.filter(r =>
+      (!q || r.fio.toLowerCase().includes(q) || r.login.toLowerCase().includes(q) || r.units.some(unit => unit.toLowerCase().includes(q))) &&
+      (!role || r.role === role)
+    );
+  }, [u.users, query, role]);
+
+  const activeSort = useSort(filtered, (row, key) => {
     switch (key) {
       case 'fio': return row.fio;
       case 'login': return row.login;
@@ -55,6 +68,10 @@ export function UsersScreen() {
   if (u.usersLoading) return <Skeleton lines={6} />;
 
   const formOpen = creating || !!editing;
+  const roleLabel = (key: string) => u.roles?.find(r => r.key === key)?.label ?? key;
+  const roleOptions = [...new Set((u.users ?? []).map(r => r.role))]
+    .sort((a, b) => roleLabel(a).localeCompare(roleLabel(b), 'ru'))
+    .map(key => ({ value: key, label: roleLabel(key) }));
 
   return (
     <div className={s.screenFill} data-wide>
@@ -65,6 +82,22 @@ export function UsersScreen() {
         </div>
         {tab === 'active' && canCreate && <Button size="sm" onClick={() => setCreating(true)}>Добавить</Button>}
       </div>
+
+      {tab === 'active' && (
+        <>
+          <div className={s.head}>
+            <Input label="Поиск" placeholder="ФИО, логин или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
+            <Select
+              label="Роль" value={role} placeholder={`Все роли (${(u.users ?? []).length})`}
+              onChange={e => setRole(e.target.value)}
+              options={roleOptions}
+            />
+          </div>
+          <p className={s.hint}>
+            {filtered.length === (u.users ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(u.users ?? []).length} записей`}
+          </p>
+        </>
+      )}
 
       {tab === 'active' && (
         <div className={s.tableWrapFill}>
@@ -124,7 +157,7 @@ export function UsersScreen() {
                   </td>
                 </tr>
               ))}
-              {!u.users?.length && <tr><td colSpan={10} className={s.empty}>Пользователей нет</td></tr>}
+              {!filtered.length && <tr><td colSpan={10} className={s.empty}>{(u.users ?? []).length ? 'Ничего не найдено' : 'Пользователей нет'}</td></tr>}
             </tbody>
           </table>
         </div>
