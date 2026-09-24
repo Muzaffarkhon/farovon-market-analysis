@@ -21,3 +21,11 @@
 html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.4; -webkit-text-size-adjust: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent); }
+
+/* На телефоне тот же 15px ощущается крупным для плотных экранов (таблицы,
+   списки) — большинство компонентов не задают свой font-size явно и
+   наследуют этот базовый, так что понижение здесь уменьшает шрифт почти
+   везде разом, без правки каждого места по отдельности. */
+@media (max-width: 767px) {
+  html, body { font-size: 14px; }
+}

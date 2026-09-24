@@ -38,6 +38,14 @@
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }
 .rowInactive { color: var(--text-muted); }
 
+/* На телефоне таблица всё равно шире экрана и скроллится вбок — но плотнее
+   шрифт и отступы уменьшают, сколько нужно листать, чтобы дойти до нужной
+   колонки (например, до кнопки действия в «Пользователях»). */
+@media (max-width: 767px) {
+  .table { min-width: 600px; font-size: 12px; }
+  .table th, .table td { padding: 6px var(--s-2); }
+}
+
 .form { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; min-height: 0; }
 .unitList { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-2); }
 .unitRow { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
