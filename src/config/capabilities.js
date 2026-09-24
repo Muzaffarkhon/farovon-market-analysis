@@ -45,7 +45,15 @@ const CAPABILITIES = [
   { id: 'grading:blocks', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Управление индустриальными блоками и распределением должностей' },
   { id: 'grading:committee', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Состав комиссии по блокам и принудительное подведение итога' },
   { id: 'support:manage', resource: 'support', resourceLabel: 'Чат поддержки', label: 'Просмотр и ответы в чате поддержки Telegram-бота' },
-  { id: 'broadcast:send', resource: 'broadcast', resourceLabel: 'Рассылка', label: 'Отправка рассылок сотрудникам через Telegram-бота и просмотр истории' }
+  { id: 'broadcast:send', resource: 'broadcast', resourceLabel: 'Рассылка', label: 'Отправка рассылок сотрудникам через Telegram-бота и просмотр истории' },
+  // Заявки на изменение зарплаты (2026-09-24): подаёт HR BP, дальше цепочка
+  // cb_manager → hrd → committee. «Менеджер C&B» и HRD — не роли системы
+  // (ROLES фиксирован), эти права выдаются конкретным людям персонально.
+  { id: 'salary:request', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Подача заявки' },
+  { id: 'salary:approve_cb', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Согласование — менеджер отдела C&B' },
+  { id: 'salary:approve_hrd', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Согласование — HRD' },
+  { id: 'salary:committee', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Состав комиссии — управление списком и принудительное решение' },
+  { id: 'salary:view', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Просмотр всех заявок и истории окладов' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];
@@ -71,7 +79,7 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // hrbp + новые модули: HR BP смотрит грейды и матрицу рисков по своим
   // направлениям, но анкеты заполняют комиссия (грейды) и руководители (риски).
   hrbp: ['survey:fill', 'dashboard:view', 'coordination:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
-    'grading:view', 'keyrisk:view'],
+    'grading:view', 'keyrisk:view', 'salary:request'],
   // dir_head: с PR #25 видит и правит divisions (только свои отделы — это
   // ограничение уже в adminController.saveDivision, не здесь) и читает
   // список пользователей для пикера «кого назначить».

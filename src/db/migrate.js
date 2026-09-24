@@ -711,6 +711,7 @@ async function migrate() {
   await createUserTablePrefs();
   await createDivisionAssignments();
   await cleanupLegacySurveyTestData();
+  await createSalaryRequests();
 }
 
 /**
@@ -933,6 +934,75 @@ async function cleanupLegacySurveyTestData() {
   await run("DELETE FROM position_company_selections");
   await run('INSERT INTO schema_migrations (name) VALUES (?)', [MIGRATION_NAME]);
   console.log('🔧 Миграция: тестовые данные surveys/competitors/position_company_selections удалены (переход на position-first Шаг 1)');
+}
+
+/**
+ * Заявки на изменение зарплаты сотрудника (2026-09-24). Инициирует HR BP,
+ * дальше цепочка из трёх шагов: менеджер отдела C&B → HRD → комиссия
+ * (unanimous — любой отказ на любом шаге сразу отклоняет всю заявку).
+ * HRD и «менеджер C&B» — не роли системы (ROLES фиксирован), а отдельные
+ * права (salary:approve_cb/salary:approve_hrd), выдаваемые персонально
+ * конкретным людям через «Роли и доступы» — так же, как и с комиссией
+ * грейдирования, чей состав не привязан к роли.
+ *
+ * staff_directory при каждом импорте из 1С полностью пересоздаётся (см.
+ * комментарий у самой таблицы) — хранить «текущий оклад» колонкой на ней
+ * нельзя, она обнулится при следующей загрузке. Вместо этого salary_history
+ * ведётся по паре (unit, fio) отдельно, а текущий оклад — последняя запись
+ * в истории по этой паре, что переживает любой реимпорт справочника.
+ */
+async function createSalaryRequests() {
+  await run(`CREATE TABLE IF NOT EXISTS salary_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    fio TEXT NOT NULL,
+    position TEXT,
+    current_salary REAL,
+    proposed_salary REAL NOT NULL,
+    proposed_percent REAL,
+    reasons TEXT NOT NULL DEFAULT '[]',
+    reason_text TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    step TEXT NOT NULL DEFAULT 'cb_manager',
+    created_by TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    decided_at DATETIME
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_salary_requests_status ON salary_requests(status, step)');
+  await run('CREATE INDEX IF NOT EXISTS idx_salary_requests_person ON salary_requests(unit, fio)');
+
+  // Одна строка на решение (шаги cb_manager/hrd — одна на шаг; committee —
+  // по одной на каждого проголосовавшего члена комиссии).
+  await run(`CREATE TABLE IF NOT EXISTS salary_request_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES salary_requests(id),
+    step TEXT NOT NULL,
+    approver_login TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    comment TEXT,
+    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(request_id, step, approver_login)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_salary_request_decisions_request ON salary_request_decisions(request_id)');
+
+  await run(`CREATE TABLE IF NOT EXISTS salary_committee_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_login TEXT UNIQUE NOT NULL
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS salary_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit TEXT NOT NULL,
+    fio TEXT NOT NULL,
+    old_salary REAL,
+    new_salary REAL NOT NULL,
+    request_id INTEGER REFERENCES salary_requests(id),
+    changed_by TEXT NOT NULL,
+    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_salary_history_person ON salary_history(unit, fio, changed_at)');
+
+  console.log('🔧 Миграция: схема заявок на изменение зарплаты создана');
 }
 
 /**

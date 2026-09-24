@@ -53,3 +53,5 @@
 .formFoot { display: flex; align-items: center; gap: var(--s-3); justify-content: flex-end; }
 .hint { font-size: 13px; color: var(--text-muted); }
 .linkBtn { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+.pager { display: flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-2) 0; }
+.pagerInfo { font-size: 13px; color: var(--text-muted); }

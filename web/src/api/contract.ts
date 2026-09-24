@@ -504,6 +504,65 @@ export interface StaffImportReport {
 export interface StaffImportDryRunResponse { ok: true; dryRun: true; report: StaffImportReport }
 export interface StaffImportCommitResponse { ok: true; message: string }
 
+// ─── Администрирование: рассылка через Telegram ───
+
+export interface BroadcastRecipientCandidate { id: number; login: string; fio: string; role: Role; units: string[] }
+export interface BroadcastRecipientsResponse { ok: true; rows: BroadcastRecipientCandidate[]; totalActive: number }
+
+export interface BroadcastListItem {
+  id: number; author_login: string; body: string; with_button: number;
+  total: number; sent: number; failed: number; created_at: string;
+}
+export interface BroadcastListResponse { ok: true; rows: BroadcastListItem[] }
+
+export interface BroadcastRecipientStatus { fio: string; status: 'sent' | 'failed'; sent_at: string }
+export interface BroadcastDetailsResponse { ok: true; broadcast: BroadcastListItem; recipients: BroadcastRecipientStatus[] }
+
+export interface SendBroadcastPayload { body: string; withButton: boolean; userIds: number[] }
+export interface SendBroadcastResponse { ok: true; id: number; total: number; sent: number; failed: number }
+
+// ─── Администрирование: журнал аудита ───
+
+export interface AuditLogEntry { id: number; dt: string; login: string; action: string; detail: string; ip: string }
+export interface AuditLogResponse { ok: true; logs: AuditLogEntry[] }
+
+// ─── Заявки на изменение зарплаты ───
+
+export type SalaryStep = 'cb_manager' | 'hrd' | 'committee';
+export type SalaryStatus = 'pending' | 'approved' | 'rejected';
+export type SalaryReasonCode = 'position_change' | 'probation_end' | 'individual_results' | 'benchmark' | 'grading' | 'free_text';
+
+export interface SalaryReason { code: SalaryReasonCode; label: string }
+export interface SalaryReasonsResponse { ok: true; reasons: SalaryReason[] }
+
+export interface SalaryEmployeeOption { id: number; unit: string; fio: string; position: string; currentSalary: number | null }
+export interface SalaryEmployeesResponse { ok: true; rows: SalaryEmployeeOption[] }
+
+export interface SalaryRequestDecision { step: SalaryStep; approver_login: string; decision: 'approved' | 'rejected'; comment: string | null; decided_at: string }
+export interface SalaryRequest {
+  id: number; unit: string; fio: string; position: string;
+  currentSalary: number | null; proposedSalary: number; proposedPercent: number | null;
+  reasons: SalaryReasonCode[]; reasonText: string;
+  status: SalaryStatus; step: SalaryStep | 'done';
+  createdBy: string; createdAt: string; decidedAt: string | null;
+  decisions?: SalaryRequestDecision[];
+}
+export interface SalaryRequestResponse { ok: true; request: SalaryRequest }
+export interface SalaryRequestsResponse { ok: true; rows: SalaryRequest[] }
+
+export interface CreateSalaryRequestPayload {
+  unit: string; fio: string; position?: string;
+  proposedSalary?: number; proposedPercent?: number;
+  reasons: SalaryReasonCode[]; reasonText?: string;
+}
+export interface DecideSalaryRequestPayload { step: SalaryStep; decision: 'approved' | 'rejected'; comment?: string }
+
+export interface SalaryHistoryEntry { id: number; unit: string; fio: string; old_salary: number | null; new_salary: number; request_id: number | null; changed_by: string; changed_at: string }
+export interface SalaryHistoryResponse { ok: true; rows: SalaryHistoryEntry[] }
+
+export interface SalaryMyAccessResponse { ok: true; canRequest: boolean; steps: SalaryStep[] }
+export interface SalaryCommitteeResponse { ok: true; rows: string[] }
+
 // ─── Чат поддержки ───
 
 export type SupportSource = 'telegram' | 'web';

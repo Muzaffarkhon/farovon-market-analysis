@@ -1,6 +1,6 @@
 import type { SessionUser } from '../../api/contract';
 
-export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'scale' | 'shield' | 'gear' | 'chat' };
+export type NavItem = { to: string; label: string; icon: 'list' | 'table' | 'chart' | 'users' | 'scale' | 'shield' | 'gear' | 'chat' | 'money' };
 
 /** Пункты навигации строятся из роли и прав; admin видит всё. */
 export function navItemsFor(u: SessionUser): NavItem[] {
@@ -15,6 +15,9 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('dashboard:view')) items.push({ to: '/dashboard', label: 'Дашборды', icon: 'chart' });
   if (has('coordination:view')) items.push({ to: '/coordination', label: 'Координация', icon: 'users' });
   if (has('grading:view') || has('grading:edit')) items.push({ to: '/grading', label: 'Оценка должностей', icon: 'scale' });
+  if (has('salary:request') || has('salary:approve_cb') || has('salary:approve_hrd') || has('salary:committee') || has('salary:view')) {
+    items.push({ to: '/salary', label: 'Заявки на зарплату', icon: 'money' });
+  }
   if (has('keyrisk:view') || has('keyrisk:edit')) items.push({ to: '/key-risks', label: 'Риски', icon: 'scale' });
   if (u.role === 'admin') items.push({ to: '/access', label: 'Роли и доступы', icon: 'shield' });
   if (isAdminAreaVisible(u)) items.push({ to: '/admin', label: 'Администрирование', icon: 'gear' });
@@ -24,7 +27,7 @@ export function navItemsFor(u: SessionUser): NavItem[] {
 const ADMIN_CAPS = [
   'users:view', 'divisions:view', 'dictionary:view',
   'grading:factors', 'grading:blocks', 'grading:committee',
-  'benchmarks:import', 'benchmarks:map', 'period:view', 'support:manage'
+  'benchmarks:import', 'benchmarks:map', 'period:view', 'support:manage', 'broadcast:send', 'service:view', 'salary:committee'
 ];
 
 function isAdminAreaVisible(u: SessionUser): boolean {
@@ -38,7 +41,7 @@ export type NavGroup = { key: string; label: string | null; items: NavItem[] };
 // проверенный тестами порядок пунктов.
 const GROUP_OF: Record<string, string> = {
   '/registry': 'analytics', '/dashboard': 'analytics', '/coordination': 'analytics',
-  '/grading': 'people', '/key-risks': 'people',
+  '/grading': 'people', '/key-risks': 'people', '/salary': 'people',
   '/access': 'manage', '/admin': 'manage'
 };
 const GROUP_LABEL: Record<string, string> = { analytics: 'Аналитика', people: 'Персонал', manage: 'Управление' };

@@ -4,7 +4,8 @@ import type {
   DivisionsResponse, OkResponse,
   SaveDivisionPayload, CreateDivisionPayload, CreateDivisionResponse, MoveDivisionPayload, MoveDivisionResponse,
   BatchAssignPayload, BatchAssignResponse,
-  StaffDirectoryResponse, SaveStaffPayload, SaveStaffResponse, StaffImportDryRunResponse, StaffImportCommitResponse
+  StaffDirectoryResponse, SaveStaffPayload, SaveStaffResponse, StaffImportDryRunResponse, StaffImportCommitResponse,
+  AuditLogResponse
 } from './contract';
 
 export const adminApi = {
@@ -28,5 +29,7 @@ export const adminApi = {
   saveStaffRecord: (payload: SaveStaffPayload) => request<SaveStaffResponse>('/admin/staff-directory', payload),
   deleteStaffRecord: (id: number) => request<OkResponse>('/admin/staff-directory/delete', { id }),
   importStaffDirectoryDryRun: (csv: string) => request<StaffImportDryRunResponse>('/admin/import-staff-directory', { csv, dryRun: true }),
-  importStaffDirectoryCommit: (csv: string) => request<StaffImportCommitResponse>('/admin/import-staff-directory', { csv, dryRun: false })
+  importStaffDirectoryCommit: (csv: string) => request<StaffImportCommitResponse>('/admin/import-staff-directory', { csv, dryRun: false }),
+
+  auditLog: (limit = 200) => request<AuditLogResponse>(`/admin/audit-log?limit=${limit}`)
 };

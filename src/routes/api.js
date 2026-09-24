@@ -21,6 +21,7 @@ const registryController = require('../controllers/registryController');
 const tablePrefsController = require('../controllers/tablePrefsController');
 const coordinationController = require('../controllers/coordinationController');
 const cronController = require('../controllers/cronController');
+const salaryRequestController = require('../controllers/salaryRequestController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -250,6 +251,24 @@ router.get('/key-personnel/unit-employees', requireCapability('keyrisk:edit'), g
 router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradingController.evaluateRiskCard);
 router.post('/key-personnel/delete', requireRoles('admin'), gradingController.deleteRisk);
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
+
+// ─── Заявки на изменение зарплаты ───
+// Право решать конкретный шаг (cb_manager/hrd — capability; committee —
+// членство в salary_committee_members) проверяет сам контроллер, не
+// requireCapability здесь — один маршрут /salary/requests/:id/decide
+// обслуживает все три шага сразу.
+router.get('/salary/my-access', salaryRequestController.myAccess);
+router.get('/salary/reasons', salaryRequestController.reasons);
+router.get('/salary/employees', requireCapability('salary:request'), salaryRequestController.employeeOptions);
+router.post('/salary/requests', requireCapability('salary:request'), salaryRequestController.create);
+router.get('/salary/requests/queue', salaryRequestController.queue);
+router.get('/salary/requests', requireCapability('salary:view', 'salary:request'), salaryRequestController.list);
+router.get('/salary/requests/:id', salaryRequestController.get);
+router.post('/salary/requests/:id/decide', salaryRequestController.decide);
+router.get('/salary/history', requireCapability('salary:view', 'salary:approve_cb', 'salary:approve_hrd'), salaryRequestController.history);
+router.get('/salary/committee', requireCapability('salary:committee'), salaryRequestController.committeeMembers);
+router.post('/salary/committee/add', requireCapability('salary:committee'), salaryRequestController.addCommitteeMember);
+router.post('/salary/committee/remove', requireCapability('salary:committee'), salaryRequestController.removeCommitteeMember);
 
 // ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
 router.get('/admin/broadcasts', requireCapability('broadcast:send'), broadcastController.list);
