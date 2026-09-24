@@ -25,21 +25,42 @@ function VariablePayLine({ v, onRemove }: { v: CompVariablePay; onRemove?: () =>
   );
 }
 
+const PERIOD_OPTIONS = [
+  { value: 'в месяц', label: 'в месяц' },
+  { value: 'в квартал', label: 'в квартал' },
+  { value: 'в год', label: 'в год' },
+  { value: 'разово', label: 'разово' }
+];
+
 function AddVariablePayLine({ onAdd }: { onAdd: (a: { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }) => void }) {
   const kinds = useVariablePayKinds();
   const [kind, setKind] = useState('');
   const [amount, setAmount] = useState('');
+  const [amountType, setAmountType] = useState<'sum' | 'percent'>('sum');
+  const [period, setPeriod] = useState('');
+  const [isProposed, setIsProposed] = useState(false);
   const [open, setOpen] = useState(false);
 
   if (!open) return <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>+ добавить вид</Button>;
   return (
     <div className={s.vpRow}>
       <Select label="" aria-label="Вид" placeholder="Вид…" value={kind} onChange={e => setKind(e.target.value)} options={kinds.map(k => ({ value: k, label: k }))} />
-      <Input label="" aria-label="Размер" type="number" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: 100 }} />
+      <Input label="" aria-label="Размер" type="number" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: 90 }} />
+      <Select
+        label="" aria-label="Сумма или %" value={amountType} onChange={e => setAmountType(e.target.value as 'sum' | 'percent')}
+        options={[{ value: 'sum', label: 'сумма' }, { value: 'percent', label: '%' }]} style={{ width: 90 }}
+      />
+      <Select label="" aria-label="Периодичность" placeholder="Периодичность…" value={period} onChange={e => setPeriod(e.target.value)} options={PERIOD_OPTIONS} style={{ width: 130 }} />
+      <label className={s.hint} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+        <input type="checkbox" checked={isProposed} onChange={e => setIsProposed(e.target.checked)} /> предлагается
+      </label>
       <Button
         size="sm"
         disabled={!kind || !(Number(amount) > 0)}
-        onClick={() => { onAdd({ kind, amount: Number(amount), amountType: 'sum' }); setKind(''); setAmount(''); setOpen(false); }}
+        onClick={() => {
+          onAdd({ kind, amount: Number(amount), amountType, period: period || undefined, isProposed: isProposed || undefined });
+          setKind(''); setAmount(''); setAmountType('sum'); setPeriod(''); setIsProposed(false); setOpen(false);
+        }}
       >
         Добавить
       </Button>
@@ -72,6 +93,12 @@ export function EmployeeCard({ e, request, access, actions }: {
   // votedAt приходит всегда, vote бывает null у чужих голосов до итога.
   const votedCount = e.votes.length;
 
+  // Оклад не меняется — заявка должна опираться хотя бы на переменную часть,
+  // иначе сервер откажет при отправке (submitDraft); подсказка здесь —
+  // чтобы это увидели раньше, ещё в черновике.
+  const noSalaryChange = e.currentSalary != null && e.proposedSalary === e.currentSalary;
+  const hasProposedVp = e.variablePay.some(v => v.isProposed);
+
   return (
     <div className={s.card}>
       <div className={s.cardHead}>
@@ -91,6 +118,14 @@ export function EmployeeCard({ e, request, access, actions }: {
 
       <div className={s.kpiRow}>
         <span>Последний пересмотр: {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
+        {e.hireDate && <span>Дата выхода на работу: {new Date(e.hireDate).toLocaleDateString('ru-RU')}</span>}
+        {(e.probationStartDate || e.probationEndDate) && (
+          <span>
+            Стажировка: {e.probationStartDate ? new Date(e.probationStartDate).toLocaleDateString('ru-RU') : '—'}
+            {' – '}
+            {e.probationEndDate ? new Date(e.probationEndDate).toLocaleDateString('ru-RU') : '—'}
+          </span>
+        )}
         {e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
@@ -99,6 +134,10 @@ export function EmployeeCard({ e, request, access, actions }: {
       </div>
 
       <div className={s.hint}>{reasonLabel}{e.reasonText ? ` — ${e.reasonText}` : ''}</div>
+
+      {noSalaryChange && !hasProposedVp && request.status === 'draft' && (
+        <Badge tone="warn">Оклад не меняется — добавьте предлагаемое изменение переменной части ниже</Badge>
+      )}
 
       {e.variablePay.map(v => (
         <VariablePayLine key={v.id} v={v} onRemove={request.status === 'draft' ? () => actions.removeVariablePay(v.id) : undefined} />

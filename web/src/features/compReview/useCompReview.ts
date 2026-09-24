@@ -37,10 +37,25 @@ export function useVariablePayKinds() {
   return q.data?.kinds ?? [];
 }
 
-export function useEmployeeSearch() {
+/**
+ * Список сотрудников для формы добавления в заявку. Если известно
+ * подразделение из шапки заявки (unit) — сеть запрашивается ровно по нему
+ * один раз, а видимое поле поиска не подставляет то же название (не дублирует
+ * его), а лишь дополнительно фильтрует уже полученный список по ФИО на
+ * клиенте. Без подразделения — обычный сетевой поиск по тому, что напечатали
+ * (как раньше).
+ */
+export function useEmployeeSearch(unit?: string) {
   const [query, setQuery] = useState('');
-  const q = useQuery({ queryKey: ['comp-employees', query], queryFn: () => compReviewApi.employees(query) });
-  return { query, setQuery, rows: q.data?.rows ?? [], loading: q.isLoading };
+  const networkQuery = unit || query;
+  const q = useQuery({ queryKey: ['comp-employees', networkQuery], queryFn: () => compReviewApi.employees(networkQuery) });
+  const rows = useMemo(() => {
+    const all = q.data?.rows ?? [];
+    if (!unit) return all;
+    const nq = query.trim().toLowerCase();
+    return nq ? all.filter(r => r.fio.toLowerCase().includes(nq)) : all;
+  }, [q.data, unit, query]);
+  return { query, setQuery, rows, loading: q.isLoading };
 }
 
 function useToastError() {

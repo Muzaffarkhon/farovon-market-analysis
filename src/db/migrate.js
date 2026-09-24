@@ -1068,6 +1068,13 @@ async function createCompReview() {
   await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_request ON comp_request_employees(request_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_status ON comp_request_employees(status)');
 
+  // Дата выхода на работу — для всех типов заявки; для «выход из стажировки»
+  // вместо неё (или вместе с ней) нужны даты начала/окончания самой
+  // стажировки, чтобы HRD и комиссия видели, что срок действительно истёк.
+  await ensureColumn('comp_request_employees', 'hire_date', 'TEXT');
+  await ensureColumn('comp_request_employees', 'probation_start_date', 'TEXT');
+  await ensureColumn('comp_request_employees', 'probation_end_date', 'TEXT');
+
   // Переменная часть — «+ добавить вид», несколько строк на сотрудника (§3).
   await run(`CREATE TABLE IF NOT EXISTS comp_variable_pay (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

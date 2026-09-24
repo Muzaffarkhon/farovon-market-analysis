@@ -620,6 +620,7 @@ export interface CompVote { voterLogin: string; vote: 'for' | 'against' | null; 
 
 export interface CompRequestEmployee {
   id: number; requestId: number; staffId: number | null; fio: string; unit: string; position: string;
+  hireDate: string | null; probationStartDate: string | null; probationEndDate: string | null;
   lastReviewDate: string | null; currentSalary: number | null; proposedSalary: number; growthPercent: number | null;
   gradePayFrom: number | null; gradePayTo: number | null; vilkaBefore: number | null; vilkaAfter: number | null;
   marketMedian: number | null; compaRatio: number | null;
@@ -649,8 +650,12 @@ export type UpdateHeaderPayload = Partial<CreateDraftPayload>
 export interface AddEmployeePayload {
   fio: string; unit: string; position?: string; staffId?: number;
   proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string;
+  hireDate?: string; probationStartDate?: string; probationEndDate?: string;
 }
-export interface UpdateEmployeePayload { proposedSalary?: number; reasonCode?: CompReasonCode; reasonText?: string }
+export interface UpdateEmployeePayload {
+  proposedSalary?: number; reasonCode?: CompReasonCode; reasonText?: string;
+  hireDate?: string; probationStartDate?: string; probationEndDate?: string;
+}
 export interface AddVariablePayPayload { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }
 
 export interface CompMyAccessResponse {

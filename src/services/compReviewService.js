@@ -65,6 +65,7 @@ function maskVotes(rows, employeeStatus, voteMode, viewerLogin) {
 function mapEmployeeRow(r, variablePay, votes, voteMode, viewerLogin) {
   return {
     id: r.id, requestId: r.request_id, staffId: r.staff_id, fio: r.fio, unit: r.unit, position: r.position || '',
+    hireDate: r.hire_date, probationStartDate: r.probation_start_date, probationEndDate: r.probation_end_date,
     lastReviewDate: r.last_review_date, currentSalary: r.current_salary == null ? null : Number(r.current_salary),
     proposedSalary: Number(r.proposed_salary),
     growthPercent: growthPercent(r.current_salary, r.proposed_salary),
@@ -191,10 +192,12 @@ async function addEmployee(requestId, data, actorLogin) {
   const ins = await run(
     `INSERT INTO comp_request_employees
        (request_id, staff_id, fio, unit, position, last_review_date, current_salary, proposed_salary,
-        grade_pay_from, grade_pay_to, reason_code, reason_text, is_exception)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grade_pay_from, grade_pay_to, reason_code, reason_text, is_exception,
+        hire_date, probation_start_date, probation_end_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [requestId, data.staffId || null, data.fio, data.unit, data.position || null, lastReviewDate, currentSalary,
-      Number(data.proposedSalary), grade.from, grade.to, data.reasonCode, data.reasonText || null, elig.isException ? 1 : 0]);
+      Number(data.proposedSalary), grade.from, grade.to, data.reasonCode, data.reasonText || null, elig.isException ? 1 : 0,
+      data.hireDate || null, data.probationStartDate || null, data.probationEndDate || null]);
   await logActivity(requestId, null, actorLogin, 'добавил сотрудника', data.fio);
   await touchRequest(requestId);
   return getRequest(requestId, actorLogin);
@@ -213,13 +216,18 @@ async function updateEmployee(employeeId, patch) {
   const proposedSalary = patch.proposedSalary !== undefined ? Number(patch.proposedSalary) : row.proposed_salary;
   const reasonCode = patch.reasonCode !== undefined ? patch.reasonCode : row.reason_code;
   const reasonText = patch.reasonText !== undefined ? patch.reasonText : row.reason_text;
+  const hireDate = patch.hireDate !== undefined ? (patch.hireDate || null) : row.hire_date;
+  const probationStartDate = patch.probationStartDate !== undefined ? (patch.probationStartDate || null) : row.probation_start_date;
+  const probationEndDate = patch.probationEndDate !== undefined ? (patch.probationEndDate || null) : row.probation_end_date;
   if (!REASON_CODES[reasonCode]) throw new CompReviewError('Некорректный код основания');
   const elig = checkEligibility({ lastReviewDate: row.last_review_date, reasonCode, reasonText });
   if (!elig.eligible) throw new CompReviewError(elig.reason);
 
   await run(
-    `UPDATE comp_request_employees SET proposed_salary = ?, reason_code = ?, reason_text = ?, is_exception = ? WHERE id = ?`,
-    [proposedSalary, reasonCode, reasonText || null, elig.isException ? 1 : 0, employeeId]);
+    `UPDATE comp_request_employees SET proposed_salary = ?, reason_code = ?, reason_text = ?, is_exception = ?,
+       hire_date = ?, probation_start_date = ?, probation_end_date = ? WHERE id = ?`,
+    [proposedSalary, reasonCode, reasonText || null, elig.isException ? 1 : 0,
+      hireDate, probationStartDate, probationEndDate, employeeId]);
   await touchRequest(row.request_id);
   return getRequest(row.request_id);
 }
@@ -268,6 +276,19 @@ async function submitDraft(id, actorLogin) {
   for (const e of employees) {
     const elig = checkEligibility({ lastReviewDate: e.last_review_date, reasonCode: e.reason_code, reasonText: e.reason_text });
     if (!elig.eligible) throw new CompReviewError(`${e.fio}: ${elig.reason}`);
+
+    // Предлагаемый оклад совпадает с текущим — реального изменения нет, если
+    // только его не даёт переменная часть (§3: «Предлагаемые изменения
+    // переменной части»). Без этой проверки заявка могла уйти на согласование
+    // без единого фактического изменения.
+    if (e.current_salary != null && Number(e.proposed_salary) === Number(e.current_salary)) {
+      const proposedVp = await queryOne(
+        'SELECT 1 FROM comp_variable_pay WHERE employee_row_id = ? AND is_proposed = 1 LIMIT 1', [e.id]);
+      if (!proposedVp) {
+        throw new CompReviewError(
+          `${e.fio}: предлагаемый оклад совпадает с текущим — добавьте изменение переменной части или укажите другой оклад`);
+      }
+    }
   }
   await run("UPDATE comp_requests SET status = 'cb_review', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
   await logActivity(id, null, actorLogin, 'отправил на проверку C&B', null);
