@@ -104,8 +104,8 @@ export function DirectionGroups({ units, people, selected, onToggle }: {
                         {p.positionsDecided} из {p.positionsTotal}
                         {p.lastLoginAt ? ` · заходил ${shortDate(p.lastLoginAt)}` : ' · ещё не заходил'}
                       </span>
+                      {!p.hasTelegram && <span className={s.personBadge}><Badge tone="warn">нет Telegram</Badge></span>}
                     </span>
-                    {!p.hasTelegram && <Badge tone="warn">нет Telegram</Badge>}
                   </label>
                 ))}
                 {!g.people.length && <p className={s.empty}>Людей не найдено.</p>}

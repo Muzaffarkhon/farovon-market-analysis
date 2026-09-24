@@ -50,10 +50,14 @@
 .unitRow { display: flex; flex-direction: column; gap: 2px; }
 .unitMeta { font-size: 12px; color: var(--text-muted); }
 
-.personRow { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); cursor: pointer; }
-.personRow input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
-.personMain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* align-items: flex-start (не center) — ФИО получает всю ширину строки для
+   переноса, а не сжимается бейджем «нет Telegram» сбоку (тот теперь под
+   мета-строкой, см. .personBadge), иначе длинные ФИО ломались на 3 строки. */
+.personRow { display: flex; align-items: flex-start; gap: var(--s-2); min-height: var(--tap); padding: 4px 0; cursor: pointer; }
+.personRow input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+.personMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .personMeta { font-size: 12px; color: var(--text-muted); }
+.personBadge { margin-top: 2px; }
 
 .feedRow { padding-bottom: var(--s-2); border-bottom: 1px solid var(--border); font-size: 13px; }
 .feedMeta { color: var(--text-muted); font-size: 12px; }
