@@ -16,6 +16,15 @@ const GLYPH: Record<string, string> = {
   '/access': '⚿', '/admin': '⚙'
 };
 
+/** ФИО в строке заголовка на телефоне узкое место — «Фамилия Имя» целиком не
+ * помещалось рядом с периодом и обрезалось многоточием. Фамилия остаётся
+ * полностью, от имени (и отчества, если есть) — только первая буква. */
+function shortFio(fio: string): string {
+  const [last, first] = fio.trim().split(/\s+/);
+  if (!last) return fio;
+  return first ? `${last} ${first[0]}.` : last;
+}
+
 type Props = {
   items: NavItem[]; collapsed: boolean; open: boolean;
   onNavigate: () => void; onCloseMobile: () => void; onToggleCollapse: () => void;
@@ -51,7 +60,7 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
             <span className={s.brandName}>Обзор рынка</span>
             <span className={s.brandSubDesktop}>Фаровон · C&amp;B</span>
             <span className={s.brandSubMobile}>
-              <span className={s.accountUser}>{user.fio}</span>
+              <span className={s.accountUser}>{shortFio(user.fio)}</span>
               <span aria-hidden="true"> · </span>
               <PeriodPicker variant="inline" />
             </span>
