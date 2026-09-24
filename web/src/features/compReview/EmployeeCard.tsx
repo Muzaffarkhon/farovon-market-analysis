@@ -90,6 +90,7 @@ export function EmployeeCard({ e, request, access, actions }: {
       </div>
 
       <div className={s.kpiRow}>
+        <span>Последний пересмотр: {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
         {e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
