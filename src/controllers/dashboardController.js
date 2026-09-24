@@ -1,7 +1,8 @@
 const { getExtendedAnalytics } = require('../services/analyticsService');
 const { getActivePeriod } = require('../services/periodService');
 const { isHiddenCompany } = require('../services/companyFilter');
-const { unitScopeFilter } = require('../services/scopeService');
+const { unitScopeFilterAsync } = require('../services/scopeService');
+const { unitsForUser } = require('../services/divisionAssignmentService');
 const { queryAll, queryOne, run } = require('../db/database');
 
 /**
@@ -44,12 +45,12 @@ exports.logExport = async (req, res) => {
  * Область видимости дашборда — общий предикат для всех разделов рынка,
  * см. services/scopeService. Имя сохранено, чтобы не трогать вызовы ниже.
  */
-const dashboardUnitFilter = unitScopeFilter;
+const dashboardUnitFilter = unitScopeFilterAsync;
 
 exports.getCBDashboard = async (req, res) => {
   try {
     const filters = req.body || req.query || {};
-    const unitFilter = dashboardUnitFilter(req.user);
+    const unitFilter = await dashboardUnitFilter(req.user);
     const analytics = await getExtendedAnalytics(filters, { unitFilter });
     if (analytics && typeof analytics === 'object' && !Array.isArray(analytics)) {
       analytics.scoped = !!unitFilter; // фронт покажет пометку «только ваши подразделения»
@@ -125,11 +126,15 @@ exports.getHRBPDashboard = async (req, res) => {
     });
 
     const isAll = (req.user.role === 'admin' || req.user.role === 'cb');
+    // ID-связь, не текстовое ФИО — переименование HR BP не рвёт видимость
+    // (ТЗ, раздел 12, пункт 5). d.hrbp как текст остаётся вопросом «назначен
+    // ли тут вообще кто-то» — то же поведение, что и раньше.
+    const myHrbpUnits = (!isAll && req.user.role === 'hrbp') ? await unitsForUser(req.user.id, 'hrbp') : null;
     const out = [];
 
     divisions.forEach(d => {
       if (!isAll) {
-        if (req.user.role === 'hrbp' && d.hrbp && d.hrbp.toLowerCase() !== req.user.fio.toLowerCase()) return;
+        if (req.user.role === 'hrbp' && d.hrbp && !myHrbpUnits.has(d.unit)) return;
         if (req.user.role === 'dir_head' && !req.user.units.includes(d.unit) && (!d.dir || !req.user.units.includes(d.dir))) return;
       }
 
@@ -212,7 +217,7 @@ exports.exportCSV = async (req, res) => {
   try {
     // Та же область видимости, что и у дашборда — не-admin/cb не выгрузит
     // рынок целиком через этот эндпоинт.
-    const analytics = await getExtendedAnalytics(req.query || {}, { unitFilter: dashboardUnitFilter(req.user) });
+    const analytics = await getExtendedAnalytics(req.query || {}, { unitFilter: await dashboardUnitFilter(req.user) });
     const positions = analytics.positions || [];
 
     const headers = ['Должность', 'Всего записей', 'С окладом', 'Мин (TJS)', '25% перцентиль (TJS)', 'Медиана (TJS)', '75% перцентиль (TJS)', 'Макс (TJS)', 'Среднее (TJS)', 'Размах вилки (%)', 'Компаний с премией', 'Типичная периодичность премии', 'Совокупно, медиана (TJS)'];

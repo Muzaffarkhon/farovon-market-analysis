@@ -9,6 +9,8 @@ const { CAPABILITIES, ROLES, STRUCTURAL_NOTES, RESERVED_ROLE_KEYS } = require('.
 const { hasCapability } = require('../middleware/auth');
 const roleService = require('../services/roleService');
 const surveyImport = require('../services/surveyImport');
+const { splitFioList, joinFioList, findUserByFioFlexible } = require('../services/fioResolver');
+const { resyncDivisionAssignments, unitsForUser } = require('../services/divisionAssignmentService');
 
 // Кириллица/латиница → безопасный ключ роли (kebab, латиница).
 function slugifyRoleKey(label) {
@@ -446,11 +448,16 @@ exports.resetPassword = async (req, res) => {
  * Вычисляет набор доступных подразделений (с каскадом по parent_unit и dir)
  * для руководителя направления (dir_head) или руководителя подотделов (head).
  */
-function getAccessibleDivisions(user, allDivs) {
+// myHeadUnits — заранее полученный набор (getAccessibleDivisionsAsync ниже,
+// unitsForUser(user.id, 'head')); сама функция остаётся синхронной и без
+// обращения к БД — чистая функция, тестируется без БД (test/divisionScope.
+// test.js). ID-связь, не текстовое ФИО — переименование head/dir_head не
+// рвёт ему права на подразделение (ТЗ, раздел 12, пункт 5).
+function getAccessibleDivisions(user, allDivs, myHeadUnits) {
   const userUnits = Array.isArray(user.units)
     ? user.units
     : (user.units ? String(user.units).split(';').map(s => s.trim()).filter(Boolean) : []);
-  const fio = (user.fio || '').trim();
+  const myHead = myHeadUnits || new Set();
 
   const scopeUnits = new Set();
   const scopeDirs = new Set();
@@ -458,7 +465,7 @@ function getAccessibleDivisions(user, allDivs) {
   for (const d of allDivs) {
     const isMyDir = userUnits.includes(d.dir);
     const isMyUnit = userUnits.includes(d.unit);
-    const isHead = fio && d.head && d.head.split(',').map(s => s.trim()).includes(fio);
+    const isHead = myHead.has(d.unit);
     if (isMyDir) scopeDirs.add(d.dir);
     if (isMyDir || isMyUnit || isHead) scopeUnits.add(d.unit);
   }
@@ -479,6 +486,11 @@ function getAccessibleDivisions(user, allDivs) {
   return allDivs.filter(d => scopeUnits.has(d.unit));
 }
 
+async function getAccessibleDivisionsAsync(user, allDivs) {
+  const myHeadUnits = await unitsForUser(user.id, 'head');
+  return getAccessibleDivisions(user, allDivs, myHeadUnits);
+}
+
 exports.getDivisions = async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' || req.user.role === 'cb' || req.user.role === 'hrbp';
@@ -486,7 +498,7 @@ exports.getDivisions = async (req, res) => {
 
     if (!isAdmin) {
       // dir_head и head видят подразделения своего направления или своей ветки оргструктуры
-      const accessible = getAccessibleDivisions(req.user, allDivisions);
+      const accessible = await getAccessibleDivisionsAsync(req.user, allDivisions);
       return res.json({ ok: true, divisions: accessible, groupSuggestions: suggestAdjacentGroups(accessible) });
     }
 
@@ -584,48 +596,6 @@ exports.clearAdjacentGroup = async (req, res) => {
   }
 };
 
-function splitFioList(str) {
-  if (!str) return [];
-  return String(str)
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
-
-function joinFioList(arr) {
-  const unique = [];
-  const seen = new Set();
-  (arr || []).forEach(item => {
-    const clean = String(item || '').trim();
-    if (clean && !seen.has(clean.toLowerCase())) {
-      seen.add(clean.toLowerCase());
-      unique.push(clean);
-    }
-  });
-  return unique.join(', ');
-}
-
-// Находим пользователя точным поиском или нечётким сопоставлением по Фамилии и Имени
-async function findUserByFioFlexible(fioText) {
-  if (!fioText || !String(fioText).trim()) return null;
-  const raw = String(fioText).trim();
-  let u = await queryOne('SELECT id, fio, units FROM users WHERE LOWER(TRIM(fio)) = LOWER(?) AND archived_at IS NULL', [raw]);
-  if (u) return u;
-
-  const words = raw.toLowerCase().replace(/[^a-zа-яёғӣқўҳҷ0-9\s]/gi, '').split(/\s+/).filter(w => w.length > 2);
-  if (words.length >= 2) {
-    const allUsers = await queryAll('SELECT id, fio, units FROM users WHERE archived_at IS NULL');
-    for (const user of allUsers) {
-      const uWords = (user.fio || '').toLowerCase().replace(/[^a-zа-яёғӣқўҳҷ0-9\s]/gi, '').split(/\s+/).filter(w => w.length > 2);
-      const matched = words.filter(w => uWords.includes(w));
-      if (matched.length >= 2) {
-        return user;
-      }
-    }
-  }
-  return null;
-}
-
 // Двусторонняя синхронизация: при сохранении пользователя обновляем divisions.resp и competitors.resp
 async function syncUserUnitsWithDivisions(userFio, oldUnitsStr, newUnitsStr, oldFio) {
   try {
@@ -648,6 +618,7 @@ async function syncUserUnitsWithDivisions(userFio, oldUnitsStr, newUnitsStr, old
           const newRespStr = joinFioList(curList);
           await run('UPDATE divisions SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newRespStr, div.id]);
           await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newRespStr, unitName]);
+          await resyncDivisionAssignments(div.id, 'resp', newRespStr);
         }
       }
     }
@@ -662,11 +633,14 @@ async function syncUserUnitsWithDivisions(userFio, oldUnitsStr, newUnitsStr, old
         if (newRespStr !== div.resp) {
           await run('UPDATE divisions SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [newRespStr, div.id]);
           await run('UPDATE competitors SET resp = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(unit) = LOWER(?)', [newRespStr, unitName]);
+          await resyncDivisionAssignments(div.id, 'resp', newRespStr);
         }
       }
     }
 
     // 3. Если изменилось само ФИО у сохранённых отделов: переименовываем
+    // (division_assignments здесь трогать не нужно — она хранит user_id,
+    // а не текст, и не рвётся при переименовании; см. divisionAssignmentService).
     if (oldFio && oldFio.trim().toLowerCase() !== userFio.trim().toLowerCase()) {
       for (const unitName of kept) {
         const div = await queryOne('SELECT id, resp, head, hrbp FROM divisions WHERE LOWER(unit) = LOWER(?)', [unitName]);
@@ -759,7 +733,7 @@ exports.saveDivision = async (req, res) => {
       if (!existing) return res.status(404).json({ ok: false, error: 'Подразделение не найдено' });
 
       const allDivs = await queryAll('SELECT * FROM divisions');
-      const accessible = getAccessibleDivisions(req.user, allDivs);
+      const accessible = await getAccessibleDivisionsAsync(req.user, allDivs);
       const isAllowed = accessible.some(d => d.unit === cleanUnit);
       if (!isAllowed) {
         return res.status(403).json({
@@ -783,6 +757,10 @@ exports.saveDivision = async (req, res) => {
       // Двусторонняя синхронизация пользователей
       if (head !== undefined) await syncUserDivisionAssignment(existing.head, head, cleanUnit);
       if (resp !== undefined) await syncUserDivisionAssignment(existing.resp, resp, cleanUnit);
+      // ID-связь для прав доступа (division_assignments) — переживает
+      // переименование пользователя, в отличие от текстового ФИО выше.
+      if (head !== undefined) await resyncDivisionAssignments(existing.id, 'head', head ?? existing.head);
+      if (resp !== undefined) await resyncDivisionAssignments(existing.id, 'resp', resp ?? existing.resp);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -818,6 +796,10 @@ exports.saveDivision = async (req, res) => {
       if (head !== undefined) await syncUserDivisionAssignment(existing.head, head, cleanUnit);
       if (resp !== undefined) await syncUserDivisionAssignment(existing.resp, resp, cleanUnit);
       if (hrbp !== undefined) await syncUserDivisionAssignment(existing.hrbp, hrbp, cleanUnit);
+      // ID-связь для прав доступа (division_assignments), см. комментарий выше.
+      if (head !== undefined) await resyncDivisionAssignments(existing.id, 'head', head ?? existing.head);
+      if (resp !== undefined) await resyncDivisionAssignments(existing.id, 'resp', resp ?? existing.resp);
+      if (hrbp !== undefined) await resyncDivisionAssignments(existing.id, 'hrbp', hrbp ?? existing.hrbp);
     } else {
       const assignedPerson = resp || head || hrbp;
       if (assignedPerson) await syncUserDivisionAssignment(null, assignedPerson, cleanUnit);
@@ -893,6 +875,11 @@ exports.createDivision = async (req, res) => {
     ]);
 
     const created = await queryOne('SELECT * FROM divisions WHERE unit = ?', [cleanUnit]);
+    if (created) {
+      await resyncDivisionAssignments(created.id, 'head', cHead);
+      await resyncDivisionAssignments(created.id, 'resp', cResp);
+      await resyncDivisionAssignments(created.id, 'hrbp', cHrbp);
+    }
     res.json({ ok: true, division: created, message: 'Подразделение создано' });
   } catch (err) {
     console.error('createDivision error:', err && err.message ? err.message : err);
@@ -1039,6 +1026,11 @@ exports.batchAssignCascade = async (req, res) => {
     } else {
       return res.status(400).json({ ok: false, error: 'Неизвестный тип роли' });
     }
+
+    // ID-связь для прав доступа (division_assignments) — по каждому
+    // затронутому подразделению направления, см. комментарий у saveDivision.
+    const affectedDivs = await queryAll('SELECT id FROM divisions WHERE dir = ?', [cleanDir]);
+    for (const d of affectedDivs) await resyncDivisionAssignments(d.id, roleType, cleanPerson);
 
     await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
       req.user.login,

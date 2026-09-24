@@ -2,12 +2,12 @@
 
 const { getCoordination } = require('../services/coordinationService');
 const { sendCoordinationReminder } = require('../services/telegramService');
-const { unitScopeFilter } = require('../services/scopeService');
+const { unitScopeFilterAsync } = require('../services/scopeService');
 
 exports.getCoordination = async (req, res) => {
   try {
     const filters = req.query || {};
-    const result = await getCoordination(filters, { unitFilter: unitScopeFilter(req.user) });
+    const result = await getCoordination(filters, { unitFilter: await unitScopeFilterAsync(req.user) });
     res.json(result);
   } catch (err) {
     console.error('coordination error:', err.message);
@@ -21,7 +21,7 @@ exports.remind = async (req, res) => {
     if (!logins.length) return res.status(400).json({ ok: false, error: 'Не выбраны получатели' });
 
     const result = await sendCoordinationReminder(logins, {
-      unitFilter: unitScopeFilter(req.user),
+      unitFilter: await unitScopeFilterAsync(req.user),
       senderFio: (req.user && req.user.fio) || 'HR BP'
     });
     res.json({ ok: true, ...result });

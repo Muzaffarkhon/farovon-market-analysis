@@ -708,6 +708,7 @@ async function migrate() {
   await createTelegramUpdates();
   await createReminderLog();
   await createUserTablePrefs();
+  await createDivisionAssignments();
   await cleanupLegacySurveyTestData();
 }
 
@@ -840,6 +841,60 @@ async function createUserTablePrefs() {
     PRIMARY KEY (login, table_key)
   )`);
   console.log('🔧 Миграция: таблица личных настроек колонок создана');
+}
+
+/**
+ * ID-связь «пользователь ↔ подразделение» вместо сравнения текстовых ФИО
+ * (divisions.head/resp/hrbp) — переименование человека раньше рвало его
+ * права на подразделение, а совпадение ФИО у тёзок путало их (ТЗ, раздел
+ * 12, пункт 5). Текстовые поля остаются — только для отображения и правки
+ * через существующие формы, division_assignments — источник истины для прав.
+ *
+ * Бэкфилл — разовый: если таблица уже не пуста, ничего не делает, дальше её
+ * держат в актуальном состоянии точки записи (adminController.saveDivision
+ * и т.п., см. divisionAssignmentService.resyncDivisionAssignments) при каждой
+ * правке head/resp/hrbp. Так повторный запуск на каждом старте сервера не
+ * пытается заново разобрать текст и не гоняет лишние запросы.
+ */
+async function createDivisionAssignments() {
+  await run(`CREATE TABLE IF NOT EXISTS division_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    division_id INTEGER NOT NULL REFERENCES divisions(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    kind TEXT NOT NULL CHECK(kind IN ('head','resp','hrbp')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(division_id, user_id, kind)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_division_assignments_user ON division_assignments(user_id, kind)');
+
+  const existing = await queryOne('SELECT COUNT(*) AS n FROM division_assignments');
+  if (existing && existing.n > 0) return;
+
+  const { findUserByFioFlexible, splitFioList } = require('../services/fioResolver');
+  const divisions = await queryAll('SELECT id, head, resp, hrbp FROM divisions');
+  let matched = 0;
+  const unmatched = [];
+  for (const d of divisions) {
+    for (const kind of ['head', 'resp', 'hrbp']) {
+      for (const name of splitFioList(d[kind])) {
+        const user = await findUserByFioFlexible(name);
+        if (user) {
+          await run(
+            'INSERT OR IGNORE INTO division_assignments (division_id, user_id, kind) VALUES (?, ?, ?)',
+            [d.id, user.id, kind]
+          );
+          matched++;
+        } else {
+          unmatched.push(`${kind}:"${name}" (division_id=${d.id})`);
+        }
+      }
+    }
+  }
+  console.log(`🔧 Миграция: division_assignments заполнена из divisions.head/resp/hrbp — сопоставлено ${matched}` +
+    (unmatched.length ? `, не сопоставлено ${unmatched.length} (см. ниже)` : ''));
+  if (unmatched.length) {
+    console.log('⚠️  Не сопоставлены с учётной записью (проверьте ФИО вручную):', unmatched.join('; '));
+  }
 }
 
 async function cleanupLegacySurveyTestData() {

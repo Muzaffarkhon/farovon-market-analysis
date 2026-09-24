@@ -28,9 +28,16 @@ const survey = (over = {}) => ({
 });
 
 const users = [
-  { login: 'ivanov', fio: 'Иванов Иван', units: '', last_login_at: '2026-09-10', telegram_chat_id: '111' },
-  { login: 'sidorov', fio: 'Сидоров Сидор', units: 'Цех 2', last_login_at: '', telegram_chat_id: null },
-  { login: 'nobody', fio: 'Никто Нигде', units: '', last_login_at: '2026-09-01', telegram_chat_id: '999' }
+  { id: 1, login: 'ivanov', fio: 'Иванов Иван', units: '', last_login_at: '2026-09-10', telegram_chat_id: '111' },
+  { id: 2, login: 'sidorov', fio: 'Сидоров Сидор', units: 'Цех 2', last_login_at: '', telegram_chat_id: null },
+  { id: 3, login: 'nobody', fio: 'Никто Нигде', units: '', last_login_at: '2026-09-01', telegram_chat_id: '999' }
+];
+
+// division_assignments — ID-связь, замена текстового resp/head (см. divisions
+// выше: Иванов резолвится в resp Цеха 1, Сидоров — head Цеха 2).
+const assignments = [
+  { unit: 'Цех 1', userId: 1 },
+  { unit: 'Цех 2', userId: 2 }
 ];
 
 const build = (opts = {}, unitFilter) => buildCoordination({
@@ -38,7 +45,8 @@ const build = (opts = {}, unitFilter) => buildCoordination({
   unitPositions: opts.unitPositions || unitPositions,
   surveys: opts.surveys || [],
   noComparison: opts.noComparison || [],
-  users: opts.users || users
+  users: opts.users || users,
+  assignments: opts.assignments || assignments
 }, unitFilter);
 
 // ── Подразделения ───────────────────────────────────────────────────────────
@@ -147,7 +155,9 @@ test('лента отсортирована по дате, новые сверх
 // ── Область видимости ────────────────────────────────────────────────────────
 
 test('HR BP видит только свои направления — и в units, и в people, и в feed', () => {
-  const filter = unitScopeFilter({ role: 'hrbp', fio: 'петрова п.' });
+  // myHrbpUnits — то, что в контроллере даёт unitsForUser(user.id, 'hrbp')
+  // (division_assignments), здесь передаём напрямую как чистую функцию.
+  const filter = unitScopeFilter({ role: 'hrbp' }, new Set(['Цех 1', 'Цех 2']));
   const res = build({ surveys: [survey({ unit: 'Цех 3' })] }, filter);
   assert.deepEqual(res.units.map(u => u.unit).sort(), ['Цех 1', 'Цех 2']);
   assert.equal(res.people.some(p => p.login === 'sidorov'), true);

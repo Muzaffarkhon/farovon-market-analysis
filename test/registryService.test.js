@@ -247,7 +247,9 @@ test('admin и C&B видят весь рынок', () => {
 });
 
 test('HR BP видит только свои подразделения', () => {
-  const opts = { unitFilter: unitScopeFilter({ role: 'hrbp', fio: 'Петров П.', units: [] }) };
+  // Второй аргумент — то, что в контроллере даёт unitsForUser(user.id,
+  // 'hrbp') (division_assignments), здесь передаём напрямую.
+  const opts = { unitFilter: unitScopeFilter({ role: 'hrbp', units: [] }, new Set(['Цех 3'])) };
   const res = build(mixed, {}, opts);
   assert.equal(res.total, 1);
   assert.equal(res.rows[0].unit, 'Цех 3');

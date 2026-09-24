@@ -1,7 +1,7 @@
 'use strict';
 
 const { getRegistry, getRegistryCsv } = require('../services/registryService');
-const { unitScopeFilter } = require('../services/scopeService');
+const { unitScopeFilterAsync } = require('../services/scopeService');
 const { run } = require('../db/database');
 
 /** Фильтры приходят телом POST; из query поддержаны для удобства отладки. */
@@ -12,7 +12,7 @@ function filtersOf(req) {
 
 exports.list = async (req, res) => {
   try {
-    const result = await getRegistry(filtersOf(req), { unitFilter: unitScopeFilter(req.user) });
+    const result = await getRegistry(filtersOf(req), { unitFilter: await unitScopeFilterAsync(req.user) });
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('registry error:', err.message);
@@ -27,7 +27,7 @@ exports.list = async (req, res) => {
 exports.exportCsv = async (req, res) => {
   try {
     const filters = filtersOf(req);
-    const { csv, count } = await getRegistryCsv(filters, { unitFilter: unitScopeFilter(req.user) });
+    const { csv, count } = await getRegistryCsv(filters, { unitFilter: await unitScopeFilterAsync(req.user) });
 
     try {
       let dump = '';

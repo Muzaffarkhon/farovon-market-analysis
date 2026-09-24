@@ -17,7 +17,6 @@ const { queryAll } = require('../db/database');
 const { positionProgress, resolveDashboardPeriodId, parseBonusesCol } = require('./analyticsService');
 
 const trim = (v) => String(v == null ? '' : v).trim();
-const low = (v) => trim(v).toLowerCase();
 
 /** Состояние подразделения: «нет штатки» не путаем с «решено полностью». */
 function unitState(decided, total) {
@@ -42,7 +41,7 @@ function groupByUnit(rows) {
  * `unitFilter` — предикат по строке divisions (см. services/scopeService),
  * либо null/undefined — без ограничения.
  */
-function buildCoordination({ divisions, unitPositions, surveys, noComparison, users }, unitFilter) {
+function buildCoordination({ divisions, unitPositions, surveys, noComparison, users, assignments }, unitFilter) {
   const visibleDivisions = unitFilter ? divisions.filter(unitFilter) : divisions;
   const allowedUnits = new Set(visibleDivisions.map(d => trim(d.unit)));
 
@@ -85,22 +84,20 @@ function buildCoordination({ divisions, unitPositions, surveys, noComparison, us
   });
 
   // Люди: units.units (реальное назначение на сбор) плюс resp/head видимого
-  // подразделения по совпадению ФИО (та же логика, что unitScopeFilter уже
-  // применяет для hrbp) — набор объединяем, а не складываем дважды.
-  const respHeadByFio = new Map(); // fio(lower) -> Set(unit)
-  visibleDivisions.forEach(d => {
-    const unit = trim(d.unit);
-    [trim(d.resp), trim(d.head)].forEach(fio => {
-      if (!fio) return;
-      const key = low(fio);
-      if (!respHeadByFio.has(key)) respHeadByFio.set(key, new Set());
-      respHeadByFio.get(key).add(unit);
-    });
+  // подразделения — по ID пользователя (division_assignments), не по
+  // совпадению ФИО: переименование человека раньше «отвязывало» его от
+  // подразделений в этом списке (ТЗ, раздел 12, пункт 5). Набор объединяем,
+  // а не складываем дважды.
+  const respHeadByUserId = new Map(); // userId -> Set(unit)
+  (assignments || []).forEach(a => {
+    if (!allowedUnits.has(a.unit)) return;
+    if (!respHeadByUserId.has(a.userId)) respHeadByUserId.set(a.userId, new Set());
+    respHeadByUserId.get(a.userId).add(a.unit);
   });
 
   const people = users.map(u => {
     const own = trim(u.units).split(';').map(trim).filter(Boolean).filter(x => allowedUnits.has(x));
-    const viaRole = respHeadByFio.get(low(u.fio)) || new Set();
+    const viaRole = respHeadByUserId.get(u.id) || new Set();
     const unitSet = new Set([...own, ...viaRole]);
     let positionsTotal = 0;
     let positionsDecided = 0;
@@ -138,7 +135,7 @@ async function loadCoordinationData(filters = {}) {
   const periodId = resolveDashboardPeriodId(filters.period, currentId);
 
   const surveyCols = 'unit, company, pos_our, pay_from, pay_to, bonuses, bon_type, bon_size, bon_per, benefits, extra, note, created_by, created_at';
-  const [divisions, unitPositions, surveys, noComparison, users] = await Promise.all([
+  const [divisions, unitPositions, surveys, noComparison, users, assignments] = await Promise.all([
     queryAll('SELECT num, dir, unit, resp, head, hrbp FROM divisions'),
     queryAll('SELECT unit, position FROM unit_positions'),
     periodId
@@ -147,10 +144,14 @@ async function loadCoordinationData(filters = {}) {
     periodId
       ? queryAll('SELECT unit, pos_our FROM position_no_comparison WHERE period_id = ?', [periodId])
       : queryAll('SELECT unit, pos_our FROM position_no_comparison'),
-    queryAll("SELECT login, fio, units, last_login_at, telegram_chat_id FROM users WHERE active = 1 AND archived_at IS NULL")
+    queryAll("SELECT id, login, fio, units, last_login_at, telegram_chat_id FROM users WHERE active = 1 AND archived_at IS NULL"),
+    // ID-связь head/resp (division_assignments), не текстовое ФИО — см.
+    // комментарий у respByUserId в buildCoordination.
+    queryAll(`SELECT d.unit AS unit, a.user_id AS "userId" FROM division_assignments a
+                JOIN divisions d ON d.id = a.division_id WHERE a.kind IN ('head', 'resp')`)
   ]);
 
-  return { divisions, unitPositions, surveys, noComparison, users };
+  return { divisions, unitPositions, surveys, noComparison, users, assignments };
 }
 
 async function getCoordination(filters = {}, opts = {}) {
