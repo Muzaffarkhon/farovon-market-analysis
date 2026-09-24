@@ -2758,6 +2758,19 @@ label.lbl {
   border: 1px solid var(--line);
 }
 
+.pos-go {
+  flex: none;
+  display: inline-flex;
+  color: var(--muted);
+  opacity: 0.55;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.pos:hover .pos-go {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
 .batch-sheet {
   max-width: 760px;
 }
@@ -3386,25 +3399,22 @@ label.lbl {
 
 .b-pay-from,
 .b-pay-to,
-.b-grade,
 .b-bon-size,
 .b-extra,
 .b-note {
   width: 100%;
 }
 
-.b-cur,
+/* Период остался в блоке «Оклад» один (валюту убрали) — во всю ширину
+   карточки один выпадающий список смотрится тяжело. */
 .b-pay-per {
   width: 100%;
+  max-width: 280px;
 }
 
 .b-arr {
   display: inline-flex;
   align-items: center;
-}
-
-.b-pick-their {
-  margin-bottom: 8px;
 }
 
 .b-bon-box {
@@ -3601,10 +3611,19 @@ label.lbl {
   font-size: 15px;
 }
 
+/* Экран загрузки между входом и приложением — на весь экран, а не только
+   отступ сверху/снизу, иначе крутилка повисает выше середины. */
+#scrLoad {
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* Тот же размер и толщина кольца, что у .global-busy-spin (крутилка поверх
+   экрана на время сохранения) — один спиннер на весь интерфейс, не два разных. */
 .sp i {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--line);
+  width: 40px;
+  height: 40px;
+  border: 3px solid transparent;
   border-top-color: var(--accent);
   border-radius: 50%;
   display: inline-block;
@@ -7903,10 +7922,8 @@ html.compact {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid var(--line);
+  border: 3px solid transparent;
   border-top-color: var(--accent, #2563eb);
-  background: var(--card);
-  box-shadow: 0 4px 18px rgba(0,0,0,.18);
   animation: global-busy-rot .7s linear infinite;
 }
 @keyframes global-busy-rot { to { transform: rotate(360deg); } }
@@ -9707,22 +9724,19 @@ html.compact {
   font-size: 13px;
   padding: 4px 10px;
 }
-.pos-edit {
-  min-height: 34px;
-  font-size: 14px;
-  padding: 4px 14px;
-  flex: none;
-  white-space: nowrap;
-}
-
 @media (max-width: 560px) {
+  /* Имя должности переносится на 2 строки — держим бейдж и стрелку
+     на уровне первой строки, иначе они зависают по центру карточки. */
   .pos-head {
-    flex-wrap: wrap;
-    gap: 8px 12px;
+    align-items: flex-start;
   }
-  .pos-edit {
-    width: 100%;
-    min-height: 40px;
+  .pos-badge {
+    flex: none;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+  .pos-go {
+    margin-top: 3px;
   }
 }
 
@@ -12795,9 +12809,6 @@ body { font-variant-numeric: tabular-nums; }
 .pos[data-pos-st="part"] { border-left-color: var(--warn); }
 .pos[data-pos-st="none"] { border-left-color: var(--line-strong); }
 .pos[data-pos-st="done"] { border-left-color: var(--ok); }
-.pos-bar { height: 6px; border-radius: 9999px; background: var(--line); margin-top: 8px; overflow: hidden; max-width: 260px; }
-.pos-bar i { display: block; height: 100%; background: var(--warn); border-radius: 9999px; }
-.pos-bar.ok i { background: var(--ok); }
 .pos-name { font-size: 15.5px; }
 .pos:hover { transform: none; }
 
