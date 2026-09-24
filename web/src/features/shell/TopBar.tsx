@@ -39,6 +39,7 @@ export function TopBar({ title }: { title: string }) {
             <div className={s.menu} role="menu" onMouseLeave={() => setMenu(false)}>
               <div className={s.menuUser}>{user.fio}</div>
               <PeriodPicker variant="menu" />
+              <button type="button" role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); navigate('/profile'); }}>Профиль</button>
               <button type="button" role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); navigate('/change-password'); }}>Сменить пароль</button>
               <button type="button" role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); void logout(); }}>Выйти</button>
             </div>

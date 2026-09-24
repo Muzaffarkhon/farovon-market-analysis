@@ -37,6 +37,7 @@ export interface SessionData {
   myPeriodGrants: PeriodGrant[];
   mustChangePassword: boolean;
   needsUnitPick: boolean;
+  needsAssignment: boolean;
   units: Unit[];
   allUnits: { unit: string; dir: string; group_key: string }[];
   companies: { name: string; seg: string; region: string }[];
@@ -48,6 +49,11 @@ export interface SessionData {
 
 export interface OkResponse { ok: true }
 export interface ResumeResponse { ok: true; data: SessionData }
+export interface ChangeNameResponse { ok: true; message: string; data: SessionData }
+export interface SetUnitsResponse { ok: true; data: SessionData }
+export interface LiveSignatureResponse { ok: true; sig: string; version: string }
+export interface TelegramBotInfoResponse { ok: true; username: string | null }
+export interface TelegramLinkResponse { ok: true; deepLink: string; expiresInMinutes: number }
 export interface ForPeriodResponse { ok: true; surveys: Survey[]; progress: { decided: number; total: number } }
 export interface SelectionsResponse { ok: true; selections: Record<string, string[]>; noComparison: string[] }
 export interface SaveDetailsResponse { ok: true; units?: string[] }

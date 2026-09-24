@@ -76,6 +76,7 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
               вход в меню на телефоне, дублировать его незачем. */}
           <div className={s.mobileAccount}>
             <button type="button" className={s.accountItem} onClick={() => toggleTheme()}>Сменить тему</button>
+            <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/profile'); }}>Профиль</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/change-password'); }}>Сменить пароль</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); void logout(); }}>Выйти</button>
           </div>

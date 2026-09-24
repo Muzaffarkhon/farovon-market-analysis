@@ -2,6 +2,9 @@ import { Navigate, Route, Routes } from 'react-router';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { ChangePasswordScreen } from '../features/auth/ChangePasswordScreen';
+import { UnitPickScreen } from '../features/auth/UnitPickScreen';
+import { AssignmentPendingScreen } from '../features/auth/AssignmentPendingScreen';
+import { ProfileScreen } from '../features/auth/ProfileScreen';
 import { Shell } from '../features/shell/Shell';
 import { UnitsScreen } from '../features/survey/UnitsScreen';
 import { UnitScreen } from '../features/survey/UnitScreen';
@@ -35,8 +38,11 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/change-password" element={<RequireAuth><ChangePasswordScreen /></RequireAuth>} />
+      <Route path="/unit-pick" element={<RequireAuth><UnitPickScreen /></RequireAuth>} />
+      <Route path="/pending-assignment" element={<RequireAuth><AssignmentPendingScreen /></RequireAuth>} />
       <Route path="/" element={<RequireAuth><Shell /></RequireAuth>}>
         <Route index element={<UnitsScreen />} />
+        <Route path="profile" element={<ProfileScreen />} />
         <Route path="survey/:unit" element={<UnitScreen />} />
         <Route path="survey/:unit/:position" element={<SheetScreen />} />
         <Route path="registry" element={<RegistryScreen />} />

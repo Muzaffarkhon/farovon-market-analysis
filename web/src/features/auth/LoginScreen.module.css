@@ -1,4 +1,13 @@
 .wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: var(--s-4); }
 .card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-6); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow); }
+.cardWide { max-width: 480px; }
 .title { margin: 0 0 var(--s-2); font-size: 20px; }
 .error { color: var(--danger); font-size: 14px; }
+.hint { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+/* Список подразделений при первом входе (UnitPickScreen) — тот же приём,
+   что и мультивыбор подразделений в формах администрирования (Admin.module.css
+   .unitList/.unitRow), но экран живёт вне админки (до входа в Shell), поэтому
+   стили не шарятся между модулями. */
+.list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-2); }
+.listRow { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }

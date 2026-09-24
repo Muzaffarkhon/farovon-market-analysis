@@ -7,6 +7,7 @@ import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
 import { usePullToRefresh } from './usePullToRefresh';
+import { useLiveRefresh } from './useLiveRefresh';
 import s from './Shell.module.css';
 
 const TitleCtx = createContext<(t: string) => void>(() => {});
@@ -35,6 +36,7 @@ export function Shell({ children }: { children?: ReactNode }) {
   // На телефоне кнопки «Обновить» в шапке больше нет (Sidebar/TabBar теперь
   // внизу) — обновление жестом «потянуть вниз», как в браузере/приложениях.
   const { pull, refreshing } = usePullToRefresh(mainRef, () => qc.invalidateQueries());
+  useLiveRefresh();
 
   // Переход на новый экран закрывает выдвижное меню телефона — иначе оно
   // перекрывает контент после клика по пункту.
