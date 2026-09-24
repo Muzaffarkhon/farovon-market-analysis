@@ -1,5 +1,9 @@
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public fields?: Record<string, string>) {
+  // `raw` — исходное тело ответа: нужно там, где сервер шлёт структурированную
+  // информацию вместе с ok:false, а не просто текст ошибки (напр. runMaintenance
+  // возвращает {ok:false, needsConfirm:true, total, message} для задач,
+  // требующих подтверждения объёма перед выполнением).
+  constructor(public status: number, message: string, public fields?: Record<string, string>, public raw?: unknown) {
     super(message);
     this.name = 'ApiError';
   }
@@ -47,7 +51,7 @@ export async function request<T>(path: string, body?: unknown, init: { method?: 
     throw new ApiError(401, data?.message || data?.error || 'Требуется вход');
   }
   if (!res.ok || !data || data.ok === false) {
-    throw new ApiError(res.status, data?.message || data?.error || 'Ошибка сервера', data?.fields);
+    throw new ApiError(res.status, data?.message || data?.error || 'Ошибка сервера', data?.fields, data);
   }
   return data as T;
 }

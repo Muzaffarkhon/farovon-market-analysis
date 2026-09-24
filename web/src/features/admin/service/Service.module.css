@@ -1,0 +1,12 @@
+.statGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--s-3); }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.statValue { font-size: 22px; font-weight: 700; }
+.statLabel { font-size: 12.5px; color: var(--text-muted); }
+.taskList { display: flex; flex-direction: column; gap: var(--s-2); }
+.task {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface);
+}
+.taskTitle { font-weight: 600; }
+.taskNote { font-size: 13px; color: var(--text-muted); }
+.sectionTitle { font-size: 13px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--text-muted); }

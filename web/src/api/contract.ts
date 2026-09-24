@@ -544,6 +544,39 @@ export interface SimilarNamesResponse { ok: true; kind: DictKind; pairs: Similar
 
 export interface MergeResponse { ok: true; message: string }
 
+// ─── Администрирование: обслуживание и статус данных ───
+
+export interface DataStatus {
+  divisions: number | null; divisionsWithCode: number | null; staffPairs: number | null; staffUnits: number | null;
+  positions: number | null; companies: number | null; companiesWithDirs: number | null; companiesWithCode: number | null;
+  competitors: number | null; competitorUnits: number | null; surveys: number | null;
+}
+export interface DataStatusResponse { ok: true; status: DataStatus }
+
+export interface LockGroup { owner: string; comps: number; survs: number; role: string }
+export interface LocksResponse { ok: true; locks: LockGroup[] }
+
+export interface SurveyImportSkippedRow { row: number; reason: string }
+export interface SurveyCellIssue { row: number; column: string; value: string; rule: string; message: string }
+export interface SurveyDuplicate { row: number; sid: string; unit: string; company: string; pos_their: string; pay_from: number }
+export interface SurveyImportReport {
+  rowsInFile: number; rowsPrepared: number; rowsSkipped: number; skippedRows: SurveyImportSkippedRow[];
+  companies: number; companiesNew: number; positions: number; positionsNew: number;
+  units: number; unitsList: string[]; unitsNew: string[]; unitsUnassigned: number; unitsViaPosition: number;
+  managers: number; managersUnknown: number;
+  posOurMatched: number; posOurSentinel: number;
+  cellIssues: number; issuesByRule: Record<string, number>; suspiciousHourly: number;
+  duplicatesInDb: number; duplicatesInFile: number;
+}
+export interface SurveyImportDryRunResponse {
+  ok: true; dryRun: true; report: SurveyImportReport;
+  cellIssues: SurveyCellIssue[]; duplicates: SurveyDuplicate[]; skippedRows: SurveyImportSkippedRow[];
+}
+export interface SurveyImportCommitResponse {
+  ok: true; dryRun: false; inserted: number; updated: number; skippedDup: number;
+  newUnits: number; newCompanies: number; newPositions: number; message: string; report: SurveyImportReport;
+}
+
 // ─── Администрирование: рассылка через Telegram ───
 
 export interface BroadcastRecipientCandidate { id: number; login: string; fio: string; role: Role; units: string[] }
