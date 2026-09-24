@@ -16,6 +16,15 @@
 @media (max-width: 767px) {
   .right { display: none; }
 }
+/* Марка платформы в шапке — только на телефоне (на десктопе она уже есть в
+   Sidebar.tsx, дублировать незачем). */
+.logoMark {
+  display: none; flex: none; width: 26px; height: 26px; border-radius: var(--r-sm);
+  background: var(--accent); align-items: center; justify-content: center;
+}
+@media (max-width: 767px) {
+  .logoMark { display: flex; }
+}
 /* Названия подразделений длинные («Завод металлоконструкций и СП») — на телефоне
    заголовок переносится на вторую строку, а не обрезается многоточием. */
 .title { margin: 0; font-size: 14.5px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
