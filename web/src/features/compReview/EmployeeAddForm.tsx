@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CompEmployeeOption, CompReasonCode } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Input } from '../../design/Input';
@@ -8,13 +8,21 @@ import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 
-export function EmployeeAddForm({ onAdd, adding }: {
+export function EmployeeAddForm({ onAdd, adding, unit }: {
   onAdd: (a: { fio: string; unit: string; position?: string; staffId?: number; proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string }) => void;
   adding: boolean;
+  /** Подразделение из шапки заявки — список ниже сразу фильтруется по нему, без ручного набора. */
+  unit?: string;
 }) {
   const { reasons } = useCompReasons();
   const emp = useEmployeeSearch();
   const [selected, setSelected] = useState<CompEmployeeOption | null>(null);
+
+  // Подразделение выбрали/сменили наверху — подставляем его в поиск сотрудников,
+  // чтобы список ниже сразу показывал штат этого подразделения. Пользователь
+  // может после этого свободно уточнить поиск (набрать ФИО) — эффект больше не
+  // перезатирает ввод, пока само подразделение не изменится ещё раз.
+  useEffect(() => { if (unit) emp.setQuery(unit); }, [unit]); // eslint-disable-line react-hooks/exhaustive-deps
   const [proposedSalary, setProposedSalary] = useState('');
   const [reasonCode, setReasonCode] = useState<CompReasonCode | ''>('');
   const [reasonText, setReasonText] = useState('');

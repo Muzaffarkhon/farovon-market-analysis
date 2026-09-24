@@ -105,7 +105,7 @@ export function RequestScreen() {
 
       {canEditDraft && (
         <div style={{ marginTop: 'var(--s-3)' }}>
-          <EmployeeAddForm onAdd={data => req.addEmployee(data)} adding={false} />
+          <EmployeeAddForm onAdd={data => req.addEmployee(data)} adding={false} unit={r.unit} />
         </div>
       )}
 
