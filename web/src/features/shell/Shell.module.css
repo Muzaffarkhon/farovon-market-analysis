@@ -61,7 +61,6 @@
   .periodInMenu { display: none; }
   .periodSelect { display: inline-block; }
   .periodSelectMenu { display: none; }
-  .tabBar { display: none; }
 }
 
 /* Постоянная панель из 4 разделов внизу экрана на телефоне — вместо того,
@@ -96,6 +95,13 @@
   background: var(--accent); color: #fff; font-size: 20px; box-shadow: var(--shadow);
 }
 .tabItem.tabPrimary.tabActive .tabIcon { filter: brightness(1.1); }
+/* Правило "скрыть на ПК" должно стоять в файле ПОСЛЕ базового .tabBar
+   (который сам задаёт display: flex) — иначе при равной специфичности
+   каскад берёт более позднее правило по тексту файла, и на десктопе
+   панель всё равно показывалась поверх скрывающего медиа-запроса. */
+@media (min-width: 768px) {
+  .tabBar { display: none; }
+}
 @media (max-width: 767px) {
   .main { padding-bottom: calc(var(--s-4) + 60px + env(safe-area-inset-bottom)); }
 }
