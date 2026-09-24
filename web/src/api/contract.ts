@@ -504,6 +504,33 @@ export interface StaffImportReport {
 export interface StaffImportDryRunResponse { ok: true; dryRun: true; report: StaffImportReport }
 export interface StaffImportCommitResponse { ok: true; message: string }
 
+// ─── Администрирование: справочники (компании/должности/сегменты/регионы) ───
+
+export type DictKind = 'companies' | 'positions' | 'segments' | 'regions';
+
+export interface DictCompanyItem { name: string; code: string; segment: string; region: string; dirs: string[]; used: number }
+export interface DictPositionItem { id: number; name: string; code: string; dirs: string[]; payFrom: number; payTo: number; units: number; used: number }
+export interface DictSimpleItem { name: string; used: number }
+export type DictItem = DictCompanyItem | DictPositionItem | DictSimpleItem;
+export interface DictListResponse { ok: true; kind: DictKind; items: DictItem[]; dirs: string[] }
+
+export interface SaveDictPayload {
+  prev: string; name: string; segment?: string; region?: string; dirs?: string[]; payFrom?: number; payTo?: number;
+}
+export interface SaveDictResponse { ok: true; name: string }
+export interface DictUsageResponse { ok: true; name: string; total: number; parts: string[] }
+export interface DictDeleteResponse { ok: true; removed: string; total: number; parts: string[] }
+
+export interface CompanyUsageRow { name: string; competitors: number; surveys: number; total: number; inDictionary: boolean; segment: string; region: string }
+export interface PositionUsageRow { name: string; surveys: number; selections: number; unitPositions: number; total: number; inDictionary: boolean; dirs: string; code: string }
+export interface CompanyUsageResponse { ok: true; companies: CompanyUsageRow[] }
+export interface PositionUsageResponse { ok: true; positions: PositionUsageRow[] }
+
+export interface SimilarNamePair { a: string; b: string; ratio: number; reason: string; aInfo: Record<string, string>; bInfo: Record<string, string> }
+export interface SimilarNamesResponse { ok: true; kind: DictKind; pairs: SimilarNamePair[] }
+
+export interface MergeResponse { ok: true; message: string }
+
 // ─── Администрирование: рассылка через Telegram ───
 
 export interface BroadcastRecipientCandidate { id: number; login: string; fio: string; role: Role; units: string[] }

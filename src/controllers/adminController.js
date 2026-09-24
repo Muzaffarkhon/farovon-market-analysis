@@ -1890,6 +1890,10 @@ exports.runMaintenance = async (req, res) => {
       for (const dup of mergeList) {
         const rSurv = await run('UPDATE surveys SET pos_our = ? WHERE pos_our = ?', [keep, dup]);
         totalSurv += rSurv.rowsAffected || 0;
+        // pos_their (должность у компании-конкурента) — тот же natural key,
+        // что и pos_our; при обычном переименовании (dictionaryController.save)
+        // оба поля обновляются, здесь тоже не пропускаем.
+        await run('UPDATE surveys SET pos_their = ? WHERE pos_their = ?', [keep, dup]);
 
         // UNIQUE(unit, period_id, pos_our, company): убираем дублирующую
         // строку вместо переименования, если основная должность для этой же

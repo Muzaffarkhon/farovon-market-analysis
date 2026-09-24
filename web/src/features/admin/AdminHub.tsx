@@ -5,7 +5,7 @@ import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
 import s from './Admin.module.css';
 
-type IconName = 'users' | 'units' | 'book' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money';
+type IconName = 'users' | 'units' | 'book' | 'dict' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money';
 type GroupKey = 'access' | 'structure' | 'method' | 'process';
 type Section = { to: string; title: string; note: string; icon: IconName; group: GroupKey; visible: (u: SessionUser) => boolean };
 
@@ -32,7 +32,8 @@ const ICON_PATHS: Record<IconName, string> = {
   shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   send: '<path d="M4 12l16-8-6 16-2.5-6.5L4 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
   log: '<path d="M5 3.5h11l3 3V20.5H5V3.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  money: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v9M9.5 9.8c0-1.3 1.1-2 2.5-2s2.5.7 2.5 1.8c0 2.4-5 1.2-5 3.6 0 1.1 1.1 1.8 2.5 1.8s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+  money: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v9M9.5 9.8c0-1.3 1.1-2 2.5-2s2.5.7 2.5 1.8c0 2.4-5 1.2-5 3.6 0 1.1 1.1 1.8 2.5 1.8s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  dict: '<circle cx="9" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/><circle cx="15" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/>'
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -46,6 +47,7 @@ const SECTIONS: Section[] = [
   { to: '/access', title: 'Роли и доступы', note: 'Права ролей и личные исключения', icon: 'shield', group: 'access', visible: u => u.role === 'admin' },
   { to: '/admin/divisions', title: 'Оргструктура', note: 'Подразделения, ответственные, направления', icon: 'units', group: 'structure', visible: u => has(u, 'divisions:view') },
   { to: '/admin/staff', title: 'Справочник сотрудников', note: 'Штат из 1С — импорт и правка', icon: 'book', group: 'structure', visible: u => has(u, 'dictionary:view') },
+  { to: '/admin/dictionary', title: 'Справочники', note: 'Компании, должности, сегменты, регионы — правка и объединение дублей', icon: 'dict', group: 'structure', visible: u => has(u, 'dictionary:view') },
   { to: '/admin/grading', title: 'Грейдирование — настройка', note: 'Формулировки анкеты, блоки, комиссия', icon: 'grades', group: 'method', visible: u => has(u, 'grading:factors') || has(u, 'grading:blocks') || has(u, 'grading:committee') },
   { to: '/admin/benchmark', title: 'Бенчмаркинг', note: 'Импорт источников и сопоставление позиций', icon: 'chart', group: 'method', visible: u => has(u, 'benchmarks:import') || has(u, 'benchmarks:map') },
   { to: '/admin/periods', title: 'Периоды сбора', note: 'Открытие/закрытие периода, доступ к архиву', icon: 'clock', group: 'process', visible: u => has(u, 'period:view') },

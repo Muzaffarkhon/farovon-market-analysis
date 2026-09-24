@@ -16,6 +16,7 @@ import { AdminHub } from '../features/admin/AdminHub';
 import { UsersScreen } from '../features/admin/users/UsersScreen';
 import { DivisionsScreen } from '../features/admin/divisions/DivisionsScreen';
 import { StaffScreen } from '../features/admin/staff/StaffScreen';
+import { DictionaryScreen } from '../features/admin/dictionary/DictionaryScreen';
 import { GradingAdminScreen } from '../features/admin/grading/GradingAdminScreen';
 import { BenchmarkAdminScreen } from '../features/admin/benchmark/BenchmarkAdminScreen';
 import { PeriodsScreen } from '../features/admin/periods/PeriodsScreen';
@@ -50,6 +51,7 @@ export function AppRoutes() {
         <Route path="admin/users" element={<UsersScreen />} />
         <Route path="admin/divisions" element={<DivisionsScreen />} />
         <Route path="admin/staff" element={<StaffScreen />} />
+        <Route path="admin/dictionary" element={<DictionaryScreen />} />
         <Route path="admin/grading" element={<GradingAdminScreen />} />
         <Route path="admin/benchmark" element={<BenchmarkAdminScreen />} />
         <Route path="admin/periods" element={<PeriodsScreen />} />
