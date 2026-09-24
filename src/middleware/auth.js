@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { queryOne } = require('../db/database');
+const { effectiveUnitsForUser } = require('../services/userScopeService');
 
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'] || req.headers['x-token'];
@@ -45,10 +46,21 @@ async function authMiddleware(req, res, next) {
       return res.status(403).json({ ok: false, error: 'USER_BLOCKED', message: 'Учетная запись заблокирована' });
     }
 
-    req.user = {
-      ...user,
-      units: user.units ? user.units.split(';').map(s => s.trim()).filter(Boolean) : []
-    };
+    // Права на подразделения/направления решаются по ID-связи
+    // (user_division_scope/user_direction_scope), не по совпадению текста —
+    // переименование подразделения не должно рвать доступ. Текстовое поле
+    // units — запасной вариант на случай, если ID-связь ещё не подтянулась
+    // (гонка сразу после записи до пересинхронизации).
+    let units = [];
+    try {
+      units = await effectiveUnitsForUser(user.id);
+    } catch (e) {
+      console.error('effectiveUnitsForUser error:', e);
+    }
+    if (!units.length && user.units) {
+      units = user.units.split(';').map(s => s.trim()).filter(Boolean);
+    }
+    req.user = { ...user, units };
     // Клеймы токена (sess — начало сессии) нужны /auth/resume для проверки
     // абсолютного потолка жизни сессии.
     req.tokenClaims = decoded;

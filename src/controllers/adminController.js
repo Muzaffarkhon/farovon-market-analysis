@@ -11,6 +11,7 @@ const roleService = require('../services/roleService');
 const surveyImport = require('../services/surveyImport');
 const { splitFioList, joinFioList, findUserByFioFlexible } = require('../services/fioResolver');
 const { resyncDivisionAssignments, unitsForUser } = require('../services/divisionAssignmentService');
+const { resyncUserScope } = require('../services/userScopeService');
 
 // Кириллица/латиница → безопасный ключ роли (kebab, латиница).
 function slugifyRoleKey(label) {
@@ -254,6 +255,7 @@ exports.saveUser = async (req, res) => {
 
       // Двусторонняя синхронизация: закреплённые подразделения пользователя с divisions.resp
       await syncUserUnitsWithDivisions(String(fio).trim(), existing.units, unitsStr, existing.fio);
+      await resyncUserScope(existing.id, unitsStr);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -286,6 +288,8 @@ exports.saveUser = async (req, res) => {
       if (unitsStr) {
         await syncUserUnitsWithDivisions(String(fio).trim(), '', unitsStr);
       }
+      const createdUser = await queryOne('SELECT id FROM users WHERE login = ?', [finalLogin]);
+      if (createdUser) await resyncUserScope(createdUser.id, unitsStr);
 
       await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
         req.user.login,
@@ -685,7 +689,9 @@ async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
         const oldUser = await findUserByFioFlexible(fio);
         if (oldUser && oldUser.units) {
           const remaining = oldUser.units.split(';').map(x => x.trim()).filter(x => x && x.toLowerCase() !== cleanUnit.toLowerCase());
-          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remaining.join('; '), oldUser.id]);
+          const remainingStr = remaining.join('; ');
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [remainingStr, oldUser.id]);
+          await resyncUserScope(oldUser.id, remainingStr);
         }
       }
     }
@@ -698,7 +704,9 @@ async function syncUserDivisionAssignment(oldPerson, newPerson, cleanUnit) {
         const list = newUser.units ? newUser.units.split(';').map(x => x.trim()).filter(Boolean) : [];
         if (!list.some(x => x.toLowerCase() === cleanUnit.toLowerCase())) {
           list.push(cleanUnit);
-          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [list.join('; '), newUser.id]);
+          const listStr = list.join('; ');
+          await run('UPDATE users SET units = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [listStr, newUser.id]);
+          await resyncUserScope(newUser.id, listStr);
         }
       }
     }

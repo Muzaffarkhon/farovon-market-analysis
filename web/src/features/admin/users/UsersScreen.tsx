@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AdminUser } from '../../../api/contract';
 import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
 import { useConfirm } from '../../../design/Confirm';
+import { Input } from '../../../design/Input';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
 import { useSort } from '../../../design/useSort';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -23,10 +27,34 @@ export function UsersScreen() {
   // admin, сервер отклонит запрос, поэтому кнопку им не показываем.
   const canCreate = user.login.toLowerCase() === 'admin';
   const [tab, setTab] = useState<'active' | 'archive'>('active');
+  const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const activeSort = useSort(u.users ?? [], (row, key) => {
+  const roles = u.roles;
+
+  // Одно поле фильтра на каждый столбец таблицы (кроме статуса/действий,
+  // у которых уже есть свой чекбокс/кнопки в строке) — тот же приём, что в
+  // реестре (RegistryFilters), а не общий поиск или один произвольный список.
+  const filterFields: TableFilterField<AdminUser>[] = useMemo(() => [
+    { key: 'role', label: 'Роль', get: r => roles?.find(x => x.key === r.role)?.label ?? r.role, kind: 'select' },
+    { key: 'units', label: 'Подразделения', get: r => r.units.join(', ') },
+    { key: 'phone', label: 'Телефон', get: r => r.phone },
+    { key: 'position', label: 'Должность', get: r => r.position },
+    { key: 'status', label: 'Статус', get: r => r.active ? 'активен' : 'выключен', kind: 'select' },
+    { key: 'telegram', label: 'Telegram', get: r => r.hasTelegram ? 'есть' : 'нет', kind: 'select' }
+  ], [roles]);
+
+  const searched = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = u.users ?? [];
+    if (!q) return rows;
+    return rows.filter(r => r.fio.toLowerCase().includes(q) || r.login.toLowerCase().includes(q));
+  }, [u.users, query]);
+
+  const tf = useTableFilters(searched, filterFields);
+
+  const activeSort = useSort(tf.filtered, (row, key) => {
     switch (key) {
       case 'fio': return row.fio;
       case 'login': return row.login;
@@ -67,6 +95,19 @@ export function UsersScreen() {
       </div>
 
       {tab === 'active' && (
+        <>
+          <div className={s.head}>
+            <Input label="Поиск" placeholder="ФИО или логин" value={query} onChange={e => setQuery(e.target.value)} />
+            <TableFiltersButton f={tf} fields={filterFields} />
+          </div>
+          <ActiveTableFilterChips f={tf} />
+          <p className={s.hint}>
+            {tf.filtered.length === (u.users ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(u.users ?? []).length} записей`}
+          </p>
+        </>
+      )}
+
+      {tab === 'active' && (
         <div className={s.tableWrapFill}>
           <table className={s.table}>
             <thead>
@@ -89,7 +130,9 @@ export function UsersScreen() {
                   <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
                   <td>{row.login}</td>
                   <td>{row.role}</td>
-                  <td>{row.units.join(', ')}</td>
+                  <td className={s.wrapCell} title={row.units.join('\n')}>
+                    {row.units.length > 3 ? `${row.units.slice(0, 3).join(', ')} и ещё ${row.units.length - 3}` : row.units.join(', ')}
+                  </td>
                   <td>{row.phone}</td>
                   <td>{row.position}</td>
                   <td>
@@ -122,7 +165,7 @@ export function UsersScreen() {
                   </td>
                 </tr>
               ))}
-              {!u.users?.length && <tr><td colSpan={10} className={s.empty}>Пользователей нет</td></tr>}
+              {!activeSort.sorted.length && <tr><td colSpan={10} className={s.empty}>{(u.users ?? []).length ? 'Ничего не найдено' : 'Пользователей нет'}</td></tr>}
             </tbody>
           </table>
         </div>

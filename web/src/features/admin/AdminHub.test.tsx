@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { AdminHub } from './AdminHub';
@@ -8,8 +9,14 @@ vi.mock('../shell/Shell', () => ({ useScreenTitle: () => {} }));
 let session: SessionData;
 vi.mock('../auth/useSession', () => ({ useSessionData: () => session }));
 
+// AdminHub опрашивает /admin/support/unread-count для бейджа — мок вместо
+// реальной сети, значение переопределяется по тестам через unreadCountMock.
+const unreadCountMock = vi.fn(() => Promise.resolve({ ok: true, count: 0 }));
+vi.mock('../../api/support', () => ({ supportApi: { unreadCount: () => unreadCountMock() } }));
+
 function renderHub() {
-  return render(<MemoryRouter><AdminHub /></MemoryRouter>);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}><MemoryRouter><AdminHub /></MemoryRouter></QueryClientProvider>);
 }
 
 test('видна только карточка раздела, на который есть право', () => {
@@ -32,4 +39,11 @@ test('без единого права показана пустая подск�
   session = { user: { role: 'user', capabilities: [] } } as unknown as SessionData;
   renderHub();
   expect(screen.getByText('Нет доступных разделов администрирования.')).toBeInTheDocument();
+});
+
+test('непрочитанные обращения показаны бейджем на карточке поддержки', async () => {
+  unreadCountMock.mockResolvedValueOnce({ ok: true, count: 3 });
+  session = { user: { role: 'admin', capabilities: [] } } as unknown as SessionData;
+  renderHub();
+  expect(await screen.findByText('3')).toBeInTheDocument();
 });

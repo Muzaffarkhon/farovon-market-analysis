@@ -30,6 +30,7 @@ import { RequestsListScreen } from '../features/compReview/RequestsListScreen';
 import { RequestScreen } from '../features/compReview/RequestScreen';
 import { CompCommitteeScreen } from '../features/admin/compReview/CompCommitteeScreen';
 import { AuditLogScreen } from '../features/admin/service/AuditLogScreen';
+import { ServiceScreen } from '../features/admin/service/ServiceScreen';
 
 export const BASENAME = '/new';
 
@@ -64,6 +65,7 @@ export function AppRoutes() {
         <Route path="admin/support" element={<SupportInboxScreen />} />
         <Route path="admin/broadcast" element={<BroadcastScreen />} />
         <Route path="admin/audit-log" element={<AuditLogScreen />} />
+        <Route path="admin/service" element={<ServiceScreen />} />
         <Route path="admin/comp-committee" element={<CompCommitteeScreen />} />
         <Route path="support" element={<SupportScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />

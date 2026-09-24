@@ -7,6 +7,9 @@ import { Input } from '../../../design/Input';
 import { Combobox } from '../../../design/Combobox';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -48,16 +51,32 @@ export function DictionaryScreen() {
 
   const meta = KINDS.find(k => k.id === kind)!;
 
-  const filtered = useMemo(() => {
+  // Поля фильтра — свои для каждого справочника (у сегментов/регионов нет
+  // сегмента/региона/направлений, только «Использований»), тот же приём для
+  // всех: одно поле на столбец таблицы, не общий поиск и не один список.
+  const filterFields: TableFilterField<DictItem>[] = useMemo(() => {
+    const fields: TableFilterField<DictItem>[] = [];
+    if (kind === 'companies') {
+      fields.push(
+        { key: 'segment', label: 'Сегмент', get: it => (isCompany(it) ? it.segment : ''), kind: 'select' },
+        { key: 'region', label: 'Регион', get: it => (isCompany(it) ? it.region : ''), kind: 'select' }
+      );
+    }
+    if (kind === 'companies' || kind === 'positions') {
+      fields.push({ key: 'dirs', label: 'Направления', get: it => ((isCompany(it) || isPosition(it)) ? it.dirs.join(', ') : ''), kind: 'select', options: dict.dirs, multi: true });
+    }
+    fields.push({ key: 'used', label: 'Использований', get: it => String(it.used), kind: 'numeric' });
+    return fields;
+  }, [kind, dict.dirs]);
+
+  const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
     const items = dict.items ?? [];
     if (!q) return items;
-    return items.filter(it =>
-      it.name.toLowerCase().includes(q) ||
-      (isCompany(it) && (it.segment.toLowerCase().includes(q) || it.region.toLowerCase().includes(q))) ||
-      ((isCompany(it) || isPosition(it)) && it.dirs.some(d => d.toLowerCase().includes(q)))
-    );
+    return items.filter(it => it.name.toLowerCase().includes(q));
   }, [dict.items, query]);
+
+  const tf = useTableFilters(searched, filterFields);
 
   async function handleDelete(name: string) {
     const u = await dict.usage(name);
@@ -75,7 +94,7 @@ export function DictionaryScreen() {
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <div className={s.tabs}>
-          {KINDS.map(k => <Chip key={k.id} active={kind === k.id} onClick={() => { setKind(k.id); setQuery(''); }}>{k.label}</Chip>)}
+          {KINDS.map(k => <Chip key={k.id} active={kind === k.id} onClick={() => { setKind(k.id); setQuery(''); tf.reset(); }}>{k.label}</Chip>)}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {canMerge && (kind === 'companies' || kind === 'positions') && (
@@ -85,7 +104,14 @@ export function DictionaryScreen() {
         </div>
       </div>
 
-      <Input label="Поиск" placeholder="Название, сегмент, регион, направление" value={query} onChange={e => setQuery(e.target.value)} />
+      <div className={s.head}>
+        <Input label="Поиск" placeholder="Название" value={query} onChange={e => setQuery(e.target.value)} />
+        <TableFiltersButton f={tf} fields={filterFields} />
+      </div>
+      <ActiveTableFilterChips f={tf} />
+      <p className={s.hint}>
+        {tf.filtered.length === (dict.items ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(dict.items ?? []).length} записей`}
+      </p>
 
       {dict.error ? <p className={s.empty}>{dict.error.message}</p> : dict.loading ? <Skeleton lines={8} /> : (
         <div className={s.tableWrapFill}>
@@ -100,7 +126,7 @@ export function DictionaryScreen() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(it => (
+              {tf.filtered.map(it => (
                 <tr key={it.name}>
                   <td><button type="button" className={s.linkBtn} onClick={() => setEditing(it)}>{it.name}</button></td>
                   {isCompany(it) && <>
@@ -118,7 +144,7 @@ export function DictionaryScreen() {
                   </td>
                 </tr>
               ))}
-              {!filtered.length && <tr><td colSpan={6} className={s.empty}>{query ? 'Ничего не найдено' : `Справочник «${meta.label}» пока пуст`}</td></tr>}
+              {!tf.filtered.length && <tr><td colSpan={6} className={s.empty}>{(dict.items ?? []).length ? 'Ничего не найдено' : `Справочник «${meta.label}» пока пуст`}</td></tr>}
             </tbody>
           </table>
         </div>

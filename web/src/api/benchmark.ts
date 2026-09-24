@@ -12,6 +12,10 @@ import type {
  * их не трогает), `request()` везде остальном шлёт тело JSON-ом.
  */
 export const benchmarkApi = {
+  // GET-навигация браузера ради Content-Disposition, без фильтров — сервер
+  // всегда отдаёт полную матрицу по всем сопоставленным должностям.
+  exportUrl: () => '/api/benchmarks/export',
+
   compare: (positionName: string) =>
     request<{ ok: true; result: BenchmarkCompareResult }>('/benchmarks/compare?' + new URLSearchParams({ positionName })),
   summaryWidgets: () =>

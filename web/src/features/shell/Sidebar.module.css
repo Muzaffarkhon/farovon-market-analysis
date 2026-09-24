@@ -20,7 +20,8 @@
 }
 .brandMark {
   flex: none; width: 28px; height: 28px; border-radius: var(--r-sm);
-  background: linear-gradient(135deg, var(--accent), var(--accent)); color: #fff;
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
+  box-shadow: var(--icon-3d-shadow); color: #fff;
   display: flex; align-items: center; justify-content: center;
   border: 0; padding: 0; cursor: pointer;
 }
@@ -54,7 +55,11 @@
 }
 .link:hover { background: var(--surface); }
 .link.active { background: var(--surface); color: var(--text); font-weight: 600; }
-.icon { flex: none; width: 22px; text-align: center; font-size: 16px; color: var(--accent); }
+.icon {
+  flex: none; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); font-size: 14px; color: var(--accent);
+  background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow);
+}
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
 

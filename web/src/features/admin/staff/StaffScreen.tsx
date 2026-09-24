@@ -6,7 +6,10 @@ import { Input } from '../../../design/Input';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
 import { useSort } from '../../../design/useSort';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
 import { StaffImportWizard } from './StaffImportWizard';
@@ -20,14 +23,27 @@ export function StaffScreen() {
   const [editing, setEditing] = useState<StaffRecord | 'new' | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
-  const filtered = useMemo(() => {
+  const unitOptions = useMemo(() => {
+    const set = new Set<string>();
+    (st.items ?? []).forEach(r => { if (r.unit) set.add(r.unit); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [st.items]);
+
+  const filterFields: TableFilterField<StaffRecord>[] = useMemo(() => [
+    { key: 'unit', label: 'Подразделение', get: r => r.unit, kind: 'select', options: unitOptions },
+    { key: 'position', label: 'Должность', get: r => r.position }
+  ], [unitOptions]);
+
+  const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = st.items ?? [];
     if (!q) return rows;
-    return rows.filter(r => r.fio.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q));
+    return rows.filter(r => r.fio.toLowerCase().includes(q));
   }, [st.items, query]);
 
-  const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
+  const tf = useTableFilters(searched, filterFields);
+
+  const { sorted, sortKey, sortDir, sortBy } = useSort(tf.filtered, (row, key) => {
     switch (key) {
       case 'fio': return row.fio;
       case 'unit': return row.unit;
@@ -42,14 +58,19 @@ export function StaffScreen() {
   return (
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
-        <Input label="Поиск" placeholder="ФИО или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
+        <Input label="Поиск" placeholder="ФИО" value={query} onChange={e => setQuery(e.target.value)} />
+        <TableFiltersButton f={tf} fields={filterFields} />
         <div style={{ display: 'flex', gap: 8 }}>
           <Button size="sm" variant="secondary" onClick={() => setImportOpen(true)}>Импорт из 1С</Button>
           <Button size="sm" onClick={() => setEditing('new')}>Добавить</Button>
         </div>
       </div>
 
-      {st.importedAt && <p className={s.hint}>Последний импорт: {st.importedAt}</p>}
+      <ActiveTableFilterChips f={tf} />
+      <p className={s.hint}>
+        {st.importedAt && <>Последний импорт: {st.importedAt} · </>}
+        {tf.filtered.length === (st.items ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(st.items ?? []).length} записей`}
+      </p>
 
       <div className={s.tableWrapFill}>
         <table className={s.table}>
@@ -77,7 +98,7 @@ export function StaffScreen() {
                 </td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={4} className={s.empty}>Справочник пуст</td></tr>}
+            {!sorted.length && <tr><td colSpan={4} className={s.empty}>{(st.items ?? []).length ? 'Ничего не найдено' : 'Справочник пуст'}</td></tr>}
           </tbody>
         </table>
       </div>

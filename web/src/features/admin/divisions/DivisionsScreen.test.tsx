@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DivisionsScreen } from './DivisionsScreen';
 import * as adminApiModule from '../../../api/admin';
@@ -45,8 +45,9 @@ test('dir_head в карточке подразделения видит пол�
   session = { user: { role: 'dir_head', capabilities: ['divisions:edit'] } } as unknown as SessionData;
   renderScreen();
   await userEvent.click(await screen.findByText('Цех 1'));
-  expect(screen.getByLabelText('Направление')).toBeDisabled();
-  expect(screen.getByLabelText('Руководитель')).toBeEnabled();
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByLabelText('Направление')).toBeDisabled();
+  expect(dialog.getByLabelText('Руководитель')).toBeEnabled();
 });
 
 test('admin видит все кнопки управления', async () => {

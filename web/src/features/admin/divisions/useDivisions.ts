@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../api/admin';
 import { ApiError } from '../../../api/client';
 import type {
-  SaveDivisionPayload, CreateDivisionPayload, MoveDivisionPayload, BatchAssignPayload
+  SaveDivisionPayload, CreateDivisionPayload, MoveDivisionPayload, BatchAssignPayload,
+  ApplyAdjacentGroupPayload, ClearAdjacentGroupPayload
 } from '../../../api/contract';
 import { useToast } from '../../../design/Toast';
 
@@ -50,13 +51,28 @@ export function useDivisions() {
     onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось выполнить массовое назначение', 'error')
   });
 
+  const applyAdjacentGroup = useMutation({
+    mutationFn: (p: ApplyAdjacentGroupPayload) => adminApi.applyAdjacentGroup(p),
+    onSuccess: r => { toast.show(`Объединено площадок: ${r.applied}`, 'ok'); invalidate(); },
+    onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось объединить в смежную группу', 'error')
+  });
+
+  const clearAdjacentGroup = useMutation({
+    mutationFn: (p: ClearAdjacentGroupPayload) => adminApi.clearAdjacentGroup(p),
+    onSuccess: () => { toast.show('Группа разъединена', 'ok'); invalidate(); },
+    onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось разъединить группу', 'error')
+  });
+
   return {
     divisions: divisions.data?.divisions, divisionsLoading: divisions.isLoading, divisionsError: divisions.error as Error | null,
+    groupSuggestions: divisions.data?.groupSuggestions ?? [],
     save: save.mutate,
     create: create.mutate, creating: create.isPending,
     move: move.mutate,
     setHidden: hide.mutate,
     remove: remove.mutate,
-    batchAssign: batchAssign.mutate, batchAssigning: batchAssign.isPending
+    batchAssign: batchAssign.mutate, batchAssigning: batchAssign.isPending,
+    applyAdjacentGroup: applyAdjacentGroup.mutate, applyingAdjacentGroup: applyAdjacentGroup.isPending,
+    clearAdjacentGroup: clearAdjacentGroup.mutate
   };
 }

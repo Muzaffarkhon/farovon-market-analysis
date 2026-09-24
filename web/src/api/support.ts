@@ -3,7 +3,8 @@ import type {
   OkResponse, SupportFilters, SupportThreadsResponse, SupportThreadResponse,
   SupportQuickRepliesResponse, SaveQuickReplyPayload, SupportFaqResponse, SaveFaqPayload,
   LinkEmployeeResponse,
-  MySupportThreadsResponse, MySupportThreadResponse, MySupportStartResponse, MySupportUnreadResponse
+  MySupportThreadsResponse, MySupportThreadResponse, MySupportStartResponse, MySupportUnreadResponse,
+  AdminSupportUnreadResponse
 } from './contract';
 
 function qs(params: Record<string, string | undefined>) {
@@ -23,6 +24,7 @@ export const supportApi = {
   faq: () => request<SupportFaqResponse>('/support/faq'),
 
   // Админка — инбокс
+  unreadCount: () => request<AdminSupportUnreadResponse>('/admin/support/unread-count'),
   adminThreads: (filters: SupportFilters) => request<SupportThreadsResponse>('/admin/support/threads' + qs({ ...filters })),
   adminThread: (id: number) => request<SupportThreadResponse>(`/admin/support/threads/${id}`),
   adminReply: (threadId: number, text: string) => request<OkResponse>('/admin/support/reply', { thread_id: threadId, text }),

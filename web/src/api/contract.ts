@@ -61,8 +61,10 @@ export interface AddCompanyResponse { ok: true; name: string; list: string[] }
 export interface NoComparisonResponse { ok: true; units: string[] }
 
 export interface Capability { id: string; resource: string; resourceLabel: string; label: string }
-export interface RoleInfo { key: string; label: string; is_protected: boolean; is_admin: boolean; users: number; note: string }
+export interface RoleInfo { key: string; label: string; is_protected: boolean; is_admin: boolean; structural: boolean; users: number; note: string }
 export interface RoleMatrixResponse { ok: true; capabilities: Capability[]; matrix: Record<string, string[]>; roles: RoleInfo[] }
+export interface CreateRoleResponse { ok: true; key: string; label: string }
+export interface RenameRoleResponse { ok: true; key: string; label: string }
 
 export interface Grant {
   userLogin: string; userFio: string; userRole: Role; capability: string; effect: 'grant' | 'deny';
@@ -481,7 +483,8 @@ export interface Division {
   group_key: string | null; region: string | null; org_role: string | null;
   is_survey_target: number; is_hidden: number; parent_unit: string | null;
 }
-export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: unknown[] }
+export interface AdjacentGroupSuggestion { key: string; dir: string; units: { unit: string; region: string }[] }
+export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: AdjacentGroupSuggestion[] }
 
 export interface SaveDivisionPayload {
   unit: string; dir?: string; head?: string; resp?: string; hrbp?: string; note?: string;
@@ -493,6 +496,10 @@ export interface MoveDivisionPayload { unit: string; targetDir: string; parentUn
 export interface MoveDivisionResponse { ok: true; message: string; unit: string; newDir: string; newParentUnit: string | null; competitorsUpdated: number }
 export interface BatchAssignPayload { dir: string; roleType: 'head' | 'hrbp' | 'resp'; personName: string }
 export interface BatchAssignResponse { ok: true; message: string; affectedDivisions: number }
+export interface ApplyAdjacentGroupPayload { key: string; units: string[]; force?: boolean }
+export interface ApplyAdjacentGroupResponse { ok: true; key: string; applied: number }
+export interface ClearAdjacentGroupPayload { key: string }
+export interface ClearAdjacentGroupResponse { ok: true; key: string; cleared: number }
 
 // ─── Администрирование: справочник сотрудников ───
 
@@ -536,6 +543,39 @@ export interface SimilarNamePair { a: string; b: string; ratio: number; reason: 
 export interface SimilarNamesResponse { ok: true; kind: DictKind; pairs: SimilarNamePair[] }
 
 export interface MergeResponse { ok: true; message: string }
+
+// ─── Администрирование: обслуживание и статус данных ───
+
+export interface DataStatus {
+  divisions: number | null; divisionsWithCode: number | null; staffPairs: number | null; staffUnits: number | null;
+  positions: number | null; companies: number | null; companiesWithDirs: number | null; companiesWithCode: number | null;
+  competitors: number | null; competitorUnits: number | null; surveys: number | null;
+}
+export interface DataStatusResponse { ok: true; status: DataStatus }
+
+export interface LockGroup { owner: string; comps: number; survs: number; role: string }
+export interface LocksResponse { ok: true; locks: LockGroup[] }
+
+export interface SurveyImportSkippedRow { row: number; reason: string }
+export interface SurveyCellIssue { row: number; column: string; value: string; rule: string; message: string }
+export interface SurveyDuplicate { row: number; sid: string; unit: string; company: string; pos_their: string; pay_from: number }
+export interface SurveyImportReport {
+  rowsInFile: number; rowsPrepared: number; rowsSkipped: number; skippedRows: SurveyImportSkippedRow[];
+  companies: number; companiesNew: number; positions: number; positionsNew: number;
+  units: number; unitsList: string[]; unitsNew: string[]; unitsUnassigned: number; unitsViaPosition: number;
+  managers: number; managersUnknown: number;
+  posOurMatched: number; posOurSentinel: number;
+  cellIssues: number; issuesByRule: Record<string, number>; suspiciousHourly: number;
+  duplicatesInDb: number; duplicatesInFile: number;
+}
+export interface SurveyImportDryRunResponse {
+  ok: true; dryRun: true; report: SurveyImportReport;
+  cellIssues: SurveyCellIssue[]; duplicates: SurveyDuplicate[]; skippedRows: SurveyImportSkippedRow[];
+}
+export interface SurveyImportCommitResponse {
+  ok: true; dryRun: false; inserted: number; updated: number; skippedDup: number;
+  newUnits: number; newCompanies: number; newPositions: number; message: string; report: SurveyImportReport;
+}
 
 // ─── Администрирование: рассылка через Telegram ───
 
@@ -667,4 +707,5 @@ export interface MySupportThreadsResponse { ok: true; rows: MySupportThreadListI
 export interface MySupportThreadResponse { ok: true; thread: SupportThread; messages: SupportMessage[] }
 export interface MySupportStartResponse { ok: true; id: number }
 export interface MySupportUnreadResponse { ok: true; count: number }
+export interface AdminSupportUnreadResponse { ok: true; count: number }
 

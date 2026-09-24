@@ -5,10 +5,14 @@ import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
 import { useSort } from '../../../design/useSort';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
+import { AdjacentGroupsModal } from './AdjacentGroupsModal';
 import { BatchAssignForm } from './BatchAssignForm';
 import { CreateDivisionForm } from './CreateDivisionForm';
 import { DivisionForm } from './DivisionForm';
@@ -26,17 +30,38 @@ export function DivisionsScreen() {
   const [moving, setMoving] = useState<Division | null>(null);
   const [creating, setCreating] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const rows = d.divisions ?? [];
-    if (!q) return rows;
-    return rows.filter(r => r.unit.toLowerCase().includes(q) || (r.dir ?? '').toLowerCase().includes(q));
-  }, [d.divisions, query]);
+  const groupCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    (d.divisions ?? []).forEach(row => {
+      const key = String(row.group_key || '').trim();
+      if (key) map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    return map;
+  }, [d.divisions]);
 
   const dirOptions = useMemo(() => [...new Set((d.divisions ?? []).map(r => r.dir).filter(Boolean))] as string[], [d.divisions]);
 
-  const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
+  const filterFields: TableFilterField<Division>[] = useMemo(() => [
+    { key: 'dir', label: 'Направление', get: r => r.dir ?? '', kind: 'select', options: dirOptions },
+    { key: 'head', label: 'Руководитель', get: r => r.head },
+    { key: 'resp', label: 'Ответственный', get: r => r.resp },
+    { key: 'hrbp', label: 'HRBP', get: r => r.hrbp },
+    { key: 'target', label: 'Цель сбора', get: r => r.is_survey_target ? 'да' : 'нет', kind: 'select' },
+    { key: 'hidden', label: 'Скрыто', get: r => r.is_hidden ? 'да' : 'нет', kind: 'select' }
+  ], [dirOptions]);
+
+  const searched = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = d.divisions ?? [];
+    if (!q) return rows;
+    return rows.filter(r => r.unit.toLowerCase().includes(q));
+  }, [d.divisions, query]);
+
+  const tf = useTableFilters(searched, filterFields);
+
+  const { sorted, sortKey, sortDir, sortBy } = useSort(tf.filtered, (row, key) => {
     switch (key) {
       case 'unit': return row.unit;
       case 'dir': return row.dir;
@@ -55,12 +80,19 @@ export function DivisionsScreen() {
   return (
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
-        <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
+        <Input label="Поиск" placeholder="По названию" value={query} onChange={e => setQuery(e.target.value)} />
+        <TableFiltersButton f={tf} fields={filterFields} />
         <div style={{ display: 'flex', gap: 8 }}>
+          {isAdmin && <Button size="sm" variant="secondary" onClick={() => setGroupsOpen(true)}>Смежные группы{groupCounts.size ? ` (${groupCounts.size})` : ''}</Button>}
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setBatchOpen(true)}>Массовое назначение</Button>}
           {isAdmin && <Button size="sm" onClick={() => setCreating(true)}>Создать</Button>}
         </div>
       </div>
+
+      <ActiveTableFilterChips f={tf} />
+      <p className={s.hint}>
+        {tf.filtered.length === (d.divisions ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(d.divisions ?? []).length} записей`}
+      </p>
 
       <div className={s.tableWrapFill}>
         <table className={s.table}>
@@ -79,7 +111,12 @@ export function DivisionsScreen() {
           <tbody>
             {sorted.map(row => (
               <tr key={row.id}>
-                <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button></td>
+                <td>
+                  <button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button>
+                  {row.group_key && (groupCounts.get(row.group_key) ?? 0) > 1 && (
+                    <span className={s.hint}> · Смежная · {groupCounts.get(row.group_key)} площ.</span>
+                  )}
+                </td>
                 <td>{row.dir}</td>
                 <td className={s.wrapCell}>{row.head}</td>
                 <td className={s.wrapCell}>{row.resp}</td>
@@ -104,7 +141,7 @@ export function DivisionsScreen() {
                 </td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={8} className={s.empty}>Подразделения не найдены</td></tr>}
+            {!sorted.length && <tr><td colSpan={8} className={s.empty}>Подразделения не найдены</td></tr>}
           </tbody>
         </table>
       </div>
@@ -112,8 +149,20 @@ export function DivisionsScreen() {
       {editing && (
         <DivisionForm
           division={editing}
+          suggestions={d.groupSuggestions}
           onClose={() => setEditing(null)}
           onSubmit={p => { d.save(p); setEditing(null); }}
+          onApplyGroup={p => d.applyAdjacentGroup(p)}
+        />
+      )}
+
+      {groupsOpen && (
+        <AdjacentGroupsModal
+          divisions={d.divisions ?? []}
+          applying={d.applyingAdjacentGroup}
+          onClose={() => setGroupsOpen(false)}
+          onApply={p => d.applyAdjacentGroup({ ...p, force: true })}
+          onClear={p => d.clearAdjacentGroup(p)}
         />
       )}
 

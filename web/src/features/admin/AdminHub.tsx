@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { SessionUser } from '../../api/contract';
+import { Badge } from '../../design/Badge';
 import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
+import { useSupportUnreadCount } from './support/useSupportUnreadCount';
 import s from './Admin.module.css';
 
-type IconName = 'users' | 'units' | 'book' | 'dict' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money';
+type IconName = 'users' | 'units' | 'book' | 'dict' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money' | 'tools';
 type GroupKey = 'access' | 'structure' | 'method' | 'process';
 type Section = { to: string; title: string; note: string; icon: IconName; group: GroupKey; visible: (u: SessionUser) => boolean };
 
@@ -33,7 +35,8 @@ const ICON_PATHS: Record<IconName, string> = {
   send: '<path d="M4 12l16-8-6 16-2.5-6.5L4 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
   log: '<path d="M5 3.5h11l3 3V20.5H5V3.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   money: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v9M9.5 9.8c0-1.3 1.1-2 2.5-2s2.5.7 2.5 1.8c0 2.4-5 1.2-5 3.6 0 1.1 1.1 1.8 2.5 1.8s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  dict: '<circle cx="9" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/><circle cx="15" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/>'
+  dict: '<circle cx="9" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/><circle cx="15" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/>',
+  tools: '<path d="M14.7 6.3a4 4 0 015.6 5.6l-1 1-5.6-5.6 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.3 7.7L4.5 16.5a2 2 0 000 2.8l.2.2a2 2 0 002.8 0l8.8-8.8" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M5 19l-1.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -54,6 +57,7 @@ const SECTIONS: Section[] = [
   { to: '/admin/support', title: 'Чат поддержки', note: 'Инбокс, привязка к сотруднику, готовые фразы', icon: 'chat', group: 'process', visible: u => has(u, 'support:manage') },
   { to: '/admin/broadcast', title: 'Рассылка', note: 'Сообщение через Telegram-бота выбранным сотрудникам', icon: 'send', group: 'process', visible: u => has(u, 'broadcast:send') },
   { to: '/admin/audit-log', title: 'Журнал изменений', note: 'Кто, когда и что сделал в администрировании', icon: 'log', group: 'process', visible: u => has(u, 'service:view') },
+  { to: '/admin/service', title: 'Обслуживание и статус данных', note: 'Счётчики загруженных данных, сервисные задачи, импорт анкеты из CSV', icon: 'tools', group: 'process', visible: u => has(u, 'service:view') },
   { to: '/admin/comp-committee', title: 'Пересмотр ЗП — комиссия', note: 'Состав комиссии, режим голосования', icon: 'money', group: 'process', visible: u => has(u, 'comp:admin') }
 ];
 
@@ -61,7 +65,7 @@ function has(u: SessionUser, c: string) {
   return u.role === 'admin' || u.capabilities.includes(c);
 }
 
-function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections: Section[] }) {
+function AdminGroupBlock({ groupKey, sections, badges }: { groupKey: GroupKey; sections: Section[]; badges: Record<string, number> }) {
   const storageKey = `admin-group-${groupKey}`;
   const [expanded, setExpanded] = useState(() => {
     try { return localStorage.getItem(storageKey) !== '0'; } catch { return true; }
@@ -87,7 +91,10 @@ function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections:
             <Link key={sec.to} to={sec.to} className={s.card}>
               <span className={s.cardIcon}><Icon name={sec.icon} /></span>
               <span>
-                <div className={s.cardTitle}>{sec.title}</div>
+                <div className={s.cardTitle}>
+                  {sec.title}
+                  {!!badges[sec.to] && <> <Badge tone="warn">{badges[sec.to] > 99 ? '99+' : badges[sec.to]}</Badge></>}
+                </div>
                 <div className={s.cardNote}>{sec.note}</div>
               </span>
             </Link>
@@ -101,6 +108,8 @@ function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections:
 export function AdminHub() {
   useScreenTitle('Администрирование');
   const { user } = useSessionData();
+  const support = useSupportUnreadCount();
+  const badges: Record<string, number> = { '/admin/support': support.count };
   const visible = SECTIONS.filter(sec => sec.visible(user));
   const groups = GROUP_ORDER
     .map(key => ({ key, sections: visible.filter(sec => sec.group === key) }))
@@ -108,7 +117,7 @@ export function AdminHub() {
 
   return (
     <div className={s.groupList}>
-      {groups.map(g => <AdminGroupBlock key={g.key} groupKey={g.key} sections={g.sections} />)}
+      {groups.map(g => <AdminGroupBlock key={g.key} groupKey={g.key} sections={g.sections} badges={badges} />)}
       {!visible.length && <p className={s.empty}>Нет доступных разделов администрирования.</p>}
     </div>
   );
