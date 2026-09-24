@@ -5,10 +5,12 @@ import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
 import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
-import { Select } from '../../../design/Select';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
 import { useSort } from '../../../design/useSort';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -26,20 +28,33 @@ export function UsersScreen() {
   const canCreate = user.login.toLowerCase() === 'admin';
   const [tab, setTab] = useState<'active' | 'archive'>('active');
   const [query, setQuery] = useState('');
-  const [role, setRole] = useState('');
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const filtered = useMemo(() => {
+  const roles = u.roles;
+
+  // Одно поле фильтра на каждый столбец таблицы (кроме статуса/действий,
+  // у которых уже есть свой чекбокс/кнопки в строке) — тот же приём, что в
+  // реестре (RegistryFilters), а не общий поиск или один произвольный список.
+  const filterFields: TableFilterField<AdminUser>[] = useMemo(() => [
+    { key: 'role', label: 'Роль', get: r => roles?.find(x => x.key === r.role)?.label ?? r.role, kind: 'select' },
+    { key: 'units', label: 'Подразделения', get: r => r.units.join(', ') },
+    { key: 'phone', label: 'Телефон', get: r => r.phone },
+    { key: 'position', label: 'Должность', get: r => r.position },
+    { key: 'status', label: 'Статус', get: r => r.active ? 'активен' : 'выключен', kind: 'select' },
+    { key: 'telegram', label: 'Telegram', get: r => r.hasTelegram ? 'есть' : 'нет', kind: 'select' }
+  ], [roles]);
+
+  const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = u.users ?? [];
-    return rows.filter(r =>
-      (!q || r.fio.toLowerCase().includes(q) || r.login.toLowerCase().includes(q) || r.units.some(unit => unit.toLowerCase().includes(q))) &&
-      (!role || r.role === role)
-    );
-  }, [u.users, query, role]);
+    if (!q) return rows;
+    return rows.filter(r => r.fio.toLowerCase().includes(q) || r.login.toLowerCase().includes(q));
+  }, [u.users, query]);
 
-  const activeSort = useSort(filtered, (row, key) => {
+  const tf = useTableFilters(searched, filterFields);
+
+  const activeSort = useSort(tf.filtered, (row, key) => {
     switch (key) {
       case 'fio': return row.fio;
       case 'login': return row.login;
@@ -68,10 +83,6 @@ export function UsersScreen() {
   if (u.usersLoading) return <Skeleton lines={6} />;
 
   const formOpen = creating || !!editing;
-  const roleLabel = (key: string) => u.roles?.find(r => r.key === key)?.label ?? key;
-  const roleOptions = [...new Set((u.users ?? []).map(r => r.role))]
-    .sort((a, b) => roleLabel(a).localeCompare(roleLabel(b), 'ru'))
-    .map(key => ({ value: key, label: roleLabel(key) }));
 
   return (
     <div className={s.screenFill} data-wide>
@@ -86,15 +97,12 @@ export function UsersScreen() {
       {tab === 'active' && (
         <>
           <div className={s.head}>
-            <Input label="Поиск" placeholder="ФИО, логин или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
-            <Select
-              label="Роль" value={role} placeholder={`Все роли (${(u.users ?? []).length})`}
-              onChange={e => setRole(e.target.value)}
-              options={roleOptions}
-            />
+            <Input label="Поиск" placeholder="ФИО или логин" value={query} onChange={e => setQuery(e.target.value)} />
+            <TableFiltersButton f={tf} fields={filterFields} />
           </div>
+          <ActiveTableFilterChips f={tf} />
           <p className={s.hint}>
-            {filtered.length === (u.users ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(u.users ?? []).length} записей`}
+            {tf.filtered.length === (u.users ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(u.users ?? []).length} записей`}
           </p>
         </>
       )}
@@ -157,7 +165,7 @@ export function UsersScreen() {
                   </td>
                 </tr>
               ))}
-              {!filtered.length && <tr><td colSpan={10} className={s.empty}>{(u.users ?? []).length ? 'Ничего не найдено' : 'Пользователей нет'}</td></tr>}
+              {!activeSort.sorted.length && <tr><td colSpan={10} className={s.empty}>{(u.users ?? []).length ? 'Ничего не найдено' : 'Пользователей нет'}</td></tr>}
             </tbody>
           </table>
         </div>

@@ -3,10 +3,12 @@ import type { Division } from '../../../api/contract';
 import { Button } from '../../../design/Button';
 import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
-import { Select } from '../../../design/Select';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
+import { ActiveTableFilterChips, TableFiltersButton } from '../../../design/TableFilters';
 import { useSort } from '../../../design/useSort';
+import type { TableFilterField } from '../../../design/useTableFilters';
+import { useTableFilters } from '../../../design/useTableFilters';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -24,7 +26,6 @@ export function DivisionsScreen() {
   const d = useDivisions();
   const confirm = useConfirm();
   const [query, setQuery] = useState('');
-  const [dirFilter, setDirFilter] = useState('');
   const [editing, setEditing] = useState<Division | null>(null);
   const [moving, setMoving] = useState<Division | null>(null);
   const [creating, setCreating] = useState(false);
@@ -40,18 +41,27 @@ export function DivisionsScreen() {
     return map;
   }, [d.divisions]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const rows = d.divisions ?? [];
-    return rows.filter(r =>
-      (!q || r.unit.toLowerCase().includes(q) || (r.dir ?? '').toLowerCase().includes(q)) &&
-      (!dirFilter || r.dir === dirFilter)
-    );
-  }, [d.divisions, query, dirFilter]);
-
   const dirOptions = useMemo(() => [...new Set((d.divisions ?? []).map(r => r.dir).filter(Boolean))] as string[], [d.divisions]);
 
-  const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
+  const filterFields: TableFilterField<Division>[] = useMemo(() => [
+    { key: 'dir', label: 'Направление', get: r => r.dir ?? '', kind: 'select', options: dirOptions },
+    { key: 'head', label: 'Руководитель', get: r => r.head },
+    { key: 'resp', label: 'Ответственный', get: r => r.resp },
+    { key: 'hrbp', label: 'HRBP', get: r => r.hrbp },
+    { key: 'target', label: 'Цель сбора', get: r => r.is_survey_target ? 'да' : 'нет', kind: 'select' },
+    { key: 'hidden', label: 'Скрыто', get: r => r.is_hidden ? 'да' : 'нет', kind: 'select' }
+  ], [dirOptions]);
+
+  const searched = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const rows = d.divisions ?? [];
+    if (!q) return rows;
+    return rows.filter(r => r.unit.toLowerCase().includes(q));
+  }, [d.divisions, query]);
+
+  const tf = useTableFilters(searched, filterFields);
+
+  const { sorted, sortKey, sortDir, sortBy } = useSort(tf.filtered, (row, key) => {
     switch (key) {
       case 'unit': return row.unit;
       case 'dir': return row.dir;
@@ -70,12 +80,8 @@ export function DivisionsScreen() {
   return (
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
-        <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
-        <Select
-          label="Направление" value={dirFilter} placeholder={`Все направления (${(d.divisions ?? []).length})`}
-          onChange={e => setDirFilter(e.target.value)}
-          options={dirOptions.map(o => ({ value: o, label: o }))}
-        />
+        <Input label="Поиск" placeholder="По названию" value={query} onChange={e => setQuery(e.target.value)} />
+        <TableFiltersButton f={tf} fields={filterFields} />
         <div style={{ display: 'flex', gap: 8 }}>
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setGroupsOpen(true)}>Смежные группы{groupCounts.size ? ` (${groupCounts.size})` : ''}</Button>}
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setBatchOpen(true)}>Массовое назначение</Button>}
@@ -83,8 +89,9 @@ export function DivisionsScreen() {
         </div>
       </div>
 
+      <ActiveTableFilterChips f={tf} />
       <p className={s.hint}>
-        {filtered.length === (d.divisions ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(d.divisions ?? []).length} записей`}
+        {tf.filtered.length === (d.divisions ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(d.divisions ?? []).length} записей`}
       </p>
 
       <div className={s.tableWrapFill}>
@@ -134,7 +141,7 @@ export function DivisionsScreen() {
                 </td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={8} className={s.empty}>Подразделения не найдены</td></tr>}
+            {!sorted.length && <tr><td colSpan={8} className={s.empty}>Подразделения не найдены</td></tr>}
           </tbody>
         </table>
       </div>

@@ -1,0 +1,4 @@
+.grid { display: grid; grid-template-columns: 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }
+@media (min-width: 400px) { .grid { grid-template-columns: 1fr 1fr; } }
+.foot { display: flex; justify-content: space-between; gap: var(--s-2); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
