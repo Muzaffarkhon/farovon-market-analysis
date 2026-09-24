@@ -41,9 +41,14 @@ test('кнопка «Напомнить» выключена, пока никт�
   expect(await screen.findByRole('button', { name: 'Напомнить' })).toBeDisabled();
 });
 
+async function expandDir() {
+  await userEvent.click(await screen.findByText(/Дивизион Север/));
+}
+
 test('выбор людей включает кнопку и отправляет ровно выбранные логины', async () => {
   renderScreen();
-  await userEvent.click(await screen.findByRole('checkbox', { name: 'Иванов Иван' }));
+  await expandDir();
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Иванов Иван' }));
   const btn = screen.getByRole('button', { name: /Напомнить/ });
   expect(btn).toBeEnabled();
   await userEvent.click(btn);
@@ -52,12 +57,13 @@ test('выбор людей включает кнопку и отправляе�
 
 test('после отправки показан тост с числами из ответа сервера', async () => {
   renderScreen();
-  await userEvent.click(await screen.findByRole('checkbox', { name: 'Иванов Иван' }));
+  await expandDir();
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Иванов Иван' }));
   await userEvent.click(screen.getByRole('button', { name: /Напомнить/ }));
   expect(await screen.findByText(/Отправлено 1, пропущено 1/)).toBeInTheDocument();
 });
 
-test('без подразделений — сообщение вместо трёх пустых колонок', async () => {
+test('без подразделений — сообщение вместо колонок', async () => {
   get.mockResolvedValue({ ok: true, units: [], people: [], feed: [] });
   renderScreen();
   expect(await screen.findByText('Закреплённых направлений не найдено.')).toBeInTheDocument();

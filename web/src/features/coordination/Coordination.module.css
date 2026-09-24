@@ -17,7 +17,7 @@
   }
 }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-4); align-items: start; }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--s-4); align-items: start; }
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
 }
@@ -32,12 +32,22 @@
 .sectionTitle { margin: 0; font-size: 14px; color: var(--text-muted); }
 
 .dirGroup { display: flex; flex-direction: column; gap: var(--s-2); }
+/* Между направлениями нужна явная граница потолще обычного разделителя строк
+   — иначе развёрнутая группа визуально сливается со следующим заголовком
+   направления, будто это продолжение того же списка, а не новая группа. */
+.dirGroup + .dirGroup { margin-top: var(--s-2); padding-top: var(--s-4); border-top: 2px solid var(--border); }
 .dirHead { display: flex; align-items: center; gap: var(--s-2); width: 100%; padding: 0; background: none; border: none; cursor: pointer; text-align: left; font: inherit; color: inherit; }
 .dirHead > *:first-child { flex: 1; min-width: 0; }
 .dirChevron { flex-shrink: 0; color: var(--text-muted); font-size: 15px; transition: transform .15s ease; }
 .dirChevronOpen { transform: rotate(90deg); }
 
-.unitRow { display: flex; flex-direction: column; gap: 2px; padding-left: var(--s-4); }
+/* Развёрнутое содержимое направления — фон и левая полоса отделяют его от
+   заголовков (свёрнутых или соседних) направлений над и под ним. */
+.dirBody { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-1); padding: var(--s-3); border-left: 2px solid var(--accent); border-radius: 0 var(--r-md) var(--r-md) 0; background: var(--surface-2); }
+.subTitle { margin: var(--s-1) 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.subTitle:first-child { margin-top: 0; }
+
+.unitRow { display: flex; flex-direction: column; gap: 2px; }
 .unitMeta { font-size: 12px; color: var(--text-muted); }
 
 .personRow { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); cursor: pointer; }
