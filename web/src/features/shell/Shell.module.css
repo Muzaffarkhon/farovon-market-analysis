@@ -23,7 +23,7 @@
 }
 /* Названия подразделений длинные («Завод металлоконструкций и СП») — на телефоне
    заголовок переносится на вторую строку, а не обрезается многоточием. */
-.title { margin: 0; font-size: 16px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.title { margin: 0; font-size: 14.5px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 /* На телефоне период уходит из шапки в меню «ещё» — он там занимал место,
    которое нужнее заголовку, и при этом не меняется по ходу работы. */
 .period { display: none; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
