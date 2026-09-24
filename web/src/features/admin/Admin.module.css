@@ -35,7 +35,7 @@
 .tableWrapFill { overflow: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13.5px; }
 .table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; white-space: nowrap; }
-.wrapCell { white-space: normal; max-width: 220px; }
+.table td.wrapCell { white-space: normal; overflow-wrap: break-word; max-width: 220px; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }
 .rowInactive { color: var(--text-muted); }
 
