@@ -116,7 +116,7 @@ function RoleHeader({ role, onRename, onDelete }: { role: RoleInfo; onRename: (l
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2, minWidth: 110 }}>
       {editing ? (
         <input
           autoFocus
@@ -124,7 +124,7 @@ function RoleHeader({ role, onRename, onDelete }: { role: RoleInfo; onRename: (l
           onChange={e => setLabel(e.target.value)}
           onBlur={save}
           onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setLabel(role.label); setEditing(false); } }}
-          style={{ width: '100%', textAlign: 'center' }}
+          style={{ width: '100%', boxSizing: 'border-box', textAlign: 'center', font: 'inherit', fontWeight: 600 }}
         />
       ) : (
         <button type="button" className={s.userBtn} style={{ padding: 0, minHeight: 0, fontWeight: 600 }} onClick={() => setEditing(true)}>
