@@ -504,7 +504,16 @@ async function canView(request, user, hasCap) {
     const snapshot = JSON.parse(req.committee_snapshot || '[]');
     if (snapshot.includes(user.login)) return true;
   }
-  if (request.status === 'payroll' && await hasCap('comp:payroll')) return true;
+  if ((request.status === 'payroll' || request.status === 'closed') && await hasCap('comp:payroll')) {
+    // Заявка могла закрыться сразу после комиссии, минуя статус «у
+    // кадровика» (единственный сотрудник — и тот отклонён, closeRequestIfAllDecided
+    // ставит 'closed' напрямую). Кадровик должен видеть и такой исход —
+    // иначе отклонённый комиссией сотрудник для него просто пропадает без следа.
+    const reachedCommittee = await queryOne(
+      "SELECT 1 FROM comp_request_employees WHERE request_id = ? AND status IN ('done','approved_awaiting_payroll','rejected_committee') LIMIT 1",
+      [request.id]);
+    if (reachedCommittee) return true;
+  }
   const touched = await queryOne('SELECT 1 FROM comp_activity WHERE request_id = ? AND actor_login = ? LIMIT 1', [request.id, user.login]);
   return !!touched;
 }

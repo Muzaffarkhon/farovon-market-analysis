@@ -5,6 +5,7 @@ import { Button } from '../../design/Button';
 import { useConfirm } from '../../design/Confirm';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
+import { useSessionData } from '../auth/useSession';
 import { useCompReasons, useVariablePayKinds } from './useCompReview';
 import s from './CompReview.module.css';
 
@@ -85,6 +86,7 @@ export function EmployeeCard({ e, request, access, actions }: {
 }) {
   const confirm = useConfirm();
   const { reasons } = useCompReasons();
+  const { user } = useSessionData();
   const [medianInput, setMedianInput] = useState(e.marketMedian != null ? String(e.marketMedian) : '');
   const [voteComment, setVoteComment] = useState('');
   const reasonLabel = reasons.find(r => r.code === e.reasonCode)?.label ?? e.reasonCode;
@@ -92,6 +94,7 @@ export function EmployeeCard({ e, request, access, actions }: {
   // Сервер уже маскирует чужие голоса в «закрытом» режиме (voteMode='closed') —
   // votedAt приходит всегда, vote бывает null у чужих голосов до итога.
   const votedCount = e.votes.length;
+  const myVote = e.votes.find(v => v.voterLogin === user.login)?.vote ?? null;
 
   // Оклад не меняется — заявка должна опираться хотя бы на переменную часть,
   // иначе сервер откажет при отправке (submitDraft); подсказка здесь —
@@ -158,10 +161,21 @@ export function EmployeeCard({ e, request, access, actions }: {
           <div className={s.hint}>Проголосовало: {votedCount} из {request.committeeSize}</div>
           {access.isCommitteeMember && (
             <>
+              {myVote && <div className={s.hint}>Ваш голос: <b>{myVote === 'for' ? 'за' : 'против'}</b> — можно изменить, пока не подведён итог</div>}
               <Input label="Комментарий (необязательно)" value={voteComment} onChange={e2 => setVoteComment(e2.target.value)} />
               <div className={s.cardFoot}>
-                <Button size="sm" variant="danger" onClick={() => actions.vote('against', voteComment.trim() || undefined)}>Против</Button>
-                <Button size="sm" onClick={() => actions.vote('for', voteComment.trim() || undefined)}>За</Button>
+                <Button
+                  size="sm" variant={myVote === 'against' ? 'danger' : 'secondary'}
+                  onClick={() => actions.vote('against', voteComment.trim() || undefined)}
+                >
+                  {myVote === 'against' ? '✓ Против' : 'Против'}
+                </Button>
+                <Button
+                  size="sm" variant={myVote === 'for' ? 'primary' : 'secondary'}
+                  onClick={() => actions.vote('for', voteComment.trim() || undefined)}
+                >
+                  {myVote === 'for' ? '✓ За' : 'За'}
+                </Button>
               </div>
             </>
           )}
