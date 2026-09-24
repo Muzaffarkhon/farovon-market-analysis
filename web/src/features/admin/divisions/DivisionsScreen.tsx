@@ -36,7 +36,7 @@ export function DivisionsScreen() {
   if (d.divisionsLoading) return <Skeleton lines={8} />;
 
   return (
-    <div className={s.screenFill}>
+    <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
