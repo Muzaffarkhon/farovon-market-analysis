@@ -22,8 +22,9 @@ import { PeriodsScreen } from '../features/admin/periods/PeriodsScreen';
 import { SupportScreen } from '../features/support/SupportScreen';
 import { SupportInboxScreen } from '../features/admin/support/SupportInboxScreen';
 import { BroadcastScreen } from '../features/admin/broadcast/BroadcastScreen';
-import { SalaryScreen } from '../features/salary/SalaryScreen';
-import { SalaryCommitteeScreen } from '../features/admin/salary/SalaryCommitteeScreen';
+import { RequestsListScreen } from '../features/compReview/RequestsListScreen';
+import { RequestScreen } from '../features/compReview/RequestScreen';
+import { CompCommitteeScreen } from '../features/admin/compReview/CompCommitteeScreen';
 import { AuditLogScreen } from '../features/admin/service/AuditLogScreen';
 
 export const BASENAME = '/new';
@@ -42,7 +43,8 @@ export function AppRoutes() {
         <Route path="coordination" element={<CoordinationScreen />} />
         <Route path="grading/:block?" element={<GradingScreen />} />
         <Route path="key-risks" element={<KeyRisksScreen />} />
-        <Route path="salary" element={<SalaryScreen />} />
+        <Route path="comp" element={<RequestsListScreen />} />
+        <Route path="comp/:id" element={<RequestScreen />} />
         <Route path="access" element={<RoleMatrixScreen />} />
         <Route path="admin" element={<AdminHub />} />
         <Route path="admin/users" element={<UsersScreen />} />
@@ -54,7 +56,7 @@ export function AppRoutes() {
         <Route path="admin/support" element={<SupportInboxScreen />} />
         <Route path="admin/broadcast" element={<BroadcastScreen />} />
         <Route path="admin/audit-log" element={<AuditLogScreen />} />
-        <Route path="admin/salary-committee" element={<SalaryCommitteeScreen />} />
+        <Route path="admin/comp-committee" element={<CompCommitteeScreen />} />
         <Route path="support" element={<SupportScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

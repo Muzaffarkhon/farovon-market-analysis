@@ -12,7 +12,7 @@ import s from './Sidebar.module.css';
  * нужен разный, чтобы отличать их в свёрнутой полосе. */
 const GLYPH: Record<string, string> = {
   '/': '▤', '/support': '✉', '/registry': '▦', '/dashboard': '◧',
-  '/coordination': '◍', '/grading': '◔', '/key-risks': '◭', '/salary': '₸',
+  '/coordination': '◍', '/grading': '◔', '/key-risks': '◭', '/comp': '₸',
   '/access': '⚿', '/admin': '⚙'
 };
 

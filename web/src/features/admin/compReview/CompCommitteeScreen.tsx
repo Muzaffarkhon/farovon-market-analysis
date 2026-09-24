@@ -2,23 +2,34 @@ import { useState } from 'react';
 import { Button } from '../../../design/Button';
 import { Combobox } from '../../../design/Combobox';
 import { useConfirm } from '../../../design/Confirm';
+import { Select } from '../../../design/Select';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
-import { useSalaryCommittee } from './useSalaryCommittee';
+import { useCompCommittee } from './useCompCommittee';
 
 /**
- * Комиссия по заявкам на изменение зарплаты — глобальная, не по блокам (в
- * отличие от грейдинга): решает единогласно, любой отказ отклоняет заявку.
+ * Комиссия по пересмотру заработной платы — глобальная, не по блокам.
+ * Голосование большинством от зафиксированного состава (§5 ТЗ), режим
+ * открытое/закрытое переключается здесь же и действует на новые заявки.
  */
-export function SalaryCommitteeScreen() {
-  useScreenTitle('Заявки на зарплату — комиссия');
-  const c = useSalaryCommittee();
+export function CompCommitteeScreen() {
+  useScreenTitle('Пересмотр ЗП — комиссия');
+  const c = useCompCommittee();
   const confirm = useConfirm();
   const [login, setLogin] = useState('');
 
   return (
     <div data-wide>
-      <h4 className={s.hint}>Состав комиссии — решает единогласно, отказ любого члена отклоняет заявку</h4>
+      <Select
+        label="Режим голосования" value={c.voteMode} onChange={e => c.saveVoteMode(e.target.value as 'open' | 'closed')}
+        options={[
+          { value: 'closed', label: 'Закрытое — голоса видны только после итога' },
+          { value: 'open', label: 'Открытое — члены комиссии видят голоса друг друга сразу' }
+        ]}
+        hint="Действует на новые заявки; уже идущее голосование режим не меняет"
+      />
+
+      <h4 className={s.hint} style={{ marginTop: 'var(--s-4)' }}>Состав комиссии — решает большинством от состава</h4>
       <div className={s.tableWrap}>
         <table className={s.table}>
           <thead><tr><th>ФИО</th><th>Логин</th><th></th></tr></thead>

@@ -20,6 +20,7 @@ const DEV_PASSWORD = 'devtest2026';
 const DEV_USERS = [
   { login: 'dev.admin', fio: 'Тестовый Администратор', role: 'admin', units: '' },
   { login: 'dev.cb', fio: 'Тестовый C&B', role: 'cb', units: '' },
+  { login: 'dev.hrbp', fio: 'Тестовый HR BP', role: 'hrbp', units: '' },
   { login: 'dev.user', fio: 'Тестовый Сотрудник', role: 'user', units: null }
 ];
 
@@ -49,6 +50,34 @@ async function createDevUsers() {
   if (group.length) console.log(`   подразделения со смежной группой для проверки разноса: ${group.map(g => g.unit).join(', ')}`);
 }
 
+// staff_directory (справочник сотрудников для заявок на изменение зарплаты)
+// — отдельная таблица от unit_positions (штатка коллективная, без ФИО), сама
+// заполняется только загрузкой из 1С («Администрация → Справочник
+// сотрудников → Импорт») и в базе разработки пуста без файла из 1С. Несколько
+// синтетических ФИО на реальные unit/position из уже засеянной штатки —
+// достаточно, чтобы в форме заявки было кого найти и выбрать.
+const DEV_STAFF = [
+  { fio: 'Иванов Иван Иванович' }, { fio: 'Петрова Мария Сергеевна' }, { fio: 'Сидоров Пётр Алексеевич' }
+];
+
+async function createDevStaffDirectory() {
+  const existing = await queryOne('SELECT COUNT(*) AS n FROM staff_directory');
+  if (existing && Number(existing.n) > 0) return;
+
+  const positions = await queryAll('SELECT unit, position FROM unit_positions LIMIT 3');
+  if (!positions.length) {
+    console.log('⚠️  Штатка (unit_positions) пуста — справочник сотрудников не заполнен');
+    return;
+  }
+  for (let i = 0; i < DEV_STAFF.length && i < positions.length; i++) {
+    await run(
+      'INSERT INTO staff_directory (unit, fio, position) VALUES (?, ?, ?)',
+      [positions[i].unit, DEV_STAFF[i].fio, positions[i].position]
+    );
+  }
+  console.log(`✅ Справочник сотрудников: ${Math.min(DEV_STAFF.length, positions.length)} тестовых записей`);
+}
+
 async function seedDev() {
   if (config.isProduction) {
     throw new Error('seedDev не предназначен для продакшена');
@@ -61,6 +90,7 @@ async function seedDev() {
   }
   console.log(await importStaffing());
   await createDevUsers();
+  await createDevStaffDirectory();
 }
 
 if (require.main === module) {

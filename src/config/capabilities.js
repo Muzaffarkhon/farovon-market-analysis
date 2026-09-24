@@ -46,14 +46,17 @@ const CAPABILITIES = [
   { id: 'grading:committee', resource: 'grading', resourceLabel: 'Грейдирование должностей', label: 'Состав комиссии по блокам и принудительное подведение итога' },
   { id: 'support:manage', resource: 'support', resourceLabel: 'Чат поддержки', label: 'Просмотр и ответы в чате поддержки Telegram-бота' },
   { id: 'broadcast:send', resource: 'broadcast', resourceLabel: 'Рассылка', label: 'Отправка рассылок сотрудникам через Telegram-бота и просмотр истории' },
-  // Заявки на изменение зарплаты (2026-09-24): подаёт HR BP, дальше цепочка
-  // cb_manager → hrd → committee. «Менеджер C&B» и HRD — не роли системы
-  // (ROLES фиксирован), эти права выдаются конкретным людям персонально.
-  { id: 'salary:request', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Подача заявки' },
-  { id: 'salary:approve_cb', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Согласование — менеджер отдела C&B' },
-  { id: 'salary:approve_hrd', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Согласование — HRD' },
-  { id: 'salary:committee', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Состав комиссии — управление списком и принудительное решение' },
-  { id: 'salary:view', resource: 'salary', resourceLabel: 'Заявки на изменение зарплаты', label: 'Просмотр всех заявок и истории окладов' }
+  // Пересмотр заработной платы (docs/superpowers/specs/2026-09-22-comp-review-design.md,
+  // согласовано с заказчиком 22.09.2026). «Менеджер C&B» и HRD — не роли
+  // системы (ROLES фиксирован), права выдаются конкретным людям персонально
+  // (HRD — Сатторов Илхомчон Ахмадчонович, см. §9.1 документа); ему же можно
+  // отдельно выдать comp:vote — тогда он ещё и голосует в комиссии.
+  { id: 'comp:submit', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Подача заявки (черновик), видит свои заявки' },
+  { id: 'comp:review_cb', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Проверка C&B — рыночные данные, передача дальше или возврат на доработку, видит все заявки' },
+  { id: 'comp:approve_hrd', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Согласование HRD' },
+  { id: 'comp:vote', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Голосование в комиссии' },
+  { id: 'comp:payroll', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Оформление одобренных изменений в 1С (урезанный экран)' },
+  { id: 'comp:admin', resource: 'comp', resourceLabel: 'Пересмотр заработной платы', label: 'Состав и кворум комиссии, режим голосования, принудительное закрытие' }
 ];
 
 const ROLES = ['cb', 'hrbp', 'dir_head', 'head', 'user'];
@@ -72,14 +75,18 @@ const DEFAULT_ROLE_CAPABILITIES = {
   // новых сред (INSERT OR IGNORE при миграции): уже выданные в проде
   // права не трогает — при рестарте сервера просто не переустанавливает
   // убранные вручную через «Роли и доступы» строки обратно.
-  cb: CAPABILITIES.map(c => c.id).filter(id => !['users:edit', 'broadcast:send', 'service:edit'].includes(id)),
+  // comp:review_cb — по роли (это буквально работа C&B-аналитика). Остальные
+  // права пересмотра ЗП (approve_hrd/vote/payroll/admin) — не по умолчанию,
+  // только персонально конкретным людям, как решено в §9.1 документа.
+  cb: CAPABILITIES.map(c => c.id).filter(id =>
+    !['users:edit', 'broadcast:send', 'service:edit', 'comp:approve_hrd', 'comp:vote', 'comp:payroll', 'comp:admin'].includes(id)),
   // hrbp: видел дашборд, оргструктуру и справочники (requireRoles(...,'hrbp')
   // на GET-маршрутах), и мог менять период — тот же набор ролей стоял и на
   // /admin/period.
   // hrbp + новые модули: HR BP смотрит грейды и матрицу рисков по своим
   // направлениям, но анкеты заполняют комиссия (грейды) и руководители (риски).
   hrbp: ['survey:fill', 'dashboard:view', 'coordination:view', 'divisions:view', 'dictionary:view', 'period:view', 'period:edit',
-    'grading:view', 'keyrisk:view', 'salary:request'],
+    'grading:view', 'keyrisk:view', 'comp:submit'],
   // dir_head: с PR #25 видит и правит divisions (только свои отделы — это
   // ограничение уже в adminController.saveDivision, не здесь) и читает
   // список пользователей для пикера «кого назначить».

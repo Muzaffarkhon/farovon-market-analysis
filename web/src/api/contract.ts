@@ -526,42 +526,68 @@ export interface SendBroadcastResponse { ok: true; id: number; total: number; se
 export interface AuditLogEntry { id: number; dt: string; login: string; action: string; detail: string; ip: string }
 export interface AuditLogResponse { ok: true; logs: AuditLogEntry[] }
 
-// ─── Заявки на изменение зарплаты ───
+// ─── Пересмотр заработной платы ───
+// docs/superpowers/specs/2026-09-22-comp-review-design.md (согласовано 22.09.2026)
 
-export type SalaryStep = 'cb_manager' | 'hrd' | 'committee';
-export type SalaryStatus = 'pending' | 'approved' | 'rejected';
-export type SalaryReasonCode = 'position_change' | 'probation_end' | 'individual_results' | 'benchmark' | 'grading' | 'free_text';
+export type CompRequestType = 'planned' | 'probation_end' | 'counter_offer' | 'unique_case';
+export type CompReasonCode = 'promotion' | 'probation_end' | 'market_adjustment' | 'retention' | 'alignment' | 'unique_case';
+export type CompRequestStatus = 'draft' | 'cb_review' | 'hrd_review' | 'committee' | 'payroll' | 'closed';
+export type CompEmployeeStatus = 'active' | 'rejected_hrd' | 'rejected_committee' | 'approved_awaiting_payroll' | 'done';
+export type CompVoteMode = 'open' | 'closed';
 
-export interface SalaryReason { code: SalaryReasonCode; label: string }
-export interface SalaryReasonsResponse { ok: true; reasons: SalaryReason[] }
+export interface CompOption { code: string; label: string }
+export interface CompReasonsResponse { ok: true; requestTypes: CompOption[]; reasons: CompOption[] }
+export interface CompVariablePayKindsResponse { ok: true; kinds: string[] }
 
-export interface SalaryEmployeeOption { id: number; unit: string; fio: string; position: string; currentSalary: number | null }
-export interface SalaryEmployeesResponse { ok: true; rows: SalaryEmployeeOption[] }
+export interface CompEmployeeOption { id: number; unit: string; fio: string; position: string; lastReviewDate: string | null; currentSalary: number | null }
+export interface CompEmployeesResponse { ok: true; rows: CompEmployeeOption[] }
 
-export interface SalaryRequestDecision { step: SalaryStep; approver_login: string; decision: 'approved' | 'rejected'; comment: string | null; decided_at: string }
-export interface SalaryRequest {
-  id: number; unit: string; fio: string; position: string;
-  currentSalary: number | null; proposedSalary: number; proposedPercent: number | null;
-  reasons: SalaryReasonCode[]; reasonText: string;
-  status: SalaryStatus; step: SalaryStep | 'done';
-  createdBy: string; createdAt: string; decidedAt: string | null;
-  decisions?: SalaryRequestDecision[];
+export interface CompVariablePay { id: number; kind: string; amount: number; amountType: 'sum' | 'percent'; period: string; isProposed: boolean }
+export interface CompVote { voterLogin: string; vote: 'for' | 'against' | null; comment: string | null; votedAt: string }
+
+export interface CompRequestEmployee {
+  id: number; requestId: number; staffId: number | null; fio: string; unit: string; position: string;
+  lastReviewDate: string | null; currentSalary: number | null; proposedSalary: number; growthPercent: number | null;
+  gradePayFrom: number | null; gradePayTo: number | null; vilkaBefore: number | null; vilkaAfter: number | null;
+  marketMedian: number | null; compaRatio: number | null;
+  reasonCode: CompReasonCode; reasonText: string; isException: boolean;
+  status: CompEmployeeStatus; decidedAt: string | null; payrollEnteredAt: string | null; payrollEnteredBy: string | null;
+  variablePay: CompVariablePay[]; votes: CompVote[];
 }
-export interface SalaryRequestResponse { ok: true; request: SalaryRequest }
-export interface SalaryRequestsResponse { ok: true; rows: SalaryRequest[] }
 
-export interface CreateSalaryRequestPayload {
-  unit: string; fio: string; position?: string;
-  proposedSalary?: number; proposedPercent?: number;
-  reasons: SalaryReasonCode[]; reasonText?: string;
+export interface CompActivityEntry { id: number; employeeFio: string | null; actorLogin: string; action: string; comment: string; createdAt: string }
+
+export interface CompRequest {
+  id: number; initiatorLogin: string; unit: string; requestType: CompRequestType;
+  effectiveDate: string | null; basisDocument: string; comment: string; status: CompRequestStatus;
+  committeeSize: number; createdAt: string; updatedAt: string;
+  employees: CompRequestEmployee[]; activity: CompActivityEntry[];
 }
-export interface DecideSalaryRequestPayload { step: SalaryStep; decision: 'approved' | 'rejected'; comment?: string }
+export interface CompRequestListItem {
+  id: number; initiatorLogin: string; unit: string; requestType: CompRequestType;
+  effectiveDate: string | null; basisDocument: string; comment: string; status: CompRequestStatus;
+  committeeSize: number; createdAt: string; updatedAt: string;
+}
+export interface CompRequestResponse { ok: true; request: CompRequest }
+export interface CompRequestsResponse { ok: true; rows: CompRequestListItem[] }
 
-export interface SalaryHistoryEntry { id: number; unit: string; fio: string; old_salary: number | null; new_salary: number; request_id: number | null; changed_by: string; changed_at: string }
-export interface SalaryHistoryResponse { ok: true; rows: SalaryHistoryEntry[] }
+export interface CreateDraftPayload { unit?: string; requestType: CompRequestType; effectiveDate?: string; basisDocument?: string; comment?: string }
+export type UpdateHeaderPayload = Partial<CreateDraftPayload>
+export interface AddEmployeePayload {
+  fio: string; unit: string; position?: string; staffId?: number;
+  proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string;
+}
+export interface UpdateEmployeePayload { proposedSalary?: number; reasonCode?: CompReasonCode; reasonText?: string }
+export interface AddVariablePayPayload { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }
 
-export interface SalaryMyAccessResponse { ok: true; canRequest: boolean; steps: SalaryStep[] }
-export interface SalaryCommitteeResponse { ok: true; rows: string[] }
+export interface CompMyAccessResponse {
+  ok: true; canSubmit: boolean; canReviewCb: boolean; canApproveHrd: boolean; canVoteCap: boolean;
+  canPayroll: boolean; isAdmin: boolean; isCommitteeMember: boolean;
+}
+export interface CompCommitteeResponse { ok: true; rows: string[] }
+export interface CompSettings { voteMode: CompVoteMode }
+export interface CompSettingsResponse { ok: true; settings: CompSettings }
+export interface CompRemindResponse { ok: true; remindedCount: number }
 
 // ─── Чат поддержки ───
 

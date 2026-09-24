@@ -21,7 +21,7 @@ const registryController = require('../controllers/registryController');
 const tablePrefsController = require('../controllers/tablePrefsController');
 const coordinationController = require('../controllers/coordinationController');
 const cronController = require('../controllers/cronController');
-const salaryRequestController = require('../controllers/salaryRequestController');
+const compReviewController = require('../controllers/compReviewController');
 
 // Широкий лимит на весь /api (флуд-предохранитель). Точечные лимиты — ниже.
 router.use(apiLimiter);
@@ -252,23 +252,36 @@ router.post('/key-personnel/evaluate', requireCapability('keyrisk:edit'), gradin
 router.post('/key-personnel/delete', requireRoles('admin'), gradingController.deleteRisk);
 router.get('/key-personnel/heatmap', requireCapability('keyrisk:view', 'keyrisk:edit'), gradingController.getHeatmap);
 
-// ─── Заявки на изменение зарплаты ───
-// Право решать конкретный шаг (cb_manager/hrd — capability; committee —
-// членство в salary_committee_members) проверяет сам контроллер, не
-// requireCapability здесь — один маршрут /salary/requests/:id/decide
-// обслуживает все три шага сразу.
-router.get('/salary/my-access', salaryRequestController.myAccess);
-router.get('/salary/reasons', salaryRequestController.reasons);
-router.get('/salary/employees', requireCapability('salary:request'), salaryRequestController.employeeOptions);
-router.post('/salary/requests', requireCapability('salary:request'), salaryRequestController.create);
-router.get('/salary/requests/queue', salaryRequestController.queue);
-router.get('/salary/requests', requireCapability('salary:view', 'salary:request'), salaryRequestController.list);
-router.get('/salary/requests/:id', salaryRequestController.get);
-router.post('/salary/requests/:id/decide', salaryRequestController.decide);
-router.get('/salary/history', requireCapability('salary:view', 'salary:approve_cb', 'salary:approve_hrd'), salaryRequestController.history);
-router.get('/salary/committee', requireCapability('salary:committee'), salaryRequestController.committeeMembers);
-router.post('/salary/committee/add', requireCapability('salary:committee'), salaryRequestController.addCommitteeMember);
-router.post('/salary/committee/remove', requireCapability('salary:committee'), salaryRequestController.removeCommitteeMember);
+// ─── Пересмотр заработной платы (docs/superpowers/specs/2026-09-22-comp-review-design.md) ───
+// Видимость и право действия на конкретном шаге контроллер проверяет сам
+// (не requireCapability на маршруте) — одна заявка проходит несколько ролей
+// подряд, и решения принимаются по каждому сотруднику заявки отдельно на
+// этапе комиссии.
+router.get('/comp/my-access', compReviewController.myAccess);
+router.get('/comp/reasons', compReviewController.reasons);
+router.get('/comp/variable-pay-kinds', compReviewController.variablePayKinds);
+router.get('/comp/employees', requireCapability('comp:submit'), compReviewController.employeeOptions);
+router.post('/comp/requests', requireCapability('comp:submit'), compReviewController.createDraft);
+router.post('/comp/requests/:id', compReviewController.updateDraft);
+router.post('/comp/requests/:id/submit', compReviewController.submitDraft);
+router.post('/comp/requests/:id/delete', compReviewController.deleteDraft);
+router.get('/comp/requests', compReviewController.list);
+router.get('/comp/requests/:id', compReviewController.get);
+router.post('/comp/requests/:id/cb-return', requireCapability('comp:review_cb'), compReviewController.cbReturn);
+router.post('/comp/requests/:id/cb-forward', requireCapability('comp:review_cb'), compReviewController.cbForward);
+router.post('/comp/requests/:id/employees/:employeeId/market-data', requireCapability('comp:review_cb'), compReviewController.setMarketData);
+router.post('/comp/requests/:id/hrd-approve', requireCapability('comp:approve_hrd'), compReviewController.hrdApprove);
+router.post('/comp/requests/:id/hrd-reject', requireCapability('comp:approve_hrd'), compReviewController.hrdReject);
+router.post('/comp/employees/:employeeId/vote', compReviewController.vote);
+router.post('/comp/employees/:employeeId/force-decide', requireCapability('comp:admin'), compReviewController.forceDecide);
+router.post('/comp/employees/:employeeId/remind', requireCapability('comp:review_cb', 'comp:admin'), compReviewController.remindVoters);
+router.post('/comp/employees/:employeeId/payroll-entered', requireCapability('comp:payroll'), compReviewController.markPayrollEntered);
+router.post('/comp/requests/:id/comments', compReviewController.addComment);
+router.get('/comp/committee', requireCapability('comp:admin'), compReviewController.committeeMembers);
+router.post('/comp/committee/add', requireCapability('comp:admin'), compReviewController.addCommitteeMember);
+router.post('/comp/committee/remove', requireCapability('comp:admin'), compReviewController.removeCommitteeMember);
+router.get('/comp/settings', requireCapability('comp:admin'), compReviewController.getSettings);
+router.post('/comp/settings', requireCapability('comp:admin'), compReviewController.saveSettings);
 
 // ─── Чат поддержки (гости бота, которых Telegram-бот не смог опознать) ───
 router.get('/admin/broadcasts', requireCapability('broadcast:send'), broadcastController.list);

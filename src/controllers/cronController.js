@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const config = require('../config');
 const { runDaily } = require('../services/reminderService');
+const { remindStaleCommitteeVotes } = require('../services/compReviewService');
 
 /** Та же схема, что у вебхук-секрета (telegramController.safeEqual) —
  *  сравнение постоянного времени, разная длина сразу не совпадает. */
@@ -25,8 +26,14 @@ exports.dailyReminders = async (req, res) => {
   }
 
   try {
-    const result = await runDaily();
-    res.status(200).json(result);
+    const surveyResult = await runDaily();
+    // Комиссия по пересмотру ЗП (§5 ТЗ) — та же ежедневная точка входа,
+    // отдельного крона под это заводить не стали.
+    const compResult = await remindStaleCommitteeVotes().catch(err => {
+      console.error('Comp review reminders error:', err);
+      return { ok: false };
+    });
+    res.status(200).json({ survey: surveyResult, compReview: compResult });
   } catch (err) {
     console.error('Cron reminders error:', err);
     res.status(500).json({ ok: false });

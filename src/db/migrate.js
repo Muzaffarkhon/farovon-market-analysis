@@ -711,7 +711,7 @@ async function migrate() {
   await createUserTablePrefs();
   await createDivisionAssignments();
   await cleanupLegacySurveyTestData();
-  await createSalaryRequests();
+  await createCompReview();
 }
 
 /**
@@ -937,72 +937,159 @@ async function cleanupLegacySurveyTestData() {
 }
 
 /**
- * Заявки на изменение зарплаты сотрудника (2026-09-24). Инициирует HR BP,
- * дальше цепочка из трёх шагов: менеджер отдела C&B → HRD → комиссия
- * (unanimous — любой отказ на любом шаге сразу отклоняет всю заявку).
- * HRD и «менеджер C&B» — не роли системы (ROLES фиксирован), а отдельные
- * права (salary:approve_cb/salary:approve_hrd), выдаваемые персонально
- * конкретным людям через «Роли и доступы» — так же, как и с комиссией
- * грейдирования, чей состав не привязан к роли.
+ * Пересмотр заработной платы — по согласованному ТЗ
+ * (docs/superpowers/specs/2026-09-22-comp-review-design.md, согласовано
+ * 22.09.2026). Первая версия этого модуля (2026-09-24, роли
+ * salary_manager/salary_hrd/salary_committee, единогласное голосование)
+ * полностью заменена этой — таблицы salary_* от неё удаляются ниже
+ * (createSalaryRequests было единственным местом, где они создавались).
+ *
+ * Маршрут (§2 документа): черновик (HRBP) → проверка C&B (может вернуть на
+ * доработку) → согласование HRD (может отклонить всю заявку) → голосование
+ * комиссии — пропускается для типа «выход из стажировки» — большинством от
+ * СОСТАВА комиссии, по каждому сотруднику независимо → кадровик вносит в 1С
+ * → закрыта. Заявка — «опросник» на нескольких сотрудников разом
+ * (comp_request_employees), решения C&B/HRD — на уровне всей заявки,
+ * решения комиссии — по каждому сотруднику отдельно (§2: «отклонённый
+ * сотрудник выпадает из заявки, остальные идут дальше»).
  *
  * staff_directory при каждом импорте из 1С полностью пересоздаётся (см.
- * комментарий у самой таблицы) — хранить «текущий оклад» колонкой на ней
- * нельзя, она обнулится при следующей загрузке. Вместо этого salary_history
- * ведётся по паре (unit, fio) отдельно, а текущий оклад — последняя запись
- * в истории по этой паре, что переживает любой реимпорт справочника.
+ * комментарий у самой таблицы) — «дата последнего пересмотра» для правила
+ * шести месяцев (§2) не может быть колонкой на ней. comp_review_history
+ * ведётся по паре (unit, fio) отдельно и переживает любой реимпорт.
  */
-async function createSalaryRequests() {
-  await run(`CREATE TABLE IF NOT EXISTS salary_requests (
+async function createCompReview() {
+  await run('DROP TABLE IF EXISTS salary_history');
+  await run('DROP TABLE IF EXISTS salary_committee_members');
+  await run('DROP TABLE IF EXISTS salary_request_decisions');
+  await run('DROP TABLE IF EXISTS salary_requests');
+
+  // Шапка заявки (§3). unit — направление/подразделение инициатора, не
+  // подразделение конкретного сотрудника (те — на строках-сотрудниках).
+  await run(`CREATE TABLE IF NOT EXISTS comp_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit TEXT NOT NULL,
+    initiator_login TEXT NOT NULL,
+    unit TEXT,
+    request_type TEXT NOT NULL,
+    effective_date TEXT,
+    basis_document TEXT,
+    comment TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    committee_snapshot TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_requests_status ON comp_requests(status)');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_requests_initiator ON comp_requests(initiator_login)');
+
+  // Строка-сотрудник заявки-опросника (§3, таблица «сотрудники колонками» —
+  // на сервере это строки, порядок отображения решает клиент). status —
+  // независимое решение по этому сотруднику (§2): active, пока идёт по
+  // маршруту вместе с заявкой; rejected_hrd/rejected_committee — выбыл;
+  // approved_awaiting_payroll — одобрен, ждёт кадровика; done — внесён в 1С.
+  await run(`CREATE TABLE IF NOT EXISTS comp_request_employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    staff_id INTEGER,
     fio TEXT NOT NULL,
+    unit TEXT NOT NULL,
     position TEXT,
+    last_review_date TEXT,
     current_salary REAL,
     proposed_salary REAL NOT NULL,
-    proposed_percent REAL,
-    reasons TEXT NOT NULL DEFAULT '[]',
+    grade_pay_from REAL,
+    grade_pay_to REAL,
+    market_median REAL,
+    reason_code TEXT NOT NULL,
     reason_text TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    step TEXT NOT NULL DEFAULT 'cb_manager',
-    created_by TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    decided_at DATETIME
+    is_exception INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    decided_at DATETIME,
+    payroll_entered_at DATETIME,
+    payroll_entered_by TEXT
   )`);
-  await run('CREATE INDEX IF NOT EXISTS idx_salary_requests_status ON salary_requests(status, step)');
-  await run('CREATE INDEX IF NOT EXISTS idx_salary_requests_person ON salary_requests(unit, fio)');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_request ON comp_request_employees(request_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_status ON comp_request_employees(status)');
 
-  // Одна строка на решение (шаги cb_manager/hrd — одна на шаг; committee —
-  // по одной на каждого проголосовавшего члена комиссии).
-  await run(`CREATE TABLE IF NOT EXISTS salary_request_decisions (
+  // Переменная часть — «+ добавить вид», несколько строк на сотрудника (§3).
+  await run(`CREATE TABLE IF NOT EXISTS comp_variable_pay (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    request_id INTEGER NOT NULL REFERENCES salary_requests(id),
-    step TEXT NOT NULL,
-    approver_login TEXT NOT NULL,
-    decision TEXT NOT NULL,
-    comment TEXT,
-    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(request_id, step, approver_login)
+    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    kind TEXT NOT NULL,
+    amount REAL NOT NULL,
+    amount_type TEXT NOT NULL DEFAULT 'sum',
+    period TEXT,
+    is_proposed INTEGER NOT NULL DEFAULT 0
   )`);
-  await run('CREATE INDEX IF NOT EXISTS idx_salary_request_decisions_request ON salary_request_decisions(request_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_variable_pay_employee ON comp_variable_pay(employee_row_id)');
 
-  await run(`CREATE TABLE IF NOT EXISTS salary_committee_members (
+  // Справочник видов переменной части (§9.5 — «ведёт C&B»).
+  await run(`CREATE TABLE IF NOT EXISTS comp_variable_pay_kinds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT UNIQUE NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  )`);
+  const kindsSeeded = await queryOne("SELECT COUNT(*) AS n FROM comp_variable_pay_kinds");
+  if (!kindsSeeded || Number(kindsSeeded.n) === 0) {
+    const defaults = ['Премия по KPI', 'Премия за выработку', 'Надбавка за вредность', 'Надбавка за стаж', 'Бонус за результат', 'Прочее'];
+    for (const label of defaults) await run('INSERT OR IGNORE INTO comp_variable_pay_kinds (label) VALUES (?)', [label]);
+  }
+
+  // Комиссия — глобальная, не по блокам (в отличие от грейдинга): §5.
+  await run(`CREATE TABLE IF NOT EXISTS comp_committee_members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_login TEXT UNIQUE NOT NULL
   )`);
 
-  await run(`CREATE TABLE IF NOT EXISTS salary_history (
+  // Голос — «за»/«против» по сотруднику; можно отозвать/изменить, пока итог
+  // не подведён (UPDATE поверх той же строки, не история голосов).
+  await run(`CREATE TABLE IF NOT EXISTS comp_committee_votes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    voter_login TEXT NOT NULL,
+    vote TEXT NOT NULL,
+    comment TEXT,
+    voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(employee_row_id, voter_login)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_committee_votes_employee ON comp_committee_votes(employee_row_id)');
+
+  // Единственная строка настроек модуля (§5 — режим голосования переключаемый).
+  await run(`CREATE TABLE IF NOT EXISTS comp_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    vote_mode TEXT NOT NULL DEFAULT 'closed'
+  )`);
+  await run("INSERT OR IGNORE INTO comp_settings (id, vote_mode) VALUES (1, 'closed')");
+
+  // Лента событий и комментариев (§6) — employee_row_id NULL для
+  // событий уровня всей заявки (передал/вернул), заполнен для голосов.
+  await run(`CREATE TABLE IF NOT EXISTS comp_activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    employee_row_id INTEGER REFERENCES comp_request_employees(id),
+    actor_login TEXT NOT NULL,
+    action TEXT NOT NULL,
+    comment TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_activity_request ON comp_activity(request_id)');
+
+  // История пересмотров по сотруднику (§7, питает правило 6 месяцев из §2) —
+  // по паре (unit, fio), переживает реимпорт staff_directory из 1С. Строка
+  // добавляется, когда сотрудник доходит до payroll_entered_at.
+  await run(`CREATE TABLE IF NOT EXISTS comp_review_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     unit TEXT NOT NULL,
     fio TEXT NOT NULL,
-    old_salary REAL,
-    new_salary REAL NOT NULL,
-    request_id INTEGER REFERENCES salary_requests(id),
-    changed_by TEXT NOT NULL,
-    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    effective_date TEXT,
+    new_salary REAL,
+    request_id INTEGER REFERENCES comp_requests(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
-  await run('CREATE INDEX IF NOT EXISTS idx_salary_history_person ON salary_history(unit, fio, changed_at)');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_review_history_person ON comp_review_history(unit, fio, created_at)');
+  await ensureColumn('comp_review_history', 'new_salary', 'REAL');
 
-  console.log('🔧 Миграция: схема заявок на изменение зарплаты создана');
+  console.log('🔧 Миграция: схема «Пересмотр заработной платы» создана');
 }
 
 /**

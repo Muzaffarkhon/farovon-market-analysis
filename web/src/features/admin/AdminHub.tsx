@@ -52,7 +52,7 @@ const SECTIONS: Section[] = [
   { to: '/admin/support', title: 'Чат поддержки', note: 'Инбокс, привязка к сотруднику, готовые фразы', icon: 'chat', group: 'process', visible: u => has(u, 'support:manage') },
   { to: '/admin/broadcast', title: 'Рассылка', note: 'Сообщение через Telegram-бота выбранным сотрудникам', icon: 'send', group: 'process', visible: u => has(u, 'broadcast:send') },
   { to: '/admin/audit-log', title: 'Журнал изменений', note: 'Кто, когда и что сделал в администрировании', icon: 'log', group: 'process', visible: u => has(u, 'service:view') },
-  { to: '/admin/salary-committee', title: 'Заявки на зарплату — комиссия', note: 'Состав комиссии, решает единогласно', icon: 'money', group: 'process', visible: u => has(u, 'salary:committee') }
+  { to: '/admin/comp-committee', title: 'Пересмотр ЗП — комиссия', note: 'Состав комиссии, режим голосования', icon: 'money', group: 'process', visible: u => has(u, 'comp:admin') }
 ];
 
 function has(u: SessionUser, c: string) {
