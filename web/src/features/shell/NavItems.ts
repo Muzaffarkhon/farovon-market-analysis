@@ -14,6 +14,11 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('dashboard:view')) items.push({ to: '/registry', label: 'Реестр', icon: 'table' });
   if (has('dashboard:view')) items.push({ to: '/dashboard', label: 'Дашборды', icon: 'chart' });
   if (has('coordination:view')) items.push({ to: '/coordination', label: 'Координация', icon: 'users' });
+  // В старом клиенте «Бенчмаркинг» — отдельный пункт меню (не спрятан внутри
+  // Дашбордов), виден по своему праву benchmarks:view независимо от
+  // dashboard:view. Переиспользуем ту же вкладку /dashboard/benchmark —
+  // отдельного экрана заводить незачем, только путь в меню отдельный.
+  if (has('benchmarks:view')) items.push({ to: '/dashboard/benchmark', label: 'Бенчмаркинг', icon: 'chart' });
   if (has('grading:view') || has('grading:edit')) items.push({ to: '/grading', label: 'Оценка должностей', icon: 'scale' });
   if (has('comp:submit') || has('comp:review_cb') || has('comp:approve_hrd') || has('comp:vote') || has('comp:payroll') || has('comp:admin')) {
     items.push({ to: '/comp', label: 'Пересмотр ЗП', icon: 'money' });
@@ -40,7 +45,7 @@ export type NavGroup = { key: string; label: string | null; items: NavItem[] };
 // сам список и его порядок (navItemsFor) не меняются, чтобы не задеть уже
 // проверенный тестами порядок пунктов.
 const GROUP_OF: Record<string, string> = {
-  '/registry': 'analytics', '/dashboard': 'analytics', '/coordination': 'analytics',
+  '/registry': 'analytics', '/dashboard': 'analytics', '/dashboard/benchmark': 'analytics', '/coordination': 'analytics',
   '/grading': 'people', '/key-risks': 'people', '/comp': 'people',
   '/access': 'manage', '/admin': 'manage'
 };

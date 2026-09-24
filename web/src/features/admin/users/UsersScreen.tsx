@@ -86,24 +86,28 @@ export function UsersScreen() {
 
   return (
     <div className={s.screenFill} data-wide>
-      <div className={s.head}>
+      <div className={s.head} style={{ marginBottom: 0 }}>
         <div className={s.tabs}>
           <Chip active={tab === 'active'} onClick={() => setTab('active')}>Активные</Chip>
           <Chip active={tab === 'archive'} onClick={() => setTab('archive')}>Архив</Chip>
         </div>
+        {tab === 'active' && (
+          <>
+            <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+              <Input label="" aria-label="Поиск" placeholder="ФИО или логин" value={query} onChange={e => setQuery(e.target.value)} />
+            </div>
+            <TableFiltersButton f={tf} fields={filterFields} />
+          </>
+        )}
         {tab === 'active' && canCreate && <Button size="sm" onClick={() => setCreating(true)}>Добавить</Button>}
       </div>
 
       {tab === 'active' && (
         <>
-          <div className={s.head}>
-            <Input label="Поиск" placeholder="ФИО или логин" value={query} onChange={e => setQuery(e.target.value)} />
-            <TableFiltersButton f={tf} fields={filterFields} />
-          </div>
           <ActiveTableFilterChips f={tf} />
-          <p className={s.hint}>
+          <div className={s.hint} style={{ margin: 0 }}>
             {tf.filtered.length === (u.users ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(u.users ?? []).length} записей`}
-          </p>
+          </div>
         </>
       )}
 
