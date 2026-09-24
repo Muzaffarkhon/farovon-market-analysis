@@ -710,6 +710,7 @@ async function migrate() {
   await createReminderLog();
   await createUserTablePrefs();
   await createDivisionAssignments();
+  await createUserScopeTables();
   await cleanupLegacySurveyTestData();
   await createCompReview();
 }
@@ -920,6 +921,62 @@ async function createDivisionAssignments() {
   if (unmatched.length) {
     console.log('⚠️  Не сопоставлены с учётной записью (проверьте ФИО вручную):', unmatched.join('; '));
   }
+}
+
+/**
+ * ID-связь «пользователь ↔ подразделение/направление» вместо сравнения
+ * текста (users.units против divisions.unit/dir) — та же мотивация, что и у
+ * division_assignments (переименование не должно рвать права). users.units
+ * остаётся текстовым полем для отображения/правки в админке;
+ * user_division_scope/user_direction_scope — источник истины для прав,
+ * держится в актуальном состоянии точками записи (adminController.saveUser,
+ * authController.setUnits и т.п., см. userScopeService.resyncUserScope).
+ *
+ * «directions» — направления (divisions.dir), нужны отдельной таблицей
+ * потому что у руководителей направлений units хранит название направления
+ * целиком, а не конкретное подразделение.
+ *
+ * Бэкфилл — разовый (если обе scope-таблицы уже не пусты, ничего не делает).
+ * Каждый токен из users.units сопоставляется сперва с divisions.unit, затем
+ * с directions.name; несопоставленный текст заводится как направление-
+ * плейсхолдер с тем же названием — чтобы миграция не сузила никому доступ.
+ */
+async function createUserScopeTables() {
+  await run(`CREATE TABLE IF NOT EXISTS directions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run(`CREATE TABLE IF NOT EXISTS user_division_scope (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    division_id INTEGER NOT NULL REFERENCES divisions(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, division_id)
+  )`);
+  await run(`CREATE TABLE IF NOT EXISTS user_direction_scope (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    direction_id INTEGER NOT NULL REFERENCES directions(id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, direction_id)
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_user_division_scope_user ON user_division_scope(user_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_user_direction_scope_user ON user_direction_scope(user_id)');
+
+  const existingDiv = await queryOne('SELECT COUNT(*) AS n FROM user_division_scope');
+  const existingDir = await queryOne('SELECT COUNT(*) AS n FROM user_direction_scope');
+  if ((existingDiv && existingDiv.n > 0) || (existingDir && existingDir.n > 0)) return;
+
+  const dirNames = await queryAll("SELECT DISTINCT dir FROM divisions WHERE dir IS NOT NULL AND TRIM(dir) != ''");
+  for (const row of dirNames) {
+    await run('INSERT OR IGNORE INTO directions (name) VALUES (?)', [row.dir.trim()]);
+  }
+
+  const { resyncUserScope } = require('../services/userScopeService');
+  const users = await queryAll("SELECT id, units FROM users WHERE units IS NOT NULL AND TRIM(units) != ''");
+  for (const u of users) {
+    await resyncUserScope(u.id, u.units);
+  }
+  console.log(`🔧 Миграция: user_division_scope/user_direction_scope заполнены из users.units — ${users.length} пользователей, направлений: ${dirNames.length}`);
 }
 
 async function cleanupLegacySurveyTestData() {
