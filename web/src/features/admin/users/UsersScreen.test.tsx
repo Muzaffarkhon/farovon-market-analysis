@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UsersScreen } from './UsersScreen';
+import { ConfirmHost } from '../../../design/Confirm';
 import * as adminApiModule from '../../../api/admin';
 import * as accessApiModule from '../../../api/access';
 import type { SessionData } from '../../../api/contract';
@@ -22,7 +23,7 @@ let adminApiMock: Record<string, ReturnType<typeof vi.fn>>;
 
 function renderScreen() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><UsersScreen /></QueryClientProvider>);
+  return render(<QueryClientProvider client={qc}><ConfirmHost><UsersScreen /></ConfirmHost></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -50,20 +51,18 @@ test('таблица показывает пользователя из отве
 });
 
 test('выключение активности запрашивает подтверждение', async () => {
-  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
   renderScreen();
   await screen.findByText('Иванов Иван');
   await userEvent.click(screen.getByRole('checkbox', { name: /активен/ }));
-  expect(confirmSpy).toHaveBeenCalled();
+  await userEvent.click(await screen.findByRole('button', { name: 'Отмена' }));
   expect(adminApiMock.toggleUser).not.toHaveBeenCalled();
-  confirmSpy.mockRestore();
 });
 
 test('подтверждённый сброс пароля вызывает API', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   renderScreen();
   await screen.findByText('Иванов Иван');
   await userEvent.click(screen.getByRole('button', { name: 'Сброс пароля' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
   await waitFor(() => expect(adminApiMock.resetPassword).toHaveBeenCalledWith('ivanov'));
 });
 

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PositionForm } from './PositionForm';
+import { ConfirmHost } from '../../design/Confirm';
 import type { GradingFactor, GradingPosition } from '../../api/contract';
 
 const criteria: GradingFactor[] = [
@@ -19,14 +20,16 @@ test('кнопка «Отправить оценку» выключена, по�
   expect(screen.getByRole('button', { name: 'Отправить оценку' })).toBeDisabled();
 });
 
-test('выбор варианта включает кнопку и передаёт факторы в onSubmit', async () => {
+test('выбор варианта включает кнопку и передаёт выбранный балл в onSubmit', async () => {
   const onSubmit = vi.fn();
   render(<PositionForm row={position()} criteria={criteria} committeeSize={0} onClose={() => {}} onSubmit={onSubmit} submitting={false} />);
-  await userEvent.click(screen.getByRole('button', { name: '3' }));
+  // Кнопки подписаны буквами (a…e) в перемешанном порядке — какую ни возьми, это валидный ответ.
+  const letterButtons = screen.getAllByRole('button').filter(b => /^[a-f]$/.test(b.textContent ?? ''));
+  await userEvent.click(letterButtons[0]);
   const btn = screen.getByRole('button', { name: 'Отправить оценку' });
   expect(btn).toBeEnabled();
   await userEvent.click(btn);
-  expect(onSubmit).toHaveBeenCalledWith({ jobTitle: 'Бухгалтер', factors: [3], notes: '' });
+  expect(onSubmit).toHaveBeenCalledWith({ jobTitle: 'Бухгалтер', factors: [expect.any(Number)], notes: '' });
 });
 
 test('утверждённая комиссией должность — форма недоступна на запись', () => {
@@ -35,16 +38,46 @@ test('утверждённая комиссией должность — фор�
   expect(screen.queryByRole('button', { name: 'Отправить оценку' })).not.toBeInTheDocument();
 });
 
-test('без комиссии оценённую должность можно переоценить', () => {
+test('без комиссии оценённую должность можно переоценить — форма не заблокирована, но и не подставлена', async () => {
   render(<PositionForm row={position({ grade_level: 3, factor_1: 4 })} criteria={criteria} committeeSize={0} onClose={() => {}} onSubmit={() => {}} submitting={false} />);
-  expect(screen.getByRole('button', { name: 'Отправить оценку' })).toBeEnabled();
+  const btn = screen.getByRole('button', { name: 'Отправить оценку' });
+  expect(btn).toBeDisabled();
+  const letterButtons = screen.getAllByRole('button').filter(b => /^[a-f]$/.test(b.textContent ?? ''));
+  await userEvent.click(letterButtons[0]);
+  expect(btn).toBeEnabled();
 });
 
-test('своя слепая заявка предзаполняет форму', () => {
+test('своя слепая заявка предзаполняет комментарий, но не ответы шкалы', () => {
   render(<PositionForm
     row={position({ my_submission: { factor_1: 5, factor_2: 0, factor_3: 0, factor_4: 0, factor_5: 0, factor_6: 0, factor_7: 0, notes: 'моя заметка' } })}
     criteria={criteria} committeeSize={7} onClose={() => {}} onSubmit={() => {}} submitting={false}
   />);
   expect(screen.getByDisplayValue('моя заметка')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '5' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+});
+
+test('без права управления блоками кнопок сброса/восстановления нет даже у утверждённой оценки', () => {
+  render(<PositionForm row={position({ grade_level: 3, has_reset_backup: true })} criteria={criteria} committeeSize={5} onClose={() => {}} onSubmit={() => {}} submitting={false} />);
+  expect(screen.queryByRole('button', { name: 'Сбросить оценку' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Восстановить оценку' })).not.toBeInTheDocument();
+});
+
+test('с правом управления блоками админ видит и сброс, и восстановление прямо в карточке', async () => {
+  const onReset = vi.fn();
+  const onRestore = vi.fn();
+  render(
+    <ConfirmHost>
+      <PositionForm
+        row={position({ grade_level: 3, has_reset_backup: true })} criteria={criteria} committeeSize={5}
+        onClose={() => {}} onSubmit={() => {}} submitting={false}
+        canManage onReset={onReset} onRestore={onRestore}
+      />
+    </ConfirmHost>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Сбросить оценку' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
+  expect(onReset).toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Восстановить оценку' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
+  expect(onRestore).toHaveBeenCalled();
 });

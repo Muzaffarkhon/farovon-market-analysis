@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PeriodsScreen } from './PeriodsScreen';
+import { ConfirmHost } from '../../../design/Confirm';
 import * as periodsApiModule from '../../../api/periods';
 
 vi.mock('../../shell/Shell', () => ({ useScreenTitle: () => {} }));
@@ -14,7 +15,7 @@ let periodsApiMock: Record<string, ReturnType<typeof vi.fn>>;
 
 function renderScreen() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><PeriodsScreen /></QueryClientProvider>);
+  return render(<QueryClientProvider client={qc}><ConfirmHost><PeriodsScreen /></ConfirmHost></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -36,13 +37,13 @@ test('новый период показывает предупреждение 
 });
 
 test('удаление пустого архивного периода требует подтверждения и вызывает API', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   renderScreen();
   await screen.findAllByText('Обзор рынка 2025');
   const rows = screen.getAllByRole('row');
   const emptyRow = rows.find(r => r.textContent?.includes('Обзор рынка 2025'))!;
   const { getByRole } = within(emptyRow);
   await userEvent.click(getByRole('button', { name: 'Удалить' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
   await waitFor(() => expect(periodsApiMock.deletePeriod).toHaveBeenCalledWith(1));
 });
 

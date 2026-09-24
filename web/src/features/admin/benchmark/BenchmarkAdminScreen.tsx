@@ -22,7 +22,7 @@ export function BenchmarkAdminScreen() {
   const sources = src.sources ?? [];
 
   return (
-    <div className={s.form}>
+    <div className={s.form} data-wide>
       <div className={s.head}>
         <div className={s.tabs}>
           <Chip active={tab === 'sources'} onClick={() => setTab('sources')}>Источники</Chip>

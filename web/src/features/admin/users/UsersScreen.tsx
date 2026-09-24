@@ -3,7 +3,10 @@ import type { AdminUser } from '../../../api/contract';
 import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
+import { useConfirm } from '../../../design/Confirm';
 import { Skeleton } from '../../../design/Skeleton';
+import { SortTh } from '../../../design/SortTh';
+import { useSort } from '../../../design/useSort';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -14,6 +17,7 @@ export function UsersScreen() {
   useScreenTitle('Пользователи');
   const u = useUsers();
   const { user } = useSessionData();
+  const confirm = useConfirm();
   // Добавлять новых пользователей может только встроенный суперадмин (login
   // «admin») — см. adminController.saveUser. У остальных, даже с ролью
   // admin, сервер отклонит запрос, поэтому кнопку им не показываем.
@@ -22,13 +26,38 @@ export function UsersScreen() {
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const activeSort = useSort(u.users ?? [], (row, key) => {
+    switch (key) {
+      case 'fio': return row.fio;
+      case 'login': return row.login;
+      case 'role': return row.role;
+      case 'units': return row.units.join(', ');
+      case 'phone': return row.phone;
+      case 'position': return row.position;
+      case 'status': return row.active ? 1 : 0;
+      case 'telegram': return row.hasTelegram ? 1 : 0;
+      case 'lastIn': return row.lastIn ?? '';
+      default: return '';
+    }
+  });
+
+  const archivedSort = useSort(u.archived ?? [], (row, key) => {
+    switch (key) {
+      case 'fio': return row.fio;
+      case 'login': return row.login;
+      case 'role': return row.role;
+      case 'archivedAt': return row.archivedAt;
+      default: return '';
+    }
+  });
+
   if (u.usersError) return <p className={s.empty}>{u.usersError.message}</p>;
   if (u.usersLoading) return <Skeleton lines={6} />;
 
   const formOpen = creating || !!editing;
 
   return (
-    <div className={s.screenFill}>
+    <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <div className={s.tabs}>
           <Chip active={tab === 'active'} onClick={() => setTab('active')}>Активные</Chip>
@@ -42,12 +71,20 @@ export function UsersScreen() {
           <table className={s.table}>
             <thead>
               <tr>
-                <th>ФИО</th><th>Логин</th><th>Роль</th><th>Подразделения</th><th>Телефон</th>
-                <th>Должность</th><th>Статус</th><th>Telegram</th><th>Последний вход</th><th></th>
+                <SortTh label="ФИО" sortKey="fio" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Логин" sortKey="login" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Роль" sortKey="role" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Подразделения" sortKey="units" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Телефон" sortKey="phone" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Должность" sortKey="position" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Статус" sortKey="status" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Telegram" sortKey="telegram" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <SortTh label="Последний вход" sortKey="lastIn" activeKey={activeSort.sortKey} dir={activeSort.sortDir} onSort={activeSort.sortBy} />
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {(u.users ?? []).map(row => (
+              {activeSort.sorted.map(row => (
                 <tr key={row.id} className={row.active ? '' : s.rowInactive}>
                   <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
                   <td>{row.login}</td>
@@ -59,9 +96,10 @@ export function UsersScreen() {
                     <label>
                       <input
                         type="checkbox" checked={row.active}
-                        onChange={e => {
-                          if (!e.target.checked && !confirm(`Выключить доступ пользователю «${row.fio}»?`)) return;
-                          u.toggle({ login: row.login, active: e.target.checked });
+                        onChange={async e => {
+                          const nextActive = e.target.checked;
+                          if (!nextActive && !(await confirm({ message: `Выключить доступ пользователю «${row.fio}»?`, danger: true }))) return;
+                          u.toggle({ login: row.login, active: nextActive });
                         }}
                       /> {row.active ? 'активен' : 'выключен'}
                     </label>
@@ -71,13 +109,13 @@ export function UsersScreen() {
                   <td style={{ display: 'flex', gap: 6 }}>
                     <Button
                       size="sm" variant="secondary"
-                      onClick={() => { if (confirm(`Сбросить пароль пользователю «${row.fio}»? Новый пароль придёт ему в Telegram.`)) u.resetPassword(row.login); }}
+                      onClick={async () => { if (await confirm(`Сбросить пароль пользователю «${row.fio}»? Новый пароль придёт ему в Telegram.`)) u.resetPassword(row.login); }}
                     >
                       Сброс пароля
                     </Button>
                     <Button
                       size="sm" variant="danger"
-                      onClick={() => { if (confirm(`Переместить «${row.fio}» в архив?`)) u.archiveUser(row.login); }}
+                      onClick={async () => { if (await confirm({ message: `Переместить «${row.fio}» в архив?`, danger: true })) u.archiveUser(row.login); }}
                     >
                       В архив
                     </Button>
@@ -93,9 +131,17 @@ export function UsersScreen() {
       {tab === 'archive' && (
         <div className={s.tableWrapFill}>
           <table className={s.table}>
-            <thead><tr><th>ФИО</th><th>Логин</th><th>Роль</th><th>В архиве с</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <SortTh label="ФИО" sortKey="fio" activeKey={archivedSort.sortKey} dir={archivedSort.sortDir} onSort={archivedSort.sortBy} />
+                <SortTh label="Логин" sortKey="login" activeKey={archivedSort.sortKey} dir={archivedSort.sortDir} onSort={archivedSort.sortBy} />
+                <SortTh label="Роль" sortKey="role" activeKey={archivedSort.sortKey} dir={archivedSort.sortDir} onSort={archivedSort.sortBy} />
+                <SortTh label="В архиве с" sortKey="archivedAt" activeKey={archivedSort.sortKey} dir={archivedSort.sortDir} onSort={archivedSort.sortBy} />
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
-              {(u.archived ?? []).map(row => (
+              {archivedSort.sorted.map(row => (
                 <tr key={row.id}>
                   <td>{row.fio}</td><td>{row.login}</td><td>{row.role}</td><td>{row.archivedAt}</td>
                   <td><Button size="sm" variant="secondary" onClick={() => u.restoreUser(row.login)}>Восстановить</Button></td>

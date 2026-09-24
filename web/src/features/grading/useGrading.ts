@@ -33,6 +33,23 @@ export function useGrading() {
     onError: (e) => toast.show(e instanceof ApiError ? e.message : 'Не удалось сохранить оценку', 'error')
   });
 
+  const invalidatePositions = () => {
+    void qc.invalidateQueries({ queryKey: ['grading-positions', block] });
+    void qc.invalidateQueries({ queryKey: ['grading-blocks'] });
+  };
+
+  const resetMutation = useMutation({
+    mutationFn: (jobTitle: string) => gradingApi.resetEvaluation({ block, job_title: jobTitle }),
+    onSuccess: r => { toast.show(r.message, 'ok'); invalidatePositions(); },
+    onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось сбросить оценку', 'error')
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (jobTitle: string) => gradingApi.restoreEvaluation({ block, job_title: jobTitle }),
+    onSuccess: r => { toast.show(r.message, 'ok'); invalidatePositions(); },
+    onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось восстановить оценку', 'error')
+  });
+
   return {
     block,
     blocks: blocks.data?.rows,
@@ -43,6 +60,10 @@ export function useGrading() {
     positionsLoading: positions.isLoading,
     positionsError: positions.error as Error | null,
     evaluate: evaluateMutation.mutate,
-    evaluating: evaluateMutation.isPending
+    evaluating: evaluateMutation.isPending,
+    reset: resetMutation.mutate,
+    resetting: resetMutation.isPending,
+    restore: restoreMutation.mutate,
+    restoring: restoreMutation.isPending
   };
 }

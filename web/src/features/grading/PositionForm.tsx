@@ -1,43 +1,75 @@
 import { useState } from 'react';
 import type { GradingFactor, GradingPosition } from '../../api/contract';
 import { Button } from '../../design/Button';
+import { useConfirm } from '../../design/Confirm';
 import { ScaleInput } from '../../design/ScaleInput';
 import { Sheet } from '../../design/Sheet';
 import { Textarea } from '../../design/Textarea';
 import s from './Grading.module.css';
-
-const FACTOR_KEYS = ['factor_1', 'factor_2', 'factor_3', 'factor_4', 'factor_5', 'factor_6', 'factor_7'] as const;
 
 /** Уже утверждено комиссией — форма недоступна на запись (сервер и так откажет 409, но не заставляем узнавать об этом через ошибку). */
 function isLocked(row: GradingPosition, committeeSize: number) {
   return committeeSize > 0 && row.grade_level != null;
 }
 
-/** Анкета из семи факторов. Черновик — своя слепая заявка, если уже сдавал, иначе прежняя утверждённая оценка, иначе пусто. */
-export function PositionForm({ row, criteria, committeeSize, onClose, onSubmit, submitting }: {
+/**
+ * Анкета из семи факторов. Ответы никогда не подставляются заранее — ни
+ * прежняя утверждённая оценка, ни своя незавершённая заявка: пока эксперт
+ * сам не нажал букву, анкета выглядит пустой, а не «за него уже выбрано».
+ * Комментарий — единственное, что имеет смысл вспомнить и предзаполнить.
+ */
+export function PositionForm({
+  row, criteria, committeeSize, onClose, onSubmit, submitting,
+  canManage = false, onReset, resetting = false, onRestore, restoring = false
+}: {
   row: GradingPosition;
   criteria: GradingFactor[];
   committeeSize: number;
   onClose: () => void;
   onSubmit: (a: { jobTitle: string; factors: number[]; notes?: string }) => void;
   submitting: boolean;
+  /** Право «grading:blocks» (или роль admin) — управление оценкой прямо из карточки, без ухода в «Грейдирование — настройка». */
+  canManage?: boolean;
+  onReset?: () => void;
+  resetting?: boolean;
+  onRestore?: () => void;
+  restoring?: boolean;
 }) {
+  const confirm = useConfirm();
   const initial = (row.my_submission || row) as unknown as Record<string, unknown>;
-  // Ровно столько значений, сколько реально пришло факторов анкеты — не
-  // жёстко семь: тест и любой другой набор критериев не должны требовать
-  // заполнения несуществующих слотов, чтобы кнопка стала активной.
-  const [values, setValues] = useState<number[]>(
-    FACTOR_KEYS.slice(0, criteria.length).map(k => Number(initial[k]) || 0)
-  );
+  const [values, setValues] = useState<number[]>(() => criteria.map(() => 0));
   const [notes, setNotes] = useState(String(initial.notes || ''));
   const locked = isLocked(row, committeeSize);
   const canSubmit = !locked && values.every(v => v > 0);
 
   return (
-    <Sheet open onClose={onClose} title={row.job_title}>
-      {locked ? (
-        <p className={s.locked}>Оценка уже утверждена комиссией — изменить нельзя. Сброс — у администратора.</p>
-      ) : (
+    <Sheet open onClose={onClose} title={row.job_title} variant="modal">
+      {locked && (
+        <p className={s.locked}>
+          Оценка уже утверждена комиссией — изменить нельзя.{!canManage && ' Сброс — у администратора.'}
+        </p>
+      )}
+      {canManage && (row.grade_level != null || row.has_reset_backup) && (
+        <div className={s.formFoot} style={{ marginBottom: locked ? 0 : 'var(--s-3)' }}>
+          {row.grade_level != null && (
+            <Button
+              variant="danger" size="sm" loading={resetting}
+              onClick={async () => { if (onReset && await confirm({ message: `Сбросить оценку «${row.job_title}»? Действие можно отменить кнопкой «Восстановить».`, danger: true })) onReset(); }}
+            >
+              Сбросить оценку
+            </Button>
+          )}
+          {row.has_reset_backup && (
+            <Button
+              variant="secondary" size="sm" loading={restoring}
+              onClick={async () => { if (onRestore && await confirm(`Восстановить последнюю сброшенную оценку «${row.job_title}»?`)) onRestore(); }}
+            >
+              Восстановить оценку
+            </Button>
+          )}
+        </div>
+      )}
+      {!locked && (
         <div className={s.form}>
           {criteria.map((c, i) => (
             <ScaleInput

@@ -699,6 +699,7 @@ async function migrate() {
   await seedGradingPositionHints();
   await unifyGradingCriteria();
   await addSeventhGradingFactor();
+  await createGradingResetBackup();
   await seedSupportChat();
   await extendSupportChatWeb();
   await addSupportThreadArchive();
@@ -832,6 +833,29 @@ async function createReminderLog() {
  * JSON-массив ключей видимых колонок; порядок в массиве и есть порядок
  * отображения.
  */
+/**
+ * Снимок оценки должности перед сбросом (gradingController.resetEvaluation) —
+ * единственная резервная копия на пару «блок+должность» (PRIMARY KEY без id,
+ * INSERT OR REPLACE перетирает предыдущую): «восстановить» откатывает именно
+ * последний сброс, а не всю историю. committee_submissions — JSON-массив
+ * слепых заявок комиссии на момент сброса (пусто, если комиссии не было).
+ */
+async function createGradingResetBackup() {
+  await run(`CREATE TABLE IF NOT EXISTS grading_reset_backup (
+    block_key TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    unit TEXT,
+    factor_1 INTEGER, factor_2 INTEGER, factor_3 INTEGER, factor_4 INTEGER,
+    factor_5 INTEGER, factor_6 INTEGER, factor_7 INTEGER,
+    weighted_score REAL, grade_level INTEGER, evaluated_by TEXT, notes TEXT,
+    committee_submissions TEXT,
+    reset_by TEXT NOT NULL,
+    reset_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (block_key, job_title)
+  )`);
+  console.log('🔧 Миграция: таблица резервной копии сброшенных оценок создана');
+}
+
 async function createUserTablePrefs() {
   await run(`CREATE TABLE IF NOT EXISTS user_table_prefs (
     login TEXT NOT NULL,
@@ -1305,9 +1329,7 @@ async function seedGradingBlocks() {
     { key: 'production', label: 'Производство', sort: 10 },
     { key: 'construction', label: 'Строительный блок', sort: 20 },
     { key: 'trade', label: 'Торговля', sort: 30 },
-    // Раньше «Офис-АУП» — путали с функциональной группой «АУП» (это разные
-    // вещи: блок про физическое место работы, группа про анкету оценки).
-    { key: 'office', label: 'Офис', sort: 40 }
+    { key: 'office', label: 'АУП', sort: 40 }
   ];
   for (const b of BLOCKS) {
     await run(

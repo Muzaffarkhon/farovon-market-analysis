@@ -3,6 +3,8 @@ import type { PeriodGrantRow, PeriodGrantUser, PeriodRow } from '../../../api/co
 import { Button } from '../../../design/Button';
 import { Combobox } from '../../../design/Combobox';
 import { Select } from '../../../design/Select';
+import { SortTh } from '../../../design/SortTh';
+import { useSort } from '../../../design/useSort';
 import s from '../Admin.module.css';
 
 /** Точечный доступ на редактирование закрытого/архивного периода — на сутки, продлевается повторной выдачей. */
@@ -17,14 +19,30 @@ export function PeriodGrantsPanel({ periods, grants, users, onGrant, onRevoke }:
   const [userLogin, setUserLogin] = useState(users[0]?.login ?? '');
   const [periodId, setPeriodId] = useState(archivedPeriods[0]?.id ?? 0);
 
+  const { sorted, sortKey, sortDir, sortBy } = useSort(grants, (row, key) => {
+    switch (key) {
+      case 'user': return row.userFio;
+      case 'period': return row.periodName;
+      case 'expires': return row.expiresAt;
+      default: return '';
+    }
+  });
+
   return (
     <div>
       <h4 className={s.hint}>Доступ к редактированию архивных периодов</h4>
       <div className={s.tableWrap}>
         <table className={s.table}>
-          <thead><tr><th>Сотрудник</th><th>Период</th><th>Истекает</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <SortTh label="Сотрудник" sortKey="user" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Период" sortKey="period" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Истекает" sortKey="expires" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
-            {grants.map(g => (
+            {sorted.map(g => (
               <tr key={g.userLogin + '|' + g.periodId}>
                 <td>{g.userFio}</td><td>{g.periodName}</td><td>{g.expiresAt}</td>
                 <td><Button size="sm" variant="danger" onClick={() => onRevoke({ userLogin: g.userLogin, periodId: g.periodId })}>Отозвать</Button></td>

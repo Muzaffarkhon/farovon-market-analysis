@@ -5,6 +5,8 @@ import { benchmarkApi } from '../../api/benchmark';
 import { Combobox } from '../../design/Combobox';
 import { KpiTile } from '../../design/KpiTile';
 import { Skeleton } from '../../design/Skeleton';
+import { SortTh } from '../../design/SortTh';
+import { useSort } from '../../design/useSort';
 import { money } from '../registry/format';
 import s from './Dashboard.module.css';
 
@@ -55,6 +57,21 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
     enabled: !!pos
   });
 
+  const compareRows: { key: string; source: BenchmarkSourceResult | (typeof compare.data extends undefined ? never : NonNullable<typeof compare.data>['result']['internal']) }[] = compare.data
+    ? [{ key: 'internal', source: compare.data.result.internal }, ...compare.data.result.external.map(e => ({ key: e.sourceKey, source: e }))]
+    : [];
+  const rowsSort = useSort(compareRows, (row, key) => {
+    const src = row.source;
+    switch (key) {
+      case 'title': return src.sourceTitle;
+      case 'dataAsOf': return 'dataAsOf' in src ? (src.dataAsOf ?? '') : '';
+      case 'p50': return src.stats?.p50 ?? 0;
+      case 'gap': return src.gapPercent ?? -Infinity;
+      case 'share': return src.share;
+      default: return '';
+    }
+  });
+
   return (
     <div className={s.screenFill}>
       {widgets.data && (
@@ -76,10 +93,6 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
       {pos && compare.data && (() => {
         const r = compare.data.result;
         const v = verdict(r.summary.compaRatio);
-        const rows: { key: string; source: BenchmarkSourceResult | typeof r.internal }[] = [
-          { key: 'internal', source: r.internal },
-          ...r.external.map(e => ({ key: e.sourceKey, source: e }))
-        ];
         return (
           <>
             <div className={s.grid}>
@@ -96,13 +109,15 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
               <table className={s.table}>
                 <thead>
                   <tr>
-                    <th>Источник</th><th className={s.num}>Данные на</th>
-                    <th className={s.num}>Медиана, сомони</th><th className={s.num}>Мы к источнику</th>
-                    <th>Вес в расчёте</th>
+                    <SortTh label="Источник" sortKey="title" activeKey={rowsSort.sortKey} dir={rowsSort.sortDir} onSort={rowsSort.sortBy} />
+                    <SortTh label="Данные на" sortKey="dataAsOf" activeKey={rowsSort.sortKey} dir={rowsSort.sortDir} onSort={rowsSort.sortBy} numeric />
+                    <SortTh label="Медиана, сомони" sortKey="p50" activeKey={rowsSort.sortKey} dir={rowsSort.sortDir} onSort={rowsSort.sortBy} numeric />
+                    <SortTh label="Мы к источнику" sortKey="gap" activeKey={rowsSort.sortKey} dir={rowsSort.sortDir} onSort={rowsSort.sortBy} numeric />
+                    <SortTh label="Вес в расчёте" sortKey="share" activeKey={rowsSort.sortKey} dir={rowsSort.sortDir} onSort={rowsSort.sortBy} numeric />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ key, source }) => (
+                  {rowsSort.sorted.map(({ key, source }) => (
                     <SourceRow
                       key={key} title={source.sourceTitle}
                       hasData={'hasData' in source ? source.hasData : true}

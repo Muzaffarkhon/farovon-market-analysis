@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
+import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import { Sheet } from '../../../design/Sheet';
 import { Textarea } from '../../../design/Textarea';
@@ -23,6 +24,7 @@ function EditableList({ items, secondaryLabel, onSave, onDelete, saving }: {
   const [editingId, setEditingId] = useState<number | 'new' | null>(null);
   const [primary, setPrimary] = useState('');
   const [secondary, setSecondary] = useState('');
+  const confirm = useConfirm();
 
   const startEdit = (item?: Item) => {
     setEditingId(item ? item.id : 'new');
@@ -57,7 +59,7 @@ function EditableList({ items, secondaryLabel, onSave, onDelete, saving }: {
                 <span className={s.rowName}>{item.primary}</span>
                 <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
                   <Button size="sm" variant="ghost" onClick={() => startEdit(item)}>Изменить</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { if (confirm('Удалить?')) onDelete(item.id); }}>Удалить</Button>
+                  <Button size="sm" variant="ghost" onClick={async () => { if (await confirm({ message: 'Удалить?', danger: true })) onDelete(item.id); }}>Удалить</Button>
                 </div>
               </div>
               {item.secondary && <div className={s.rowPreview}>{item.secondary}</div>}

@@ -5,6 +5,8 @@ import { Input } from '../../../design/Input';
 import { Select } from '../../../design/Select';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
+import { SortTh } from '../../../design/SortTh';
+import { useSort } from '../../../design/useSort';
 import s from '../Admin.module.css';
 import { useSources } from './useBenchmarkAdmin';
 
@@ -19,6 +21,18 @@ export function SourcesTab() {
   const src = useSources();
   const [editing, setEditing] = useState<BenchmarkSource | 'new' | null>(null);
 
+  const { sorted, sortKey, sortDir, sortBy } = useSort(src.sources ?? [], (row, key) => {
+    switch (key) {
+      case 'title': return row.title;
+      case 'kind': return KINDS.find(k => k.value === row.kind)?.label ?? row.kind;
+      case 'currency': return row.default_currency;
+      case 'licensed': return row.is_licensed ? 1 : 0;
+      case 'weight': return row.weight;
+      case 'hidden': return row.hidden ? 1 : 0;
+      default: return '';
+    }
+  });
+
   if (src.error) return <p className={s.empty}>{src.error.message}</p>;
   if (src.loading) return <Skeleton lines={4} />;
 
@@ -29,9 +43,19 @@ export function SourcesTab() {
       </div>
       <div className={s.tableWrapFill}>
         <table className={s.table}>
-          <thead><tr><th>Название</th><th>Тип</th><th>Валюта</th><th>Лицензия</th><th>Вес</th><th>Скрыт</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <SortTh label="Название" sortKey="title" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Тип" sortKey="kind" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Валюта" sortKey="currency" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Лицензия" sortKey="licensed" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Вес" sortKey="weight" activeKey={sortKey} dir={sortDir} onSort={sortBy} numeric />
+              <SortTh label="Скрыт" sortKey="hidden" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
-            {(src.sources ?? []).map(row => (
+            {sorted.map(row => (
               <tr key={row.key}>
                 <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.title}</button></td>
                 <td>{KINDS.find(k => k.value === row.kind)?.label ?? row.kind}</td>

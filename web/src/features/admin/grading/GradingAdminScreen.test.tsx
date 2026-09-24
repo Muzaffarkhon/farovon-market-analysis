@@ -2,7 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GradingAdminScreen } from './GradingAdminScreen';
+import { ConfirmHost } from '../../../design/Confirm';
 import * as gradingApiModule from '../../../api/grading';
+import * as adminApiModule from '../../../api/admin';
 
 vi.mock('../../shell/Shell', () => ({ useScreenTitle: () => {} }));
 
@@ -10,7 +12,7 @@ let gradingApiMock: Record<string, ReturnType<typeof vi.fn>>;
 
 function renderScreen() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><GradingAdminScreen /></QueryClientProvider>);
+  return render(<QueryClientProvider client={qc}><ConfirmHost><GradingAdminScreen /></ConfirmHost></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -33,6 +35,9 @@ beforeEach(() => {
     finalizeCommittee: vi.fn().mockResolvedValue({ ok: true, message: 'Итог подведён вручную' })
   };
   vi.spyOn(gradingApiModule, 'gradingApi', 'get').mockReturnValue(gradingApiMock as never);
+  vi.spyOn(adminApiModule, 'adminApi', 'get').mockReturnValue({
+    users: vi.fn().mockResolvedValue({ ok: true, users: [{ id: 1, login: 'petrov', fio: 'Петров Пётр', role: 'user', phone: '', position: '', units: [], active: true, lastIn: '', hasTelegram: false, hasPassword: true }] })
+  } as never);
 });
 
 test('вкладки переключаются независимо', async () => {
@@ -45,21 +50,19 @@ test('вкладки переключаются независимо', async () 
 });
 
 test('сброс утверждённой оценки требует подтверждения', async () => {
-  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
   renderScreen();
   await userEvent.click(await screen.findByRole('button', { name: 'Блоки' }));
   await screen.findByText('Мастер');
   await userEvent.click(screen.getByRole('button', { name: 'Сбросить оценку' }));
-  expect(confirmSpy).toHaveBeenCalled();
+  await userEvent.click(await screen.findByRole('button', { name: 'Отмена' }));
   expect(gradingApiMock.resetEvaluation).not.toHaveBeenCalled();
-  confirmSpy.mockRestore();
 });
 
 test('подтверждённое принудительное подведение итога вызывает finalize', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   renderScreen();
   await userEvent.click(await screen.findByRole('button', { name: 'Комиссия' }));
   await screen.findByText('Мастер');
   await userEvent.click(screen.getByRole('button', { name: 'Подвести итог принудительно' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
   await waitFor(() => expect(gradingApiMock.finalizeCommittee).toHaveBeenCalledWith({ block: 'production', job_title: 'Мастер' }));
 });

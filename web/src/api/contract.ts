@@ -287,6 +287,7 @@ export interface GradingPosition {
   units: GradingPositionUnit[];
   committee_size?: number;
   my_submission?: GradingSubmission | null;
+  has_reset_backup?: boolean;
 }
 
 export interface GradingPositionsResponse {
@@ -322,7 +323,7 @@ export interface ResetFactorPayload { scope: GradingFactorScope; idx: number; di
 export interface AdminGradingBlock { key: string; label: string; sort: number; pair_count: number }
 export interface AdminGradingBlocksResponse { ok: true; rows: AdminGradingBlock[] }
 
-export interface AdminBlockPosition { unit: string; position: string; staff_count: number }
+export interface AdminBlockPosition { unit: string; position: string; staff_count: number; has_reset_backup: boolean }
 export interface AdminBlockPositionsResponse { ok: true; rows: AdminBlockPosition[]; total: number }
 
 export interface CommitteeMember { login: string; fio: string | null; role: string | null }
@@ -331,6 +332,19 @@ export interface CommitteeResponse { ok: true; rows: CommitteeMember[] }
 export interface PendingCommitteeJob { job_title: string; submitted_count: number }
 export interface CommitteePendingResponse { ok: true; committeeSize: number; rows: PendingCommitteeJob[] }
 export interface OkMessageResponse { ok: true; message: string }
+
+export interface CommitteeSubmissionRow {
+  evaluator_login: string; evaluator_fio: string;
+  factor_1: number; factor_2: number; factor_3: number; factor_4: number; factor_5: number; factor_6: number; factor_7: number;
+  weighted_score: number; notes: string | null; submitted_at: string;
+}
+export interface CommitteeBreakdownResponse {
+  ok: true;
+  submissions: CommitteeSubmissionRow[];
+  final: { weighted_score: number; grade_level: number | null; factor_1: number; factor_2: number; factor_3: number; factor_4: number; factor_5: number; factor_6: number; factor_7: number; evaluated_by: string } | null;
+  finalized: boolean;
+  committeeSize: number;
+}
 
 // ─── Администрирование: бенчмаркинг ───
 

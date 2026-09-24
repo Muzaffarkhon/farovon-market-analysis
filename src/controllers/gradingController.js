@@ -209,10 +209,12 @@ async function getPositions(req, res) {
              e.id AS evaluation_id,
              e.factor_1, e.factor_2, e.factor_3, e.factor_4, e.factor_5, e.factor_6, e.factor_7,
              e.weighted_score, e.grade_level, e.evaluated_by, e.notes, e.updated_at,
-             COALESCE(cs.submitted_count, 0) AS submitted_count
+             COALESCE(cs.submitted_count, 0) AS submitted_count,
+             (rb.job_title IS NOT NULL) AS has_reset_backup
       FROM grading_block_assignments ga
       LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
       LEFT JOIN job_evaluations e ON e.block_key = ga.block_key AND e.job_title = ga.position
+      LEFT JOIN grading_reset_backup rb ON rb.block_key = ga.block_key AND rb.job_title = ga.position
       LEFT JOIN (
         SELECT job_title, COUNT(DISTINCT evaluator_login) AS submitted_count
         FROM grading_committee_evaluations WHERE block_key = ?
@@ -513,6 +515,10 @@ async function forceFinalizeCommittee(req, res) {
  * (кнопка «Изменить») этого не делает нарочно, чтобы члены комиссии не могли
  * случайно стереть чужие голоса — сброс доступен только тем, кто управляет
  * блоками (grading:blocks), не всем, у кого просто grading:edit.
+ *
+ * Перед удалением снимок уходит в grading_reset_backup (restoreEvaluation
+ * ниже) — сброс по ошибке не должен требовать заново собирать кворум комиссии
+ * или переоценивать должность с нуля.
  */
 async function resetEvaluation(req, res) {
   try {
@@ -527,6 +533,40 @@ async function resetEvaluation(req, res) {
     );
     if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
 
+    const existing = await queryOne(
+      'SELECT unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, weighted_score, grade_level, evaluated_by, notes FROM job_evaluations WHERE block_key = ? AND job_title = ?',
+      [block, jobTitle]
+    );
+    const submissions = await queryAll(
+      'SELECT evaluator_login, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, weighted_score, notes FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?',
+      [block, jobTitle]
+    );
+    if (!existing && !submissions.length) {
+      return fail(res, 'Оценка ещё не выставлена — нечего сбрасывать');
+    }
+
+    await run(`
+      INSERT INTO grading_reset_backup
+        (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7,
+         weighted_score, grade_level, evaluated_by, notes, committee_submissions, reset_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(block_key, job_title) DO UPDATE SET
+        unit = excluded.unit,
+        factor_1 = excluded.factor_1, factor_2 = excluded.factor_2, factor_3 = excluded.factor_3,
+        factor_4 = excluded.factor_4, factor_5 = excluded.factor_5, factor_6 = excluded.factor_6,
+        factor_7 = excluded.factor_7, weighted_score = excluded.weighted_score,
+        grade_level = excluded.grade_level, evaluated_by = excluded.evaluated_by, notes = excluded.notes,
+        committee_submissions = excluded.committee_submissions,
+        reset_by = excluded.reset_by, reset_at = CURRENT_TIMESTAMP
+    `, [
+      block, jobTitle, assigned.unit,
+      existing?.factor_1 ?? null, existing?.factor_2 ?? null, existing?.factor_3 ?? null, existing?.factor_4 ?? null,
+      existing?.factor_5 ?? null, existing?.factor_6 ?? null, existing?.factor_7 ?? null,
+      existing?.weighted_score ?? null, existing?.grade_level ?? null, existing?.evaluated_by ?? null, existing?.notes ?? null,
+      submissions.length ? JSON.stringify(submissions) : null,
+      req.user.login
+    ]);
+
     await run('DELETE FROM job_evaluations WHERE block_key = ? AND job_title = ?', [block, jobTitle]);
     const removed = await run(
       'DELETE FROM grading_committee_evaluations WHERE block_key = ? AND job_title = ?', [block, jobTitle]
@@ -538,9 +578,85 @@ async function resetEvaluation(req, res) {
       `${block} / ${jobTitle}` + (removed.rowsAffected ? ` (снята ${removed.rowsAffected} заявка(и) комиссии)` : '')
     ]);
 
-    return res.json({ ok: true, message: 'Оценка сброшена — должность снова «не оценена»' });
+    return res.json({ ok: true, message: 'Оценка сброшена — должность снова «не оценена». Можно восстановить в любой момент.' });
   } catch (err) {
     return handleError(res, err, 'resetEvaluation');
+  }
+}
+
+/**
+ * Откатывает последний сброс (см. resetEvaluation): возвращает и итоговую
+ * запись job_evaluations (если была), и все слепые заявки комиссии, ровно в
+ * том виде, в каком они были на момент сброса. Бэкап при этом расходуется —
+ * повторно восстановить то же самое можно, только если его сначала снова
+ * сбросят (тогда появится новый снимок).
+ */
+async function restoreEvaluation(req, res) {
+  try {
+    const body = req.body || {};
+    const block = readText(body.block, 100);
+    const jobTitle = readText(body.job_title, 300);
+    if (!block || !jobTitle) return fail(res, 'Укажите блок и должность');
+
+    const backup = await queryOne(
+      'SELECT * FROM grading_reset_backup WHERE block_key = ? AND job_title = ?', [block, jobTitle]
+    );
+    if (!backup) return fail(res, 'Нет сохранённой оценки для восстановления');
+
+    const assigned = await queryOne(
+      'SELECT unit FROM grading_block_assignments WHERE block_key = ? AND position = ? LIMIT 1',
+      [block, jobTitle]
+    );
+    if (!assigned) return fail(res, 'Эта должность не относится к выбранному блоку');
+
+    if (backup.evaluated_by != null) {
+      await run(`
+        INSERT INTO job_evaluations
+          (block_key, job_title, unit, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7,
+           weighted_score, grade_level, evaluated_by, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(block_key, job_title) DO UPDATE SET
+          factor_1 = excluded.factor_1, factor_2 = excluded.factor_2, factor_3 = excluded.factor_3,
+          factor_4 = excluded.factor_4, factor_5 = excluded.factor_5, factor_6 = excluded.factor_6,
+          factor_7 = excluded.factor_7, weighted_score = excluded.weighted_score,
+          grade_level = excluded.grade_level, evaluated_by = excluded.evaluated_by, notes = excluded.notes,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        block, jobTitle, assigned.unit,
+        backup.factor_1, backup.factor_2, backup.factor_3, backup.factor_4, backup.factor_5, backup.factor_6, backup.factor_7,
+        backup.weighted_score, backup.grade_level, backup.evaluated_by, backup.notes
+      ]);
+    }
+
+    let restoredSubmissions = 0;
+    if (backup.committee_submissions) {
+      const submissions = JSON.parse(backup.committee_submissions);
+      for (const s of submissions) {
+        await run(`
+          INSERT INTO grading_committee_evaluations
+            (block_key, job_title, evaluator_login, factor_1, factor_2, factor_3, factor_4, factor_5, factor_6, factor_7, weighted_score, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(block_key, job_title, evaluator_login) DO UPDATE SET
+            factor_1 = excluded.factor_1, factor_2 = excluded.factor_2, factor_3 = excluded.factor_3,
+            factor_4 = excluded.factor_4, factor_5 = excluded.factor_5, factor_6 = excluded.factor_6,
+            factor_7 = excluded.factor_7, weighted_score = excluded.weighted_score, notes = excluded.notes,
+            submitted_at = CURRENT_TIMESTAMP
+        `, [block, jobTitle, s.evaluator_login, s.factor_1, s.factor_2, s.factor_3, s.factor_4, s.factor_5, s.factor_6, s.factor_7, s.weighted_score, s.notes ?? null]);
+        restoredSubmissions++;
+      }
+    }
+
+    await run('DELETE FROM grading_reset_backup WHERE block_key = ? AND job_title = ?', [block, jobTitle]);
+
+    await run('INSERT INTO audit_log (login, action, detail) VALUES (?, ?, ?)', [
+      req.user.login,
+      'восстановление оценки должности после сброса',
+      `${block} / ${jobTitle}` + (restoredSubmissions ? ` (восстановлено ${restoredSubmissions} заявка(и) комиссии)` : '')
+    ]);
+
+    return res.json({ ok: true, message: 'Оценка восстановлена' });
+  } catch (err) {
+    return handleError(res, err, 'restoreEvaluation');
   }
 }
 
@@ -657,9 +773,11 @@ async function getAdminBlockPositions(req, res) {
       const blockRow = await queryOne('SELECT key FROM grading_blocks WHERE key = ?', [block]);
       if (!blockRow) return fail(res, 'Неизвестный блок');
       rows = await queryAll(`
-        SELECT ga.unit, ga.position, COALESCE(up.staff_count, 0) AS staff_count
+        SELECT ga.unit, ga.position, COALESCE(up.staff_count, 0) AS staff_count,
+               (rb.job_title IS NOT NULL) AS has_reset_backup
         FROM grading_block_assignments ga
         LEFT JOIN unit_positions up ON up.unit = ga.unit AND up.position = ga.position
+        LEFT JOIN grading_reset_backup rb ON rb.block_key = ga.block_key AND rb.job_title = ga.position
         WHERE ga.block_key = ?
         ORDER BY ga.unit ASC, ga.position ASC
       `, [block]);
@@ -1021,6 +1139,7 @@ module.exports = {
   getCommitteePending,
   forceFinalizeCommittee,
   resetEvaluation,
+  restoreEvaluation,
   getCommitteeBreakdown,
   listRisks,
   unitEmployees,

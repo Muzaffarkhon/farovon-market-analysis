@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { adminApi } from '../../../api/admin';
 import { gradingApi } from '../../../api/grading';
 import { ApiError } from '../../../api/client';
 import type { GradingFactorScope, SaveFactorPayload } from '../../../api/contract';
@@ -51,14 +52,21 @@ export function useBlockPositions(block: string) {
 
   const resetEvaluation = useMutation({
     mutationFn: (a: { block: string; job_title: string }) => gradingApi.resetEvaluation(a),
-    onSuccess: r => toast.show(r.message, 'ok'),
+    onSuccess: r => { toast.show(r.message, 'ok'); invalidateAll(); },
     onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось сбросить оценку', 'error')
+  });
+
+  const restoreEvaluation = useMutation({
+    mutationFn: (a: { block: string; job_title: string }) => gradingApi.restoreEvaluation(a),
+    onSuccess: r => { toast.show(r.message, 'ok'); invalidateAll(); },
+    onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось восстановить оценку', 'error')
   });
 
   return {
     rows: positions.data?.rows, loading: positions.isLoading, error: positions.error as Error | null,
     reassign: reassign.mutate,
-    resetEvaluation: resetEvaluation.mutate
+    resetEvaluation: resetEvaluation.mutate,
+    restoreEvaluation: restoreEvaluation.mutate
   };
 }
 
@@ -67,6 +75,8 @@ export function useCommittee(block: string) {
   const qc = useQueryClient();
   const members = useQuery({ queryKey: ['admin-committee', block], queryFn: () => gradingApi.committee(block), enabled: !!block });
   const pending = useQuery({ queryKey: ['admin-committee-pending', block], queryFn: () => gradingApi.pendingCommittee(block), enabled: !!block });
+  // Тот же ключ кэша, что и в useUsers — второй раз список пользователей не грузится.
+  const allUsers = useQuery({ queryKey: ['admin-users'], queryFn: () => adminApi.users() });
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ['admin-committee', block] });
@@ -91,9 +101,15 @@ export function useCommittee(block: string) {
     onError: e => toast.show(e instanceof ApiError ? e.message : 'Не удалось подвести итог', 'error')
   });
 
+  const memberLogins = new Set((members.data?.rows ?? []).map(m => m.login));
+  const userOptions = (allUsers.data?.users ?? [])
+    .filter(u => u.active && !memberLogins.has(u.login))
+    .map(u => ({ value: u.login, label: `${u.fio} (${u.login})` }));
+
   return {
     members: members.data?.rows, membersLoading: members.isLoading,
     pending: pending.data?.rows, committeeSize: pending.data?.committeeSize ?? 0,
+    userOptions,
     add: add.mutate, remove: remove.mutate, finalize: finalize.mutate
   };
 }

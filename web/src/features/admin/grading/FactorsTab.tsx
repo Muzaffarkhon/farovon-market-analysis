@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AdminGradingBlock, GradingFactor, GradingFactorScope } from '../../../api/contract';
 import { Button } from '../../../design/Button';
+import { useConfirm } from '../../../design/Confirm';
 import { Select } from '../../../design/Select';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
@@ -13,6 +14,7 @@ export function FactorsTab({ blocks }: { blocks: AdminGradingBlock[] }) {
   const [dir, setDir] = useState('');
   const [editing, setEditing] = useState<{ row: GradingFactor; idx: number } | null>(null);
   const f = useFactorsAdmin(scope, dir);
+  const confirm = useConfirm();
 
   return (
     <div className={s.screenFill}>
@@ -45,9 +47,9 @@ export function FactorsTab({ blocks }: { blocks: AdminGradingBlock[] }) {
                   <Button size="sm" variant="secondary" onClick={() => setEditing({ row, idx: i + 1 })}>Изменить</Button>
                   <Button
                     size="sm" variant="secondary"
-                    onClick={() => {
+                    onClick={async () => {
                       const msg = dir ? 'Удалить переопределение для этой области?' : 'Вернуть исходную формулировку из Google-формы?';
-                      if (confirm(msg)) f.reset(i + 1);
+                      if (await confirm(msg)) f.reset(i + 1);
                     }}
                   >
                     {dir ? 'Удалить переопределение' : 'Сбросить'}

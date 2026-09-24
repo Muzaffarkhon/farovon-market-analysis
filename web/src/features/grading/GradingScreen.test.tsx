@@ -4,9 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { GradingScreen } from './GradingScreen';
 import * as api from '../../api/grading';
-import type { GradingBlock, GradingPositionsResponse } from '../../api/contract';
+import type { GradingBlock, GradingPositionsResponse, SessionData } from '../../api/contract';
 
 vi.mock('../shell/Shell', () => ({ useScreenTitle: () => {} }));
+
+const session = { user: { role: 'user', capabilities: [] as string[] } } as unknown as SessionData;
+vi.mock('../auth/useSession', () => ({ useSessionData: () => session }));
 
 const blocks: GradingBlock[] = [
   { key: 'office', label: 'Офис', sort: 1, position_count: 5, evaluated_count: 2 },
@@ -45,7 +48,8 @@ beforeEach(() => {
   positionsFn = vi.fn().mockResolvedValue(positionsResponse);
   factorsFn = vi.fn().mockResolvedValue({ ok: true, criteria: [], weights: [], maxGrade: 1, grades: [], riskFactors: [], riskLevels: [] });
   vi.spyOn(api, 'gradingApi', 'get').mockReturnValue({
-    blocks: blocksFn, positions: positionsFn, factors: factorsFn, evaluate: vi.fn(), stats: vi.fn()
+    blocks: blocksFn, positions: positionsFn, factors: factorsFn, evaluate: vi.fn(), stats: vi.fn(),
+    resetEvaluation: vi.fn(), restoreEvaluation: vi.fn()
   } as never);
 });
 

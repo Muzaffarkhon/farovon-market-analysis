@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { Division } from '../../../api/contract';
 import { Button } from '../../../design/Button';
+import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import { Skeleton } from '../../../design/Skeleton';
+import { SortTh } from '../../../design/SortTh';
+import { useSort } from '../../../design/useSort';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
@@ -17,6 +20,7 @@ export function DivisionsScreen() {
   const { user } = useSessionData();
   const isAdmin = user.role === 'admin' || user.role === 'cb';
   const d = useDivisions();
+  const confirm = useConfirm();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Division | null>(null);
   const [moving, setMoving] = useState<Division | null>(null);
@@ -31,6 +35,19 @@ export function DivisionsScreen() {
   }, [d.divisions, query]);
 
   const dirOptions = useMemo(() => [...new Set((d.divisions ?? []).map(r => r.dir).filter(Boolean))] as string[], [d.divisions]);
+
+  const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
+    switch (key) {
+      case 'unit': return row.unit;
+      case 'dir': return row.dir;
+      case 'head': return row.head;
+      case 'resp': return row.resp;
+      case 'hrbp': return row.hrbp;
+      case 'target': return row.is_survey_target ? 1 : 0;
+      case 'hidden': return row.is_hidden ? 1 : 0;
+      default: return '';
+    }
+  });
 
   if (d.divisionsError) return <p className={s.empty}>{d.divisionsError.message}</p>;
   if (d.divisionsLoading) return <Skeleton lines={8} />;
@@ -49,12 +66,18 @@ export function DivisionsScreen() {
         <table className={s.table}>
           <thead>
             <tr>
-              <th>Подразделение</th><th>Направление</th><th>Руководитель</th><th>Ответственный</th>
-              <th>HRBP</th><th>Цель сбора</th><th>Скрыто</th><th></th>
+              <SortTh label="Подразделение" sortKey="unit" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Направление" sortKey="dir" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Руководитель" sortKey="head" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Ответственный" sortKey="resp" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="HRBP" sortKey="hrbp" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Цель сбора" sortKey="target" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Скрыто" sortKey="hidden" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(row => (
+            {sorted.map(row => (
               <tr key={row.id}>
                 <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button></td>
                 <td>{row.dir}</td>
@@ -73,7 +96,7 @@ export function DivisionsScreen() {
                   {isAdmin && (
                     <Button
                       size="sm" variant="danger"
-                      onClick={() => { if (confirm(`Удалить подразделение «${row.unit}»?`)) d.remove(row.unit); }}
+                      onClick={async () => { if (await confirm({ message: `Удалить подразделение «${row.unit}»?`, danger: true })) d.remove(row.unit); }}
                     >
                       Удалить
                     </Button>

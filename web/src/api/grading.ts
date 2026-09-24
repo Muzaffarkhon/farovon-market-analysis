@@ -3,7 +3,7 @@ import type {
   GradingBlock, GradingEvaluateResponse, GradingFactorsResponse, GradingPositionsResponse, GradingStatsResponse,
   SaveFactorPayload, ResetFactorPayload, OkResponse, OkMessageResponse,
   AdminGradingBlocksResponse, AdminBlockPositionsResponse,
-  CommitteeResponse, CommitteePendingResponse
+  CommitteeResponse, CommitteePendingResponse, CommitteeBreakdownResponse
 } from './contract';
 
 export const gradingApi = {
@@ -23,6 +23,9 @@ export const gradingApi = {
   reassignBlockPosition: (a: { unit: string; position: string; block: string }) =>
     request<OkResponse>('/admin/grading-blocks/reassign', a),
   resetEvaluation: (a: { block: string; job_title: string }) => request<OkMessageResponse>('/admin/grading-blocks/reset-evaluation', a),
+  restoreEvaluation: (a: { block: string; job_title: string }) => request<OkMessageResponse>('/admin/grading-blocks/restore-evaluation', a),
+  committeeBreakdown: (a: { block: string; job_title: string }) =>
+    request<CommitteeBreakdownResponse>('/admin/grading-blocks/committee-breakdown?' + new URLSearchParams(a)),
 
   committee: (block: string) => request<CommitteeResponse>('/admin/grading-committee?' + new URLSearchParams({ block })),
   addCommitteeMember: (a: { block: string; login: string }) => request<OkResponse>('/admin/grading-committee/add', a),

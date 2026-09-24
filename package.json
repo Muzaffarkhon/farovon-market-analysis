@@ -1,6 +1,6 @@
 {
   "name": "farovon-market-analysis",
-  "version": "2.5.208",
+  "version": "2.5.209",
   "description": "Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон",
   "main": "src/server.js",
   "scripts": {

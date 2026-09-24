@@ -22,7 +22,7 @@ export function GradingAdminScreen() {
   if (blocksQuery.error) return <p className={s.empty}>{(blocksQuery.error as Error).message}</p>;
 
   return (
-    <div className={s.form}>
+    <div className={s.form} data-wide>
       <div className={s.tabs}>
         <Chip active={tab === 'factors'} onClick={() => setTab('factors')}>Формулировки</Chip>
         <Chip active={tab === 'blocks'} onClick={() => setTab('blocks')}>Блоки</Chip>

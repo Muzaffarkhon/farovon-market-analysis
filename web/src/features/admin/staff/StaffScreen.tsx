@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { StaffRecord } from '../../../api/contract';
 import { Button } from '../../../design/Button';
+import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
+import { SortTh } from '../../../design/SortTh';
+import { useSort } from '../../../design/useSort';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
 import { StaffImportWizard } from './StaffImportWizard';
@@ -12,6 +15,7 @@ import { useStaff } from './useStaff';
 export function StaffScreen() {
   useScreenTitle('Справочник сотрудников');
   const st = useStaff();
+  const confirm = useConfirm();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<StaffRecord | 'new' | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -23,11 +27,20 @@ export function StaffScreen() {
     return rows.filter(r => r.fio.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q));
   }, [st.items, query]);
 
+  const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
+    switch (key) {
+      case 'fio': return row.fio;
+      case 'unit': return row.unit;
+      case 'position': return row.position;
+      default: return '';
+    }
+  });
+
   if (st.listError) return <p className={s.empty}>{st.listError.message}</p>;
   if (st.listLoading) return <Skeleton lines={8} />;
 
   return (
-    <div className={s.screenFill}>
+    <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <Input label="Поиск" placeholder="ФИО или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
@@ -40,9 +53,16 @@ export function StaffScreen() {
 
       <div className={s.tableWrapFill}>
         <table className={s.table}>
-          <thead><tr><th>ФИО</th><th>Подразделение</th><th>Должность</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <SortTh label="ФИО" sortKey="fio" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Подразделение" sortKey="unit" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Должность" sortKey="position" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
-            {filtered.map(row => (
+            {sorted.map(row => (
               <tr key={row.id}>
                 <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
                 <td>{row.unit}</td>
@@ -50,7 +70,7 @@ export function StaffScreen() {
                 <td>
                   <Button
                     size="sm" variant="danger"
-                    onClick={() => { if (confirm(`Удалить запись «${row.fio}»?`)) st.remove(row.id); }}
+                    onClick={async () => { if (await confirm({ message: `Удалить запись «${row.fio}»?`, danger: true })) st.remove(row.id); }}
                   >
                     Удалить
                   </Button>

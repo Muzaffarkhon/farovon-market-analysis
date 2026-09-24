@@ -1,0 +1,9 @@
+.btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; font-weight: 600; color: inherit; cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { color: var(--accent); }
+.numeric { flex-direction: row-reverse; }
+.mark { font-size: 11px; color: var(--accent); min-width: 10px; display: inline-block; text-align: center; }

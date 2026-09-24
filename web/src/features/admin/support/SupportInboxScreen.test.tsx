@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SupportInboxScreen } from './SupportInboxScreen';
+import { ConfirmHost } from '../../../design/Confirm';
 import * as supportApiModule from '../../../api/support';
 import * as adminApiModule from '../../../api/admin';
 import type { SessionData } from '../../../api/contract';
@@ -19,7 +20,7 @@ let supportApiMock: Record<string, ReturnType<typeof vi.fn>>;
 
 function renderScreen() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><SupportInboxScreen /></QueryClientProvider>);
+  return render(<QueryClientProvider client={qc}><ConfirmHost><SupportInboxScreen /></ConfirmHost></QueryClientProvider>);
 }
 
 const webThread = {
@@ -117,12 +118,12 @@ test('привязка к сотруднику: поиск, подтвержде
     adminThreads: vi.fn().mockResolvedValue({ ok: true, rows: [guestThread] }),
     adminThread: vi.fn().mockResolvedValue({ ok: true, thread: { ...guestThread, user_id: null }, messages: [] })
   });
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   renderScreen();
   await userEvent.click(await screen.findByText('Гость #2'));
   await screen.findByRole('dialog');
   await userEvent.click(screen.getByRole('button', { name: 'Привязать к сотруднику' }));
   await userEvent.type(screen.getByLabelText('Поиск сотрудника по ФИО'), 'Петров');
   await userEvent.click(await screen.findByText('Петров Пётр'));
+  await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
   await waitFor(() => expect(supportApiMock.linkEmployee).toHaveBeenCalledWith(2, 9));
 });

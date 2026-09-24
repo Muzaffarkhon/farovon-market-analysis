@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../../../api/admin';
 import { Badge } from '../../../design/Badge';
+import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
 import type { SupportThread } from '../../../api/contract';
 import s from './SupportInbox.module.css';
@@ -16,6 +17,7 @@ export function LinkEmployeePanel({ thread, onLink, linking }: {
   thread: SupportThread; onLink: (userId: number) => void; linking: boolean;
 }) {
   const [q, setQ] = useState('');
+  const confirm = useConfirm();
   const usersQuery = useQuery({ queryKey: ['admin-users-for-link'], queryFn: () => adminApi.users() });
   const users = (usersQuery.data?.users ?? []).filter(u => u.active);
   const needle = q.trim().toLowerCase();
@@ -28,10 +30,10 @@ export function LinkEmployeePanel({ thread, onLink, linking }: {
         {matches.map(u => (
           <button
             key={u.id} type="button" className={s.row} disabled={linking}
-            onClick={() => {
+            onClick={async () => {
               const warn = u.hasTelegram ? ' У сотрудника уже привязан другой Telegram — он будет отвязан.' : '';
               const phoneNote = thread.phone ? `, номер в карточке обновится на ${thread.phone}` : '';
-              if (confirm(`Привязать чат к «${u.fio}»${phoneNote}?${warn}`)) onLink(u.id);
+              if (await confirm(`Привязать чат к «${u.fio}»${phoneNote}?${warn}`)) onLink(u.id);
             }}
           >
             <div className={s.rowTop}>

@@ -9,7 +9,7 @@ export function RoleMatrixScreen() {
   useScreenTitle('Роли и доступы');
   const [tab, setTab] = useState<'roles' | 'personal'>('roles');
   return (
-    <div className={s.screen}>
+    <div className={s.screen} data-wide>
       <div className={s.tabs}>
         <Chip active={tab === 'roles'} onClick={() => setTab('roles')}>Роли</Chip>
         <Chip active={tab === 'personal'} onClick={() => setTab('personal')}>Личные исключения</Chip>

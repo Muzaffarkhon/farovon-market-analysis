@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
+import { useConfirm } from '../../../design/Confirm';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { Textarea } from '../../../design/Textarea';
@@ -25,6 +26,7 @@ export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInb
   const [pickerOpen, setPickerOpen] = useState(false);
   const { user } = useSessionData();
   const { adminReplies } = useSupportSettings();
+  const confirm = useConfirm();
   const open = inbox.activeId != null;
   const t = inbox.thread;
 
@@ -59,7 +61,7 @@ export function ThreadDetail({ inbox }: { inbox: ReturnType<typeof useSupportInb
               {user.role === 'admin' && (
                 <Button
                   size="sm" variant="danger" loading={inbox.removing}
-                  onClick={() => { if (confirm('Удалить обращение безвозвратно, вместе с перепиской?')) inbox.remove(); }}
+                  onClick={async () => { if (await confirm({ message: 'Удалить обращение безвозвратно, вместе с перепиской?', danger: true })) inbox.remove(); }}
                 >
                   Удалить
                 </Button>
