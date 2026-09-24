@@ -1,3 +1,16 @@
+/* Разделы администрирования разложены по смыслу на подразделы (AdminHub.tsx,
+   .group ниже) — восемь одинаковых плиток вперемешку было тяжело сканировать
+   глазами, тем же приёмом, что и группы в левом меню (Sidebar.module.css). */
+.groupList { display: flex; flex-direction: column; gap: var(--s-4); }
+.group { display: flex; flex-direction: column; gap: var(--s-3); }
+.groupHead {
+  display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap);
+  padding: 0; border: 0; background: transparent; cursor: pointer; width: 100%; text-align: left;
+}
+.groupLabel { font-size: 13px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--text-muted); }
+.groupChevron { color: var(--text-muted); font-size: 15px; display: inline-block; transition: transform .15s ease; }
+.groupChevronOpen { transform: rotate(90deg); }
+
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
 .card { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
 .card:hover { background: var(--surface-2); }

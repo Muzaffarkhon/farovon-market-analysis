@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import type { SessionUser } from '../../api/contract';
 import { useSessionData } from '../auth/useSession';
@@ -5,7 +6,18 @@ import { useScreenTitle } from '../shell/Shell';
 import s from './Admin.module.css';
 
 type IconName = 'users' | 'units' | 'book' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield';
-type Section = { to: string; title: string; note: string; icon: IconName; visible: (u: SessionUser) => boolean };
+type GroupKey = 'access' | 'structure' | 'method' | 'process';
+type Section = { to: string; title: string; note: string; icon: IconName; group: GroupKey; visible: (u: SessionUser) => boolean };
+
+// Тот же приём, что и в левом меню (Sidebar.tsx) — восемь плиток вперемешку
+// было тяжело сканировать глазами, разложил по смыслу на подразделы.
+const GROUP_LABEL: Record<GroupKey, string> = {
+  access: 'Пользователи и доступ',
+  structure: 'Структура и штат',
+  method: 'Методология',
+  process: 'Процесс сбора'
+};
+const GROUP_ORDER: GroupKey[] = ['access', 'structure', 'method', 'process'];
 
 // Те же SVG-пути, что в старом клиенте (client/app-core.js, ICONS) — для
 // узнаваемости при переходе со старой версии на новую.
@@ -27,36 +39,68 @@ function Icon({ name }: { name: IconName }) {
 }
 
 const SECTIONS: Section[] = [
-  { to: '/admin/users', title: 'Пользователи', note: 'Учётные записи, роли, сброс пароля, архив', icon: 'users', visible: u => has(u, 'users:view') },
-  { to: '/admin/divisions', title: 'Оргструктура', note: 'Подразделения, ответственные, направления', icon: 'units', visible: u => has(u, 'divisions:view') },
-  { to: '/admin/staff', title: 'Справочник сотрудников', note: 'Штат из 1С — импорт и правка', icon: 'book', visible: u => has(u, 'dictionary:view') },
-  { to: '/admin/grading', title: 'Грейдирование — настройка', note: 'Формулировки анкеты, блоки, комиссия', icon: 'grades', visible: u => has(u, 'grading:factors') || has(u, 'grading:blocks') || has(u, 'grading:committee') },
-  { to: '/admin/benchmark', title: 'Бенчмаркинг', note: 'Импорт источников и сопоставление позиций', icon: 'chart', visible: u => has(u, 'benchmarks:import') || has(u, 'benchmarks:map') },
-  { to: '/admin/periods', title: 'Периоды сбора', note: 'Открытие/закрытие периода, доступ к архиву', icon: 'clock', visible: u => has(u, 'period:view') },
-  { to: '/admin/support', title: 'Чат поддержки', note: 'Инбокс, привязка к сотруднику, готовые фразы', icon: 'chat', visible: u => has(u, 'support:manage') },
-  { to: '/access', title: 'Роли и доступы', note: 'Права ролей и личные исключения', icon: 'shield', visible: u => u.role === 'admin' }
+  { to: '/admin/users', title: 'Пользователи', note: 'Учётные записи, роли, сброс пароля, архив', icon: 'users', group: 'access', visible: u => has(u, 'users:view') },
+  { to: '/access', title: 'Роли и доступы', note: 'Права ролей и личные исключения', icon: 'shield', group: 'access', visible: u => u.role === 'admin' },
+  { to: '/admin/divisions', title: 'Оргструктура', note: 'Подразделения, ответственные, направления', icon: 'units', group: 'structure', visible: u => has(u, 'divisions:view') },
+  { to: '/admin/staff', title: 'Справочник сотрудников', note: 'Штат из 1С — импорт и правка', icon: 'book', group: 'structure', visible: u => has(u, 'dictionary:view') },
+  { to: '/admin/grading', title: 'Грейдирование — настройка', note: 'Формулировки анкеты, блоки, комиссия', icon: 'grades', group: 'method', visible: u => has(u, 'grading:factors') || has(u, 'grading:blocks') || has(u, 'grading:committee') },
+  { to: '/admin/benchmark', title: 'Бенчмаркинг', note: 'Импорт источников и сопоставление позиций', icon: 'chart', group: 'method', visible: u => has(u, 'benchmarks:import') || has(u, 'benchmarks:map') },
+  { to: '/admin/periods', title: 'Периоды сбора', note: 'Открытие/закрытие периода, доступ к архиву', icon: 'clock', group: 'process', visible: u => has(u, 'period:view') },
+  { to: '/admin/support', title: 'Чат поддержки', note: 'Инбокс, привязка к сотруднику, готовые фразы', icon: 'chat', group: 'process', visible: u => has(u, 'support:manage') }
 ];
 
 function has(u: SessionUser, c: string) {
   return u.role === 'admin' || u.capabilities.includes(c);
 }
 
+function AdminGroupBlock({ groupKey, sections }: { groupKey: GroupKey; sections: Section[] }) {
+  const storageKey = `admin-group-${groupKey}`;
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem(storageKey) !== '0'; } catch { return true; }
+  });
+
+  function toggle() {
+    setExpanded(v => {
+      const next = !v;
+      try { localStorage.setItem(storageKey, next ? '1' : '0'); } catch { /* noop */ }
+      return next;
+    });
+  }
+
+  return (
+    <div className={s.group}>
+      <button type="button" className={s.groupHead} onClick={toggle} aria-expanded={expanded}>
+        <span className={s.groupLabel}>{GROUP_LABEL[groupKey]}</span>
+        <span className={[s.groupChevron, expanded ? s.groupChevronOpen : ''].join(' ')} aria-hidden="true">›</span>
+      </button>
+      {expanded && (
+        <div className={s.grid}>
+          {sections.map(sec => (
+            <Link key={sec.to} to={sec.to} className={s.card}>
+              <span className={s.cardIcon}><Icon name={sec.icon} /></span>
+              <span>
+                <div className={s.cardTitle}>{sec.title}</div>
+                <div className={s.cardNote}>{sec.note}</div>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminHub() {
   useScreenTitle('Администрирование');
   const { user } = useSessionData();
   const visible = SECTIONS.filter(sec => sec.visible(user));
+  const groups = GROUP_ORDER
+    .map(key => ({ key, sections: visible.filter(sec => sec.group === key) }))
+    .filter(g => g.sections.length > 0);
 
   return (
-    <div className={s.grid}>
-      {visible.map(sec => (
-        <Link key={sec.to} to={sec.to} className={s.card}>
-          <span className={s.cardIcon}><Icon name={sec.icon} /></span>
-          <span>
-            <div className={s.cardTitle}>{sec.title}</div>
-            <div className={s.cardNote}>{sec.note}</div>
-          </span>
-        </Link>
-      ))}
+    <div className={s.groupList}>
+      {groups.map(g => <AdminGroupBlock key={g.key} groupKey={g.key} sections={g.sections} />)}
       {!visible.length && <p className={s.empty}>Нет доступных разделов администрирования.</p>}
     </div>
   );
