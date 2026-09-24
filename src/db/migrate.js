@@ -1068,6 +1068,13 @@ async function createCompReview() {
   await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_request ON comp_request_employees(request_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_comp_request_employees_status ON comp_request_employees(status)');
 
+  // Дата выхода на работу — для всех типов заявки; для «выход из стажировки»
+  // вместо неё (или вместе с ней) нужны даты начала/окончания самой
+  // стажировки, чтобы HRD и комиссия видели, что срок действительно истёк.
+  await ensureColumn('comp_request_employees', 'hire_date', 'TEXT');
+  await ensureColumn('comp_request_employees', 'probation_start_date', 'TEXT');
+  await ensureColumn('comp_request_employees', 'probation_end_date', 'TEXT');
+
   // Переменная часть — «+ добавить вид», несколько строк на сотрудника (§3).
   await run(`CREATE TABLE IF NOT EXISTS comp_variable_pay (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1145,6 +1152,35 @@ async function createCompReview() {
   )`);
   await run('CREATE INDEX IF NOT EXISTS idx_comp_review_history_person ON comp_review_history(unit, fio, created_at)');
   await ensureColumn('comp_review_history', 'new_salary', 'REAL');
+
+  // Прикреплённые файлы — приходят через Telegram-бота (веб-форма загрузки
+  // не строилась, чтобы не заводить отдельное платное хранилище): кнопка в
+  // заявке выдаёт одноразовую ссылку-токен на бота (comp_attach_tokens,
+  // chat_id проставляется при /start att_<token>), а сам файл прилетает
+  // следующим сообщением-документом и сохраняется сюда как BLOB — до 10 на
+  // сотрудника, см. compReviewService.saveAttachmentFromTelegram.
+  await run(`CREATE TABLE IF NOT EXISTS comp_attach_tokens (
+    token TEXT PRIMARY KEY,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    created_by_login TEXT NOT NULL,
+    chat_id TEXT,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_attach_tokens_chat ON comp_attach_tokens(chat_id, expires_at)');
+
+  await run(`CREATE TABLE IF NOT EXISTS comp_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    file_name TEXT,
+    mime_type TEXT,
+    size_bytes INTEGER,
+    data BLOB NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_attachments_employee ON comp_attachments(employee_row_id)');
 
   console.log('🔧 Миграция: схема «Пересмотр заработной платы» создана');
 }

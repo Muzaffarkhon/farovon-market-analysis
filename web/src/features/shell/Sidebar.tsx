@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { toggleTheme } from '../../design/theme';
 import { useSession, useSessionData } from '../auth/useSession';
 import { groupNavItems, type NavItem } from './NavItems';
@@ -11,9 +11,12 @@ import s from './Sidebar.module.css';
  * NavItem: «Оценка должностей» и «Риски» делят один тип 'scale', а глиф
  * нужен разный, чтобы отличать их в свёрнутой полосе. */
 const GLYPH: Record<string, string> = {
-  '/': '▤', '/support': '✉', '/registry': '▦', '/dashboard': '◧',
+  '/': '▤', '/support': '✉', '/registry': '▦', '/dashboard': '◧', '/dashboard/benchmark': '◨',
   '/coordination': '◍', '/grading': '◔', '/key-risks': '◭', '/comp': '₸',
-  '/access': '⚿', '/admin': '⚙'
+  '/access': '⚿', '/admin': '⚙',
+  '/admin/users': '◫', '/admin/divisions': '▥', '/admin/staff': '▧', '/admin/dictionary': '▨',
+  '/admin/grading': '◑', '/admin/benchmark': '◐', '/admin/periods': '◷', '/admin/support': '✎',
+  '/admin/broadcast': '➤', '/admin/audit-log': '☰', '/admin/service': '⚒', '/admin/comp-committee': '◈'
 };
 
 /** ФИО в строке заголовка на телефоне узкое место — «Фамилия Имя» целиком не
@@ -100,6 +103,12 @@ function NavGroupBlock({ group, sidebarCollapsed, onNavigate }: {
 }) {
   const [expanded, setExpanded] = useState(() => loadGroupExpanded(group.key));
   const showItems = sidebarCollapsed || expanded;
+  const location = useLocation();
+  // «Дашборды» (/dashboard) и «Бенчмаркинг» (/dashboard/benchmark) делят один
+  // маршрут-дерево — обычное префиксное совпадение NavLink подсветило бы оба
+  // пункта разом на вкладке бенчмаркинга. «Дашборды» гаснет именно там, чтобы
+  // подсвечивался только один пункт, как и остальные несмежные разделы.
+  const hasBenchmarkItem = group.items.some(it => it.to === '/dashboard/benchmark');
 
   return (
     <div className={s.group}>
@@ -119,15 +128,18 @@ function NavGroupBlock({ group, sidebarCollapsed, onNavigate }: {
           <span className={[s.groupChevron, expanded ? s.groupChevronOpen : ''].join(' ')} aria-hidden="true">›</span>
         </button>
       )}
-      {showItems && group.items.map(i => (
-        <NavLink
-          key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
-          className={({ isActive }) => [s.link, isActive ? s.active : ''].join(' ')}
-        >
-          <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
-          <span className={s.label}>{i.label}</span>
-        </NavLink>
-      ))}
+      {showItems && group.items.map(i => {
+        const suppressActive = hasBenchmarkItem && i.to === '/dashboard' && location.pathname.startsWith('/dashboard/benchmark');
+        return (
+          <NavLink
+            key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
+            className={({ isActive }) => [s.link, isActive && !suppressActive ? s.active : ''].join(' ')}
+          >
+            <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
+            <span className={s.label}>{i.label}</span>
+          </NavLink>
+        );
+      })}
     </div>
   );
 }

@@ -80,7 +80,7 @@ export function AdjacentGroupsModal({ divisions, onClose, onApply, onClear, appl
         </p>
 
         {groups.length > 0 && (
-          <div className={s.tableWrap} style={{ maxHeight: 240 }}>
+          <div className={s.tableWrap} style={{ maxHeight: 220 }}>
             <table className={s.table}>
               <thead>
                 <tr>
@@ -111,7 +111,7 @@ export function AdjacentGroupsModal({ divisions, onClose, onApply, onClear, appl
         <p className={s.hint}><b>Создать новую группу</b></p>
         <Input label="Название группы" placeholder="Например, «Фаровон»" value={newKey} onChange={e => setNewKey(e.target.value)} />
         <Input label="Поиск подразделений" value={query} onChange={e => setQuery(e.target.value)} />
-        <div className={s.tableWrap} style={{ maxHeight: 240 }}>
+        <div className={s.tableWrap} style={{ maxHeight: 420 }}>
           <table className={s.table}>
             <thead>
               <tr>

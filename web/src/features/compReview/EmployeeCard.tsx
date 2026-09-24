@@ -5,11 +5,51 @@ import { Button } from '../../design/Button';
 import { useConfirm } from '../../design/Confirm';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
-import { useCompReasons, useVariablePayKinds } from './useCompReview';
+import { useSessionData } from '../auth/useSession';
+import { compReviewApi } from '../../api/compReview';
+import { useCompReasons, useVariablePayKinds, useAttachments } from './useCompReview';
 import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 const pct = (n: number | null) => (n == null ? '—' : `${n > 0 ? '+' : ''}${n}%`);
+const fmtSize = (bytes: number | null) => {
+  if (bytes == null) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+};
+
+function AttachmentsSection({ employeeId, canRemove }: { employeeId: number; canRemove: boolean }) {
+  const att = useAttachments(employeeId);
+  return (
+    <div className={s.vpRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--s-1)' }}>
+      <div className={s.hint} style={{ fontWeight: 600 }}>Файлы{att.rows.length ? ` (${att.rows.length}/10)` : ''}</div>
+      {att.rows.map(a => (
+        <div key={a.id} className={s.vpRow}>
+          <a href={compReviewApi.attachmentDownloadUrl(a.id)} target="_blank" rel="noreferrer">{a.fileName}</a>
+          <span className={s.hint}>{fmtSize(a.sizeBytes)}</span>
+          {canRemove && <Button size="sm" variant="ghost" onClick={() => att.remove(a.id)}>Убрать</Button>}
+        </div>
+      ))}
+      {!att.rows.length && <span className={s.hint}>Пока нет прикреплённых файлов</span>}
+      {att.rows.length < 10 && (
+        <Button
+          size="sm" variant="secondary" loading={att.requestingToken}
+          onClick={async () => {
+            try {
+              const r = await att.requestToken();
+              window.open(r.deepLink, '_blank');
+            } catch {
+              // тост об ошибке уже показан внутри useAttachments (onError мутации)
+            }
+          }}
+        >
+          📎 Прикрепить через Telegram
+        </Button>
+      )}
+      {att.polling && <span className={s.hint}>Ждём файл из Telegram — появится здесь сам…</span>}
+    </div>
+  );
+}
 
 const EMP_STATUS_LABEL: Record<CompEmployeeStatus, string> = {
   active: 'В процессе', rejected_hrd: 'Отклонён HRD', rejected_committee: 'Отклонён комиссией',
@@ -25,21 +65,42 @@ function VariablePayLine({ v, onRemove }: { v: CompVariablePay; onRemove?: () =>
   );
 }
 
+const PERIOD_OPTIONS = [
+  { value: 'в месяц', label: 'в месяц' },
+  { value: 'в квартал', label: 'в квартал' },
+  { value: 'в год', label: 'в год' },
+  { value: 'разово', label: 'разово' }
+];
+
 function AddVariablePayLine({ onAdd }: { onAdd: (a: { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }) => void }) {
   const kinds = useVariablePayKinds();
   const [kind, setKind] = useState('');
   const [amount, setAmount] = useState('');
+  const [amountType, setAmountType] = useState<'sum' | 'percent'>('sum');
+  const [period, setPeriod] = useState('');
+  const [isProposed, setIsProposed] = useState(false);
   const [open, setOpen] = useState(false);
 
   if (!open) return <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>+ добавить вид</Button>;
   return (
     <div className={s.vpRow}>
       <Select label="" aria-label="Вид" placeholder="Вид…" value={kind} onChange={e => setKind(e.target.value)} options={kinds.map(k => ({ value: k, label: k }))} />
-      <Input label="" aria-label="Размер" type="number" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: 100 }} />
+      <Input label="" aria-label="Размер" type="number" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: 90 }} />
+      <Select
+        label="" aria-label="Сумма или %" value={amountType} onChange={e => setAmountType(e.target.value as 'sum' | 'percent')}
+        options={[{ value: 'sum', label: 'сумма' }, { value: 'percent', label: '%' }]} style={{ width: 90 }}
+      />
+      <Select label="" aria-label="Периодичность" placeholder="Периодичность…" value={period} onChange={e => setPeriod(e.target.value)} options={PERIOD_OPTIONS} style={{ width: 130 }} />
+      <label className={s.hint} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+        <input type="checkbox" checked={isProposed} onChange={e => setIsProposed(e.target.checked)} /> предлагается
+      </label>
       <Button
         size="sm"
         disabled={!kind || !(Number(amount) > 0)}
-        onClick={() => { onAdd({ kind, amount: Number(amount), amountType: 'sum' }); setKind(''); setAmount(''); setOpen(false); }}
+        onClick={() => {
+          onAdd({ kind, amount: Number(amount), amountType, period: period || undefined, isProposed: isProposed || undefined });
+          setKind(''); setAmount(''); setAmountType('sum'); setPeriod(''); setIsProposed(false); setOpen(false);
+        }}
       >
         Добавить
       </Button>
@@ -64,6 +125,7 @@ export function EmployeeCard({ e, request, access, actions }: {
 }) {
   const confirm = useConfirm();
   const { reasons } = useCompReasons();
+  const { user } = useSessionData();
   const [medianInput, setMedianInput] = useState(e.marketMedian != null ? String(e.marketMedian) : '');
   const [voteComment, setVoteComment] = useState('');
   const reasonLabel = reasons.find(r => r.code === e.reasonCode)?.label ?? e.reasonCode;
@@ -71,6 +133,13 @@ export function EmployeeCard({ e, request, access, actions }: {
   // Сервер уже маскирует чужие голоса в «закрытом» режиме (voteMode='closed') —
   // votedAt приходит всегда, vote бывает null у чужих голосов до итога.
   const votedCount = e.votes.length;
+  const myVote = e.votes.find(v => v.voterLogin === user.login)?.vote ?? null;
+
+  // Оклад не меняется — заявка должна опираться хотя бы на переменную часть,
+  // иначе сервер откажет при отправке (submitDraft); подсказка здесь —
+  // чтобы это увидели раньше, ещё в черновике.
+  const noSalaryChange = e.currentSalary != null && e.proposedSalary === e.currentSalary;
+  const hasProposedVp = e.variablePay.some(v => v.isProposed);
 
   return (
     <div className={s.card}>
@@ -90,6 +159,15 @@ export function EmployeeCard({ e, request, access, actions }: {
       </div>
 
       <div className={s.kpiRow}>
+        <span>Последний пересмотр: {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
+        {e.hireDate && <span>Дата выхода на работу: {new Date(e.hireDate).toLocaleDateString('ru-RU')}</span>}
+        {(e.probationStartDate || e.probationEndDate) && (
+          <span>
+            Стажировка: {e.probationStartDate ? new Date(e.probationStartDate).toLocaleDateString('ru-RU') : '—'}
+            {' – '}
+            {e.probationEndDate ? new Date(e.probationEndDate).toLocaleDateString('ru-RU') : '—'}
+          </span>
+        )}
         {e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
@@ -98,6 +176,10 @@ export function EmployeeCard({ e, request, access, actions }: {
       </div>
 
       <div className={s.hint}>{reasonLabel}{e.reasonText ? ` — ${e.reasonText}` : ''}</div>
+
+      {noSalaryChange && !hasProposedVp && request.status === 'draft' && (
+        <Badge tone="warn">Оклад не меняется — добавьте предлагаемое изменение переменной части ниже</Badge>
+      )}
 
       {e.variablePay.map(v => (
         <VariablePayLine key={v.id} v={v} onRemove={request.status === 'draft' ? () => actions.removeVariablePay(v.id) : undefined} />
@@ -118,10 +200,21 @@ export function EmployeeCard({ e, request, access, actions }: {
           <div className={s.hint}>Проголосовало: {votedCount} из {request.committeeSize}</div>
           {access.isCommitteeMember && (
             <>
+              {myVote && <div className={s.hint}>Ваш голос: <b>{myVote === 'for' ? 'за' : 'против'}</b> — можно изменить, пока не подведён итог</div>}
               <Input label="Комментарий (необязательно)" value={voteComment} onChange={e2 => setVoteComment(e2.target.value)} />
               <div className={s.cardFoot}>
-                <Button size="sm" variant="danger" onClick={() => actions.vote('against', voteComment.trim() || undefined)}>Против</Button>
-                <Button size="sm" onClick={() => actions.vote('for', voteComment.trim() || undefined)}>За</Button>
+                <Button
+                  size="sm" variant={myVote === 'against' ? 'danger' : 'secondary'}
+                  onClick={() => actions.vote('against', voteComment.trim() || undefined)}
+                >
+                  {myVote === 'against' ? '✓ Против' : 'Против'}
+                </Button>
+                <Button
+                  size="sm" variant={myVote === 'for' ? 'primary' : 'secondary'}
+                  onClick={() => actions.vote('for', voteComment.trim() || undefined)}
+                >
+                  {myVote === 'for' ? '✓ За' : 'За'}
+                </Button>
               </div>
             </>
           )}
@@ -160,6 +253,8 @@ export function EmployeeCard({ e, request, access, actions }: {
           </Button>
         </div>
       )}
+
+      <AttachmentsSection employeeId={e.id} canRemove={request.status === 'draft'} />
 
       {request.status === 'draft' && actions.remove && (
         <div className={s.cardFoot}>

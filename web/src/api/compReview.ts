@@ -2,7 +2,8 @@ import { request } from './client';
 import type {
   CompMyAccessResponse, CompReasonsResponse, CompVariablePayKindsResponse, CompEmployeesResponse,
   CompRequestResponse, CompRequestsResponse, CreateDraftPayload, UpdateHeaderPayload, AddEmployeePayload, UpdateEmployeePayload,
-  AddVariablePayPayload, CompCommitteeResponse, CompSettingsResponse, CompVoteMode, CompRemindResponse, OkResponse
+  AddVariablePayPayload, CompCommitteeResponse, CompSettingsResponse, CompVoteMode, CompRemindResponse, OkResponse,
+  CompAttachmentsResponse, CompAttachTokenResponse
 } from './contract';
 
 export const compReviewApi = {
@@ -52,5 +53,10 @@ export const compReviewApi = {
   removeCommitteeMember: (login: string) => request<OkResponse>('/comp/committee/remove', { login }),
 
   settings: () => request<CompSettingsResponse>('/comp/settings'),
-  saveSettings: (voteMode: CompVoteMode) => request<CompSettingsResponse>('/comp/settings', { voteMode })
+  saveSettings: (voteMode: CompVoteMode) => request<CompSettingsResponse>('/comp/settings', { voteMode }),
+
+  attachments: (employeeId: number) => request<CompAttachmentsResponse>(`/comp/employees/${employeeId}/attachments`),
+  createAttachToken: (employeeId: number) => request<CompAttachTokenResponse>(`/comp/employees/${employeeId}/attachments/token`, {}),
+  deleteAttachment: (attachmentId: number) => request<OkResponse>(`/comp/attachments/${attachmentId}/delete`, {}),
+  attachmentDownloadUrl: (attachmentId: number) => `/api/comp/attachments/${attachmentId}/download`
 };

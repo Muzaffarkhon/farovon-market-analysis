@@ -8,5 +8,5 @@
   .backdrop { align-items:stretch; justify-content:flex-end; }
   .panel { width:480px; max-height:100vh; border-radius:0; }
   .backdropCenter { align-items:center; justify-content:center; }
-  .panelCenter { width:min(720px, calc(100vw - 48px)); max-height:88vh; border-radius:var(--r-lg); }
+  .panelCenter { width:min(880px, calc(100vw - 48px)); max-height:92vh; border-radius:var(--r-lg); }
 }

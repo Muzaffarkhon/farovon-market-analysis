@@ -213,6 +213,32 @@ exports.removeCommitteeMember = handle(async (req, res) => {
   res.json({ ok: true });
 });
 
+exports.createAttachToken = handle(async (req, res) => {
+  const employeeId = parseInt(req.params.employeeId, 10);
+  const result = await svc.createAttachToken(employeeId, req.user, hasCapFor(req.user));
+  res.json({ ok: true, ...result });
+});
+
+exports.listAttachments = handle(async (req, res) => {
+  const employeeId = parseInt(req.params.employeeId, 10);
+  const rows = await svc.listAttachments(employeeId, req.user, hasCapFor(req.user));
+  res.json({ ok: true, rows });
+});
+
+exports.downloadAttachment = handle(async (req, res) => {
+  const id = parseInt(req.params.attachmentId, 10);
+  const a = await svc.getAttachmentForDownload(id, req.user, hasCapFor(req.user));
+  res.setHeader('Content-Type', a.mime_type || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(a.file_name || 'file')}`);
+  res.send(Buffer.from(a.data));
+});
+
+exports.deleteAttachment = handle(async (req, res) => {
+  const id = parseInt(req.params.attachmentId, 10);
+  await svc.removeAttachment(id, req.user.login);
+  res.json({ ok: true });
+});
+
 exports.getSettings = handle(async (req, res) => {
   res.json({ ok: true, settings: await svc.getSettings() });
 });

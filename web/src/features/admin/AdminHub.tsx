@@ -58,7 +58,7 @@ const SECTIONS: Section[] = [
   { to: '/admin/broadcast', title: 'Рассылка', note: 'Сообщение через Telegram-бота выбранным сотрудникам', icon: 'send', group: 'process', visible: u => has(u, 'broadcast:send') },
   { to: '/admin/audit-log', title: 'Журнал изменений', note: 'Кто, когда и что сделал в администрировании', icon: 'log', group: 'process', visible: u => has(u, 'service:view') },
   { to: '/admin/service', title: 'Обслуживание и статус данных', note: 'Счётчики загруженных данных, сервисные задачи, импорт анкеты из CSV', icon: 'tools', group: 'process', visible: u => has(u, 'service:view') },
-  { to: '/admin/comp-committee', title: 'Пересмотр ЗП — комиссия', note: 'Состав комиссии, режим голосования', icon: 'money', group: 'process', visible: u => has(u, 'comp:admin') }
+  { to: '/admin/comp-committee', title: 'Изменение ЗП', note: 'Состав комиссии, режим голосования', icon: 'money', group: 'process', visible: u => has(u, 'comp:admin') }
 ];
 
 function has(u: SessionUser, c: string) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CompEmployeeOption, CompReasonCode } from '../../api/contract';
+import type { CompEmployeeOption, CompReasonCode, CompRequestType } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Input } from '../../design/Input';
 import { Textarea } from '../../design/Textarea';
@@ -8,16 +8,30 @@ import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 
-export function EmployeeAddForm({ onAdd, adding }: {
-  onAdd: (a: { fio: string; unit: string; position?: string; staffId?: number; proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string }) => void;
+type AddPayload = {
+  fio: string; unit: string; position?: string; staffId?: number;
+  proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string;
+  hireDate?: string; probationStartDate?: string; probationEndDate?: string;
+};
+
+export function EmployeeAddForm({ onAdd, adding, unit, requestType }: {
+  onAdd: (a: AddPayload) => void;
   adding: boolean;
+  /** Подразделение из шапки заявки — список ниже сразу фильтруется по нему, без ручного набора. */
+  unit?: string;
+  /** «Выход из стажировки» просит даты начала/окончания стажировки вместо даты выхода на работу. */
+  requestType?: CompRequestType;
 }) {
   const { reasons } = useCompReasons();
-  const emp = useEmployeeSearch();
+  const emp = useEmployeeSearch(unit);
   const [selected, setSelected] = useState<CompEmployeeOption | null>(null);
   const [proposedSalary, setProposedSalary] = useState('');
   const [reasonCode, setReasonCode] = useState<CompReasonCode | ''>('');
   const [reasonText, setReasonText] = useState('');
+  const [hireDate, setHireDate] = useState('');
+  const [probationStartDate, setProbationStartDate] = useState('');
+  const [probationEndDate, setProbationEndDate] = useState('');
+  const isProbation = requestType === 'probation_end';
 
   const canSubmit = !!selected && Number(proposedSalary) > 0 && !!reasonCode;
 
@@ -25,15 +39,20 @@ export function EmployeeAddForm({ onAdd, adding }: {
     if (!selected || !canSubmit) return;
     onAdd({
       fio: selected.fio, unit: selected.unit, position: selected.position, staffId: selected.id,
-      proposedSalary: Number(proposedSalary), reasonCode: reasonCode as CompReasonCode, reasonText: reasonText.trim() || undefined
+      proposedSalary: Number(proposedSalary), reasonCode: reasonCode as CompReasonCode, reasonText: reasonText.trim() || undefined,
+      hireDate: hireDate || undefined, probationStartDate: probationStartDate || undefined, probationEndDate: probationEndDate || undefined
     });
-    setSelected(null); setProposedSalary(''); setReasonCode(''); setReasonText(''); emp.setQuery('');
+    setSelected(null); setProposedSalary(''); setReasonCode(''); setReasonText('');
+    setHireDate(''); setProbationStartDate(''); setProbationEndDate(''); emp.setQuery('');
   }
 
   if (!selected) {
     return (
       <div>
-        <Input label="Добавить сотрудника" placeholder="ФИО или подразделение" value={emp.query} onChange={e => emp.setQuery(e.target.value)} />
+        <Input
+          label="Добавить сотрудника" value={emp.query} onChange={e => emp.setQuery(e.target.value)}
+          placeholder={unit ? 'Уточнить по ФИО (необязательно)' : 'ФИО или подразделение'}
+        />
         <div className={s.searchList} style={{ marginTop: 'var(--s-2)' }}>
           {emp.rows.map(r => (
             <button key={r.id} type="button" className={s.searchRow} onClick={() => setSelected(r)}>
@@ -57,6 +76,14 @@ export function EmployeeAddForm({ onAdd, adding }: {
         <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>Сменить</Button>
       </div>
       <Input label="Предлагаемый оклад" type="number" value={proposedSalary} onChange={e => setProposedSalary(e.target.value)} />
+      {isProbation ? (
+        <div className={s.vpRow}>
+          <Input label="Дата начала стажировки" type="date" value={probationStartDate} onChange={e => setProbationStartDate(e.target.value)} />
+          <Input label="Дата окончания стажировки" type="date" value={probationEndDate} onChange={e => setProbationEndDate(e.target.value)} />
+        </div>
+      ) : (
+        <Input label="Дата выхода на работу" type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} />
+      )}
       <div>
         <div className={s.hint} style={{ marginBottom: 4 }}>Код основания</div>
         <div className={s.reasonList}>

@@ -11,10 +11,11 @@ import type {
 /** Названия подразделений для выпадающего списка в шапке заявки (список читает то же право divisions:view, что и справочник в админке). */
 export function useUnitOptions() {
   const q = useQuery({ queryKey: ['admin-divisions'], queryFn: () => adminApi.divisions() });
-  return useMemo(
+  const options = useMemo(
     () => (q.data?.divisions ?? []).map(d => ({ value: d.unit, label: d.unit })).sort((a, b) => a.label.localeCompare(b.label, 'ru')),
     [q.data]
   );
+  return { options, loading: q.isLoading };
 }
 
 export function useCompAccess() {
@@ -36,10 +37,64 @@ export function useVariablePayKinds() {
   return q.data?.kinds ?? [];
 }
 
-export function useEmployeeSearch() {
+/**
+ * Список сотрудников для формы добавления в заявку. Если известно
+ * подразделение из шапки заявки (unit) — сеть запрашивается ровно по нему
+ * один раз, а видимое поле поиска не подставляет то же название (не дублирует
+ * его), а лишь дополнительно фильтрует уже полученный список по ФИО на
+ * клиенте. Без подразделения — обычный сетевой поиск по тому, что напечатали
+ * (как раньше).
+ */
+export function useEmployeeSearch(unit?: string) {
   const [query, setQuery] = useState('');
-  const q = useQuery({ queryKey: ['comp-employees', query], queryFn: () => compReviewApi.employees(query) });
-  return { query, setQuery, rows: q.data?.rows ?? [], loading: q.isLoading };
+  const networkQuery = unit || query;
+  const q = useQuery({ queryKey: ['comp-employees', networkQuery], queryFn: () => compReviewApi.employees(networkQuery) });
+  const rows = useMemo(() => {
+    const all = q.data?.rows ?? [];
+    if (!unit) return all;
+    const nq = query.trim().toLowerCase();
+    return nq ? all.filter(r => r.fio.toLowerCase().includes(nq)) : all;
+  }, [q.data, unit, query]);
+  return { query, setQuery, rows, loading: q.isLoading };
+}
+
+/**
+ * Файлы сотрудника, прикреплённые через Telegram-бота (см. createAttachToken
+ * в compReviewService — веб-загрузки нет, только через бота). `polling`
+ * включает частый рефетч на несколько минут после запроса ссылки — файл
+ * приходит асинхронно, отдельным сообщением боту, и должен сам появиться
+ * в карточке без ручного обновления страницы.
+ */
+export function useAttachments(employeeId: number) {
+  const qc = useQueryClient();
+  const onError = useToastError();
+  const [polling, setPolling] = useState(false);
+  const q = useQuery({
+    queryKey: ['comp-attachments', employeeId],
+    queryFn: () => compReviewApi.attachments(employeeId),
+    refetchInterval: polling ? 4000 : false
+  });
+
+  const requestTokenMutation = useMutation({
+    mutationFn: () => compReviewApi.createAttachToken(employeeId),
+    onSuccess: (r) => {
+      setPolling(true);
+      setTimeout(() => setPolling(false), r.expiresInMinutes * 60 * 1000);
+    },
+    onError: e => onError(e, 'Не удалось создать ссылку на бота')
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (attachmentId: number) => compReviewApi.deleteAttachment(attachmentId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['comp-attachments', employeeId] }),
+    onError: e => onError(e, 'Не удалось удалить файл')
+  });
+
+  return {
+    rows: q.data?.rows ?? [], loading: q.isLoading, polling,
+    requestToken: requestTokenMutation.mutateAsync, requestingToken: requestTokenMutation.isPending,
+    remove: removeMutation.mutate
+  };
 }
 
 function useToastError() {
