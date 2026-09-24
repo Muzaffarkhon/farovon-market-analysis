@@ -13,7 +13,10 @@ import s from './Sidebar.module.css';
 const GLYPH: Record<string, string> = {
   '/': '▤', '/support': '✉', '/registry': '▦', '/dashboard': '◧', '/dashboard/benchmark': '◨',
   '/coordination': '◍', '/grading': '◔', '/key-risks': '◭', '/comp': '₸',
-  '/access': '⚿', '/admin': '⚙'
+  '/access': '⚿', '/admin': '⚙',
+  '/admin/users': '◫', '/admin/divisions': '▥', '/admin/staff': '▧', '/admin/dictionary': '▨',
+  '/admin/grading': '◑', '/admin/benchmark': '◐', '/admin/periods': '◷', '/admin/support': '✎',
+  '/admin/broadcast': '➤', '/admin/audit-log': '☰', '/admin/service': '⚒', '/admin/comp-committee': '◈'
 };
 
 /** ФИО в строке заголовка на телефоне узкое место — «Фамилия Имя» целиком не
