@@ -8,7 +8,7 @@ import { useOnline } from './useOnline';
 import s from './Shell.module.css';
 
 export function TopBar({ title, onToggleNav }: { title: string; onToggleNav: () => void }) {
-  const { user, period } = useSessionData();
+  const { user } = useSessionData();
   const { logout } = useSession();
   const navigate = useNavigate();
   const online = useOnline();
@@ -35,7 +35,7 @@ export function TopBar({ title, onToggleNav }: { title: string; onToggleNav: () 
           {menu && (
             <div className={s.menu} role="menu" onMouseLeave={() => setMenu(false)}>
               <div className={s.menuUser}>{user.fio}</div>
-              <div className={s.periodInMenu}>Период: {period.name}</div>
+              <PeriodPicker variant="menu" />
               <button type="button" role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); navigate('/change-password'); }}>Сменить пароль</button>
               <button type="button" role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); void logout(); }}>Выйти</button>
             </div>

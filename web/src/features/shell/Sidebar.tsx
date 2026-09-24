@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router';
-import type { NavItem } from './NavItems';
+import { groupNavItems, type NavItem } from './NavItems';
 import s from './Sidebar.module.css';
 
 /** Простые Unicode-глифы — без иконочного шрифта/библиотеки, тем же приёмом,
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onToggleCollapse }: Props) {
+  const groups = groupNavItems(items);
   return (
     <>
       <button
@@ -44,17 +46,57 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
           </span>
         </button>
         <div className={s.nav}>
-          {items.map(i => (
-            <NavLink
-              key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
-              className={({ isActive }) => [s.link, isActive ? s.active : ''].join(' ')}
-            >
-              <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
-              <span className={s.label}>{i.label}</span>
-            </NavLink>
+          {groups.map(g => (
+            <NavGroupBlock key={g.key} group={g} sidebarCollapsed={collapsed} onNavigate={onNavigate} />
           ))}
         </div>
       </nav>
     </>
+  );
+}
+
+function loadGroupExpanded(key: string): boolean {
+  try { return window.localStorage.getItem(`nav-group-${key}`) !== '0'; } catch { return true; }
+}
+
+/** Подраздел панели — заголовок сворачивает свои пункты (состояние на
+ * телефоне/десктопе своё, в localStorage). В свёрнутой узкой панели
+ * заголовков нет — там видны только иконки всех пунктов подряд. */
+function NavGroupBlock({ group, sidebarCollapsed, onNavigate }: {
+  group: { key: string; label: string | null; items: NavItem[] };
+  sidebarCollapsed: boolean;
+  onNavigate: () => void;
+}) {
+  const [expanded, setExpanded] = useState(() => loadGroupExpanded(group.key));
+  const showItems = sidebarCollapsed || expanded;
+
+  return (
+    <div className={s.group}>
+      {group.label && (
+        <button
+          type="button" className={s.groupHead}
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded(e => {
+              const next = !e;
+              try { window.localStorage.setItem(`nav-group-${group.key}`, next ? '1' : '0'); } catch { /* приватный режим */ }
+              return next;
+            });
+          }}
+        >
+          <span className={s.groupLabel}>{group.label}</span>
+          <span className={[s.groupChevron, expanded ? s.groupChevronOpen : ''].join(' ')} aria-hidden="true">›</span>
+        </button>
+      )}
+      {showItems && group.items.map(i => (
+        <NavLink
+          key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
+          className={({ isActive }) => [s.link, isActive ? s.active : ''].join(' ')}
+        >
+          <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
+          <span className={s.label}>{i.label}</span>
+        </NavLink>
+      ))}
+    </div>
   );
 }

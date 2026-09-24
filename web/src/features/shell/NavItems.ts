@@ -30,3 +30,25 @@ const ADMIN_CAPS = [
 function isAdminAreaVisible(u: SessionUser): boolean {
   return u.role === 'admin' || ADMIN_CAPS.some(c => u.capabilities.includes(c));
 }
+
+export type NavGroup = { key: string; label: string | null; items: NavItem[] };
+
+// Раскладка по подразделам — только для отображения в панели (Sidebar.tsx),
+// сам список и его порядок (navItemsFor) не меняются, чтобы не задеть уже
+// проверенный тестами порядок пунктов.
+const GROUP_OF: Record<string, string> = {
+  '/registry': 'analytics', '/dashboard': 'analytics', '/coordination': 'analytics',
+  '/grading': 'people', '/key-risks': 'people',
+  '/access': 'manage', '/admin': 'manage'
+};
+const GROUP_LABEL: Record<string, string> = { analytics: 'Аналитика', people: 'Персонал', manage: 'Управление' };
+const GROUP_ORDER = ['quick', 'analytics', 'people', 'manage'];
+
+export function groupNavItems(items: NavItem[]): NavGroup[] {
+  const buckets: Record<string, NavItem[]> = {};
+  for (const it of items) {
+    const key = GROUP_OF[it.to] ?? 'quick';
+    (buckets[key] ??= []).push(it);
+  }
+  return GROUP_ORDER.filter(k => buckets[k]?.length).map(k => ({ key: k, label: GROUP_LABEL[k] ?? null, items: buckets[k] }));
+}
