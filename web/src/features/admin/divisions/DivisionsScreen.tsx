@@ -56,8 +56,8 @@ export function DivisionsScreen() {
           <tbody>
             {filtered.map(row => (
               <tr key={row.id}>
-                <td className={s.wrapCell}><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button></td>
-                <td className={s.wrapCell}>{row.dir}</td>
+                <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button></td>
+                <td>{row.dir}</td>
                 <td className={s.wrapCell}>{row.head}</td>
                 <td className={s.wrapCell}>{row.resp}</td>
                 <td className={s.wrapCell}>{row.hrbp}</td>
