@@ -3,6 +3,7 @@ import type { StaffRecord } from '../../../api/contract';
 import { Button } from '../../../design/Button';
 import { useConfirm } from '../../../design/Confirm';
 import { Input } from '../../../design/Input';
+import { Select } from '../../../design/Select';
 import { Sheet } from '../../../design/Sheet';
 import { Skeleton } from '../../../design/Skeleton';
 import { SortTh } from '../../../design/SortTh';
@@ -17,15 +18,24 @@ export function StaffScreen() {
   const st = useStaff();
   const confirm = useConfirm();
   const [query, setQuery] = useState('');
+  const [unit, setUnit] = useState('');
   const [editing, setEditing] = useState<StaffRecord | 'new' | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+
+  const unitOptions = useMemo(() => {
+    const set = new Set<string>();
+    (st.items ?? []).forEach(r => { if (r.unit) set.add(r.unit); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [st.items]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = st.items ?? [];
-    if (!q) return rows;
-    return rows.filter(r => r.fio.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q));
-  }, [st.items, query]);
+    return rows.filter(r =>
+      (!q || r.fio.toLowerCase().includes(q) || r.unit.toLowerCase().includes(q)) &&
+      (!unit || r.unit === unit)
+    );
+  }, [st.items, query, unit]);
 
   const { sorted, sortKey, sortDir, sortBy } = useSort(filtered, (row, key) => {
     switch (key) {
@@ -43,13 +53,21 @@ export function StaffScreen() {
     <div className={s.screenFill} data-wide>
       <div className={s.head}>
         <Input label="Поиск" placeholder="ФИО или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
+        <Select
+          label="Подразделение" value={unit} placeholder={`Все подразделения (${(st.items ?? []).length})`}
+          onChange={e => setUnit(e.target.value)}
+          options={unitOptions.map(u => ({ value: u, label: u }))}
+        />
         <div style={{ display: 'flex', gap: 8 }}>
           <Button size="sm" variant="secondary" onClick={() => setImportOpen(true)}>Импорт из 1С</Button>
           <Button size="sm" onClick={() => setEditing('new')}>Добавить</Button>
         </div>
       </div>
 
-      {st.importedAt && <p className={s.hint}>Последний импорт: {st.importedAt}</p>}
+      <p className={s.hint}>
+        {st.importedAt && <>Последний импорт: {st.importedAt} · </>}
+        {filtered.length === (st.items ?? []).length ? `${filtered.length} записей` : `${filtered.length} из ${(st.items ?? []).length} записей`}
+      </p>
 
       <div className={s.tableWrapFill}>
         <table className={s.table}>
@@ -77,7 +95,7 @@ export function StaffScreen() {
                 </td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={4} className={s.empty}>Справочник пуст</td></tr>}
+            {!filtered.length && <tr><td colSpan={4} className={s.empty}>{(st.items ?? []).length ? 'Ничего не найдено' : 'Справочник пуст'}</td></tr>}
           </tbody>
         </table>
       </div>
