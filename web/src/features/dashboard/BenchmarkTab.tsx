@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { BenchmarkSourceResult, DashboardResponse } from '../../api/contract';
 import { benchmarkApi } from '../../api/benchmark';
+import { Button } from '../../design/Button';
 import { Combobox } from '../../design/Combobox';
 import { KpiTile } from '../../design/KpiTile';
 import { Skeleton } from '../../design/Skeleton';
@@ -74,11 +75,19 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
 
   return (
     <div className={s.screenFill}>
-      {widgets.data && (
-        <p className={s.scopeNote}>
-          Источники сопоставлены для {widgets.data.widgets.mappedPositions} из {widgets.data.widgets.totalPositions} должностей ({widgets.data.widgets.coveragePercent}%)
-        </p>
-      )}
+      <div className={s.filters} style={{ justifyContent: 'space-between' }}>
+        {widgets.data && (
+          <p className={s.scopeNote}>
+            Источники сопоставлены для {widgets.data.widgets.mappedPositions} из {widgets.data.widgets.totalPositions} должностей ({widgets.data.widgets.coveragePercent}%)
+          </p>
+        )}
+        <Button
+          variant="secondary" size="sm" disabled={!widgets.data || widgets.data.widgets.mappedPositions === 0}
+          onClick={() => { window.location.href = benchmarkApi.exportUrl(); }}
+        >
+          Экспорт матрицы CSV
+        </Button>
+      </div>
 
       <Combobox
         label="Должность" placeholder="— выберите —"

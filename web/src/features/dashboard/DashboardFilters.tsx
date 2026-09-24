@@ -1,4 +1,5 @@
 import type { DashboardResponse } from '../../api/contract';
+import { dashboardApi } from '../../api/dashboard';
 import { Button } from '../../design/Button';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
@@ -41,6 +42,12 @@ export function DashboardFilters({ d }: { d: Hook }) {
         onChange={e => d.patch({ region: e.target.value || undefined })}
       />
       {d.active > 0 && <Button variant="ghost" size="sm" onClick={d.reset}>Сбросить</Button>}
+      <Button
+        variant="secondary" size="sm" disabled={!data || data.summary.totalSurveyRecords === 0}
+        onClick={() => { window.location.href = dashboardApi.exportCsvUrl(d.filters); }}
+      >
+        Экспорт CSV
+      </Button>
       {data?.scoped && <span className={s.scopeNote}>Показаны только ваши подразделения</span>}
     </div>
   );
