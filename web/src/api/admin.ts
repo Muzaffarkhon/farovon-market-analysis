@@ -4,6 +4,7 @@ import type {
   DivisionsResponse, OkResponse,
   SaveDivisionPayload, CreateDivisionPayload, CreateDivisionResponse, MoveDivisionPayload, MoveDivisionResponse,
   BatchAssignPayload, BatchAssignResponse,
+  ApplyAdjacentGroupPayload, ApplyAdjacentGroupResponse, ClearAdjacentGroupPayload, ClearAdjacentGroupResponse,
   StaffDirectoryResponse, SaveStaffPayload, SaveStaffResponse, StaffImportDryRunResponse, StaffImportCommitResponse,
   AuditLogResponse
 } from './contract';
@@ -24,6 +25,8 @@ export const adminApi = {
   hideDivision: (unit: string, hidden: boolean) => request<OkResponse>('/admin/divisions/hide', { unit, hidden }),
   deleteDivision: (unit: string) => request<OkResponse>('/admin/divisions/delete', { unit }),
   batchAssign: (payload: BatchAssignPayload) => request<BatchAssignResponse>('/admin/divisions/batch-assign', payload),
+  applyAdjacentGroup: (payload: ApplyAdjacentGroupPayload) => request<ApplyAdjacentGroupResponse>('/admin/divisions/adjacent-group', payload),
+  clearAdjacentGroup: (payload: ClearAdjacentGroupPayload) => request<ClearAdjacentGroupResponse>('/admin/divisions/adjacent-group/clear', payload),
 
   staffDirectory: () => request<StaffDirectoryResponse>('/admin/staff-directory'),
   saveStaffRecord: (payload: SaveStaffPayload) => request<SaveStaffResponse>('/admin/staff-directory', payload),

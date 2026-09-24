@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Division, SaveDivisionPayload } from '../../../api/contract';
+import { useMemo, useState } from 'react';
+import type { AdjacentGroupSuggestion, Division, SaveDivisionPayload } from '../../../api/contract';
 import { Button } from '../../../design/Button';
 import { Input } from '../../../design/Input';
 import { Sheet } from '../../../design/Sheet';
@@ -12,10 +12,12 @@ import s from '../Admin.module.css';
  * недоступными для них здесь же, чтобы не выдавать иллюзию возможности:
  * значение видно, но менять его может только admin/cb.
  */
-export function DivisionForm({ division, onClose, onSubmit }: {
+export function DivisionForm({ division, suggestions, onClose, onSubmit, onApplyGroup }: {
   division: Division;
+  suggestions: AdjacentGroupSuggestion[];
   onClose: () => void;
   onSubmit: (p: SaveDivisionPayload) => void;
+  onApplyGroup: (p: { key: string; units: string[] }) => void;
 }) {
   const { user } = useSessionData();
   const isAdmin = user.role === 'admin' || user.role === 'cb';
@@ -28,6 +30,15 @@ export function DivisionForm({ division, onClose, onSubmit }: {
   const [region, setRegion] = useState(division.region ?? '');
   const [orgRole, setOrgRole] = useState(division.org_role ?? '');
   const [surveyTarget, setSurveyTarget] = useState(!!division.is_survey_target);
+  const [group, setGroup] = useState(division.group_key ?? '');
+
+  // Подсказка «похоже на смежную группу» — только если у площадки ещё нет
+  // ручного ключа: сервер и так не предложит группу тому, у кого он уже есть.
+  const suggestion = useMemo(
+    () => (division.group_key ? null : suggestions.find(sg => sg.units.some(u => u.unit === division.unit)) ?? null),
+    [suggestions, division.group_key, division.unit]
+  );
+  const [checkedMates, setCheckedMates] = useState<Set<string>>(() => new Set(suggestion?.units.map(u => u.unit).filter(u => u !== division.unit)));
 
   return (
     <Sheet open onClose={onClose} title={division.unit}>
@@ -43,6 +54,35 @@ export function DivisionForm({ division, onClose, onSubmit }: {
           <input type="checkbox" checked={surveyTarget} disabled={!isAdmin} onChange={e => setSurveyTarget(e.target.checked)} />
           Цель сбора анкет
         </label>
+        <Input label="Смежная группа" placeholder="Пусто — своя карточка" value={group} onChange={e => setGroup(e.target.value)} disabled={!isAdmin} />
+
+        {isAdmin && suggestion && (
+          <div className={s.form} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
+            <p className={s.hint}>Похоже на смежную группу «{suggestion.key}». Отметьте площадки:</p>
+            {suggestion.units.map(u => (
+              <label key={u.unit} className={s.unitRow}>
+                <input
+                  type="checkbox"
+                  checked={u.unit === division.unit || checkedMates.has(u.unit)}
+                  disabled={u.unit === division.unit}
+                  onChange={() => setCheckedMates(prev => {
+                    const next = new Set(prev);
+                    if (next.has(u.unit)) next.delete(u.unit); else next.add(u.unit);
+                    return next;
+                  })}
+                />
+                {u.unit}
+              </label>
+            ))}
+            <Button
+              size="sm"
+              onClick={() => { onApplyGroup({ key: suggestion.key, units: [division.unit, ...checkedMates] }); onClose(); }}
+            >
+              Объединить отмеченные
+            </Button>
+          </div>
+        )}
+
         <div className={s.formFoot}>
           <Button
             onClick={() => onSubmit({
@@ -51,6 +91,7 @@ export function DivisionForm({ division, onClose, onSubmit }: {
               head, resp,
               hrbp: isAdmin ? hrbp : undefined,
               note,
+              group: isAdmin ? group : undefined,
               region: isAdmin ? region : undefined,
               org_role: isAdmin ? orgRole : undefined,
               is_survey_target: isAdmin ? (surveyTarget ? 1 : 0) : undefined

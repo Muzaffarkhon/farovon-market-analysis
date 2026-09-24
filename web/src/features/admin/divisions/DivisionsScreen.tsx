@@ -9,6 +9,7 @@ import { useSort } from '../../../design/useSort';
 import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
+import { AdjacentGroupsModal } from './AdjacentGroupsModal';
 import { BatchAssignForm } from './BatchAssignForm';
 import { CreateDivisionForm } from './CreateDivisionForm';
 import { DivisionForm } from './DivisionForm';
@@ -26,6 +27,16 @@ export function DivisionsScreen() {
   const [moving, setMoving] = useState<Division | null>(null);
   const [creating, setCreating] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
+
+  const groupCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    (d.divisions ?? []).forEach(row => {
+      const key = String(row.group_key || '').trim();
+      if (key) map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    return map;
+  }, [d.divisions]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -57,6 +68,7 @@ export function DivisionsScreen() {
       <div className={s.head}>
         <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
+          {isAdmin && <Button size="sm" variant="secondary" onClick={() => setGroupsOpen(true)}>Смежные группы{groupCounts.size ? ` (${groupCounts.size})` : ''}</Button>}
           {isAdmin && <Button size="sm" variant="secondary" onClick={() => setBatchOpen(true)}>Массовое назначение</Button>}
           {isAdmin && <Button size="sm" onClick={() => setCreating(true)}>Создать</Button>}
         </div>
@@ -79,7 +91,12 @@ export function DivisionsScreen() {
           <tbody>
             {sorted.map(row => (
               <tr key={row.id}>
-                <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button></td>
+                <td>
+                  <button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button>
+                  {row.group_key && (groupCounts.get(row.group_key) ?? 0) > 1 && (
+                    <span className={s.hint}> · Смежная · {groupCounts.get(row.group_key)} площ.</span>
+                  )}
+                </td>
                 <td>{row.dir}</td>
                 <td className={s.wrapCell}>{row.head}</td>
                 <td className={s.wrapCell}>{row.resp}</td>
@@ -112,8 +129,20 @@ export function DivisionsScreen() {
       {editing && (
         <DivisionForm
           division={editing}
+          suggestions={d.groupSuggestions}
           onClose={() => setEditing(null)}
           onSubmit={p => { d.save(p); setEditing(null); }}
+          onApplyGroup={p => d.applyAdjacentGroup(p)}
+        />
+      )}
+
+      {groupsOpen && (
+        <AdjacentGroupsModal
+          divisions={d.divisions ?? []}
+          applying={d.applyingAdjacentGroup}
+          onClose={() => setGroupsOpen(false)}
+          onApply={p => d.applyAdjacentGroup({ ...p, force: true })}
+          onClear={p => d.clearAdjacentGroup(p)}
         />
       )}
 

@@ -61,8 +61,10 @@ export interface AddCompanyResponse { ok: true; name: string; list: string[] }
 export interface NoComparisonResponse { ok: true; units: string[] }
 
 export interface Capability { id: string; resource: string; resourceLabel: string; label: string }
-export interface RoleInfo { key: string; label: string; is_protected: boolean; is_admin: boolean; users: number; note: string }
+export interface RoleInfo { key: string; label: string; is_protected: boolean; is_admin: boolean; structural: boolean; users: number; note: string }
 export interface RoleMatrixResponse { ok: true; capabilities: Capability[]; matrix: Record<string, string[]>; roles: RoleInfo[] }
+export interface CreateRoleResponse { ok: true; key: string; label: string }
+export interface RenameRoleResponse { ok: true; key: string; label: string }
 
 export interface Grant {
   userLogin: string; userFio: string; userRole: Role; capability: string; effect: 'grant' | 'deny';
@@ -481,7 +483,8 @@ export interface Division {
   group_key: string | null; region: string | null; org_role: string | null;
   is_survey_target: number; is_hidden: number; parent_unit: string | null;
 }
-export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: unknown[] }
+export interface AdjacentGroupSuggestion { key: string; dir: string; units: { unit: string; region: string }[] }
+export interface DivisionsResponse { ok: true; divisions: Division[]; groupSuggestions: AdjacentGroupSuggestion[] }
 
 export interface SaveDivisionPayload {
   unit: string; dir?: string; head?: string; resp?: string; hrbp?: string; note?: string;
@@ -493,6 +496,10 @@ export interface MoveDivisionPayload { unit: string; targetDir: string; parentUn
 export interface MoveDivisionResponse { ok: true; message: string; unit: string; newDir: string; newParentUnit: string | null; competitorsUpdated: number }
 export interface BatchAssignPayload { dir: string; roleType: 'head' | 'hrbp' | 'resp'; personName: string }
 export interface BatchAssignResponse { ok: true; message: string; affectedDivisions: number }
+export interface ApplyAdjacentGroupPayload { key: string; units: string[]; force?: boolean }
+export interface ApplyAdjacentGroupResponse { ok: true; key: string; applied: number }
+export interface ClearAdjacentGroupPayload { key: string }
+export interface ClearAdjacentGroupResponse { ok: true; key: string; cleared: number }
 
 // ─── Администрирование: справочник сотрудников ───
 
