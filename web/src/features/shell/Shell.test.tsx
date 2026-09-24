@@ -44,20 +44,10 @@ test('пункты меню видны в боковой панели', () => {
   expect(sidebar.getByRole('link', { name: 'Администрирование' })).toBeInTheDocument();
 });
 
-test('на широком экране кнопка «Разделы» сворачивает панель и запоминает это', async () => {
-  mockViewport(true);
-  renderShell();
-  const toggle = screen.getByRole('button', { name: 'Разделы' });
-  await userEvent.click(toggle);
-  expect(window.localStorage.getItem('nav-collapsed')).toBe('1');
-  await userEvent.click(toggle);
-  expect(window.localStorage.getItem('nav-collapsed')).toBe('0');
-});
-
-test('на телефоне кнопка «Разделы» открывает выдвижное меню, клик по пункту его закрывает', async () => {
+test('на телефоне кнопка «Ещё разделы» (гамбургер внизу) открывает выдвижное меню, клик по пункту его закрывает', async () => {
   mockViewport(false);
   renderShell();
-  const toggle = screen.getByRole('button', { name: 'Разделы' });
+  const toggle = screen.getByRole('button', { name: 'Ещё разделы' });
   const registryLink = within(screen.getByRole('navigation', { name: 'Разделы' })).getByRole('link', { name: 'Реестр' });
   expect(registryLink.closest('nav')?.className).not.toMatch(/\bopen\b/);
   await userEvent.click(toggle);

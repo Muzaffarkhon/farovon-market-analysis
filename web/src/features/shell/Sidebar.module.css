@@ -52,6 +52,11 @@
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
 
+/* Кнопки аккаунта (тема/период/пароль/выход) — только в шторке телефона,
+   ниже разделов (Sidebar.tsx, .mobileAccount). На десктопе те же действия
+   остаются в шапке (TopBar.tsx, «Ещё»), здесь не нужны и не показываются. */
+.mobileAccount { display: none; }
+
 .backdrop { display: none; }
 
 @media (max-width: 767px) {
@@ -77,4 +82,11 @@
   }
   .brand { padding-top: var(--s-2); }
   .backdrop.open { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .4); border: 0; padding: 0; }
+  .mobileAccount { display: flex; flex-direction: column; margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--border); }
+  .accountUser { padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); }
+  .accountItem {
+    text-align: left; min-height: var(--tap); padding: 0 var(--s-3); border: 0;
+    background: transparent; border-radius: var(--r-sm); cursor: pointer; font: inherit; color: inherit;
+  }
+  .accountItem:hover { background: var(--surface); }
 }

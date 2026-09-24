@@ -1,10 +1,12 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useSessionData } from '../auth/useSession';
 import { navItemsFor } from './NavItems';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
+import { usePullToRefresh } from './usePullToRefresh';
 import s from './Shell.module.css';
 
 const TitleCtx = createContext<(t: string) => void>(() => {});
@@ -28,6 +30,11 @@ export function Shell({ children }: { children?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const qc = useQueryClient();
+  const mainRef = useRef<HTMLElement | null>(null);
+  // На телефоне кнопки «Обновить» в шапке больше нет (Sidebar/TabBar теперь
+  // внизу) — обновление жестом «потянуть вниз», как в браузере/приложениях.
+  const { pull, refreshing } = usePullToRefresh(mainRef, () => qc.invalidateQueries());
 
   // Переход на новый экран закрывает выдвижное меню телефона — иначе оно
   // перекрывает контент после клика по пункту.
@@ -58,9 +65,14 @@ export function Shell({ children }: { children?: ReactNode }) {
           onToggleCollapse={toggleNav}
         />
         <div className={s.column}>
-          <TopBar title={title} onToggleNav={toggleNav} />
-          <main className={s.main}>{children ?? <Outlet />}</main>
-          <TabBar items={items} />
+          <TopBar title={title} />
+          <main ref={mainRef} className={s.main}>
+            <div className={s.pullIndicator} style={{ height: refreshing ? 40 : pull }} aria-hidden="true">
+              {(pull > 4 || refreshing) && <span className={[s.pullIcon, refreshing ? s.pullSpin : ''].join(' ')}>⟳</span>}
+            </div>
+            {children ?? <Outlet />}
+          </main>
+          <TabBar items={items} onOpenMenu={toggleNav} />
         </div>
       </div>
     </TitleCtx.Provider>

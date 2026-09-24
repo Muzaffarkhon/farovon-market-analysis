@@ -7,7 +7,7 @@ import { PeriodPicker } from './PeriodPicker';
 import { useOnline } from './useOnline';
 import s from './Shell.module.css';
 
-export function TopBar({ title, onToggleNav }: { title: string; onToggleNav: () => void }) {
+export function TopBar({ title }: { title: string }) {
   const { user } = useSessionData();
   const { logout } = useSession();
   const navigate = useNavigate();
@@ -18,11 +18,6 @@ export function TopBar({ title, onToggleNav }: { title: string; onToggleNav: () 
   return (
     <header className={s.top}>
       <div className={s.left}>
-        <button type="button" className={[s.navToggle, s.brandBtn].join(' ')} aria-label="Разделы" title="Разделы" onClick={onToggleNav}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 19V10M12 19V5M20 19V13" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-          </svg>
-        </button>
         <h1 className={s.title}>{title}</h1>
       </div>
       <div className={s.right}>

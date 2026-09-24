@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router';
+import { NavLink, useNavigate } from 'react-router';
+import { toggleTheme } from '../../design/theme';
+import { useSession, useSessionData } from '../auth/useSession';
 import { groupNavItems, type NavItem } from './NavItems';
+import { PeriodPicker } from './PeriodPicker';
 import s from './Sidebar.module.css';
 
 /** Простые Unicode-глифы — без иконочного шрифта/библиотеки, тем же приёмом,
@@ -20,6 +23,9 @@ type Props = {
 
 export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onToggleCollapse }: Props) {
   const groups = groupNavItems(items);
+  const { user } = useSessionData();
+  const { logout } = useSession();
+  const navigate = useNavigate();
   return (
     <>
       <button
@@ -49,6 +55,17 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
           {groups.map(g => (
             <NavGroupBlock key={g.key} group={g} sidebarCollapsed={collapsed} onNavigate={onNavigate} />
           ))}
+          {/* Только на телефоне (Sidebar.module.css, .mobileAccount) — здесь же,
+              в той же шторке, живут кнопки, которые раньше были в шапке
+              (Тема/Период/Пароль/Выйти): гамбургер в TabBar.tsx — единственный
+              вход в меню на телефоне, дублировать его незачем. */}
+          <div className={s.mobileAccount}>
+            <div className={s.accountUser}>{user.fio}</div>
+            <PeriodPicker variant="menu" />
+            <button type="button" className={s.accountItem} onClick={() => toggleTheme()}>Сменить тему</button>
+            <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/change-password'); }}>Сменить пароль</button>
+            <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); void logout(); }}>Выйти</button>
+          </div>
         </div>
       </nav>
     </>
