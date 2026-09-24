@@ -1,5 +1,10 @@
-.shell { min-height: 100dvh; display: flex; }
-.column { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* height (не min-height) — обёртка жёстко ограничена высотой экрана, как
+   панель слева (Sidebar.module.css, height:100dvh). Иначе высокие таблицы
+   раздували всю обёртку вместо того, чтобы прокручиваться внутри себя:
+   flex-grow не может сжать дочерний блок обратно, если у цепочки родителей
+   нет ни одной по-настоящему зафиксированной высоты. */
+.shell { height: 100dvh; display: flex; }
+.column { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 56px; padding: var(--s-2) var(--s-4); background: var(--surface); border-bottom: 1px solid var(--border); }
 .left { display: flex; align-items: center; gap: var(--s-3); min-width: 0; flex: 1; }
 .right { display: flex; align-items: center; gap: var(--s-2); flex-shrink: 0; }
@@ -27,7 +32,11 @@
 .menuUser { padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: var(--s-1); }
 .menuItem { text-align: left; min-height: var(--tap); padding: 0 var(--s-3); border: 0; background: transparent; border-radius: var(--r-sm); cursor: pointer; }
 .menuItem:hover { background: var(--surface-2); }
-.main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: var(--s-4); }
+/* flex-column + min-height:0 — так экраны с таблицей (у них свой screenFill/
+   tableWrapFill) могут растянуть таблицу до низа наравне с панелью слева
+   (Sidebar.module.css, height:100dvh), а не по числу-заглушке (100dvh - N px),
+   которое на разных экранах не совпадало с реальной высотой шапки. */
+.main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: var(--s-4); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 /* Широкие рабочие экраны (реестр) не помещаются в колонку 1100px: таблица
    уезжала бы вбок при пустых полях по краям. Экран сам просит ширину. */
 .main:has(> [data-wide]) { max-width: 1600px; }

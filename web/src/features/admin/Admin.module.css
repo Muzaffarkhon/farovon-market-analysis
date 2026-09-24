@@ -1,6 +1,7 @@
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
-.card { display: block; padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
+.card { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
 .card:hover { background: var(--surface-2); }
+.cardIcon { flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-md); background: var(--surface-2); color: var(--accent); }
 .cardTitle { font-weight: 600; margin-bottom: var(--s-1); }
 .cardNote { font-size: 13px; color: var(--text-muted); }
 .empty { color: var(--text-muted); }
@@ -12,12 +13,19 @@
    прокрутки, от которого и считается sticky-шапка ниже (иначе шапка
    уезжает вместе со страницей, как было раньше). */
 .tableWrap { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 220px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+
+/* Вариант для экранов, где таблица — единственный/последний блок на странице
+   (без формы ниже неё в потоке): растягивается до низа наравне с панелью
+   слева, а не до числа-заглушки. Обёртка-экран — .screenFill, growит внутри
+   .main (Shell.module.css); .form ниже тоже участвует в этой цепочке. */
+.screenFill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: var(--s-3); }
+.tableWrapFill { overflow: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13.5px; }
 .table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; white-space: nowrap; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }
 .rowInactive { color: var(--text-muted); }
 
-.form { display: flex; flex-direction: column; gap: var(--s-3); }
+.form { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; min-height: 0; }
 .unitList { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-2); }
 .unitRow { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
 .formFoot { display: flex; align-items: center; gap: var(--s-3); justify-content: flex-end; }

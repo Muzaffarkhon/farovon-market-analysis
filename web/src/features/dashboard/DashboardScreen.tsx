@@ -30,7 +30,7 @@ export function DashboardScreen() {
   const Panel = tabs.some(t => t.key === d.tab) ? PANELS[d.tab] : PANELS.overview;
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <nav className={s.tabs} aria-label="Вкладки дашборда">
         {tabs.map(t => (
           <NavLink

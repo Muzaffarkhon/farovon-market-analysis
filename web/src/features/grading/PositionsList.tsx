@@ -21,7 +21,7 @@ export function PositionsList({ rows, committeeSize, grades, onSelect }: {
   onSelect: (row: GradingPosition) => void;
 }) {
   return (
-    <div className={s.tableWrap}>
+    <div className={s.tableWrapFill}>
       <table className={s.table}>
         <thead>
           <tr>

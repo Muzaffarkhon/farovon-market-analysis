@@ -15,7 +15,7 @@ export function FactorsTab({ blocks }: { blocks: AdminGradingBlock[] }) {
   const f = useFactorsAdmin(scope, dir);
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <Select
           label="Анкета" value={scope}
@@ -33,7 +33,7 @@ export function FactorsTab({ blocks }: { blocks: AdminGradingBlock[] }) {
       {f.loading && <Skeleton lines={4} />}
       {f.error && <p className={s.empty}>{f.error.message}</p>}
 
-      <div className={s.tableWrap}>
+      <div className={s.tableWrapFill}>
         <table className={s.table}>
           <thead><tr><th>№</th><th>Вопрос</th><th></th></tr></thead>
           <tbody>

@@ -22,7 +22,7 @@ export function UsersScreen() {
   const formOpen = creating || !!editing;
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <div className={s.tabs}>
           <Chip active={tab === 'active'} onClick={() => setTab('active')}>Активные</Chip>
@@ -32,7 +32,7 @@ export function UsersScreen() {
       </div>
 
       {tab === 'active' && (
-        <div className={s.tableWrap}>
+        <div className={s.tableWrapFill}>
           <table className={s.table}>
             <thead>
               <tr>
@@ -85,7 +85,7 @@ export function UsersScreen() {
       )}
 
       {tab === 'archive' && (
-        <div className={s.tableWrap}>
+        <div className={s.tableWrapFill}>
           <table className={s.table}>
             <thead><tr><th>ФИО</th><th>Логин</th><th>Роль</th><th>В архиве с</th><th></th></tr></thead>
             <tbody>

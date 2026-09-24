@@ -23,11 +23,11 @@ export function SourcesTab() {
   if (src.loading) return <Skeleton lines={4} />;
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <Button size="sm" onClick={() => setEditing('new')}>Новый источник</Button>
       </div>
-      <div className={s.tableWrap}>
+      <div className={s.tableWrapFill}>
         <table className={s.table}>
           <thead><tr><th>Название</th><th>Тип</th><th>Валюта</th><th>Лицензия</th><th>Вес</th><th>Скрыт</th><th></th></tr></thead>
           <tbody>

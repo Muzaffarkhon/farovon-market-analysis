@@ -1,6 +1,6 @@
 /* Реестр — рабочий экран: плотно, без «лендинговых» пустот. Таблица шире
    контентной колонки оболочки, поэтому раздвигаем её на всю ширину окна. */
-.screen { display: flex; flex-direction: column; gap: var(--s-3); }
+.screen { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; min-height: 0; }
 
 .bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); }
 .search { flex: 1 1 240px; min-width: 180px; max-width: 360px; }
@@ -17,10 +17,11 @@
 /* Таблица прокручивается внутри себя: только так шапка колонок остаётся
    на виду (overflow-x делает обёртку контейнером прокрутки, и sticky
    считается уже от неё, а не от окна). */
-/* height, не max-height — иначе короткая выдача (мало строк) сжимает бокс
-   таблицы под контент, и полоса прокрутки/нижняя граница повисает
-   посередине страницы вместо того, чтобы стоять у самого низа. */
-.tableWrap { overflow: auto; height: calc(100dvh - 240px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+/* flex: 1 вместо фиксированной height: calc(100dvh - N px) — число не всегда
+   совпадало с реальной высотой шапки/фильтров, и низ таблицы плавал. Теперь
+   бокс дорастает ровно до низа колонки (.screen выше — тоже flex: 1), как
+   панель слева (Sidebar.module.css, height: 100dvh). */
+.tableWrap { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }

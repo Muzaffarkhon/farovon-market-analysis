@@ -36,7 +36,7 @@ export function DivisionsScreen() {
   if (d.divisionsLoading) return <Skeleton lines={8} />;
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <Input label="Поиск" placeholder="По названию или направлению" value={query} onChange={e => setQuery(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
@@ -45,7 +45,7 @@ export function DivisionsScreen() {
         </div>
       </div>
 
-      <div className={s.tableWrap}>
+      <div className={s.tableWrapFill}>
         <table className={s.table}>
           <thead>
             <tr>

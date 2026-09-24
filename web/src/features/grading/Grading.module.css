@@ -13,6 +13,8 @@
 .tabActive { color: var(--accent); background: var(--surface-2); }
 
 .tableWrap { overflow: auto; max-height: calc(100dvh - 260px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.screenFill { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.tableWrapFill { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
 .table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }

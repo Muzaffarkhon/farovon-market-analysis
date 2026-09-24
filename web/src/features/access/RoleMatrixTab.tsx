@@ -30,7 +30,7 @@ export function RoleMatrixTab() {
   }
 
   return (
-    <div className={s.tableWrap}>
+    <div className={s.tableWrapFill}>
       <table className={s.table}>
         <thead>
           <tr>

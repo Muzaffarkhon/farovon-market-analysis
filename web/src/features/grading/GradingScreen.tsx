@@ -37,7 +37,7 @@ export function GradingScreen() {
   }
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <nav className={s.tabs} aria-label="Индустриальные блоки">
         {blocks.map(b => (
           <NavLink

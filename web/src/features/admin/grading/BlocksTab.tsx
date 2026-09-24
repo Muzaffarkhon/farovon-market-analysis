@@ -11,7 +11,7 @@ export function BlocksTab({ blocks }: { blocks: AdminGradingBlock[] }) {
   const p = useBlockPositions(block);
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <Select label="Блок" value={block} onChange={e => setBlock(e.target.value)} options={blocks.map(b => ({ value: b.key, label: `${b.label} (${b.pair_count})` }))} />
       </div>
@@ -19,7 +19,7 @@ export function BlocksTab({ blocks }: { blocks: AdminGradingBlock[] }) {
       {p.loading && <Skeleton lines={5} />}
       {p.error && <p className={s.empty}>{p.error.message}</p>}
 
-      <div className={s.tableWrap}>
+      <div className={s.tableWrapFill}>
         <table className={s.table}>
           <thead><tr><th>Подразделение</th><th>Должность</th><th>Штат</th><th></th></tr></thead>
           <tbody>

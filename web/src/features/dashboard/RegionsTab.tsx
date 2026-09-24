@@ -8,7 +8,7 @@ export function RegionsTab({ data }: { data: DashboardResponse }) {
   if (!rows.length) return <p className={s.empty}>По выбранным фильтрам регион не определён ни у одной записи.</p>;
 
   return (
-    <div className={s.tableWrap}>
+    <div className={s.tableWrapFill}>
       <table className={s.table}>
         <thead>
           <tr>

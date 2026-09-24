@@ -27,7 +27,7 @@ export function StaffScreen() {
   if (st.listLoading) return <Skeleton lines={8} />;
 
   return (
-    <div>
+    <div className={s.screenFill}>
       <div className={s.head}>
         <Input label="Поиск" placeholder="ФИО или подразделение" value={query} onChange={e => setQuery(e.target.value)} />
         <div style={{ display: 'flex', gap: 8 }}>
@@ -38,7 +38,7 @@ export function StaffScreen() {
 
       {st.importedAt && <p className={s.hint}>Последний импорт: {st.importedAt}</p>}
 
-      <div className={s.tableWrap}>
+      <div className={s.tableWrapFill}>
         <table className={s.table}>
           <thead><tr><th>ФИО</th><th>Подразделение</th><th>Должность</th><th></th></tr></thead>
           <tbody>

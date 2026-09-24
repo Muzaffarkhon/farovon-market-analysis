@@ -10,7 +10,7 @@ export function DatasetsTab() {
   if (d.loading) return <Skeleton lines={4} />;
 
   return (
-    <div className={s.tableWrap}>
+    <div className={s.tableWrapFill}>
       <table className={s.table}>
         <thead><tr><th>Датасет</th><th>Источник</th><th>Дата данных</th><th>Строк</th><th>Загружен</th><th></th></tr></thead>
         <tbody>

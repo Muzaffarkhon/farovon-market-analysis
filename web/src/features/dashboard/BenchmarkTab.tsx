@@ -56,7 +56,7 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
   });
 
   return (
-    <div>
+    <div className={s.screenFill}>
       {widgets.data && (
         <p className={s.scopeNote}>
           Источники сопоставлены для {widgets.data.widgets.mappedPositions} из {widgets.data.widgets.totalPositions} должностей ({widgets.data.widgets.coveragePercent}%)
@@ -92,7 +92,7 @@ export function BenchmarkTab({ data }: { data: DashboardResponse }) {
               />
             </div>
 
-            <div className={s.tableWrap}>
+            <div className={s.tableWrapFill}>
               <table className={s.table}>
                 <thead>
                   <tr>
