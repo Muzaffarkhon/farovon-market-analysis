@@ -4,8 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { UsersScreen } from './UsersScreen';
 import * as adminApiModule from '../../../api/admin';
 import * as accessApiModule from '../../../api/access';
+import type { SessionData } from '../../../api/contract';
 
 vi.mock('../../shell/Shell', () => ({ useScreenTitle: () => {} }));
+
+// По умолчанию сессия — суперадмин (login «admin»): большинство сценариев
+// здесь про саму таблицу и форму, а не про то, кто видит кнопку «Добавить».
+let session: SessionData;
+vi.mock('../../auth/useSession', () => ({ useSessionData: () => session }));
 
 const activeUser = {
   id: 1, login: 'ivanov', fio: 'Иванов Иван', role: 'user', phone: '', position: 'Мастер',
@@ -20,6 +26,7 @@ function renderScreen() {
 }
 
 beforeEach(() => {
+  session = { user: { id: 9, login: 'admin', fio: 'Суперадмин', role: 'admin', units: [], capabilities: [], onboarded: true, hasTelegram: true } } as unknown as SessionData;
   adminApiMock = {
     users: vi.fn().mockResolvedValue({ ok: true, users: [activeUser] }),
     usersArchive: vi.fn().mockResolvedValue({ ok: true, users: [] }),
@@ -69,4 +76,11 @@ test('создание нового пользователя отправляе�
   await waitFor(() => expect(adminApiMock.saveUser).toHaveBeenCalledWith(
     expect.objectContaining({ login: undefined, fio: 'Петров Пётр', role: 'user' })
   ));
+});
+
+test('кнопка «Добавить» скрыта не у суперадмина', async () => {
+  session = { user: { id: 2, login: 'cb_ivanov', fio: 'C&B Иванов', role: 'cb', units: [], capabilities: ['users:view', 'users:edit'], onboarded: true, hasTelegram: true } } as unknown as SessionData;
+  renderScreen();
+  await screen.findByText('Иванов Иван');
+  expect(screen.queryByRole('button', { name: 'Добавить' })).not.toBeInTheDocument();
 });

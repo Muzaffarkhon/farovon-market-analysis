@@ -4,6 +4,7 @@ import { Badge } from '../../../design/Badge';
 import { Button } from '../../../design/Button';
 import { Chip } from '../../../design/Chip';
 import { Skeleton } from '../../../design/Skeleton';
+import { useSessionData } from '../../auth/useSession';
 import { useScreenTitle } from '../../shell/Shell';
 import s from '../Admin.module.css';
 import { UserForm } from './UserForm';
@@ -12,6 +13,11 @@ import { useUsers } from './useUsers';
 export function UsersScreen() {
   useScreenTitle('Пользователи');
   const u = useUsers();
+  const { user } = useSessionData();
+  // Добавлять новых пользователей может только встроенный суперадмин (login
+  // «admin») — см. adminController.saveUser. У остальных, даже с ролью
+  // admin, сервер отклонит запрос, поэтому кнопку им не показываем.
+  const canCreate = user.login.toLowerCase() === 'admin';
   const [tab, setTab] = useState<'active' | 'archive'>('active');
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [creating, setCreating] = useState(false);
@@ -28,7 +34,7 @@ export function UsersScreen() {
           <Chip active={tab === 'active'} onClick={() => setTab('active')}>Активные</Chip>
           <Chip active={tab === 'archive'} onClick={() => setTab('archive')}>Архив</Chip>
         </div>
-        {tab === 'active' && <Button size="sm" onClick={() => setCreating(true)}>Добавить</Button>}
+        {tab === 'active' && canCreate && <Button size="sm" onClick={() => setCreating(true)}>Добавить</Button>}
       </div>
 
       {tab === 'active' && (

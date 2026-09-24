@@ -141,7 +141,7 @@ router.post('/audit/export', requireCapability('dashboard:view'), dashboardContr
 // правку — маршрут пускает по любому из двух прав, точная граница внутри
 // обработчика (см. adminController.saveUser, dictionaryController.save).
 router.get('/admin/users', requireCapability('users:view'), adminController.getUsers);
-router.post('/admin/users', requireCapability('users:create', 'users:edit'), adminController.saveUser);
+router.post('/admin/users', requireCapability('users:edit'), adminController.saveUser);
 router.post('/admin/users/:login/toggle', requireCapability('users:edit'), adminController.toggleUser);
 router.post('/admin/users/:login/reset-password', requireCapability('users:edit'), adminController.resetPassword);
 router.get('/admin/users-archive', requireCapability('users:view'), adminController.getArchivedUsers);

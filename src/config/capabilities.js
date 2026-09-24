@@ -20,7 +20,9 @@ const CAPABILITIES = [
   { id: 'divisions:view', resource: 'divisions', resourceLabel: 'Оргструктура', label: 'Просмотр' },
   { id: 'divisions:edit', resource: 'divisions', resourceLabel: 'Оргструктура', label: 'Назначение ответственных' },
   { id: 'users:view', resource: 'users', resourceLabel: 'Пользователи', label: 'Просмотр' },
-  { id: 'users:create', resource: 'users', resourceLabel: 'Пользователи', label: 'Добавление' },
+  // users:create сознательно нет в каталоге: добавлять новых пользователей
+  // может только встроенный суперадмин (login «admin»), это не делегируется
+  // ни ролям, ни персональным исключениям (см. adminController.saveUser).
   { id: 'users:edit', resource: 'users', resourceLabel: 'Пользователи', label: 'Редактирование, блокировка, архив' },
   { id: 'dictionary:view', resource: 'dictionary', resourceLabel: 'Справочники', label: 'Просмотр' },
   { id: 'dictionary:create', resource: 'dictionary', resourceLabel: 'Справочники', label: 'Добавление' },

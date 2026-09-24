@@ -172,11 +172,16 @@ exports.saveUser = async (req, res) => {
     const cleanLogin = login ? String(login).trim().toLowerCase() : '';
     const existing = cleanLogin ? await queryOne('SELECT * FROM users WHERE LOWER(login) = LOWER(?)', [cleanLogin]) : null;
 
-    // Маршрут пускает по users:create ИЛИ users:edit (см. routes/api.js) —
-    // точная граница между «добавить» и «править» зависит от того, нашёлся
-    // ли пользователь, и это известно только здесь.
-    const needed = existing ? 'users:edit' : 'users:create';
-    if (!(await hasCapability(req.user, needed))) {
+    // Маршрут пускает по users:edit (см. routes/api.js; admin проходит любую
+    // проверку прав без обращения к этой таблице). Добавление новых учёток —
+    // отдельно и строго за встроенным суперадмином (login «admin»): единая
+    // точка выдачи учёток снижает риск бесконтрольного размножения
+    // админских/привилегированных аккаунтов.
+    if (!existing) {
+      if (!isSuperadmin(req.user.login)) {
+        return res.status(403).json({ ok: false, error: 'Добавлять пользователей может только суперадминистратор (встроенная учётка «admin»)' });
+      }
+    } else if (!(await hasCapability(req.user, 'users:edit'))) {
       return res.status(403).json({ ok: false, error: 'Недостаточно прав доступа' });
     }
 
