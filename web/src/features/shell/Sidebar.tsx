@@ -34,31 +34,28 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
       />
       <nav className={[s.sidebar, collapsed ? s.collapsed : '', open ? s.open : ''].join(' ')} aria-label="Разделы">
         {/* Логотип (тот же контур, что в старом клиенте — client/index.html
-            #railBrand) сам и есть кнопка сворачивания: клик по всей строке
-            переключает, отдельная стрелка не нужна — иконка остаётся видна
-            и в свёрнутом виде. */}
-        <button
-          type="button" className={s.brand} onClick={onToggleCollapse}
-          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'} title="Свернуть / развернуть меню"
-        >
-          <span className={s.brandMark} aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            #railBrand). Иконка сама — кнопка сворачивания. На телефоне вторая
+            строка («Фаровон · C&B») заменяется именем пользователя и периодом
+            — то же место, не отдельная строка ниже: их и просили показать
+            прямо здесь, на одной строке с лого, а не новым пунктом в шторке. */}
+        <div className={s.brand}>
+          <button
+            type="button" className={s.brandMark} onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'} title="Свернуть / развернуть меню"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 19V10M12 19V5M20 19V13" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
             </svg>
-          </span>
+          </button>
           <span className={s.brandText}>
             <span className={s.brandName}>Обзор рынка</span>
-            <span className={s.brandSub}>Фаровон · C&amp;B</span>
+            <span className={s.brandSubDesktop}>Фаровон · C&amp;B</span>
+            <span className={s.brandSubMobile}>
+              <span className={s.accountUser}>{user.fio}</span>
+              <span aria-hidden="true"> · </span>
+              <PeriodPicker variant="inline" />
+            </span>
           </span>
-        </button>
-        {/* Имя пользователя и период — сразу под лого, тем же рядом (только на
-            телефоне, Sidebar.module.css .accountRow): раньше стояли отдельной
-            строкой внизу шторки, вперемешку с пунктами меню и было не сразу
-            понятно, что это про аккаунт, а не ещё один раздел. */}
-        <div className={s.accountRow}>
-          <span className={s.accountUser}>{user.fio}</span>
-          <span aria-hidden="true">·</span>
-          <PeriodPicker variant="inline" />
         </div>
         <div className={s.nav}>
           {groups.map(g => (

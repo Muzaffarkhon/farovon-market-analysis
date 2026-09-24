@@ -10,21 +10,27 @@
 }
 .sidebar.collapsed { width: 56px; }
 
+/* .brand — обёртка (не кнопка): внутри своя кнопка сворачивания (.brandMark,
+   квадрат-иконка) и текстовый блок рядом, а не всё целиком одна большая
+   кнопка — иначе на телефоне в .brandSubMobile не встал бы выпадающий список
+   периода (select внутри button — недопустимая вложенность). */
 .brand {
   display: flex; align-items: center; gap: var(--s-2); min-height: 56px;
   padding: 0 var(--s-2) 0 var(--s-3); border-bottom: 1px solid var(--border);
-  border-left: 0; border-right: 0; border-top: 0;
-  background: transparent; width: 100%; cursor: pointer; text-align: left;
 }
-.brand:hover { background: var(--surface); }
 .brandMark {
   flex: none; width: 28px; height: 28px; border-radius: var(--r-sm);
   background: linear-gradient(135deg, var(--accent), var(--accent)); color: #fff;
   display: flex; align-items: center; justify-content: center;
+  border: 0; padding: 0; cursor: pointer;
 }
 .brandText { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .brandName { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.brandSub { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.brandSubDesktop { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+/* На телефоне подпись под названием — не статичный слоган, а имя
+   пользователя и период (см. Sidebar.tsx): та же строка, без отдельной
+   секции ниже. */
+.brandSubMobile { display: none; }
 /* Свёрнуто: остаётся только сама иконка, по центру узкой полосы — она же
    кнопка разворота, отдельной стрелки нет. */
 .collapsed .brandText { display: none; }
@@ -56,7 +62,6 @@
    ниже разделов (Sidebar.tsx, .mobileAccount). На десктопе те же действия
    остаются в шапке (TopBar.tsx, «Ещё»), здесь не нужны и не показываются. */
 .mobileAccount { display: none; }
-.accountRow { display: none; }
 
 .backdrop { display: none; }
 
@@ -84,10 +89,11 @@
   .brand { padding-top: var(--s-2); }
   .backdrop.open { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .4); border: 0; padding: 0; }
   .mobileAccount { display: flex; flex-direction: column; margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--border); }
-  /* Имя пользователя и период — один ряд сразу под лого (та же шапка шторки,
-     не самостоятельный пункт списка ниже разделов). */
-  .accountRow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-  .accountUser { font-weight: 600; color: var(--text); }
+  /* Подпись под названием на телефоне — имя и период вместо слогана, та же
+     строка (.brandText), не отдельный ряд. */
+  .brandSubDesktop { display: none; }
+  .brandSubMobile { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--text-muted); }
+  .accountUser { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
   .accountItem {
     text-align: left; min-height: var(--tap); padding: 0 var(--s-3); border: 0;
     background: transparent; border-radius: var(--r-sm); cursor: pointer; font: inherit; color: inherit;
