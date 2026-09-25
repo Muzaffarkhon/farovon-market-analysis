@@ -147,10 +147,14 @@ function matchesSearch(row, q) {
     .some(v => low(v).includes(q));
 }
 
-function applyFilters(rows, f) {
+/** excludeField — поле строки, чей собственный фильтр в этом проходе не
+ * применяется (нужно для каскадных граней, см. buildFacets). Обычный вызов
+ * для таблицы (без excludeField) применяет все фильтры как есть. */
+function applyFilters(rows, f, excludeField) {
   const q = low(f.search);
   return rows.filter(row => {
     for (const key of Object.keys(EXACT)) {
+      if (EXACT[key] === excludeField) continue;
       const want = trim(f[key]);
       if (want && trim(row[EXACT[key]]) !== want) return false;
     }
@@ -162,15 +166,19 @@ function applyFilters(rows, f) {
 }
 
 /**
- * Грани считаются по видимым пользователю строкам ДО применения фильтров:
- * иначе выбранное значение исчезало бы из собственного списка и снять фильтр
- * было бы нечем.
+ * Грани каскадные по оргструктуре и остальным фильтрам: список значений
+ * каждой грани считается по строкам, прошедшим ВСЕ ОСТАЛЬНЫЕ фильтры — выбрал
+ * «Направление», в «Подразделение» остались только его подразделения, и
+ * наоборот. Собственное поле грани из фильтрации исключено нарочно: иначе
+ * выбранное значение пропало бы из своего же списка и снять фильтр было бы
+ * нечем.
  */
-function buildFacets(rows) {
+function buildFacets(rows, filters = {}) {
   const out = {};
   for (const [name, field] of Object.entries(FACETS)) {
+    const scoped = applyFilters(rows, filters, field);
     const seen = new Set();
-    rows.forEach(r => { const v = trim(r[field]); if (v) seen.add(v); });
+    scoped.forEach(r => { const v = trim(r[field]); if (v) seen.add(v); });
     out[name] = Array.from(seen).sort((a, b) => a.localeCompare(b, 'ru'));
   }
   return out;
@@ -240,7 +248,7 @@ function visibleRows(data, opts = {}) {
  */
 function buildRegistry(data, filters = {}, opts = {}) {
   const visible = visibleRows(data, opts);
-  const facets = buildFacets(visible);
+  const facets = buildFacets(visible, filters);
   const filtered = applyFilters(visible, filters);
   const sorted = sortRows(filtered, filters.sort, filters.order);
   const paged = pageOf(sorted, filters.page, filters.perPage);
@@ -263,7 +271,7 @@ function buildRegistryAll(data, filters = {}, opts = {}) {
   const visible = visibleRows(data, opts);
   return {
     rows: sortRows(applyFilters(visible, filters), filters.sort, filters.order),
-    facets: buildFacets(visible)
+    facets: buildFacets(visible, filters)
   };
 }
 
@@ -337,7 +345,7 @@ async function getRegistry(filters = {}, opts = {}) {
     pages: 1,
     perPage: rows.length,
     unmapped: visible.filter(isUnmapped).length,
-    facets: buildFacets(visible),
+    facets: buildFacets(visible, filters),
     scoped: typeof opts.unitFilter === 'function',
     period, periods
   };
