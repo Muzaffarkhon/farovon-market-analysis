@@ -33,8 +33,8 @@ export const compReviewApi = {
 
   cbReturn: (id: number, comment: string) => request<CompRequestResponse>(`/comp/requests/${id}/cb-return`, { comment }),
   cbForward: (id: number) => request<CompRequestResponse>(`/comp/requests/${id}/cb-forward`, {}),
-  setMarketData: (requestId: number, employeeId: number, marketMedian?: number) =>
-    request<CompRequestResponse>(`/comp/requests/${requestId}/employees/${employeeId}/market-data`, { marketMedian }),
+  setMarketData: (requestId: number, employeeId: number, data: { marketMin?: number; marketMedian?: number; marketMax?: number }) =>
+    request<CompRequestResponse>(`/comp/requests/${requestId}/employees/${employeeId}/market-data`, data),
 
   hrdApprove: (id: number) => request<CompRequestResponse>(`/comp/requests/${id}/hrd-approve`, {}),
   hrdReject: (id: number, comment: string) => request<CompRequestResponse>(`/comp/requests/${id}/hrd-reject`, { comment }),
@@ -44,7 +44,8 @@ export const compReviewApi = {
   forceDecide: (employeeId: number, decision: 'approved' | 'rejected') =>
     request<CompRequestResponse>(`/comp/employees/${employeeId}/force-decide`, { decision }),
   remindVoters: (employeeId: number) => request<CompRemindResponse>(`/comp/employees/${employeeId}/remind`, {}),
-  markPayrollEntered: (employeeId: number) => request<CompRequestResponse>(`/comp/employees/${employeeId}/payroll-entered`, {}),
+  markPayrollEntered: (employeeId: number, data: { comment?: string; effectiveDate?: string }) =>
+    request<CompRequestResponse>(`/comp/employees/${employeeId}/payroll-entered`, data),
 
   addComment: (id: number, comment: string) => request<CompRequestResponse>(`/comp/requests/${id}/comments`, { comment }),
 

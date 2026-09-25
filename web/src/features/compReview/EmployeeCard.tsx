@@ -119,11 +119,11 @@ export function EmployeeCard({ e, request, access, actions }: {
   access: { canReviewCb: boolean; isCommitteeMember: boolean; canPayroll: boolean; isAdmin: boolean };
   actions: {
     remove?: () => void;
-    setMarketData: (median?: number) => void;
+    setMarketData: (data: { marketMin?: number; marketMedian?: number; marketMax?: number }) => void;
     vote: (vote: 'for' | 'against', comment?: string) => void;
     forceDecide: (decision: 'approved' | 'rejected') => void;
     remindVoters: () => void;
-    markPayrollEntered: () => void;
+    markPayrollEntered: (data: { comment?: string; effectiveDate?: string }) => void;
     addVariablePay: (a: { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }) => void;
     removeVariablePay: (id: number) => void;
   };
@@ -131,8 +131,12 @@ export function EmployeeCard({ e, request, access, actions }: {
   const confirm = useConfirm();
   const { reasons } = useCompReasons();
   const { user } = useSessionData();
+  const [minInput, setMinInput] = useState(e.marketMin != null ? String(e.marketMin) : '');
   const [medianInput, setMedianInput] = useState(e.marketMedian != null ? String(e.marketMedian) : '');
+  const [maxInput, setMaxInput] = useState(e.marketMax != null ? String(e.marketMax) : '');
   const [voteComment, setVoteComment] = useState('');
+  const [payrollComment, setPayrollComment] = useState('');
+  const [payrollDate, setPayrollDate] = useState(new Date().toISOString().slice(0, 10));
   const reasonLabel = reasons.find(r => r.code === e.reasonCode)?.label ?? e.reasonCode;
 
   // Сервер уже маскирует чужие голоса в «закрытом» режиме (voteMode='closed') —
@@ -176,7 +180,12 @@ export function EmployeeCard({ e, request, access, actions }: {
         {e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
-        {e.marketMedian != null && <span>Медиана рынка {fmt.format(e.marketMedian)} · compa-ratio {e.compaRatio}</span>}
+        {(e.marketMin != null || e.marketMedian != null || e.marketMax != null) && (
+          <span>
+            Рынок: {e.marketMin != null ? fmt.format(e.marketMin) : '—'} / {e.marketMedian != null ? fmt.format(e.marketMedian) : '—'} / {e.marketMax != null ? fmt.format(e.marketMax) : '—'}
+            {e.compaRatio != null && ` · compa-ratio ${e.compaRatio}`}
+          </span>
+        )}
         {e.isException && <Badge tone="warn">исключение из правила 6 мес.</Badge>}
       </div>
 
@@ -191,11 +200,22 @@ export function EmployeeCard({ e, request, access, actions }: {
       ))}
       {request.status === 'draft' && <AddVariablePayLine onAdd={actions.addVariablePay} />}
 
-      {/* C&B: рыночная медиана */}
+      {/* C&B: рыночный диапазон */}
       {request.status === 'cb_review' && access.canReviewCb && (
         <div className={s.vpRow}>
-          <Input label="" aria-label="Рыночная медиана" type="number" placeholder="Медиана рынка" value={medianInput} onChange={e2 => setMedianInput(e2.target.value)} style={{ maxWidth: 160 }} />
-          <Button size="sm" onClick={() => actions.setMarketData(medianInput.trim() ? Number(medianInput) : undefined)}>Сохранить / подтянуть из бенчмаркинга</Button>
+          <Input label="" aria-label="Минимум рынка" type="number" placeholder="Мин." value={minInput} onChange={e2 => setMinInput(e2.target.value)} style={{ maxWidth: 120 }} />
+          <Input label="" aria-label="Медиана рынка" type="number" placeholder="Медиана (или пусто — из бенчмаркинга)" value={medianInput} onChange={e2 => setMedianInput(e2.target.value)} style={{ maxWidth: 200 }} />
+          <Input label="" aria-label="Максимум рынка" type="number" placeholder="Макс." value={maxInput} onChange={e2 => setMaxInput(e2.target.value)} style={{ maxWidth: 120 }} />
+          <Button
+            size="sm"
+            onClick={() => actions.setMarketData({
+              marketMin: minInput.trim() ? Number(minInput) : undefined,
+              marketMedian: medianInput.trim() ? Number(medianInput) : undefined,
+              marketMax: maxInput.trim() ? Number(maxInput) : undefined
+            })}
+          >
+            Сохранить
+          </Button>
         </div>
       )}
 
@@ -249,16 +269,29 @@ export function EmployeeCard({ e, request, access, actions }: {
 
       {/* Кадровик */}
       {e.status === 'approved_awaiting_payroll' && access.canPayroll && (
-        <div className={s.cardFoot}>
+        <div className={s.cardFoot} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--s-2)' }}>
+          <div className={s.vpRow}>
+            <Input label="Дата внедрения" type="date" value={payrollDate} onChange={e2 => setPayrollDate(e2.target.value)} style={{ maxWidth: 160 }} />
+            <Input label="Комментарий" aria-label="Комментарий кадровика" placeholder="Необязательно" value={payrollComment} onChange={e2 => setPayrollComment(e2.target.value)} style={{ minWidth: 200 }} />
+          </div>
           <Button
             size="sm"
-            onClick={async () => { if (await confirm(`Отметить, что изменение оклада «${e.fio}» внесено в 1С?`)) actions.markPayrollEntered(); }}
+            onClick={async () => {
+              if (await confirm(`Отметить, что изменение оклада «${e.fio}» внесено в 1С?`)) {
+                actions.markPayrollEntered({ comment: payrollComment.trim() || undefined, effectiveDate: payrollDate || undefined });
+              }
+            }}
           >
             Внесено в 1С
           </Button>
         </div>
       )}
-
+      {e.status === 'done' && (e.payrollComment || e.payrollEffectiveDate) && (
+        <div className={s.hint}>
+          Внедрено{e.payrollEffectiveDate ? ` ${new Date(e.payrollEffectiveDate).toLocaleDateString('ru-RU')}` : ''}
+          {e.payrollComment ? ` — ${e.payrollComment}` : ''}
+        </div>
+      )}
       <AttachmentsSection employeeId={e.id} canRemove={request.status === 'draft'} />
 
       {request.status === 'draft' && actions.remove && (

@@ -74,12 +74,15 @@ function mapEmployeeRow(r, variablePay, votes, voteMode, viewerLogin) {
     gradePayTo: r.grade_pay_to == null ? null : Number(r.grade_pay_to),
     vilkaBefore: vilkaPosition(r.grade_pay_from, r.grade_pay_to, r.current_salary),
     vilkaAfter: vilkaPosition(r.grade_pay_from, r.grade_pay_to, r.proposed_salary),
+    marketMin: r.market_min == null ? null : Number(r.market_min),
     marketMedian: r.market_median == null ? null : Number(r.market_median),
+    marketMax: r.market_max == null ? null : Number(r.market_max),
     compaRatio: compaRatio(r.proposed_salary, r.market_median),
     reasonCode: r.reason_code, reasonText: r.reason_text || '',
     isException: !!r.is_exception,
     status: r.status, decidedAt: r.decided_at,
     payrollEnteredAt: r.payroll_entered_at, payrollEnteredBy: r.payroll_entered_by,
+    payrollComment: r.payroll_comment || '', payrollEffectiveDate: r.payroll_effective_date,
     variablePay: (variablePay || []).map(v => ({
       id: v.id, kind: v.kind, amount: Number(v.amount), amountType: v.amount_type, period: v.period || '', isProposed: !!v.is_proposed
     })),
@@ -303,7 +306,7 @@ function requireStatus(row, status, label) {
   if (row.status !== status) throw new CompReviewError(`Заявка сейчас не на этапе «${label}»`);
 }
 
-async function cbSetMarketData(employeeId, marketMedian, user) {
+async function cbSetMarketData(employeeId, { marketMin, marketMedian, marketMax } = {}, user) {
   const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
   if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
   const req = await getRequestRow(row.request_id);
@@ -311,7 +314,9 @@ async function cbSetMarketData(employeeId, marketMedian, user) {
 
   let median = marketMedian != null ? Number(marketMedian) : null;
   if (median == null) median = await fetchMarketMedian(row.position, user);
-  await run('UPDATE comp_request_employees SET market_median = ? WHERE id = ?', [median, employeeId]);
+  const min = marketMin != null ? Number(marketMin) : null;
+  const max = marketMax != null ? Number(marketMax) : null;
+  await run('UPDATE comp_request_employees SET market_min = ?, market_median = ?, market_max = ? WHERE id = ?', [min, median, max, employeeId]);
   await touchRequest(req.id);
   return getRequest(req.id);
 }
@@ -477,18 +482,20 @@ async function remindStaleCommitteeVotes() {
 
 // ─── Кадровик ───
 
-async function markPayrollEntered(employeeId, actorLogin) {
+async function markPayrollEntered(employeeId, actorLogin, { comment, effectiveDate } = {}) {
   const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
   if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
   if (row.status !== 'approved_awaiting_payroll') throw new CompReviewError('Изменение ещё не одобрено или уже внесено');
   const req = await getRequestRow(row.request_id);
+  const enteredDate = effectiveDate || req.effective_date;
 
-  await run("UPDATE comp_request_employees SET status = 'done', payroll_entered_at = CURRENT_TIMESTAMP, payroll_entered_by = ? WHERE id = ?",
-    [actorLogin, employeeId]);
+  await run(
+    "UPDATE comp_request_employees SET status = 'done', payroll_entered_at = CURRENT_TIMESTAMP, payroll_entered_by = ?, payroll_comment = ?, payroll_effective_date = ? WHERE id = ?",
+    [actorLogin, comment || null, enteredDate || null, employeeId]);
   await run(
     'INSERT INTO comp_review_history (unit, fio, effective_date, new_salary, request_id) VALUES (?, ?, ?, ?, ?)',
-    [row.unit, row.fio, req.effective_date, row.proposed_salary, req.id]);
-  await logActivity(req.id, row.id, actorLogin, 'внесено в 1С', null);
+    [row.unit, row.fio, enteredDate, row.proposed_salary, req.id]);
+  await logActivity(req.id, row.id, actorLogin, 'внесено в 1С', comment || null);
   await closeRequestIfAllDecided(req.id);
   return getRequest(req.id);
 }

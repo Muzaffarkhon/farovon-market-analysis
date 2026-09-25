@@ -137,7 +137,8 @@ export function useCompRequest(id: number | null) {
 
   const cbReturn = useMut((comment: string) => compReviewApi.cbReturn(id as number, comment), 'Возвращена на доработку');
   const cbForward = useMut(() => compReviewApi.cbForward(id as number), 'Передана на согласование HRD');
-  const setMarketData = useMut((a: { employeeId: number; marketMedian?: number }) => compReviewApi.setMarketData(id as number, a.employeeId, a.marketMedian));
+  const setMarketData = useMut((a: { employeeId: number; marketMin?: number; marketMedian?: number; marketMax?: number }) =>
+    compReviewApi.setMarketData(id as number, a.employeeId, { marketMin: a.marketMin, marketMedian: a.marketMedian, marketMax: a.marketMax }));
 
   const hrdApprove = useMut(() => compReviewApi.hrdApprove(id as number), 'Согласовано');
   const hrdReject = useMut((comment: string) => compReviewApi.hrdReject(id as number, comment), 'Отклонено');
@@ -145,7 +146,8 @@ export function useCompRequest(id: number | null) {
   const vote = useMut((a: { employeeId: number; vote: 'for' | 'against'; comment?: string }) => compReviewApi.vote(a.employeeId, a.vote, a.comment), 'Голос учтён');
   const forceDecide = useMut((a: { employeeId: number; decision: 'approved' | 'rejected' }) => compReviewApi.forceDecide(a.employeeId, a.decision), 'Решение принято');
   const remindVoters = useMut((employeeId: number) => compReviewApi.remindVoters(employeeId), 'Напоминание отправлено');
-  const markPayrollEntered = useMut((employeeId: number) => compReviewApi.markPayrollEntered(employeeId), 'Отмечено как внесено в 1С');
+  const markPayrollEntered = useMut((a: { employeeId: number; comment?: string; effectiveDate?: string }) =>
+    compReviewApi.markPayrollEntered(a.employeeId, { comment: a.comment, effectiveDate: a.effectiveDate }), 'Отмечено как внесено в 1С');
 
   const addComment = useMut((comment: string) => compReviewApi.addComment(id as number, comment));
   const deleteDraftMutation = useMutation({

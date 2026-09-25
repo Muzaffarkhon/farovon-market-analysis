@@ -1075,6 +1075,16 @@ async function createCompReview() {
   await ensureColumn('comp_request_employees', 'probation_start_date', 'TEXT');
   await ensureColumn('comp_request_employees', 'probation_end_date', 'TEXT');
 
+  // Мин/макс рынка — рядом с уже существующей медианой (§4 ТЗ: C&B заполняет
+  // весь диапазон, а не одну точку).
+  await ensureColumn('comp_request_employees', 'market_min', 'REAL');
+  await ensureColumn('comp_request_employees', 'market_max', 'REAL');
+
+  // Кадровик указывает дату внедрения и комментарий сам (§6 ТЗ), а не только
+  // получает автоматический таймстамп нажатия кнопки.
+  await ensureColumn('comp_request_employees', 'payroll_comment', 'TEXT');
+  await ensureColumn('comp_request_employees', 'payroll_effective_date', 'TEXT');
+
   // Переменная часть — «+ добавить вид», несколько строк на сотрудника (§3).
   await run(`CREATE TABLE IF NOT EXISTS comp_variable_pay (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

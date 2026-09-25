@@ -145,8 +145,12 @@ exports.cbForward = handle(async (req, res) => {
 
 exports.setMarketData = handle(async (req, res) => {
   const employeeId = parseInt(req.params.employeeId, 10);
-  const median = req.body && req.body.marketMedian != null ? Number(req.body.marketMedian) : null;
-  const request = await svc.cbSetMarketData(employeeId, median, req.user);
+  const b = req.body || {};
+  const request = await svc.cbSetMarketData(employeeId, {
+    marketMin: b.marketMin != null ? Number(b.marketMin) : null,
+    marketMedian: b.marketMedian != null ? Number(b.marketMedian) : null,
+    marketMax: b.marketMax != null ? Number(b.marketMax) : null
+  }, req.user);
   res.json({ ok: true, request });
 });
 
@@ -185,7 +189,8 @@ exports.remindVoters = handle(async (req, res) => {
 
 exports.markPayrollEntered = handle(async (req, res) => {
   const employeeId = parseInt(req.params.employeeId, 10);
-  const request = await svc.markPayrollEntered(employeeId, req.user.login);
+  const b = req.body || {};
+  const request = await svc.markPayrollEntered(employeeId, req.user.login, { comment: b.comment, effectiveDate: b.effectiveDate });
   await audit(req.user.login, 'изменение ЗП: внесено в 1С', `employee #${employeeId}`);
   res.json({ ok: true, request });
 });

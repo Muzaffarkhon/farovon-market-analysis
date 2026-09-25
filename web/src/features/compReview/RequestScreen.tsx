@@ -114,11 +114,11 @@ export function RequestScreen() {
             access={{ canReviewCb: access.canReviewCb, isCommitteeMember: access.isCommitteeMember, canPayroll: access.canPayroll, isAdmin: access.isAdmin }}
             actions={{
               remove: canEditDraft ? () => req.removeEmployee(e.id) : undefined,
-              setMarketData: median => req.setMarketData({ employeeId: e.id, marketMedian: median }),
+              setMarketData: data => req.setMarketData({ employeeId: e.id, ...data }),
               vote: (vote, c) => req.vote({ employeeId: e.id, vote, comment: c }),
               forceDecide: decision => req.forceDecide({ employeeId: e.id, decision }),
               remindVoters: () => req.remindVoters(e.id),
-              markPayrollEntered: () => req.markPayrollEntered(e.id),
+              markPayrollEntered: data => req.markPayrollEntered({ employeeId: e.id, ...data }),
               addVariablePay: data => req.addVariablePay({ employeeId: e.id, data }),
               removeVariablePay: variablePayId => req.removeVariablePay(variablePayId)
             }}
