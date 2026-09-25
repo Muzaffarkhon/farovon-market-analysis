@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Badge, type BadgeTone } from '../../design/Badge';
 import { Button } from '../../design/Button';
@@ -25,7 +25,7 @@ const STATUS_TONE: Record<CompRequestStatus, BadgeTone> = {
 };
 
 export function RequestScreen() {
-  useScreenTitle('Заявка на пересмотр ЗП');
+  useScreenTitle('Заявка на изменение ЗП');
   const { id } = useParams();
   const requestId = Number(id);
   const navigate = useNavigate();
@@ -38,6 +38,12 @@ export function RequestScreen() {
   const [cbReturnComment, setCbReturnComment] = useState('');
   const [hrdRejectComment, setHrdRejectComment] = useState('');
   const [comment, setComment] = useState('');
+  const [basisDocumentDraft, setBasisDocumentDraft] = useState('');
+  const [commentDraft, setCommentDraft] = useState('');
+
+  useEffect(() => {
+    if (req.request) { setBasisDocumentDraft(req.request.basisDocument ?? ''); setCommentDraft(req.request.comment ?? ''); }
+  }, [req.request?.id]);
 
   if (req.loading) return <Skeleton lines={8} />;
   if (req.error || !req.request) return <p className={s.empty}>Заявка не найдена или недоступна</p>;
@@ -69,7 +75,11 @@ export function RequestScreen() {
               value={r.unit} onChange={unit => req.updateHeader({ unit })}
             />
             <Input label="Дата вступления в силу" type="date" value={r.effectiveDate ?? ''} onChange={e => req.updateHeader({ effectiveDate: e.target.value })} />
-            <Input label="Документ-основание" value={r.basisDocument} onChange={e => req.updateHeader({ basisDocument: e.target.value })} />
+            <Input
+              label="Документ-основание" value={basisDocumentDraft}
+              onChange={e => setBasisDocumentDraft(e.target.value)}
+              onBlur={() => { if (basisDocumentDraft !== r.basisDocument) req.updateHeader({ basisDocument: basisDocumentDraft }); }}
+            />
           </div>
         ) : (
           <div className={s.kpiRow}>
@@ -79,7 +89,12 @@ export function RequestScreen() {
           </div>
         )}
         {canEditDraft ? (
-          <Textarea label="Общий комментарий" value={r.comment} onChange={e => req.updateHeader({ comment: e.target.value })} rows={2} />
+          <Textarea
+            label="Общий комментарий" value={commentDraft}
+            onChange={e => setCommentDraft(e.target.value)}
+            onBlur={() => { if (commentDraft !== r.comment) req.updateHeader({ comment: commentDraft }); }}
+            rows={2}
+          />
         ) : r.comment ? <div className={s.hint}>{r.comment}</div> : null}
       </div>
 

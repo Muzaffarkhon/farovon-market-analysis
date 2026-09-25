@@ -107,7 +107,7 @@ exports.submitDraft = handle(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   await requireOwnOrAdmin(req, id);
   const request = await svc.submitDraft(id, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: подача заявки', `#${id}, сотрудников: ${request.employees.length}`);
+  await audit(req.user.login, 'изменение ЗП: подача заявки', `#${id}, сотрудников: ${request.employees.length}`);
   res.json({ ok: true, request });
 });
 
@@ -133,7 +133,7 @@ exports.get = handle(async (req, res) => {
 exports.cbReturn = handle(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const request = await svc.cbReturn(id, req.body && req.body.comment, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: возврат на доработку', `#${id}`);
+  await audit(req.user.login, 'изменение ЗП: возврат на доработку', `#${id}`);
   res.json({ ok: true, request });
 });
 
@@ -153,14 +153,14 @@ exports.setMarketData = handle(async (req, res) => {
 exports.hrdApprove = handle(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const request = await svc.hrdApprove(id, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: согласование HRD', `#${id}`);
+  await audit(req.user.login, 'изменение ЗП: согласование HRD', `#${id}`);
   res.json({ ok: true, request });
 });
 
 exports.hrdReject = handle(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const request = await svc.hrdReject(id, req.body && req.body.comment, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: отклонение HRD', `#${id}`);
+  await audit(req.user.login, 'изменение ЗП: отклонение HRD', `#${id}`);
   res.json({ ok: true, request });
 });
 
@@ -173,7 +173,7 @@ exports.vote = handle(async (req, res) => {
 exports.forceDecide = handle(async (req, res) => {
   const employeeId = parseInt(req.params.employeeId, 10);
   const request = await svc.forceDecide(employeeId, req.body && req.body.decision, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: принудительное решение комиссии', `employee #${employeeId}`);
+  await audit(req.user.login, 'изменение ЗП: принудительное решение комиссии', `employee #${employeeId}`);
   res.json({ ok: true, request });
 });
 
@@ -186,7 +186,7 @@ exports.remindVoters = handle(async (req, res) => {
 exports.markPayrollEntered = handle(async (req, res) => {
   const employeeId = parseInt(req.params.employeeId, 10);
   const request = await svc.markPayrollEntered(employeeId, req.user.login);
-  await audit(req.user.login, 'пересмотр ЗП: внесено в 1С', `employee #${employeeId}`);
+  await audit(req.user.login, 'изменение ЗП: внесено в 1С', `employee #${employeeId}`);
   res.json({ ok: true, request });
 });
 
@@ -203,13 +203,13 @@ exports.addCommitteeMember = handle(async (req, res) => {
   const login = String(req.body.login || '').trim();
   if (!login) return fail(res, 'Укажите логин');
   await svc.addCommitteeMember(login);
-  await audit(req.user.login, 'пересмотр ЗП: комиссия — добавление', login);
+  await audit(req.user.login, 'изменение ЗП: комиссия — добавление', login);
   res.json({ ok: true });
 });
 exports.removeCommitteeMember = handle(async (req, res) => {
   const login = String(req.body.login || '').trim();
   await svc.removeCommitteeMember(login);
-  await audit(req.user.login, 'пересмотр ЗП: комиссия — удаление', login);
+  await audit(req.user.login, 'изменение ЗП: комиссия — удаление', login);
   res.json({ ok: true });
 });
 
@@ -244,6 +244,6 @@ exports.getSettings = handle(async (req, res) => {
 });
 exports.saveSettings = handle(async (req, res) => {
   const settings = await svc.saveSettings(req.body && req.body.voteMode);
-  await audit(req.user.login, 'пересмотр ЗП: режим голосования', settings.voteMode);
+  await audit(req.user.login, 'изменение ЗП: режим голосования', settings.voteMode);
   res.json({ ok: true, settings });
 });

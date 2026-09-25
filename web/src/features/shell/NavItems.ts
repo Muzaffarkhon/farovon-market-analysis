@@ -21,7 +21,7 @@ export function navItemsFor(u: SessionUser): NavItem[] {
   if (has('benchmarks:view')) items.push({ to: '/dashboard/benchmark', label: 'Бенчмаркинг', icon: 'chart' });
   if (has('grading:view') || has('grading:edit')) items.push({ to: '/grading', label: 'Оценка должностей', icon: 'scale' });
   if (has('comp:submit') || has('comp:review_cb') || has('comp:approve_hrd') || has('comp:vote') || has('comp:payroll') || has('comp:admin')) {
-    items.push({ to: '/comp', label: 'Пересмотр ЗП', icon: 'money' });
+    items.push({ to: '/comp', label: 'Изменение ЗП', icon: 'money' });
   }
   if (has('keyrisk:view') || has('keyrisk:edit')) items.push({ to: '/key-risks', label: 'Риски', icon: 'scale' });
   if (u.role === 'admin') items.push({ to: '/access', label: 'Роли и доступы', icon: 'shield' });

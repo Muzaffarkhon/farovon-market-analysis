@@ -92,13 +92,13 @@ function mapEmployeeRow(r, variablePay, votes, voteMode, viewerLogin) {
 
 async function loadEmployeeRows(requestId, includeVotes, voteMode, viewerLogin) {
   const rows = await queryAll('SELECT * FROM comp_request_employees WHERE request_id = ? ORDER BY id', [requestId]);
-  const out = [];
-  for (const r of rows) {
-    const vp = await queryAll('SELECT * FROM comp_variable_pay WHERE employee_row_id = ? ORDER BY id', [r.id]);
-    const votes = includeVotes ? await queryAll('SELECT * FROM comp_committee_votes WHERE employee_row_id = ? ORDER BY voted_at', [r.id]) : [];
-    out.push(mapEmployeeRow(r, vp, votes, voteMode, viewerLogin));
-  }
-  return out;
+  return Promise.all(rows.map(async r => {
+    const [vp, votes] = await Promise.all([
+      queryAll('SELECT * FROM comp_variable_pay WHERE employee_row_id = ? ORDER BY id', [r.id]),
+      includeVotes ? queryAll('SELECT * FROM comp_committee_votes WHERE employee_row_id = ? ORDER BY voted_at', [r.id]) : []
+    ]);
+    return mapEmployeeRow(r, vp, votes, voteMode, viewerLogin);
+  }));
 }
 
 function mapRequest(r) {
@@ -118,15 +118,16 @@ async function getRequestRow(id) {
 }
 
 async function getRequest(id, viewerLogin) {
-  const r = await getRequestRow(id);
-  const settings = await getSettings();
-  const employees = await loadEmployeeRows(
-    id, r.status === 'committee' || r.status === 'payroll' || r.status === 'closed', settings.voteMode, viewerLogin || null
-  );
-  const activity = await queryAll(
-    `SELECT a.*, e.fio AS employee_fio FROM comp_activity a
-     LEFT JOIN comp_request_employees e ON e.id = a.employee_row_id
-     WHERE a.request_id = ? ORDER BY a.created_at`, [id]);
+  const [r, settings] = await Promise.all([getRequestRow(id), getSettings()]);
+  const [employees, activity] = await Promise.all([
+    loadEmployeeRows(
+      id, r.status === 'committee' || r.status === 'payroll' || r.status === 'closed', settings.voteMode, viewerLogin || null
+    ),
+    queryAll(
+      `SELECT a.*, e.fio AS employee_fio FROM comp_activity a
+       LEFT JOIN comp_request_employees e ON e.id = a.employee_row_id
+       WHERE a.request_id = ? ORDER BY a.created_at`, [id])
+  ]);
   return {
     ...mapRequest(r),
     employees,
