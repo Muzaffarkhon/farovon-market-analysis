@@ -58,7 +58,7 @@ function AttachmentsSection({ employeeId, canRemove }: { employeeId: number; can
 
 const EMP_STATUS_LABEL: Record<CompEmployeeStatus, string> = {
   active: 'В процессе', rejected_hrd: 'Отклонён HRD', rejected_committee: 'Отклонён комиссией',
-  approved_awaiting_payroll: 'Одобрен, ждёт кадровика', done: 'Внесено в 1С'
+  committee_meeting: 'На совместном совещании', approved_awaiting_payroll: 'Одобрен, ждёт кадровика', done: 'Внесено в 1С'
 };
 
 function VariablePayLine({ v, onRemove }: { v: CompVariablePay; onRemove?: () => void }) {
@@ -120,7 +120,7 @@ export function EmployeeCard({ e, request, access, actions }: {
   actions: {
     remove?: () => void;
     setMarketData: (data: { marketMin?: number; marketMedian?: number; marketMax?: number }) => void;
-    vote: (vote: 'for' | 'against', comment?: string) => void;
+    vote: (vote: 'for' | 'against' | 'meeting', comment?: string) => void;
     forceDecide: (decision: 'approved' | 'rejected') => void;
     remindVoters: () => void;
     markPayrollEntered: (data: { comment?: string; effectiveDate?: string }) => void;
@@ -226,7 +226,11 @@ export function EmployeeCard({ e, request, access, actions }: {
           <div className={s.hint}>Проголосовало: {votedCount} из {request.committeeSize}</div>
           {access.isCommitteeMember && (
             <>
-              {myVote && <div className={s.hint}>Ваш голос: <b>{myVote === 'for' ? 'за' : 'против'}</b> — можно изменить, пока не подведён итог</div>}
+              {myVote && (
+                <div className={s.hint}>
+                  Ваш голос: <b>{myVote === 'for' ? 'за' : myVote === 'against' ? 'против' : 'на совещание'}</b> — можно изменить, пока не подведён итог
+                </div>
+              )}
               <Input label="Комментарий (необязательно)" value={voteComment} onChange={e2 => setVoteComment(e2.target.value)} />
               <div className={s.cardFoot}>
                 <Button
@@ -234,6 +238,12 @@ export function EmployeeCard({ e, request, access, actions }: {
                   onClick={() => actions.vote('against', voteComment.trim() || undefined)}
                 >
                   {myVote === 'against' ? '✓ Против' : 'Против'}
+                </Button>
+                <Button
+                  size="sm" variant={myVote === 'meeting' ? 'primary' : 'secondary'}
+                  onClick={() => actions.vote('meeting', voteComment.trim() || undefined)}
+                >
+                  {myVote === 'meeting' ? '✓ На совещание' : 'На совместное совещание'}
                 </Button>
                 <Button
                   size="sm" variant={myVote === 'for' ? 'primary' : 'secondary'}
@@ -265,6 +275,25 @@ export function EmployeeCard({ e, request, access, actions }: {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* После совместного совещания — итог вносит админ вручную */}
+      {e.status === 'committee_meeting' && access.isAdmin && (
+        <div className={s.cardFoot}>
+          <span className={s.hint}>Комиссия отправила на совместное совещание — внесите итог после него:</span>
+          <Button
+            size="sm" variant="danger"
+            onClick={async () => { if (await confirm({ message: 'Отклонить по итогам совещания?', danger: true })) actions.forceDecide('rejected'); }}
+          >
+            Отклонить
+          </Button>
+          <Button
+            size="sm"
+            onClick={async () => { if (await confirm('Одобрить по итогам совещания?')) actions.forceDecide('approved'); }}
+          >
+            Одобрить
+          </Button>
         </div>
       )}
 

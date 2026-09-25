@@ -605,7 +605,7 @@ export interface AuditLogResponse { ok: true; logs: AuditLogEntry[] }
 export type CompRequestType = 'planned' | 'probation_end' | 'counter_offer' | 'unique_case';
 export type CompReasonCode = 'promotion' | 'probation_end' | 'market_adjustment' | 'retention' | 'alignment' | 'unique_case';
 export type CompRequestStatus = 'draft' | 'cb_review' | 'hrd_review' | 'committee' | 'payroll' | 'closed';
-export type CompEmployeeStatus = 'active' | 'rejected_hrd' | 'rejected_committee' | 'approved_awaiting_payroll' | 'done';
+export type CompEmployeeStatus = 'active' | 'rejected_hrd' | 'rejected_committee' | 'committee_meeting' | 'approved_awaiting_payroll' | 'done';
 export type CompVoteMode = 'open' | 'closed';
 
 export interface CompOption { code: string; label: string }
@@ -619,7 +619,7 @@ export interface CompHrBpOption { login: string; fio: string }
 export interface CompHrBpResponse { ok: true; rows: CompHrBpOption[] }
 
 export interface CompVariablePay { id: number; kind: string; amount: number; amountType: 'sum' | 'percent'; period: string; isProposed: boolean }
-export interface CompVote { voterLogin: string; vote: 'for' | 'against' | null; comment: string | null; votedAt: string }
+export interface CompVote { voterLogin: string; vote: 'for' | 'against' | 'meeting' | null; comment: string | null; votedAt: string }
 
 export interface CompRequestEmployee {
   id: number; requestId: number; staffId: number | null; fio: string; unit: string; position: string; newPosition: string;

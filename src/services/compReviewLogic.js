@@ -86,8 +86,10 @@ function committeeOutcome(committeeSnapshot, votes) {
   const valid = votes.filter(v => committeeSnapshot.includes(v.voter_login));
   const forCount = valid.filter(v => v.vote === 'for').length;
   const againstCount = valid.filter(v => v.vote === 'against').length;
+  const meetingCount = valid.filter(v => v.vote === 'meeting').length;
   if (forCount > size / 2) return 'approved';
   if (againstCount > size / 2) return 'rejected';
+  if (meetingCount > size / 2) return 'meeting';
   return 'pending';
 }
 

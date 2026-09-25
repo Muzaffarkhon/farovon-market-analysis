@@ -400,22 +400,24 @@ async function hrdReject(id, comment, actorLogin) {
  */
 async function closeRequestIfAllDecided(requestId) {
   const employees = await queryAll('SELECT status FROM comp_request_employees WHERE request_id = ?', [requestId]);
-  if (employees.some(e => e.status === 'active')) return;
+  if (employees.some(e => e.status === 'active' || e.status === 'committee_meeting')) return;
   const awaitingPayroll = employees.some(e => e.status === 'approved_awaiting_payroll');
   await run("UPDATE comp_requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     [awaitingPayroll ? 'payroll' : 'closed', requestId]);
 }
 
+const OUTCOME_STATUS = { approved: 'approved_awaiting_payroll', rejected: 'rejected_committee', meeting: 'committee_meeting' };
+const OUTCOME_LABEL = { approved: 'комиссия одобрила', rejected: 'комиссия отклонила', meeting: 'комиссия отправила на совместное совещание' };
+
 async function finalizeEmployeeCommitteeDecision(employeeRow, outcome, actorLogin, note) {
-  const status = outcome === 'approved' ? 'approved_awaiting_payroll' : 'rejected_committee';
+  const status = OUTCOME_STATUS[outcome] || 'rejected_committee';
   await run("UPDATE comp_request_employees SET status = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ?", [status, employeeRow.id]);
-  await logActivity(employeeRow.request_id, employeeRow.id, actorLogin,
-    outcome === 'approved' ? 'комиссия одобрила' : 'комиссия отклонила', note || null);
+  await logActivity(employeeRow.request_id, employeeRow.id, actorLogin, OUTCOME_LABEL[outcome] || 'комиссия отклонила', note || null);
   await closeRequestIfAllDecided(employeeRow.request_id);
 }
 
 async function vote(employeeId, { vote: decision, comment }, actorLogin) {
-  if (!['for', 'against'].includes(decision)) throw new CompReviewError('Некорректный голос');
+  if (!['for', 'against', 'meeting'].includes(decision)) throw new CompReviewError('Некорректный голос');
   const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
   if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
   const req = await getRequestRow(row.request_id);
@@ -442,7 +444,9 @@ async function forceDecide(employeeId, decision, actorLogin) {
   if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
   const req = await getRequestRow(row.request_id);
   requireStatus(req, 'committee', 'голосование комиссии');
-  if (row.status !== 'active') throw new CompReviewError('По этому сотруднику итог уже подведён');
+  // После совместного совещания решение по сотруднику принимается вручную —
+  // поэтому 'committee_meeting' тоже допустим здесь, не только 'active'.
+  if (row.status !== 'active' && row.status !== 'committee_meeting') throw new CompReviewError('По этому сотруднику итог уже подведён');
   await finalizeEmployeeCommitteeDecision(row, decision, actorLogin, 'принудительное решение администратора');
   return getRequest(row.request_id);
 }

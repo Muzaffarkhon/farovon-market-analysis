@@ -41,7 +41,7 @@ export const compReviewApi = {
   hrdApprove: (id: number) => request<CompRequestResponse>(`/comp/requests/${id}/hrd-approve`, {}),
   hrdReject: (id: number, comment: string) => request<CompRequestResponse>(`/comp/requests/${id}/hrd-reject`, { comment }),
 
-  vote: (employeeId: number, vote: 'for' | 'against', comment?: string) =>
+  vote: (employeeId: number, vote: 'for' | 'against' | 'meeting', comment?: string) =>
     request<CompRequestResponse>(`/comp/employees/${employeeId}/vote`, { vote, comment }),
   forceDecide: (employeeId: number, decision: 'approved' | 'rejected') =>
     request<CompRequestResponse>(`/comp/employees/${employeeId}/force-decide`, { decision }),

@@ -87,6 +87,12 @@ test('committeeOutcome: чётный состав, ровно половина �
   assert.equal(committeeOutcome(snapshot, votes), 'pending');
 });
 
+test('committeeOutcome: большинство за совместное совещание', () => {
+  const snapshot = ['a', 'b', 'c'];
+  const votes = [{ voter_login: 'a', vote: 'meeting' }, { voter_login: 'b', vote: 'meeting' }, { voter_login: 'c', vote: 'for' }];
+  assert.equal(committeeOutcome(snapshot, votes), 'meeting');
+});
+
 test('nextStatusAfterHrd: стажировка минует комиссию', () => {
   assert.equal(nextStatusAfterHrd('probation_end'), 'payroll');
   assert.equal(nextStatusAfterHrd('planned'), 'committee');

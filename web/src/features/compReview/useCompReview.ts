@@ -155,7 +155,7 @@ export function useCompRequest(id: number | null) {
   const hrdApprove = useMut(() => compReviewApi.hrdApprove(id as number), 'Согласовано');
   const hrdReject = useMut((comment: string) => compReviewApi.hrdReject(id as number, comment), 'Отклонено');
 
-  const vote = useMut((a: { employeeId: number; vote: 'for' | 'against'; comment?: string }) => compReviewApi.vote(a.employeeId, a.vote, a.comment), 'Голос учтён');
+  const vote = useMut((a: { employeeId: number; vote: 'for' | 'against' | 'meeting'; comment?: string }) => compReviewApi.vote(a.employeeId, a.vote, a.comment), 'Голос учтён');
   const forceDecide = useMut((a: { employeeId: number; decision: 'approved' | 'rejected' }) => compReviewApi.forceDecide(a.employeeId, a.decision), 'Решение принято');
   const remindVoters = useMut((employeeId: number) => compReviewApi.remindVoters(employeeId), 'Напоминание отправлено');
   const markPayrollEntered = useMut((a: { employeeId: number; comment?: string; effectiveDate?: string }) =>
