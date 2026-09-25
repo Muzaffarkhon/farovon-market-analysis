@@ -229,7 +229,10 @@ exports.downloadAttachment = handle(async (req, res) => {
   const id = parseInt(req.params.attachmentId, 10);
   const a = await svc.getAttachmentForDownload(id, req.user, hasCapFor(req.user));
   res.setHeader('Content-Type', a.mime_type || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(a.file_name || 'file')}`);
+  // inline вместо attachment — просмотр во вкладке для PDF/картинок вместо принудительного
+  // скачивания; для форматов, которые браузер не умеет отрисовать (Word/Excel), он
+  // всё равно скачает файл сам, это уже поведение браузера, а не сервера.
+  res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(a.file_name || 'file')}`);
   res.send(Buffer.from(a.data));
 });
 
