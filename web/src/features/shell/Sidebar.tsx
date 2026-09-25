@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { toggleTheme } from '../../design/theme';
 import { useSession, useSessionData } from '../auth/useSession';
+import { useCompWaitingCount } from '../compReview/useCompReview';
 import { groupNavItems, type NavItem } from './NavItems';
 import { PeriodPicker } from './PeriodPicker';
 import s from './Sidebar.module.css';
@@ -38,6 +39,7 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
   const { user } = useSessionData();
   const { logout } = useSession();
   const navigate = useNavigate();
+  const compWaitingCount = useCompWaitingCount();
   return (
     <>
       <button
@@ -71,7 +73,7 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
         </div>
         <div className={s.nav}>
           {groups.map(g => (
-            <NavGroupBlock key={g.key} group={g} sidebarCollapsed={collapsed} onNavigate={onNavigate} />
+            <NavGroupBlock key={g.key} group={g} sidebarCollapsed={collapsed} onNavigate={onNavigate} compWaitingCount={compWaitingCount} />
           ))}
           {/* Только на телефоне (Sidebar.module.css, .mobileAccount) — здесь же,
               в той же шторке, живут кнопки, которые раньше были в шапке
@@ -96,10 +98,11 @@ function loadGroupExpanded(key: string): boolean {
 /** Подраздел панели — заголовок сворачивает свои пункты (состояние на
  * телефоне/десктопе своё, в localStorage). В свёрнутой узкой панели
  * заголовков нет — там видны только иконки всех пунктов подряд. */
-function NavGroupBlock({ group, sidebarCollapsed, onNavigate }: {
+function NavGroupBlock({ group, sidebarCollapsed, onNavigate, compWaitingCount }: {
   group: { key: string; label: string | null; items: NavItem[] };
   sidebarCollapsed: boolean;
   onNavigate: () => void;
+  compWaitingCount: number;
 }) {
   const [expanded, setExpanded] = useState(() => loadGroupExpanded(group.key));
   const showItems = sidebarCollapsed || expanded;
@@ -137,6 +140,9 @@ function NavGroupBlock({ group, sidebarCollapsed, onNavigate }: {
           >
             <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
             <span className={s.label}>{i.label}</span>
+            {i.to === '/comp' && compWaitingCount > 0 && (
+              <span className={s.navBadge}>{compWaitingCount > 99 ? '99+' : compWaitingCount}</span>
+            )}
           </NavLink>
         );
       })}

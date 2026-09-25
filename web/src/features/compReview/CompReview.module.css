@@ -12,9 +12,12 @@
 .row:hover { background: var(--surface-2); }
 .rowTop { display: flex; justify-content: space-between; gap: var(--s-2); align-items: baseline; flex-wrap: wrap; }
 
-.form { display: flex; flex-direction: column; gap: var(--s-3); max-width: 640px; }
 .formFoot { display: flex; align-items: center; gap: var(--s-3); justify-content: flex-end; flex-wrap: wrap; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+/* max-width — иначе на широком экране «Тип заявки»/«Подразделение»
+   растягиваются на сотни пикселей ради короткого текста вместо того, чтобы
+   оставаться по размеру содержимого (HIG Layout: элементы управления по
+   размеру содержимого, а не произвольно во всю ширину). */
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); max-width: 640px; }
 @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
 
 .searchList { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-2); }

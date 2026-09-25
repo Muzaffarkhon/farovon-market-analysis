@@ -119,6 +119,26 @@ export function useRequestsList(tab: string) {
   return { rows: q.data?.rows ?? [], loading: q.isLoading };
 }
 
+const WAITING_POLL_MS = 30000;
+
+/** Счётчик заявок «Изменение ЗП», ждущих действия текущего пользователя —
+ * бейдж на пункте меню (§6 comp-review-design.md). Тот же запрос и ключ
+ * кеша, что у вкладки «Ждут меня» в реестре — если реестр уже открыт,
+ * второго запроса не будет. Опрашивает сам, а не только при заходе в раздел,
+ * иначе бейдж не появился бы, пока человек сам туда не зайдёт. */
+export function useCompWaitingCount() {
+  const access = useCompAccess();
+  const enabled = !access.loading && (access.canSubmit || access.canReviewCb || access.canApproveHrd
+    || access.canPayroll || access.isCommitteeMember || access.isAdmin);
+  const q = useQuery({
+    queryKey: ['comp-requests', 'waiting'],
+    queryFn: () => compReviewApi.list('waiting'),
+    enabled,
+    refetchInterval: enabled ? WAITING_POLL_MS : false
+  });
+  return q.data?.rows.length ?? 0;
+}
+
 /** Всё действие над одной заявкой — черновик, согласование, голосование, кадровик. */
 export function useCompRequest(id: number | null) {
   const toast = useToast();

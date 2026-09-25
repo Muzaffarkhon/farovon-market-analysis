@@ -62,6 +62,12 @@
 }
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
+.navBadge {
+  flex: none; margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  background: var(--warn); color: #fff; font-size: 11px; font-weight: 600; line-height: 1;
+}
+.collapsed .navBadge { margin-left: 0; }
 
 /* Кнопки аккаунта (тема/период/пароль/выход) — только в шторке телефона,
    ниже разделов (Sidebar.tsx, .mobileAccount). На десктопе те же действия

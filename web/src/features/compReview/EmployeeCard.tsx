@@ -116,7 +116,7 @@ function AddVariablePayLine({ onAdd }: { onAdd: (a: { kind: string; amount: numb
 export function EmployeeCard({ e, request, access, actions }: {
   e: CompRequestEmployee;
   request: CompRequest;
-  access: { canReviewCb: boolean; isCommitteeMember: boolean; canPayroll: boolean; isAdmin: boolean };
+  access: { canReviewCb: boolean; isCommitteeMember: boolean; canPayroll: boolean; isAdmin: boolean; restricted: boolean };
   actions: {
     remove?: () => void;
     setMarketData: (data: { marketMin?: number; marketMedian?: number; marketMax?: number }) => void;
@@ -178,28 +178,29 @@ export function EmployeeCard({ e, request, access, actions }: {
             {e.probationEndDate ? new Date(e.probationEndDate).toLocaleDateString('ru-RU') : '—'}
           </span>
         )}
-        {e.gradePayFrom != null && e.gradePayTo != null && (
+        {!access.restricted && e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
-        {e.gradingLevel != null && (
+        {!access.restricted && e.gradingLevel != null && (
           <span>Грейд {e.gradingLevel}{e.gradingScore != null ? ` (балл ${e.gradingScore})` : ''}</span>
         )}
-        {(e.marketMin != null || e.marketMedian != null || e.marketMax != null) && (
+        {!access.restricted && (e.marketMin != null || e.marketMedian != null || e.marketMax != null) && (
           <span>
             Рынок: {e.marketMin != null ? fmt.format(e.marketMin) : '—'} / {e.marketMedian != null ? fmt.format(e.marketMedian) : '—'} / {e.marketMax != null ? fmt.format(e.marketMax) : '—'}
             {e.compaRatio != null && ` · compa-ratio ${e.compaRatio}`}
           </span>
         )}
-        {e.isException && <Badge tone="warn">исключение из правила 6 мес.</Badge>}
+        {!access.restricted && e.isException && <Badge tone="warn">исключение из правила 6 мес.</Badge>}
       </div>
 
-      <div className={s.hint}>{reasonLabel}{e.reasonText ? ` — ${e.reasonText}` : ''}</div>
+      {!access.restricted && <div className={s.hint}>{reasonLabel}{e.reasonText ? ` — ${e.reasonText}` : ''}</div>}
 
       {noSalaryChange && !hasProposedVp && request.status === 'draft' && (
         <Badge tone="warn">Оклад не меняется — добавьте предлагаемое изменение переменной части ниже</Badge>
       )}
 
-      {e.variablePay.map(v => (
+      {/* Кадровику — только новые (предлагаемые) строки, без текущей переменной части. */}
+      {(access.restricted ? e.variablePay.filter(v => v.isProposed) : e.variablePay).map(v => (
         <VariablePayLine key={v.id} v={v} onRemove={request.status === 'draft' ? () => actions.removeVariablePay(v.id) : undefined} />
       ))}
       {request.status === 'draft' && <AddVariablePayLine onAdd={actions.addVariablePay} />}

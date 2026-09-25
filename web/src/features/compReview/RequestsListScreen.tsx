@@ -49,12 +49,22 @@ export function RequestsListScreen() {
 
   if (access.loading) return <Skeleton lines={4} />;
 
-  const tabs: { key: typeof tab; label: string }[] = [
-    { key: 'waiting', label: 'Ждут меня' },
-    { key: 'mine', label: 'Мои' },
-    { key: 'all', label: 'Все актуальные' },
-    { key: 'closed', label: 'Закрытые' }
-  ];
+  // Кадровик (только comp:payroll, без остальных ролей маршрута) не подаёт
+  // заявки и не участвует в проверке — «Мои» и «Все актуальные» ему только
+  // мешают, показываем как в ТЗ: «Ждут меня» и «Закрытые».
+  const payrollOnly = access.canPayroll && !access.canSubmit && !access.canReviewCb
+    && !access.canApproveHrd && !access.isCommitteeMember && !access.isAdmin;
+  const tabs: { key: typeof tab; label: string }[] = payrollOnly
+    ? [
+      { key: 'waiting', label: 'Ждут меня' },
+      { key: 'closed', label: 'Закрытые' }
+    ]
+    : [
+      { key: 'waiting', label: 'Ждут меня' },
+      { key: 'mine', label: 'Мои' },
+      { key: 'all', label: 'Все актуальные' },
+      { key: 'closed', label: 'Закрытые' }
+    ];
 
   return (
     <div data-wide>

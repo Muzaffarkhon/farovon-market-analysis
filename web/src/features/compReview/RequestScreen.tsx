@@ -57,6 +57,14 @@ export function RequestScreen() {
   const isDraft = r.status === 'draft';
   const isOwner = r.initiatorLogin === user.login || user.role === 'admin';
   const canEditDraft = isDraft && isOwner;
+  // Экран кадровика урезан по ТЗ (§4 comp-review-design.md): только ФИО,
+  // подразделение, должность, новый оклад, новые переменные части, дата
+  // вступления в силу, номер заявки и кнопка «Внесено в 1С» — без
+  // обоснований, рыночных данных, грейда и ленты с чужими голосами и
+  // комментариями. Действует только пока у человека нет другой роли в
+  // маршруте — тогда он видит всё как обычно.
+  const isPayrollOnly = access.canPayroll && !access.isAdmin && !access.canReviewCb
+    && !access.canApproveHrd && !access.isCommitteeMember && !isOwner;
 
   return (
     <div data-wide>
@@ -92,7 +100,7 @@ export function RequestScreen() {
           </div>
         ) : (
           <div className={s.kpiRow}>
-            <span>Тип: {requestTypes.find(t => t.code === r.requestType)?.label ?? r.requestType}</span>
+            {!isPayrollOnly && <span>Тип: {requestTypes.find(t => t.code === r.requestType)?.label ?? r.requestType}</span>}
             {r.unit && <span>Подразделение: {r.unit}</span>}
             {r.effectiveDate && <span>Дата вступления в силу: {r.effectiveDate}</span>}
           </div>
@@ -104,14 +112,14 @@ export function RequestScreen() {
             onBlur={() => { if (commentDraft !== r.comment) req.updateHeader({ comment: commentDraft }); }}
             rows={2}
           />
-        ) : r.comment ? <div className={s.hint}>{r.comment}</div> : null}
+        ) : (r.comment && !isPayrollOnly) ? <div className={s.hint}>{r.comment}</div> : null}
       </div>
 
       <div className={s.list}>
         {r.employees.map(e => (
           <EmployeeCard
             key={e.id} e={e} request={r}
-            access={{ canReviewCb: access.canReviewCb, isCommitteeMember: access.isCommitteeMember, canPayroll: access.canPayroll, isAdmin: access.isAdmin }}
+            access={{ canReviewCb: access.canReviewCb, isCommitteeMember: access.isCommitteeMember, canPayroll: access.canPayroll, isAdmin: access.isAdmin, restricted: isPayrollOnly }}
             actions={{
               remove: canEditDraft ? () => req.removeEmployee(e.id) : undefined,
               setMarketData: data => req.setMarketData({ employeeId: e.id, ...data }),
@@ -165,21 +173,23 @@ export function RequestScreen() {
         )}
       </div>
 
-      <div style={{ marginTop: 'var(--s-4)' }}>
-        <h4 className={s.hint}>Лента</h4>
-        <div className={s.feed}>
-          {r.activity.map(a => (
-            <div key={a.id} className={s.feedItem}>
-              <span className={s.feedMeta}>{new Date(a.createdAt.replace(' ', 'T')).toLocaleString('ru-RU')} · {a.actorLogin}</span>
-              {' — '}{a.action}{a.employeeFio ? ` (${a.employeeFio})` : ''}{a.comment ? `: ${a.comment}` : ''}
-            </div>
-          ))}
+      {!isPayrollOnly && (
+        <div style={{ marginTop: 'var(--s-4)' }}>
+          <h4 className={s.hint}>Лента</h4>
+          <div className={s.feed}>
+            {r.activity.map(a => (
+              <div key={a.id} className={s.feedItem}>
+                <span className={s.feedMeta}>{new Date(a.createdAt.replace(' ', 'T')).toLocaleString('ru-RU')} · {a.actorLogin}</span>
+                {' — '}{a.action}{a.employeeFio ? ` (${a.employeeFio})` : ''}{a.comment ? `: ${a.comment}` : ''}
+              </div>
+            ))}
+          </div>
+          <div className={s.formFoot} style={{ marginTop: 'var(--s-2)' }}>
+            <Input label="" aria-label="Комментарий" placeholder="Добавить комментарий" value={comment} onChange={e => setComment(e.target.value)} style={{ minWidth: 260 }} />
+            <Button variant="secondary" disabled={!comment.trim()} onClick={() => { req.addComment(comment); setComment(''); }}>Отправить</Button>
+          </div>
         </div>
-        <div className={s.formFoot} style={{ marginTop: 'var(--s-2)' }}>
-          <Input label="" aria-label="Комментарий" placeholder="Добавить комментарий" value={comment} onChange={e => setComment(e.target.value)} style={{ minWidth: 260 }} />
-          <Button variant="secondary" disabled={!comment.trim()} onClick={() => { req.addComment(comment); setComment(''); }}>Отправить</Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
