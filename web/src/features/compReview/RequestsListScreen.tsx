@@ -32,7 +32,7 @@ function RequestRow({ r, typeLabel }: { r: CompRequestListItem; typeLabel: strin
 
 /** Реестр (§6 ТЗ): «Ждут меня / Мои / Все актуальные / Закрытые», набор зависит от прав. */
 export function RequestsListScreen() {
-  useScreenTitle('Пересмотр заработной платы');
+  useScreenTitle('Изменение ЗП');
   const navigate = useNavigate();
   const access = useCompAccess();
   const { requestTypes } = useCompReasons();

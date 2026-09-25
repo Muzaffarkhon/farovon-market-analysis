@@ -42,6 +42,14 @@ async function createDevUsers() {
       [u.login, hash, u.fio, u.role, units]
     );
   }
+  // comp:payroll не входит в дефолтные права роли 'user' (выдаётся точечно,
+  // см. capabilities.js) — без этой строки тестовый «кадровик» из хендоффов
+  // не видит заявки на шаге «Оформление в 1С».
+  await run(
+    `INSERT OR IGNORE INTO user_capabilities (user_login, capability, granted_by) VALUES (?, ?, ?)`,
+    ['dev.user', 'comp:payroll', 'seedDev']
+  );
+
   const group = await queryAll(
     "SELECT unit FROM divisions WHERE COALESCE(group_key,'') <> '' LIMIT 3"
   );
