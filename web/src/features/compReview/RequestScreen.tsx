@@ -40,9 +40,14 @@ export function RequestScreen() {
   const [comment, setComment] = useState('');
   const [basisDocumentDraft, setBasisDocumentDraft] = useState('');
   const [commentDraft, setCommentDraft] = useState('');
+  const [effectiveDateDraft, setEffectiveDateDraft] = useState('');
 
   useEffect(() => {
-    if (req.request) { setBasisDocumentDraft(req.request.basisDocument ?? ''); setCommentDraft(req.request.comment ?? ''); }
+    if (req.request) {
+      setBasisDocumentDraft(req.request.basisDocument ?? '');
+      setCommentDraft(req.request.comment ?? '');
+      setEffectiveDateDraft(req.request.effectiveDate ?? '');
+    }
   }, [req.request?.id]);
 
   if (req.loading) return <Skeleton lines={8} />;
@@ -74,7 +79,11 @@ export function RequestScreen() {
               label="Подразделение" options={unitOptions.options} loading={unitOptions.loading}
               value={r.unit} onChange={unit => req.updateHeader({ unit })}
             />
-            <Input label="Дата вступления в силу" type="date" value={r.effectiveDate ?? ''} onChange={e => req.updateHeader({ effectiveDate: e.target.value })} />
+            <Input
+              label="Дата вступления в силу" type="date" value={effectiveDateDraft}
+              onChange={e => setEffectiveDateDraft(e.target.value)}
+              onBlur={() => { if (effectiveDateDraft !== (r.effectiveDate ?? '')) req.updateHeader({ effectiveDate: effectiveDateDraft }); }}
+            />
             <Input
               label="Документ-основание" value={basisDocumentDraft}
               onChange={e => setBasisDocumentDraft(e.target.value)}
