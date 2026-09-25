@@ -4,13 +4,13 @@ import { Button } from '../../design/Button';
 import { Combobox } from '../../design/Combobox';
 import { Input } from '../../design/Input';
 import { Textarea } from '../../design/Textarea';
-import { useCompReasons, useEmployeeSearch, usePositionOptions } from './useCompReview';
+import { useCompReasons, useEmployeeSearch, useHrBpOptions, usePositionOptions } from './useCompReview';
 import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 
 type AddPayload = {
-  fio: string; unit: string; position?: string; newPosition?: string; staffId?: number;
+  fio: string; unit: string; position?: string; newPosition?: string; hrBpLogin?: string; staffId?: number;
   proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string;
   hireDate?: string; probationStartDate?: string; probationEndDate?: string;
 };
@@ -26,6 +26,7 @@ export function EmployeeAddForm({ onAdd, adding, unit, requestType }: {
   const { reasons } = useCompReasons();
   const emp = useEmployeeSearch(unit);
   const positionOptions = usePositionOptions();
+  const hrBpOptions = useHrBpOptions();
   const [selected, setSelected] = useState<CompEmployeeOption | null>(null);
   const [proposedSalary, setProposedSalary] = useState('');
   const [reasonCode, setReasonCode] = useState<CompReasonCode | ''>('');
@@ -34,6 +35,7 @@ export function EmployeeAddForm({ onAdd, adding, unit, requestType }: {
   const [probationStartDate, setProbationStartDate] = useState('');
   const [probationEndDate, setProbationEndDate] = useState('');
   const [newPosition, setNewPosition] = useState('');
+  const [hrBpLogin, setHrBpLogin] = useState('');
   const isProbation = requestType === 'probation_end';
 
   const canSubmit = !!selected && Number(proposedSalary) > 0 && !!reasonCode;
@@ -42,12 +44,12 @@ export function EmployeeAddForm({ onAdd, adding, unit, requestType }: {
     if (!selected || !canSubmit) return;
     onAdd({
       fio: selected.fio, unit: selected.unit, position: selected.position, staffId: selected.id,
-      newPosition: newPosition.trim() || undefined,
+      newPosition: newPosition.trim() || undefined, hrBpLogin: hrBpLogin || undefined,
       proposedSalary: Number(proposedSalary), reasonCode: reasonCode as CompReasonCode, reasonText: reasonText.trim() || undefined,
       hireDate: hireDate || undefined, probationStartDate: probationStartDate || undefined, probationEndDate: probationEndDate || undefined
     });
     setSelected(null); setProposedSalary(''); setReasonCode(''); setReasonText('');
-    setHireDate(''); setProbationStartDate(''); setProbationEndDate(''); setNewPosition(''); emp.setQuery('');
+    setHireDate(''); setProbationStartDate(''); setProbationEndDate(''); setNewPosition(''); setHrBpLogin(''); emp.setQuery('');
   }
 
   if (!selected) {
@@ -83,6 +85,10 @@ export function EmployeeAddForm({ onAdd, adding, unit, requestType }: {
       <Combobox
         label="Назначаемая должность (только при переводе)" options={positionOptions.options} loading={positionOptions.loading}
         value={newPosition} onChange={setNewPosition}
+      />
+      <Combobox
+        label="HR BP" options={hrBpOptions.options} loading={hrBpOptions.loading}
+        value={hrBpLogin} onChange={setHrBpLogin}
       />
       {isProbation ? (
         <div className={s.vpRow}>

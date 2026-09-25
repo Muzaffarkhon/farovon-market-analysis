@@ -169,6 +169,7 @@ export function EmployeeCard({ e, request, access, actions }: {
 
       <div className={s.kpiRow}>
         <span>Последний пересмотр: {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
+        {e.hrBpLogin && <span>HR BP: {e.hrBpLogin}</span>}
         {e.hireDate && <span>Дата выхода на работу: {new Date(e.hireDate).toLocaleDateString('ru-RU')}</span>}
         {(e.probationStartDate || e.probationEndDate) && (
           <span>

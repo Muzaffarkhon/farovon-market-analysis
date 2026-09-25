@@ -24,6 +24,12 @@ export function usePositionOptions() {
   return { options, loading: q.isLoading };
 }
 
+export function useHrBpOptions() {
+  const q = useQuery({ queryKey: ['comp-hr-bp'], queryFn: compReviewApi.hrBp });
+  const options = useMemo(() => (q.data?.rows ?? []).map(r => ({ value: r.login, label: r.fio })), [q.data]);
+  return { options, loading: q.isLoading };
+}
+
 export function useCompAccess() {
   const q = useQuery({ queryKey: ['comp-my-access'], queryFn: compReviewApi.myAccess });
   return {

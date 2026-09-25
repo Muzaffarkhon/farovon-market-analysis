@@ -1,6 +1,6 @@
 import { request } from './client';
 import type {
-  CompMyAccessResponse, CompReasonsResponse, CompVariablePayKindsResponse, CompEmployeesResponse, CompPositionsResponse,
+  CompMyAccessResponse, CompReasonsResponse, CompVariablePayKindsResponse, CompEmployeesResponse, CompPositionsResponse, CompHrBpResponse,
   CompRequestResponse, CompRequestsResponse, CreateDraftPayload, UpdateHeaderPayload, AddEmployeePayload, UpdateEmployeePayload,
   AddVariablePayPayload, CompCommitteeResponse, CompSettingsResponse, CompVoteMode, CompRemindResponse, OkResponse,
   CompAttachmentsResponse, CompAttachTokenResponse
@@ -12,6 +12,7 @@ export const compReviewApi = {
   variablePayKinds: () => request<CompVariablePayKindsResponse>('/comp/variable-pay-kinds'),
   employees: (q: string) => request<CompEmployeesResponse>('/comp/employees?' + new URLSearchParams({ q })),
   positions: () => request<CompPositionsResponse>('/comp/positions'),
+  hrBp: () => request<CompHrBpResponse>('/comp/hr-bp'),
 
   createDraft: (payload: CreateDraftPayload) => request<CompRequestResponse>('/comp/requests', payload),
   addEmployee: (requestId: number, employee: AddEmployeePayload) =>

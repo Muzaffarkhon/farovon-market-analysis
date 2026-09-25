@@ -59,6 +59,10 @@ exports.positionOptions = handle(async (req, res) => {
   res.json({ ok: true, rows: await svc.positionOptions() });
 });
 
+exports.hrBpOptions = handle(async (req, res) => {
+  res.json({ ok: true, rows: await svc.hrBpOptions() });
+});
+
 exports.createDraft = handle(async (req, res) => {
   const b = req.body || {};
   const request = await svc.createDraft({
