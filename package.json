@@ -1,6 +1,6 @@
 {
   "name": "farovon-market-analysis",
-  "version": "2.5.248",
+  "version": "2.5.249",
   "description": "Система анализа рынка, конкурентных карт и заработных плат C&B Фаровон",
   "main": "src/server.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "test": "node --test \"test/**/*.test.js\"",
     "build:web": "npm --prefix web run build",
     "dev:web": "npm --prefix web run dev",
-    "db:dev": "node src/db/bootstrap.js && node src/db/seed.js && node src/db/seedDev.js"
+    "db:dev": "node src/db/bootstrap.js && node src/db/seed.js && node src/db/seedDev.js",
+    "db:test-data": "node src/db/seedTestMarketData.js"
   },
   "engines": {
     "node": "22.x"
