@@ -35,10 +35,15 @@ function AttachmentsSection({ employeeId, canRemove }: { employeeId: number; can
         <Button
           size="sm" variant="secondary" loading={att.requestingToken}
           onClick={async () => {
+            // Открываем вкладку синхронно в обработчике клика, иначе браузер
+            // (особенно на телефоне) считает её всплывающим окном без связи
+            // с действием пользователя и молча блокирует — ссылка "не работает".
+            const tab = window.open('', '_blank');
             try {
               const r = await att.requestToken();
-              window.open(r.deepLink, '_blank');
+              if (tab) tab.location.href = r.deepLink; else window.open(r.deepLink, '_blank');
             } catch {
+              tab?.close();
               // тост об ошибке уже показан внутри useAttachments (onError мутации)
             }
           }}
