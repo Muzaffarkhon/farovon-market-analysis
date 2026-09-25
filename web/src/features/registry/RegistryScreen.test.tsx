@@ -209,15 +209,6 @@ test('строку «≈ N в месяц» не показывает, если �
   expect(within(card).queryByText(/в месяц/)).not.toBeInTheDocument();
 });
 
-test('страницы листаются', async () => {
-  list.mockResolvedValue(answer({ total: 120, totalAll: 120, pages: 3 }));
-  renderScreen();
-  await screen.findByRole('cell', { name: 'Алиф' });
-  expect(screen.getByText('Страница 1 из 3')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Вперёд' }));
-  await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })));
-});
-
 test('клик по строке открывает карточку наблюдения', async () => {
   list.mockResolvedValue(answer({ rows: [row({ note: 'уточнено у HR', benefits: ['ДМС', 'Обеды'] })] }));
   renderScreen();

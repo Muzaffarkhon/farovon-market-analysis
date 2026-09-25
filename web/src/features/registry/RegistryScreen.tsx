@@ -175,14 +175,6 @@ export function RegistryScreen() {
               </button>
             ))}
           </div>
-
-          {data && data.pages > 1 && (
-            <div className={s.pager}>
-              <Button variant="secondary" size="sm" disabled={data.page <= 1} onClick={() => r.patch({ page: data.page - 1 }, false)}>Назад</Button>
-              <span className={s.pagerInfo}>Страница {data.page} из {data.pages}</span>
-              <Button variant="secondary" size="sm" disabled={data.page >= data.pages} onClick={() => r.patch({ page: data.page + 1 }, false)}>Вперёд</Button>
-            </div>
-          )}
         </>
       )}
 

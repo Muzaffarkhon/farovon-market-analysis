@@ -41,9 +41,6 @@
 .cardPay { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cardSub { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
 
-.pager { display: flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-2) 0; }
-.pagerInfo { font-size: 13px; color: var(--text-muted); }
-
 .empty { padding: var(--s-6) var(--s-4); text-align: center; color: var(--text-muted); }
 
 /* Карточка наблюдения */

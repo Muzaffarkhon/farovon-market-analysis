@@ -323,7 +323,24 @@ async function loadRegistryData(filters = {}) {
 
 async function getRegistry(filters = {}, opts = {}) {
   const { data, periods, period } = await loadRegistryData(filters);
-  return { ...buildRegistry(data, filters, opts), period, periods };
+  // Реестр — рабочий список C&B, не выгрузка на миллионы строк: постраничность
+  // только мешала сканировать глазами и искать через Ctrl+F, а сам список
+  // прокручивается внутри своего блока (.tableWrap) без проблем на разумных
+  // объёмах. buildRegistryAll — та же функция, что уже отдаёт CSV-выгрузку.
+  const visible = visibleRows(data, opts);
+  const { rows } = buildRegistryAll(data, filters, opts);
+  return {
+    rows,
+    total: rows.length,
+    totalAll: visible.length,
+    page: 1,
+    pages: 1,
+    perPage: rows.length,
+    unmapped: visible.filter(isUnmapped).length,
+    facets: buildFacets(visible),
+    scoped: typeof opts.unitFilter === 'function',
+    period, periods
+  };
 }
 
 async function getRegistryCsv(filters = {}, opts = {}) {
