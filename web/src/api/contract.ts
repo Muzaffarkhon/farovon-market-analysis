@@ -627,6 +627,7 @@ export interface CompRequestEmployee {
   hireDate: string | null; probationStartDate: string | null; probationEndDate: string | null;
   lastReviewDate: string | null; currentSalary: number | null; proposedSalary: number; growthPercent: number | null;
   gradePayFrom: number | null; gradePayTo: number | null; vilkaBefore: number | null; vilkaAfter: number | null;
+  gradingScore: number | null; gradingLevel: number | null;
   marketMin: number | null; marketMedian: number | null; marketMax: number | null; compaRatio: number | null;
   reasonCode: CompReasonCode; reasonText: string; isException: boolean;
   status: CompEmployeeStatus; decidedAt: string | null; payrollEnteredAt: string | null; payrollEnteredBy: string | null;

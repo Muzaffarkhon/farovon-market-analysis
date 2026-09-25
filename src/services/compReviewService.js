@@ -48,6 +48,20 @@ async function hrBpOptions() {
   return rows.map(r => ({ login: r.login, fio: r.fio || r.login }));
 }
 
+/** Результат грейдинга должности (§4/§5 ТЗ) — тот же job_evaluations, что и в модуле
+ *  «Оценка должностей», найденный через привязку (unit, position) → block_key. */
+async function getGradingResult(unit, position) {
+  if (!unit || !position) return { score: null, level: null };
+  const assignment = await queryOne(
+    'SELECT block_key FROM grading_block_assignments WHERE unit = ? AND position = ?', [unit, position]);
+  if (!assignment) return { score: null, level: null };
+  const evalRow = await queryOne(
+    'SELECT weighted_score, grade_level FROM job_evaluations WHERE block_key = ? AND job_title = ?',
+    [assignment.block_key, position]);
+  if (!evalRow) return { score: null, level: null };
+  return { score: evalRow.weighted_score == null ? null : Number(evalRow.weighted_score), level: evalRow.grade_level };
+}
+
 async function getGradeRange(position) {
   if (!position) return { from: null, to: null };
   const row = await queryOne('SELECT pay_from, pay_to FROM dictionary_positions WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [position]);
@@ -87,6 +101,7 @@ function mapEmployeeRow(r, variablePay, votes, voteMode, viewerLogin) {
     gradePayTo: r.grade_pay_to == null ? null : Number(r.grade_pay_to),
     vilkaBefore: vilkaPosition(r.grade_pay_from, r.grade_pay_to, r.current_salary),
     vilkaAfter: vilkaPosition(r.grade_pay_from, r.grade_pay_to, r.proposed_salary),
+    gradingScore: r.grading_score == null ? null : Number(r.grading_score), gradingLevel: r.grading_level,
     marketMin: r.market_min == null ? null : Number(r.market_min),
     marketMedian: r.market_median == null ? null : Number(r.market_median),
     marketMax: r.market_max == null ? null : Number(r.market_max),
@@ -208,16 +223,18 @@ async function addEmployee(requestId, data, actorLogin) {
   const elig = checkEligibility({ lastReviewDate, reasonCode: data.reasonCode, reasonText: data.reasonText, positionChanged });
   if (!elig.eligible) throw new CompReviewError(elig.reason);
 
-  // Вилка считается по назначаемой должности при переводе, иначе — по текущей.
-  const grade = await getGradeRange(positionChanged ? newPosition : data.position);
+  // Вилка и грейдинг считаются по назначаемой должности при переводе, иначе — по текущей.
+  const effectivePosition = positionChanged ? newPosition : data.position;
+  const grade = await getGradeRange(effectivePosition);
+  const grading = await getGradingResult(data.unit, effectivePosition);
   const ins = await run(
     `INSERT INTO comp_request_employees
        (request_id, staff_id, fio, unit, position, new_position, hr_bp_login, last_review_date, current_salary, proposed_salary,
-        grade_pay_from, grade_pay_to, reason_code, reason_text, is_exception,
+        grade_pay_from, grade_pay_to, grading_score, grading_level, reason_code, reason_text, is_exception,
         hire_date, probation_start_date, probation_end_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [requestId, data.staffId || null, data.fio, data.unit, data.position || null, newPosition, data.hrBpLogin || null, lastReviewDate, currentSalary,
-      Number(data.proposedSalary), grade.from, grade.to, data.reasonCode, data.reasonText || null, elig.isException ? 1 : 0,
+      Number(data.proposedSalary), grade.from, grade.to, grading.score, grading.level, data.reasonCode, data.reasonText || null, elig.isException ? 1 : 0,
       data.hireDate || null, data.probationStartDate || null, data.probationEndDate || null]);
   await logActivity(requestId, null, actorLogin, 'добавил сотрудника', data.fio);
   await touchRequest(requestId);
@@ -247,12 +264,16 @@ async function updateEmployee(employeeId, patch) {
   const elig = checkEligibility({ lastReviewDate: row.last_review_date, reasonCode, reasonText, positionChanged });
   if (!elig.eligible) throw new CompReviewError(elig.reason);
 
-  const grade = await getGradeRange(positionChanged ? newPosition : row.position);
+  const effectivePosition = positionChanged ? newPosition : row.position;
+  const grade = await getGradeRange(effectivePosition);
+  const grading = await getGradingResult(row.unit, effectivePosition);
   await run(
     `UPDATE comp_request_employees SET proposed_salary = ?, reason_code = ?, reason_text = ?, is_exception = ?,
-       hire_date = ?, probation_start_date = ?, probation_end_date = ?, new_position = ?, hr_bp_login = ?, grade_pay_from = ?, grade_pay_to = ? WHERE id = ?`,
+       hire_date = ?, probation_start_date = ?, probation_end_date = ?, new_position = ?, hr_bp_login = ?,
+       grade_pay_from = ?, grade_pay_to = ?, grading_score = ?, grading_level = ? WHERE id = ?`,
     [proposedSalary, reasonCode, reasonText || null, elig.isException ? 1 : 0,
-      hireDate, probationStartDate, probationEndDate, newPosition, hrBpLogin, grade.from, grade.to, employeeId]);
+      hireDate, probationStartDate, probationEndDate, newPosition, hrBpLogin, grade.from, grade.to,
+      grading.score, grading.level, employeeId]);
   await touchRequest(row.request_id);
   return getRequest(row.request_id);
 }

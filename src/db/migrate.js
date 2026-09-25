@@ -1082,6 +1082,12 @@ async function createCompReview() {
   // HR BP — логин пользователя с ролью hrbp, ответственного по сотруднику (§3 ТЗ).
   await ensureColumn('comp_request_employees', 'hr_bp_login', 'TEXT');
 
+  // Снимок результата грейдинга (job_evaluations по блоку должности) на
+  // момент добавления/изменения строки — те же данные, что видит C&B/комиссия
+  // в модуле «Оценка должностей» (§4/§5 ТЗ).
+  await ensureColumn('comp_request_employees', 'grading_score', 'REAL');
+  await ensureColumn('comp_request_employees', 'grading_level', 'INTEGER');
+
   // Мин/макс рынка — рядом с уже существующей медианой (§4 ТЗ: C&B заполняет
   // весь диапазон, а не одну точку).
   await ensureColumn('comp_request_employees', 'market_min', 'REAL');

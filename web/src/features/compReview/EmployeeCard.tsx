@@ -181,6 +181,9 @@ export function EmployeeCard({ e, request, access, actions }: {
         {e.gradePayFrom != null && e.gradePayTo != null && (
           <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
+        {e.gradingLevel != null && (
+          <span>Грейд {e.gradingLevel}{e.gradingScore != null ? ` (балл ${e.gradingScore})` : ''}</span>
+        )}
         {(e.marketMin != null || e.marketMedian != null || e.marketMax != null) && (
           <span>
             Рынок: {e.marketMin != null ? fmt.format(e.marketMin) : '—'} / {e.marketMedian != null ? fmt.format(e.marketMedian) : '—'} / {e.marketMax != null ? fmt.format(e.marketMax) : '—'}
