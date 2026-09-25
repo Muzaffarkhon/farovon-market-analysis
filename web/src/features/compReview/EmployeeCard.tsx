@@ -155,7 +155,7 @@ export function EmployeeCard({ e, request, access, actions }: {
       <div className={s.cardHead}>
         <div>
           <div className={s.cardTitle}>{e.fio}</div>
-          <div className={s.hint}>{e.unit}{e.position ? `, ${e.position}` : ''}</div>
+          <div className={s.hint}>{e.unit}{e.position ? `, ${e.position}` : ''}{e.newPosition ? ` → ${e.newPosition}` : ''}</div>
         </div>
         <Badge tone={e.status === 'done' || e.status === 'approved_awaiting_payroll' ? 'ok' : e.status.startsWith('rejected') ? 'muted' : 'neutral'}>
           {EMP_STATUS_LABEL[e.status]}

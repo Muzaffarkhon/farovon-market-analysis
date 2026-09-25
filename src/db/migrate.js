@@ -1075,6 +1075,10 @@ async function createCompReview() {
   await ensureColumn('comp_request_employees', 'probation_start_date', 'TEXT');
   await ensureColumn('comp_request_employees', 'probation_end_date', 'TEXT');
 
+  // Назначаемая должность — заполняется только при переводе (§3 ТЗ); её
+  // наличие/отличие от текущей учитывается в правиле 6 месяцев (§2 ТЗ).
+  await ensureColumn('comp_request_employees', 'new_position', 'TEXT');
+
   // Мин/макс рынка — рядом с уже существующей медианой (§4 ТЗ: C&B заполняет
   // весь диапазон, а не одну точку).
   await ensureColumn('comp_request_employees', 'market_min', 'REAL');

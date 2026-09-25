@@ -38,19 +38,21 @@ function monthsBetween(fromISO, toISO) {
 
 /**
  * Допуск сотрудника в заявку (§2): без истории — всегда можно (первый раз).
- * Меньше 6 месяцев с последнего пересмотра — можно только с кодом исключения
- * (retention/unique_case) и текстом обоснования; иначе отказ с причиной.
+ * Меньше 6 месяцев с последнего пересмотра — можно, только если меняется
+ * должность (перевод — это не повторный пересмотр той же позиции), либо с
+ * кодом исключения (retention/unique_case) и текстом обоснования; иначе отказ.
  */
-function checkEligibility({ lastReviewDate, today, reasonCode, reasonText }) {
+function checkEligibility({ lastReviewDate, today, reasonCode, reasonText, positionChanged }) {
   if (!lastReviewDate) return { eligible: true, isException: false };
   const months = monthsBetween(lastReviewDate, today || new Date().toISOString().slice(0, 10));
   if (months >= ELIGIBILITY_MONTHS) return { eligible: true, isException: false };
+  if (positionChanged) return { eligible: true, isException: false };
   if (EXCEPTION_REASON_CODES.has(reasonCode) && String(reasonText || '').trim()) {
     return { eligible: true, isException: true };
   }
   return {
     eligible: false, isException: false,
-    reason: `Последний пересмотр был меньше ${ELIGIBILITY_MONTHS} месяцев назад — нужен код исключения (удержание/контр-оффер или уникальный случай) и обоснование`
+    reason: `Последний пересмотр был меньше ${ELIGIBILITY_MONTHS} месяцев назад — нужен код исключения (удержание/контр-оффер или уникальный случай) и обоснование, либо смена должности`
   };
 }
 

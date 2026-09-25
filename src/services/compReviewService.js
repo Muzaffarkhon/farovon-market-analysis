@@ -36,6 +36,12 @@ async function employeeOptions(query) {
   return out;
 }
 
+/** Список должностей для выбора «назначаемой» при переводе (§3 ТЗ). */
+async function positionOptions() {
+  const rows = await queryAll('SELECT name FROM dictionary_positions ORDER BY name ASC');
+  return rows.map(r => r.name);
+}
+
 async function getGradeRange(position) {
   if (!position) return { from: null, to: null };
   const row = await queryOne('SELECT pay_from, pay_to FROM dictionary_positions WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', [position]);
@@ -66,6 +72,7 @@ function maskVotes(rows, employeeStatus, voteMode, viewerLogin) {
 function mapEmployeeRow(r, variablePay, votes, voteMode, viewerLogin) {
   return {
     id: r.id, requestId: r.request_id, staffId: r.staff_id, fio: r.fio, unit: r.unit, position: r.position || '',
+    newPosition: r.new_position || '',
     hireDate: r.hire_date, probationStartDate: r.probation_start_date, probationEndDate: r.probation_end_date,
     lastReviewDate: r.last_review_date, currentSalary: r.current_salary == null ? null : Number(r.current_salary),
     proposedSalary: Number(r.proposed_salary),
@@ -190,17 +197,20 @@ async function addEmployee(requestId, data, actorLogin) {
   if (!(Number(data.proposedSalary) > 0)) throw new CompReviewError('Укажите предлагаемый оклад');
 
   const { lastReviewDate, currentSalary } = await getLastReview(data.unit, data.fio);
-  const elig = checkEligibility({ lastReviewDate, reasonCode: data.reasonCode, reasonText: data.reasonText });
+  const newPosition = (data.newPosition || '').trim() || null;
+  const positionChanged = !!newPosition && newPosition.toLowerCase() !== String(data.position || '').trim().toLowerCase();
+  const elig = checkEligibility({ lastReviewDate, reasonCode: data.reasonCode, reasonText: data.reasonText, positionChanged });
   if (!elig.eligible) throw new CompReviewError(elig.reason);
 
-  const grade = await getGradeRange(data.position);
+  // Вилка считается по назначаемой должности при переводе, иначе — по текущей.
+  const grade = await getGradeRange(positionChanged ? newPosition : data.position);
   const ins = await run(
     `INSERT INTO comp_request_employees
-       (request_id, staff_id, fio, unit, position, last_review_date, current_salary, proposed_salary,
+       (request_id, staff_id, fio, unit, position, new_position, last_review_date, current_salary, proposed_salary,
         grade_pay_from, grade_pay_to, reason_code, reason_text, is_exception,
         hire_date, probation_start_date, probation_end_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [requestId, data.staffId || null, data.fio, data.unit, data.position || null, lastReviewDate, currentSalary,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [requestId, data.staffId || null, data.fio, data.unit, data.position || null, newPosition, lastReviewDate, currentSalary,
       Number(data.proposedSalary), grade.from, grade.to, data.reasonCode, data.reasonText || null, elig.isException ? 1 : 0,
       data.hireDate || null, data.probationStartDate || null, data.probationEndDate || null]);
   await logActivity(requestId, null, actorLogin, 'добавил сотрудника', data.fio);
@@ -224,15 +234,18 @@ async function updateEmployee(employeeId, patch) {
   const hireDate = patch.hireDate !== undefined ? (patch.hireDate || null) : row.hire_date;
   const probationStartDate = patch.probationStartDate !== undefined ? (patch.probationStartDate || null) : row.probation_start_date;
   const probationEndDate = patch.probationEndDate !== undefined ? (patch.probationEndDate || null) : row.probation_end_date;
+  const newPosition = patch.newPosition !== undefined ? ((patch.newPosition || '').trim() || null) : row.new_position;
   if (!REASON_CODES[reasonCode]) throw new CompReviewError('Некорректный код основания');
-  const elig = checkEligibility({ lastReviewDate: row.last_review_date, reasonCode, reasonText });
+  const positionChanged = !!newPosition && newPosition.toLowerCase() !== String(row.position || '').trim().toLowerCase();
+  const elig = checkEligibility({ lastReviewDate: row.last_review_date, reasonCode, reasonText, positionChanged });
   if (!elig.eligible) throw new CompReviewError(elig.reason);
 
+  const grade = await getGradeRange(positionChanged ? newPosition : row.position);
   await run(
     `UPDATE comp_request_employees SET proposed_salary = ?, reason_code = ?, reason_text = ?, is_exception = ?,
-       hire_date = ?, probation_start_date = ?, probation_end_date = ? WHERE id = ?`,
+       hire_date = ?, probation_start_date = ?, probation_end_date = ?, new_position = ?, grade_pay_from = ?, grade_pay_to = ? WHERE id = ?`,
     [proposedSalary, reasonCode, reasonText || null, elig.isException ? 1 : 0,
-      hireDate, probationStartDate, probationEndDate, employeeId]);
+      hireDate, probationStartDate, probationEndDate, newPosition, grade.from, grade.to, employeeId]);
   await touchRequest(row.request_id);
   return getRequest(row.request_id);
 }
@@ -718,7 +731,7 @@ async function listVariablePayKinds() {
 
 module.exports = {
   REQUEST_TYPES, REASON_CODES,
-  employeeOptions, listVariablePayKinds, getSettings, saveSettings,
+  employeeOptions, positionOptions, listVariablePayKinds, getSettings, saveSettings,
   listCommitteeMembers, addCommitteeMember, removeCommitteeMember,
   createDraft, updateDraftHeader, addEmployee, updateEmployee, removeEmployee,
   addVariablePay, removeVariablePay, deleteDraft, submitDraft,

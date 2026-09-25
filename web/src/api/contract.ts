@@ -614,12 +614,13 @@ export interface CompVariablePayKindsResponse { ok: true; kinds: string[] }
 
 export interface CompEmployeeOption { id: number; unit: string; fio: string; position: string; lastReviewDate: string | null; currentSalary: number | null }
 export interface CompEmployeesResponse { ok: true; rows: CompEmployeeOption[] }
+export interface CompPositionsResponse { ok: true; rows: string[] }
 
 export interface CompVariablePay { id: number; kind: string; amount: number; amountType: 'sum' | 'percent'; period: string; isProposed: boolean }
 export interface CompVote { voterLogin: string; vote: 'for' | 'against' | null; comment: string | null; votedAt: string }
 
 export interface CompRequestEmployee {
-  id: number; requestId: number; staffId: number | null; fio: string; unit: string; position: string;
+  id: number; requestId: number; staffId: number | null; fio: string; unit: string; position: string; newPosition: string;
   hireDate: string | null; probationStartDate: string | null; probationEndDate: string | null;
   lastReviewDate: string | null; currentSalary: number | null; proposedSalary: number; growthPercent: number | null;
   gradePayFrom: number | null; gradePayTo: number | null; vilkaBefore: number | null; vilkaAfter: number | null;
@@ -649,12 +650,12 @@ export interface CompRequestsResponse { ok: true; rows: CompRequestListItem[] }
 export interface CreateDraftPayload { unit?: string; requestType: CompRequestType; effectiveDate?: string; basisDocument?: string; comment?: string }
 export type UpdateHeaderPayload = Partial<CreateDraftPayload>
 export interface AddEmployeePayload {
-  fio: string; unit: string; position?: string; staffId?: number;
+  fio: string; unit: string; position?: string; newPosition?: string; staffId?: number;
   proposedSalary: number; reasonCode: CompReasonCode; reasonText?: string;
   hireDate?: string; probationStartDate?: string; probationEndDate?: string;
 }
 export interface UpdateEmployeePayload {
-  proposedSalary?: number; reasonCode?: CompReasonCode; reasonText?: string;
+  proposedSalary?: number; reasonCode?: CompReasonCode; reasonText?: string; newPosition?: string;
   hireDate?: string; probationStartDate?: string; probationEndDate?: string;
 }
 export interface AddVariablePayPayload { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }

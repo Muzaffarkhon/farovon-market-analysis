@@ -55,6 +55,10 @@ exports.employeeOptions = handle(async (req, res) => {
   res.json({ ok: true, rows: await svc.employeeOptions(req.query.q) });
 });
 
+exports.positionOptions = handle(async (req, res) => {
+  res.json({ ok: true, rows: await svc.positionOptions() });
+});
+
 exports.createDraft = handle(async (req, res) => {
   const b = req.body || {};
   const request = await svc.createDraft({

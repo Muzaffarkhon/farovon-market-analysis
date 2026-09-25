@@ -18,6 +18,12 @@ export function useUnitOptions() {
   return { options, loading: q.isLoading };
 }
 
+export function usePositionOptions() {
+  const q = useQuery({ queryKey: ['comp-positions'], queryFn: compReviewApi.positions });
+  const options = useMemo(() => (q.data?.rows ?? []).map(name => ({ value: name, label: name })), [q.data]);
+  return { options, loading: q.isLoading };
+}
+
 export function useCompAccess() {
   const q = useQuery({ queryKey: ['comp-my-access'], queryFn: compReviewApi.myAccess });
   return {

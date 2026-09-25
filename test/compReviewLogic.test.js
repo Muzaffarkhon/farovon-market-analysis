@@ -42,6 +42,12 @@ test('checkEligibility: unique_case без текста обоснования �
   assert.equal(r.eligible, false);
 });
 
+test('checkEligibility: 5 месяцев, но меняется должность — можно, не исключение', () => {
+  const r = checkEligibility({ lastReviewDate: '2026-04-24', today: '2026-09-24', reasonCode: 'promotion', reasonText: '', positionChanged: true });
+  assert.equal(r.eligible, true);
+  assert.equal(r.isException, false);
+});
+
 test('growthPercent: считает рост, null без текущего оклада', () => {
   assert.equal(growthPercent(10000, 11000), 10);
   assert.equal(growthPercent(0, 11000), null);

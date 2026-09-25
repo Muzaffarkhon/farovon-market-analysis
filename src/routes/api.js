@@ -261,6 +261,7 @@ router.get('/comp/my-access', compReviewController.myAccess);
 router.get('/comp/reasons', compReviewController.reasons);
 router.get('/comp/variable-pay-kinds', compReviewController.variablePayKinds);
 router.get('/comp/employees', requireCapability('comp:submit'), compReviewController.employeeOptions);
+router.get('/comp/positions', requireCapability('comp:submit'), compReviewController.positionOptions);
 router.post('/comp/requests', requireCapability('comp:submit'), compReviewController.createDraft);
 router.post('/comp/requests/:id', compReviewController.updateDraft);
 router.post('/comp/requests/:id/submit', compReviewController.submitDraft);
