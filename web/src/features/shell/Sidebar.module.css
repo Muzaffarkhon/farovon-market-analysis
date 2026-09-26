@@ -4,11 +4,28 @@
    на всю высоту. */
 .sidebar {
   flex: none; align-self: flex-start; position: sticky; top: 0;
-  width: 220px; height: 100dvh; display: flex; flex-direction: column;
+  width: var(--sidebar-w, 220px); height: 100dvh; display: flex; flex-direction: column;
   background: var(--surface-2); border-right: 1px solid var(--border);
-  transition: width .15s ease;
+  /* Заметно длиннее прежних .15s — сворачивание/разворачивание кнопкой
+     должно читаться как настоящее движение, а не мгновенный скачок. */
+  transition: width .32s cubic-bezier(.22, .9, .28, 1);
 }
 .sidebar.collapsed { width: 56px; }
+/* Во время самого перетаскивания за ручку — короче, чтобда полоса
+   заметно «догоняла» курсор с лёгкой инерцией, а не тянулась за ним с
+   тем же протяжным таймингом, что и клик по кнопке сворачивания. */
+.sidebar.dragging { transition: width .09s ease-out; }
+
+/* Невидимая полоса на правом краю — курсор меняется на col-resize уже на
+   подходе к границе, а не только точно на 1px разделителе. touch-action:
+   none — иначе на тачскрине жест resize конфликтует со скроллом страницы. */
+.resizeHandle {
+  position: absolute; top: 0; right: -4px; bottom: 0; width: 8px;
+  cursor: col-resize; touch-action: none; z-index: 1;
+}
+@media (max-width: 767px) {
+  .resizeHandle { display: none; }
+}
 
 /* .brand — обёртка (не кнопка): внутри своя кнопка сворачивания (.brandMark,
    квадрат-иконка) и текстовый блок рядом, а не всё целиком одна большая
@@ -37,7 +54,26 @@
 .collapsed .brandText { display: none; }
 .collapsed .brand { justify-content: center; padding: 0; }
 
-.nav { flex: 1; overflow-y: auto; padding: var(--s-2); display: flex; flex-direction: column; gap: 10px; }
+/* Список пунктов часто не помещается по высоте (у админа — 20+ пунктов),
+   особенно в свёрнутой узкой полосе, где обрезанные иконки снизу/сверху
+   легко принять за «пропавшие», а не «нужно прокрутить». Классический
+   CSS-приём на двух парах фоновых градиентов: тень видна только с той
+   стороны, где реально есть куда прокручивать (background-attachment:
+   local уезжает вместе с контентом и «съедает» тень у самого края скролла,
+   scroll — остаётся неподвижным индикатором поверх). Без JS и без
+   слежения за scroll-событием. */
+.nav {
+  flex: 1; overflow-y: auto; padding: var(--s-2); display: flex; flex-direction: column; gap: 10px;
+  background:
+    linear-gradient(var(--surface-2) 30%, transparent),
+    linear-gradient(transparent, var(--surface-2) 70%) bottom,
+    linear-gradient(rgba(0, 0, 0, .12), transparent),
+    linear-gradient(transparent, rgba(0, 0, 0, .12)) bottom;
+  background-repeat: no-repeat;
+  background-color: var(--surface-2);
+  background-size: 100% 18px, 100% 18px, 100% 8px, 100% 8px;
+  background-attachment: local, local, scroll, scroll;
+}
 .group { display: flex; flex-direction: column; gap: 2px; }
 .groupHead {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
@@ -55,10 +91,26 @@
 }
 .link:hover { background: var(--surface); }
 .link.active { background: var(--surface); color: var(--text); font-weight: 600; }
+/* Раньше «объём» был только у квадратной подложки (градиент+тень) — сам
+   символ внутри оставался плоской заливкой var(--accent), поэтому эффект
+   читался как «рамка с тенью», а не «выпуклая иконка». Здесь объём
+   переносится на сам глиф: градиентная заливка через background-clip:text
+   (глянцевый металлик, светлее сверху — темнее снизу, как у выпуклой
+   поверхности) + двойной text-shadow, имитирующий фаску — светлый блик
+   снизу-справа (будто ловит свет) и тёмная тень сверху-слева. */
 .icon {
   flex: none; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-sm); font-size: 14px; color: var(--accent);
+  border-radius: var(--r-sm); font-size: 15px;
   background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow);
+}
+.icon span {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 60%, white), var(--accent) 65%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .55), 0 -1px 0 rgba(0, 0, 0, .35);
+  /* text-shadow игнорируется на прозрачном тексте в части браузеров при
+     background-clip:text — filter:drop-shadow работает поверх формы глифа
+     и там, где text-shadow не сработал бы, так что дублируем оба приёма. */
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .5)) drop-shadow(0 -0.5px 0 rgba(0, 0, 0, .3));
 }
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }

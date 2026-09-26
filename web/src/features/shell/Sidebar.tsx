@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { toggleTheme } from '../../design/theme';
 import { useSession, useSessionData } from '../auth/useSession';
@@ -29,6 +29,18 @@ function shortFio(fio: string): string {
   return first ? `${last} ${first[0]}.` : last;
 }
 
+const WIDTH_KEY = 'nav-width';
+const DEFAULT_WIDTH = 220;
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 340;
+
+function loadWidth(): number {
+  try {
+    const raw = Number(window.localStorage.getItem(WIDTH_KEY));
+    return raw >= MIN_WIDTH && raw <= MAX_WIDTH ? raw : DEFAULT_WIDTH;
+  } catch { return DEFAULT_WIDTH; }
+}
+
 type Props = {
   items: NavItem[]; collapsed: boolean; open: boolean;
   onNavigate: () => void; onCloseMobile: () => void; onToggleCollapse: () => void;
@@ -40,13 +52,65 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
   const { logout } = useSession();
   const navigate = useNavigate();
   const compWaitingCount = useCompWaitingCount();
+  const [width, setWidth] = useState(loadWidth);
+  const [dragging, setDragging] = useState(false);
+  // React-состояние `dragging` обновляется асинхронно — если читать его же
+  // внутри onResizeMove/endResize, самое первое движение сразу после
+  // pointerdown может увидеть ещё не обновлённое значение (гонка между
+  // событием и рендером) и молча проигнорировать перетаскивание. Флаг в
+  // ref синхронный, гонки нет; state оставлен только для CSS-класса.
+  const draggingRef = useRef(false);
+  const dragStart = useRef({ x: 0, width: DEFAULT_WIDTH });
+
+  function clampWidth(raw: number) {
+    return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, raw));
+  }
+  // Тянем за правый край мышью/пальцем — во время самого перетаскивания
+  // ширина всё равно едет с короткой анимацией (не мгновенным скачком к
+  // курсору), а не только при клике по кнопке сворачивания.
+  function startResize(e: React.PointerEvent) {
+    if (collapsed) return;
+    e.preventDefault();
+    (e.target as Element).setPointerCapture(e.pointerId);
+    dragStart.current = { x: e.clientX, width };
+    draggingRef.current = true;
+    setDragging(true);
+  }
+  function onResizeMove(e: React.PointerEvent) {
+    if (!draggingRef.current) return;
+    setWidth(clampWidth(dragStart.current.width + (e.clientX - dragStart.current.x)));
+  }
+  function endResize(e: React.PointerEvent) {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setDragging(false);
+    try { (e.target as Element).releasePointerCapture(e.pointerId); } catch { /* уже отпущен */ }
+    // Тот же clampWidth, что и во время движения — иначе при отпускании за
+    // пределами допустимого диапазона в localStorage уйдёт невалидное число,
+    // и при следующей загрузке ширина откатится на дефолт вместо 340/180.
+    try { window.localStorage.setItem(WIDTH_KEY, String(clampWidth(Math.round(dragStart.current.width + (e.clientX - dragStart.current.x))))); } catch { /* приватный режим */ }
+  }
+
   return (
     <>
       <button
         type="button" className={[s.backdrop, open ? s.open : ''].join(' ')}
         aria-label="Закрыть меню" onClick={onCloseMobile}
       />
-      <nav className={[s.sidebar, collapsed ? s.collapsed : '', open ? s.open : ''].join(' ')} aria-label="Разделы">
+      <nav
+        className={[s.sidebar, collapsed ? s.collapsed : '', open ? s.open : '', dragging ? s.dragging : ''].join(' ')}
+        aria-label="Разделы"
+        style={collapsed ? undefined : { '--sidebar-w': `${width}px` } as React.CSSProperties}
+      >
+        {!collapsed && (
+          <div
+            className={s.resizeHandle}
+            onPointerDown={startResize} onPointerMove={onResizeMove}
+            onPointerUp={endResize} onPointerCancel={endResize}
+            onDoubleClick={() => { setWidth(DEFAULT_WIDTH); try { window.localStorage.setItem(WIDTH_KEY, String(DEFAULT_WIDTH)); } catch { /* приватный режим */ } }}
+            role="separator" aria-orientation="vertical" aria-label="Изменить ширину меню"
+          />
+        )}
         {/* Логотип (тот же контур, что в старом клиенте — client/index.html
             #railBrand). Иконка сама — кнопка сворачивания. На телефоне вторая
             строка («Фаровон · C&B») заменяется именем пользователя и периодом
@@ -138,7 +202,7 @@ function NavGroupBlock({ group, sidebarCollapsed, onNavigate, compWaitingCount }
             key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
             className={({ isActive }) => [s.link, isActive && !suppressActive ? s.active : ''].join(' ')}
           >
-            <span className={s.icon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
+            <span className={s.icon} aria-hidden="true"><span>{GLYPH[i.to] ?? '•'}</span></span>
             <span className={s.label}>{i.label}</span>
             {i.to === '/comp' && compWaitingCount > 0 && (
               <span className={s.navBadge}>{compWaitingCount > 99 ? '99+' : compWaitingCount}</span>

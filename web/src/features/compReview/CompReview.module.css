@@ -29,7 +29,11 @@
 .cardTitle { font-weight: 600; }
 .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amountUp { color: var(--ok); }
-.kpiRow { display: flex; flex-wrap: wrap; gap: var(--s-3); font-size: 13px; color: var(--text-muted); }
+/* Подпись («Тип:») приглушённая, а само значение — обычным текстом: иначе
+   вся строка одним блёклым цветом, и глаз не понимает, что тут собственно
+   данные заявки, а не второстепенная пометка. */
+.kpiRow { display: flex; flex-wrap: wrap; gap: var(--s-3); font-size: 13px; }
+.metaLabel { color: var(--text-muted); }
 .cardFoot { display: flex; gap: var(--s-2); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--s-2); }
 
 .vpRow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); padding: 4px 0; }

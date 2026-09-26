@@ -100,9 +100,9 @@ export function RequestScreen() {
           </div>
         ) : (
           <div className={s.kpiRow}>
-            {!isPayrollOnly && <span>Тип: {requestTypes.find(t => t.code === r.requestType)?.label ?? r.requestType}</span>}
-            {r.unit && <span>Подразделение: {r.unit}</span>}
-            {r.effectiveDate && <span>Дата вступления в силу: {r.effectiveDate}</span>}
+            {!isPayrollOnly && <span><span className={s.metaLabel}>Тип:</span> {requestTypes.find(t => t.code === r.requestType)?.label ?? r.requestType}</span>}
+            {r.unit && <span><span className={s.metaLabel}>Подразделение:</span> {r.unit}</span>}
+            {r.effectiveDate && <span><span className={s.metaLabel}>Дата вступления в силу:</span> {r.effectiveDate}</span>}
           </div>
         )}
         {canEditDraft ? (
