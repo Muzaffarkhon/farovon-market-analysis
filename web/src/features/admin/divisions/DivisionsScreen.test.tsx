@@ -35,7 +35,7 @@ beforeEach(() => {
 test('dir_head не видит «Создать» и «Удалить», но видит «Переместить»', async () => {
   session = { user: { role: 'dir_head', capabilities: ['divisions:edit'] } } as unknown as SessionData;
   renderScreen();
-  await screen.findByRole('button', { name: 'Цех 1' });
+  await screen.findAllByText('Цех 1');
   expect(screen.queryByRole('button', { name: 'Создать' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Переместить' })).toBeInTheDocument();
@@ -44,7 +44,8 @@ test('dir_head не видит «Создать» и «Удалить», но в
 test('dir_head в карточке подразделения видит поле «Направление» отключённым', async () => {
   session = { user: { role: 'dir_head', capabilities: ['divisions:edit'] } } as unknown as SessionData;
   renderScreen();
-  await userEvent.click(await screen.findByRole('button', { name: 'Цех 1' }));
+  const [row] = await screen.findAllByText('Цех 1');
+  await userEvent.click(row);
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByLabelText('Направление')).toBeDisabled();
   expect(dialog.getByLabelText('Руководитель')).toBeEnabled();
@@ -53,7 +54,7 @@ test('dir_head в карточке подразделения видит пол�
 test('admin видит все кнопки управления', async () => {
   session = { user: { role: 'admin', capabilities: [] } } as unknown as SessionData;
   renderScreen();
-  await screen.findByRole('button', { name: 'Цех 1' });
+  await screen.findAllByText('Цех 1');
   expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Удалить' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Массовое назначение' })).toBeInTheDocument();

@@ -84,11 +84,11 @@ export function StaffScreen() {
           </thead>
           <tbody>
             {sorted.map(row => (
-              <tr key={row.id}>
-                <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
+              <tr key={row.id} className={s.clickableRow} onClick={() => setEditing(row)}>
+                <td>{row.fio}</td>
                 <td>{row.unit}</td>
                 <td>{row.position}</td>
-                <td>
+                <td onClick={e => e.stopPropagation()}>
                   <Button
                     size="sm" variant="danger"
                     onClick={async () => { if (await confirm({ message: `Удалить запись «${row.fio}»?`, danger: true })) st.remove(row.id); }}

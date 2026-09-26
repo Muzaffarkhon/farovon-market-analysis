@@ -37,7 +37,7 @@ describe('DictionaryScreen', () => {
   it('показывает записи справочника компаний', async () => {
     mockApi();
     renderScreen();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Амид групп' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Амид групп').length).toBeGreaterThan(0));
     expect(screen.getByText('FMCG')).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe('DictionaryScreen', () => {
     const { list } = mockApi();
     const user = userEvent.setup();
     renderScreen();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Амид групп' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Амид групп').length).toBeGreaterThan(0));
 
     await user.click(screen.getByRole('button', { name: 'Должности' }));
     await waitFor(() => expect(list).toHaveBeenCalledWith('positions'));
@@ -55,7 +55,7 @@ describe('DictionaryScreen', () => {
     const { usage, remove } = mockApi();
     const user = userEvent.setup();
     renderScreen();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Амид групп' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Амид групп').length).toBeGreaterThan(0));
 
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
     await waitFor(() => expect(usage).toHaveBeenCalledWith('companies', 'Амид групп'));

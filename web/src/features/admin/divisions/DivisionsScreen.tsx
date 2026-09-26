@@ -110,9 +110,9 @@ export function DivisionsScreen() {
           </thead>
           <tbody>
             {sorted.map(row => (
-              <tr key={row.id}>
+              <tr key={row.id} className={s.clickableRow} onClick={() => setEditing(row)}>
                 <td>
-                  <button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.unit}</button>
+                  {row.unit}
                   {row.group_key && (groupCounts.get(row.group_key) ?? 0) > 1 && (
                     <span className={s.hint}> · Смежная · {groupCounts.get(row.group_key)} площ.</span>
                   )}
@@ -123,7 +123,7 @@ export function DivisionsScreen() {
                 <td className={s.wrapCell}>{row.hrbp}</td>
                 <td>{row.is_survey_target ? 'да' : ''}</td>
                 <td>{row.is_hidden ? 'да' : ''}</td>
-                <td style={{ display: 'flex', gap: 6 }}>
+                <td style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                   <Button size="sm" variant="secondary" onClick={() => setMoving(row)}>Переместить</Button>
                   {isAdmin && (
                     <Button size="sm" variant="secondary" onClick={() => d.setHidden({ unit: row.unit, hidden: !row.is_hidden })}>

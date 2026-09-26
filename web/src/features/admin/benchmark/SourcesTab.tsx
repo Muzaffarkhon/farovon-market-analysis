@@ -56,14 +56,14 @@ export function SourcesTab() {
           </thead>
           <tbody>
             {sorted.map(row => (
-              <tr key={row.key}>
-                <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.title}</button></td>
+              <tr key={row.key} className={s.clickableRow} onClick={() => setEditing(row)}>
+                <td>{row.title}</td>
                 <td>{KINDS.find(k => k.value === row.kind)?.label ?? row.kind}</td>
                 <td>{row.default_currency}</td>
                 <td>{row.is_licensed ? 'да' : ''}</td>
                 <td>{row.weight}</td>
                 <td>{row.hidden ? 'да' : ''}</td>
-                <td>
+                <td onClick={e => e.stopPropagation()}>
                   {row.key !== 'internal' && (
                     <Button size="sm" variant="secondary" onClick={() => src.update({ key: row.key, hidden: !row.hidden })}>
                       {row.hidden ? 'Показать' : 'Скрыть'}

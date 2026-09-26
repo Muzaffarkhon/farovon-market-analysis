@@ -12,7 +12,7 @@
 .groupChevronOpen { transform: rotate(90deg); }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
-.card { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; min-height: var(--tap); }
+.card { display: flex; align-items: flex-start; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: inherit; min-height: var(--tap); }
 .card:hover { background: var(--surface-2); }
 .cardIcon {
   flex: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
@@ -28,20 +28,21 @@
 /* overflow: auto (не только -x) — обёртка сама становится контейнером
    прокрутки, от которого и считается sticky-шапка ниже (иначе шапка
    уезжает вместе со страницей, как было раньше). */
-.tableWrap { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 220px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 220px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 
 /* Вариант для экранов, где таблица — единственный/последний блок на странице
    (без формы ниже неё в потоке): растягивается до низа наравне с панелью
    слева, а не до числа-заглушки. Обёртка-экран — .screenFill, growит внутри
    .main (Shell.module.css); .form ниже тоже участвует в этой цепочке. */
 .screenFill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: var(--s-3); }
-.tableWrapFill { overflow: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrapFill { overflow: auto; -webkit-overflow-scrolling: touch; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13.5px; }
 .table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; white-space: nowrap; }
 .table td.wrapCell { white-space: normal; overflow-wrap: break-word; max-width: 220px; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }
 .rowInactive { color: var(--text-muted); }
 .clickableRow { cursor: pointer; }
+.table tbody tr.clickableRow:hover { background: var(--surface-2); }
 
 /* На телефоне таблица всё равно шире экрана и скроллится вбок — но плотнее
    шрифт и отступы уменьшают, сколько нужно листать, чтобы дойти до нужной
@@ -80,6 +81,6 @@
 .unitRow { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
 .formFoot { display: flex; align-items: center; gap: var(--s-3); justify-content: flex-end; }
 .hint { font-size: 13px; color: var(--text-muted); }
-.linkBtn { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+.linkBtn { background: none; border: none; padding: 0; margin: 0; color: inherit; font-weight: 600; cursor: pointer; font-family: inherit; font-size: inherit; text-decoration: none; }
 .pager { display: flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-2) 0; }
 .pagerInfo { font-size: 13px; color: var(--text-muted); }

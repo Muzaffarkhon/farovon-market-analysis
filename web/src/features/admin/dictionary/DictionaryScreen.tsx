@@ -127,8 +127,8 @@ export function DictionaryScreen() {
             </thead>
             <tbody>
               {tf.filtered.map(it => (
-                <tr key={it.name}>
-                  <td><button type="button" className={s.linkBtn} onClick={() => setEditing(it)}>{it.name}</button></td>
+                <tr key={it.name} className={s.clickableRow} onClick={() => setEditing(it)}>
+                  <td>{it.name}</td>
                   {isCompany(it) && <>
                     <td>{it.segment || '—'}</td>
                     <td>{it.region || '—'}</td>
@@ -139,7 +139,7 @@ export function DictionaryScreen() {
                     <td>{it.payFrom || it.payTo ? `${it.payFrom || '—'} – ${it.payTo || '—'}` : '—'}</td>
                   </>}
                   <td>{it.used}</td>
-                  <td>
+                  <td onClick={e => e.stopPropagation()}>
                     {canEdit && <Button size="sm" variant="danger" onClick={() => handleDelete(it.name)}>Удалить</Button>}
                   </td>
                 </tr>

@@ -46,13 +46,13 @@ beforeEach(() => {
 
 test('таблица показывает пользователя из ответа API', async () => {
   renderScreen();
-  expect(await screen.findByRole('button', { name: 'Иванов Иван' })).toBeInTheDocument();
+  expect(await screen.findAllByText('Иванов Иван')).not.toHaveLength(0);
   expect(screen.getByText('Мастер')).toBeInTheDocument();
 });
 
 test('выключение активности запрашивает подтверждение', async () => {
   renderScreen();
-  await screen.findByRole('button', { name: 'Иванов Иван' });
+  await screen.findAllByText('Иванов Иван');
   await userEvent.click(screen.getByRole('checkbox', { name: /активен/ }));
   await userEvent.click(await screen.findByRole('button', { name: 'Отмена' }));
   expect(adminApiMock.toggleUser).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ test('выключение активности запрашивает подт�
 
 test('подтверждённый сброс пароля вызывает API', async () => {
   renderScreen();
-  await screen.findByRole('button', { name: 'Иванов Иван' });
+  await screen.findAllByText('Иванов Иван');
   await userEvent.click(screen.getByRole('button', { name: 'Сброс пароля' }));
   await userEvent.click(await screen.findByRole('button', { name: 'ОК' }));
   await waitFor(() => expect(adminApiMock.resetPassword).toHaveBeenCalledWith('ivanov'));
@@ -68,7 +68,7 @@ test('подтверждённый сброс пароля вызывает API'
 
 test('создание нового пользователя отправляет форму без логина', async () => {
   renderScreen();
-  await screen.findByRole('button', { name: 'Иванов Иван' });
+  await screen.findAllByText('Иванов Иван');
   await userEvent.click(screen.getByRole('button', { name: 'Добавить' }));
   await userEvent.type(screen.getByLabelText('ФИО'), 'Петров Пётр');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -80,6 +80,6 @@ test('создание нового пользователя отправляе�
 test('кнопка «Добавить» скрыта не у суперадмина', async () => {
   session = { user: { id: 2, login: 'cb_ivanov', fio: 'C&B Иванов', role: 'cb', units: [], capabilities: ['users:view', 'users:edit'], onboarded: true, hasTelegram: true } } as unknown as SessionData;
   renderScreen();
-  await screen.findByRole('button', { name: 'Иванов Иван' });
+  await screen.findAllByText('Иванов Иван');
   expect(screen.queryByRole('button', { name: 'Добавить' })).not.toBeInTheDocument();
 });

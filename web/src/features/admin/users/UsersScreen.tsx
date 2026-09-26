@@ -130,8 +130,8 @@ export function UsersScreen() {
             </thead>
             <tbody>
               {activeSort.sorted.map(row => (
-                <tr key={row.id} className={row.active ? '' : s.rowInactive}>
-                  <td><button type="button" className={s.linkBtn} onClick={() => setEditing(row)}>{row.fio}</button></td>
+                <tr key={row.id} className={[s.clickableRow, row.active ? '' : s.rowInactive].join(' ')} onClick={() => setEditing(row)}>
+                  <td>{row.fio}</td>
                   <td>{row.login}</td>
                   <td>{row.role}</td>
                   <td className={s.wrapCell} title={row.units.join('\n')}>
@@ -139,7 +139,7 @@ export function UsersScreen() {
                   </td>
                   <td>{row.phone}</td>
                   <td>{row.position}</td>
-                  <td>
+                  <td onClick={e => e.stopPropagation()}>
                     <label>
                       <input
                         type="checkbox" checked={row.active}
@@ -153,7 +153,7 @@ export function UsersScreen() {
                   </td>
                   <td>{row.hasTelegram ? <Badge tone="ok">есть</Badge> : <Badge tone="muted">нет</Badge>}</td>
                   <td>{row.lastIn || '—'}</td>
-                  <td style={{ display: 'flex', gap: 6 }}>
+                  <td style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                     <Button
                       size="sm" variant="secondary"
                       onClick={async () => { if (await confirm(`Сбросить пароль пользователю «${row.fio}»? Новый пароль придёт ему в Telegram.`)) u.resetPassword(row.login); }}
