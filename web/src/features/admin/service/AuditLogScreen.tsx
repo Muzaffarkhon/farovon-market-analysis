@@ -68,7 +68,7 @@ export function AuditLogScreen() {
         <Button size="sm" variant="secondary" loading={log.fetching} onClick={() => void log.refetch()}>Обновить</Button>
       </div>
 
-      <div className={s.tableWrapFill}>
+      <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead>
             <tr>
@@ -85,6 +85,30 @@ export function AuditLogScreen() {
                 <td><b>{l.login}</b></td>
                 <td>{l.action || '—'}</td>
                 <td className={s.wrapCell}>{l.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!sorted.length && <p className={s.empty} style={{ padding: 'var(--s-3)' }}>{log.logs.length ? 'Ничего не найдено' : 'Журнал пуст'}</p>}
+      </div>
+
+      {/* Узкий экран: запись только для просмотра, тапнуть некуда — вместо
+          4 колонок 2, каждая с двумя строками (время+логин, действие+детали),
+          текст переносится, а не обрезается вбок-скроллом. */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Когда · кто</th><th>Что произошло</th></tr></thead>
+          <tbody>
+            {pageRows.map(l => (
+              <tr key={l.id}>
+                <td>
+                  {fmtDateTime(l.dt)}
+                  <div className={s.hint}>{l.login}</div>
+                </td>
+                <td>
+                  {l.action || '—'}
+                  {l.detail && <div className={s.hint} style={{ overflowWrap: 'anywhere' }}>{l.detail}</div>}
+                </td>
               </tr>
             ))}
           </tbody>

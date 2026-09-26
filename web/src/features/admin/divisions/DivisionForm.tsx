@@ -12,12 +12,18 @@ import s from '../Admin.module.css';
  * недоступными для них здесь же, чтобы не выдавать иллюзию возможности:
  * значение видно, но менять его может только admin/cb.
  */
-export function DivisionForm({ division, suggestions, onClose, onSubmit, onApplyGroup }: {
+export function DivisionForm({ division, suggestions, onClose, onSubmit, onApplyGroup, onMove, onToggleHidden, onDelete }: {
   division: Division;
   suggestions: AdjacentGroupSuggestion[];
   onClose: () => void;
   onSubmit: (p: SaveDivisionPayload) => void;
   onApplyGroup: (p: { key: string; units: string[] }) => void;
+  /** Только на узком экране — на десктопе те же действия остаются в строке
+      таблицы (DivisionsScreen.tsx, .tableWrapFill без .hideOnMobile), в
+      .tableCompact для них нет места отдельной колонкой. */
+  onMove?: () => void;
+  onToggleHidden?: () => void;
+  onDelete?: () => void;
 }) {
   const { user } = useSessionData();
   const isAdmin = user.role === 'admin' || user.role === 'cb';
@@ -84,6 +90,17 @@ export function DivisionForm({ division, suggestions, onClose, onSubmit, onApply
         )}
 
         <div className={s.formFoot}>
+          {(onMove || onToggleHidden || onDelete) && (
+            <div className={s.mobileFormActions}>
+              {onMove && <Button size="sm" variant="secondary" onClick={onMove}>Переместить</Button>}
+              {onToggleHidden && (
+                <Button size="sm" variant="secondary" onClick={onToggleHidden}>
+                  {division.is_hidden ? 'Показать' : 'Скрыть'}
+                </Button>
+              )}
+              {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>Удалить</Button>}
+            </div>
+          )}
           <Button
             onClick={() => onSubmit({
               unit: division.unit,

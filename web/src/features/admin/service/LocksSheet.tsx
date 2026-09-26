@@ -37,7 +37,7 @@ export function LocksSheet({ locks, loading, unlocking, onUnlock, onClose }: {
           {!locks?.length && <p className={s.empty}>Заблокированных записей нет.</p>}
           {!!locks?.length && (
             <>
-              <div className={s.tableWrap} style={{ maxHeight: 360 }}>
+              <div className={[s.tableWrap, s.hideOnMobile].join(' ')} style={{ maxHeight: 360 }}>
                 <table className={s.table}>
                   <thead>
                     <tr>
@@ -56,6 +56,31 @@ export function LocksSheet({ locks, loading, unlocking, onUnlock, onClose }: {
                         <td>{l.comps}</td>
                         <td>{l.survs}</td>
                         <td><Button size="sm" variant="secondary" loading={unlocking} onClick={() => unlockOwner(l.owner)}>Снять</Button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Узкий экран: та же таблица без отдельной колонки под
+                  кнопку — «Снять» переезжает под данные автора в той же
+                  строке, а не отдельным вбок-скроллом. */}
+              <div className={s.tableWrapFill} style={{ maxHeight: 360 }}>
+                <table className={s.tableCompact}>
+                  <thead><tr><th>Автор</th><th>Записей</th></tr></thead>
+                  <tbody>
+                    {locks.map(l => (
+                      <tr key={l.owner}>
+                        <td>
+                          {l.owner}
+                          <div className={s.hint}>{l.role}</div>
+                        </td>
+                        <td>
+                          {l.comps} участников · {l.survs} анкет
+                          <div className={s.mobileFormActions} style={{ marginTop: 6 }}>
+                            <Button size="sm" variant="secondary" loading={unlocking} onClick={() => unlockOwner(l.owner)}>Снять</Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

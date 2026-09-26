@@ -56,7 +56,7 @@ export function PeriodsScreen() {
         <Button size="sm" onClick={() => setFormAction('new')}>Открыть новый период</Button>
       </div>
 
-      <div className={s.tableWrap}>
+      <div className={[s.tableWrap, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead>
             <tr>
@@ -95,6 +95,47 @@ export function PeriodsScreen() {
                     </Button>
                   )}
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Узкий экран: действия «Сделать активным»/«Удалить» нужны только у
+          неактивных периодов и не помещаются отдельной колонкой (у этой
+          таблицы, в отличие от других списков, нет своей карточки-формы,
+          куда их можно перенести) — остаются под названием периода прямо
+          в компактной строке. */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Период</th><th>Статус</th></tr></thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.id}>
+                <td>
+                  {row.name}
+                  {!row.isActive && (
+                    <div className={s.mobileFormActions} style={{ marginTop: 6 }}>
+                      <Button
+                        size="sm" variant="secondary"
+                        onClick={async () => {
+                          if (await confirm(`Текущим станет период «${row.name}» и он будет открыт. Прежний активный период станет архивным (данные сохранятся).`)) {
+                            p.setPeriod({ action: 'activate', id: row.id });
+                          }
+                        }}
+                      >
+                        Сделать активным
+                      </Button>
+                      <Button
+                        size="sm" variant="danger" disabled={row.surveysCount > 0}
+                        onClick={async () => { if (await confirm({ message: 'Период пустой (0 анкет) — удаление необратимо. Удалить?', danger: true })) p.remove(row.id); }}
+                      >
+                        Удалить
+                      </Button>
+                    </div>
+                  )}
+                </td>
+                <td>{row.isActive ? `Активен${row.state === 'закрыт' ? ' · закрыт' : ''}` : row.state} · {row.surveysCount} анкет</td>
               </tr>
             ))}
           </tbody>

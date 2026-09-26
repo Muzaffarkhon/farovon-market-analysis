@@ -72,7 +72,7 @@ export function StaffScreen() {
         {tf.filtered.length === (st.items ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(st.items ?? []).length} записей`}
       </p>
 
-      <div className={s.tableWrapFill}>
+      <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead>
             <tr>
@@ -103,11 +103,31 @@ export function StaffScreen() {
         </table>
       </div>
 
+      {/* Узкий экран: та же таблица, только без отдельной колонки под кнопку
+          «Удалить» — она не помещалась бы рядом с текстом. Удаление
+          переехало в форму (StaffRecordForm, кнопка снизу только при правке
+          существующей записи), тот же приём, что и в «Пользователях». */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>ФИО</th><th>Подразделение / должность</th></tr></thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.id} className={s.clickableRow} onClick={() => setEditing(row)}>
+                <td>{row.fio}</td>
+                <td>{row.unit}<div className={s.hint}>{row.position}</div></td>
+              </tr>
+            ))}
+            {!sorted.length && <tr><td colSpan={2} className={s.empty}>{(st.items ?? []).length ? 'Ничего не найдено' : 'Справочник пуст'}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
       {editing && (
         <StaffRecordForm
           record={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSubmit={p => { st.save(p); setEditing(null); }}
+          onDelete={editing !== 'new' ? async () => { if (await confirm({ message: `Удалить запись «${editing.fio}»?`, danger: true })) { st.remove(editing.id); setEditing(null); } } : undefined}
         />
       )}
 
@@ -123,10 +143,15 @@ export function StaffScreen() {
   );
 }
 
-function StaffRecordForm({ record, onClose, onSubmit }: {
+function StaffRecordForm({ record, onClose, onSubmit, onDelete }: {
   record: StaffRecord | null;
   onClose: () => void;
   onSubmit: (p: { id?: number; unit: string; fio: string; position: string }) => void;
+  /** Только для правки существующей записи — на узком экране .tableCompact
+      не показывает отдельную колонку под «Удалить» (см. StaffScreen.tsx),
+      действие переехало сюда; на десктопе там же остаётся своя кнопка в
+      строке таблицы, .mobileFormActions скрывает эту от 768px. */
+  onDelete?: () => void;
 }) {
   const [unit, setUnit] = useState(record?.unit ?? '');
   const [fio, setFio] = useState(record?.fio ?? '');
@@ -139,6 +164,11 @@ function StaffRecordForm({ record, onClose, onSubmit }: {
         <Input label="ФИО" value={fio} onChange={e => setFio(e.target.value)} />
         <Input label="Должность" value={position} onChange={e => setPosition(e.target.value)} />
         <div className={s.formFoot}>
+          {onDelete && (
+            <div className={s.mobileFormActions}>
+              <Button size="sm" variant="danger" onClick={onDelete}>Удалить</Button>
+            </div>
+          )}
           <Button disabled={!unit.trim() || !fio.trim()} onClick={() => onSubmit({ id: record?.id, unit: unit.trim(), fio: fio.trim(), position: position.trim() })}>
             Сохранить
           </Button>

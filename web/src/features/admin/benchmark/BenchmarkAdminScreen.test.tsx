@@ -24,9 +24,9 @@ beforeEach(() => {
 
 test('вкладки переключаются: источники, сопоставление, наборы данных', async () => {
   renderScreen();
-  expect(await screen.findByText('Внешний консультант')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Внешний консультант' })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Сопоставление' }));
-  expect(await screen.findByText('Сопоставлений ещё нет')).toBeInTheDocument();
+  expect((await screen.findAllByText('Сопоставлений ещё нет')).length).toBeGreaterThan(0);
   await userEvent.click(screen.getByRole('button', { name: 'Наборы данных' }));
-  expect(await screen.findByText('Датасетов пока нет')).toBeInTheDocument();
+  expect((await screen.findAllByText('Датасетов пока нет')).length).toBeGreaterThan(0);
 });

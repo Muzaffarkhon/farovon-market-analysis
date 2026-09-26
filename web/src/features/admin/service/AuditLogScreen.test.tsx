@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as adminApiModule from '../../../api/admin';
 import { AuditLogScreen } from './AuditLogScreen';
@@ -22,16 +22,23 @@ function mockApi() {
 }
 
 describe('AuditLogScreen', () => {
+  // Узкий экран показывает ту же таблицу компактной версткой (AuditLogScreen.tsx,
+  // .tableCompact) — та же запись оказывается в DOM дважды (jsdom не считает
+  // media query), поэтому проверки строк и текста здесь и ниже нарочно
+  // scoped на первую (полную) таблицу.
+  function fullTable() {
+    return screen.getAllByRole('table')[0];
+  }
   function rows() {
-    return screen.getAllByRole('row').slice(1); // без заголовка
+    return within(fullTable()).getAllByRole('row').slice(1); // без заголовка
   }
 
   it('показывает записи журнала', async () => {
     mockApi();
     renderScreen();
     await waitFor(() => expect(rows()).toHaveLength(2));
-    expect(screen.getByText('ivanov')).toBeInTheDocument();
-    expect(screen.getByText(/Рассылка #10/)).toBeInTheDocument();
+    expect(within(fullTable()).getByText('ivanov')).toBeInTheDocument();
+    expect(within(fullTable()).getByText(/Рассылка #10/)).toBeInTheDocument();
   });
 
   it('поиск фильтрует по логину и деталям', async () => {
@@ -42,7 +49,7 @@ describe('AuditLogScreen', () => {
 
     await user.type(screen.getByLabelText('Поиск'), 'ivanov');
     await waitFor(() => expect(rows()).toHaveLength(1));
-    expect(screen.getByText('ivanov')).toBeInTheDocument();
+    expect(within(fullTable()).getByText('ivanov')).toBeInTheDocument();
   });
 
   it('фильтр по действию сужает список', async () => {
@@ -53,6 +60,6 @@ describe('AuditLogScreen', () => {
 
     await user.selectOptions(screen.getByLabelText('Действие'), 'рассылка');
     await waitFor(() => expect(rows()).toHaveLength(1));
-    expect(screen.getByText(/Рассылка #10/)).toBeInTheDocument();
+    expect(within(fullTable()).getByText(/Рассылка #10/)).toBeInTheDocument();
   });
 });

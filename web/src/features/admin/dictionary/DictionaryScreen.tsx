@@ -114,7 +114,7 @@ export function DictionaryScreen() {
       </p>
 
       {dict.error ? <p className={s.empty}>{dict.error.message}</p> : dict.loading ? <Skeleton lines={8} /> : (
-        <div className={s.tableWrapFill}>
+        <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
           <table className={s.table}>
             <thead>
               <tr>
@@ -150,6 +150,27 @@ export function DictionaryScreen() {
         </div>
       )}
 
+      {/* Узкий экран: колонки в таблице зависят от вида справочника, на
+          телефоне общие для всех — название и использования; остальное
+          смотрят в самой карточке. Удаление — тоже туда (.mobileFormActions
+          в DictItemForm), в компактной таблице для него нет колонки. */}
+      {!dict.error && !dict.loading && (
+        <div className={s.tableWrapFill}>
+          <table className={s.tableCompact}>
+            <thead><tr><th>Название</th><th>Использований</th></tr></thead>
+            <tbody>
+              {tf.filtered.map(it => (
+                <tr key={it.name} className={s.clickableRow} onClick={() => setEditing(it)}>
+                  <td>{it.name}</td>
+                  <td>{it.used}</td>
+                </tr>
+              ))}
+              {!tf.filtered.length && <tr><td colSpan={2} className={s.empty}>{(dict.items ?? []).length ? 'Ничего не найдено' : `Справочник «${meta.label}» пока пуст`}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {editing && (
         <DictItemForm
           kind={kind}
@@ -159,6 +180,7 @@ export function DictionaryScreen() {
           regionOptions={(regionsDict.items ?? []).map(i => i.name)}
           onClose={() => setEditing(null)}
           onSubmit={p => { dict.save(p); setEditing(null); }}
+          onDelete={editing !== 'new' && canEdit ? () => { setEditing(null); handleDelete(editing.name); } : undefined}
         />
       )}
 
@@ -169,7 +191,7 @@ export function DictionaryScreen() {
   );
 }
 
-function DictItemForm({ kind, item, dirOptions, segmentOptions, regionOptions, onClose, onSubmit }: {
+function DictItemForm({ kind, item, dirOptions, segmentOptions, regionOptions, onClose, onSubmit, onDelete }: {
   kind: DictKind;
   item: DictItem | null;
   dirOptions: string[];
@@ -177,6 +199,11 @@ function DictItemForm({ kind, item, dirOptions, segmentOptions, regionOptions, o
   regionOptions: string[];
   onClose: () => void;
   onSubmit: (p: { prev: string; name: string; segment?: string; region?: string; dirs?: string[]; payFrom?: number; payTo?: number }) => void;
+  /** Только на узком экране — там компактная таблица не показывает колонку
+      «Удалить» (DictionaryScreen.tsx, .tableCompact); на десктопе действие
+      остаётся своей кнопкой в строке таблицы, .mobileFormActions скрывает
+      эту от 768px. */
+  onDelete?: () => void;
 }) {
   const company = item && isCompany(item) ? item : null;
   const position = item && isPosition(item) ? item : null;
@@ -224,6 +251,11 @@ function DictItemForm({ kind, item, dirOptions, segmentOptions, regionOptions, o
         )}
 
         <div className={s.formFoot}>
+          {onDelete && (
+            <div className={s.mobileFormActions}>
+              <Button size="sm" variant="danger" onClick={onDelete}>Удалить</Button>
+            </div>
+          )}
           <Button
             disabled={!name.trim()}
             onClick={() => onSubmit({ prev: item?.name ?? '', name: name.trim(), segment, region, dirs, payFrom, payTo })}

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmHost } from '../../../design/Confirm';
 import * as compApi from '../../../api/compReview';
@@ -30,10 +30,17 @@ function mockApi() {
 }
 
 describe('CompCommitteeScreen', () => {
+  // Узкий экран дублирует состав компактной таблицей (.tableCompact) — в
+  // DOM (jsdom не считает media query) запись оказывается дважды, поэтому
+  // проверки здесь scoped на первую (полную) таблицу.
+  function fullTable() {
+    return screen.getAllByRole('table')[0];
+  }
+
   it('показывает состав и режим голосования', async () => {
     mockApi();
     renderScreen();
-    await waitFor(() => expect(screen.getByText('Иванов Иван')).toBeInTheDocument());
+    await waitFor(() => expect(within(fullTable()).getByText('Иванов Иван')).toBeInTheDocument());
     expect(screen.getByDisplayValue(/Закрытое/)).toBeInTheDocument();
   });
 
@@ -41,7 +48,7 @@ describe('CompCommitteeScreen', () => {
     const { saveSettings } = mockApi();
     const user = userEvent.setup();
     renderScreen();
-    await waitFor(() => expect(screen.getByText('Иванов Иван')).toBeInTheDocument());
+    await waitFor(() => expect(within(fullTable()).getByText('Иванов Иван')).toBeInTheDocument());
 
     await user.selectOptions(screen.getByLabelText('Режим голосования'), 'open');
     await waitFor(() => expect(saveSettings).toHaveBeenCalledWith('open'));
@@ -51,14 +58,14 @@ describe('CompCommitteeScreen', () => {
     const { add, remove } = mockApi();
     const user = userEvent.setup();
     renderScreen();
-    await waitFor(() => expect(screen.getByText('Иванов Иван')).toBeInTheDocument());
+    await waitFor(() => expect(within(fullTable()).getByText('Иванов Иван')).toBeInTheDocument());
 
     await user.type(screen.getByLabelText('Сотрудник'), 'Петров');
     await user.click(await screen.findByText('Петров Пётр (petrov)'));
     await user.click(screen.getByRole('button', { name: 'Добавить в комиссию' }));
     await waitFor(() => expect(add).toHaveBeenCalledWith('petrov'));
 
-    await user.click(screen.getByRole('button', { name: 'Исключить' }));
+    await user.click(within(fullTable()).getByRole('button', { name: 'Исключить' }));
     await user.click(await screen.findByRole('button', { name: 'ОК' }));
     await waitFor(() => expect(remove).toHaveBeenCalledWith('ivanov'));
   });

@@ -31,7 +31,7 @@ beforeEach(() => {
 
 test('таблица показывает запись из ответа API', async () => {
   renderScreen();
-  expect(await screen.findByText('Иванов Иван')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Иванов Иван' })).toBeInTheDocument();
 });
 
 function mockFile(text: string) {
@@ -42,7 +42,7 @@ function mockFile(text: string) {
 
 test('мастер импорта не отправляет commit, пока не выполнен dry-run', async () => {
   renderScreen();
-  await screen.findByText('Иванов Иван');
+  await screen.findByRole('button', { name: 'Иванов Иван' });
   await userEvent.click(screen.getByRole('button', { name: 'Импорт из 1С' }));
   const input = screen.getByLabelText('Файл CSV') as HTMLInputElement;
   await userEvent.upload(input, mockFile('Должность,Подразделение организации,ФИО (полное)\nМастер,Цех 1,Иванов Иван\n'));
@@ -54,7 +54,7 @@ test('мастер импорта не отправляет commit, пока н�
 
 test('после dry-run подтверждение вызывает commit с тем же файлом', async () => {
   renderScreen();
-  await screen.findByText('Иванов Иван');
+  await screen.findByRole('button', { name: 'Иванов Иван' });
   await userEvent.click(screen.getByRole('button', { name: 'Импорт из 1С' }));
   const input = screen.getByLabelText('Файл CSV') as HTMLInputElement;
   const csv = 'Должность,Подразделение организации,ФИО (полное)\nМастер,Цех 1,Иванов Иван\n';

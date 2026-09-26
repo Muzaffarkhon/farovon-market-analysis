@@ -41,7 +41,7 @@ export function SourcesTab() {
       <div className={s.head}>
         <Button size="sm" onClick={() => setEditing('new')}>Новый источник</Button>
       </div>
-      <div className={s.tableWrapFill}>
+      <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead>
             <tr>
@@ -76,11 +76,32 @@ export function SourcesTab() {
         </table>
       </div>
 
+      {/* Узкий экран: название и тип, остальное (валюта/лицензия/вес/скрыт)
+          и переключатель «Скрыть/Показать» — в форме редактирования. */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Название</th><th>Тип</th></tr></thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.key} className={s.clickableRow} onClick={() => setEditing(row)}>
+                <td>{row.title}</td>
+                <td>{KINDS.find(k => k.value === row.kind)?.label ?? row.kind}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {editing === 'new' && (
         <CreateSourceForm onClose={() => setEditing(null)} onSubmit={p => { src.create(p); setEditing(null); }} />
       )}
       {editing && editing !== 'new' && (
-        <EditSourceForm source={editing} onClose={() => setEditing(null)} onSubmit={p => { src.update(p); setEditing(null); }} />
+        <EditSourceForm
+          source={editing}
+          onClose={() => setEditing(null)}
+          onSubmit={p => { src.update(p); setEditing(null); }}
+          onToggleHidden={editing.key !== 'internal' ? () => { src.update({ key: editing.key, hidden: !editing.hidden }); setEditing(null); } : undefined}
+        />
       )}
     </div>
   );
@@ -118,10 +139,13 @@ function CreateSourceForm({ onClose, onSubmit }: {
   );
 }
 
-function EditSourceForm({ source, onClose, onSubmit }: {
+function EditSourceForm({ source, onClose, onSubmit, onToggleHidden }: {
   source: BenchmarkSource;
   onClose: () => void;
   onSubmit: (p: { key: string; title: string; kind: string; defaultCurrency: string; isLicensed: boolean; notes: string }) => void;
+  /** Только на узком экране — на десктопе переключатель остаётся в строке
+      таблицы (SourcesTab.tsx, .tableWrapFill без .hideOnMobile). */
+  onToggleHidden?: () => void;
 }) {
   const [title, setTitle] = useState(source.title);
   const [kind, setKind] = useState(source.kind);
@@ -140,6 +164,11 @@ function EditSourceForm({ source, onClose, onSubmit }: {
         </label>
         <Input label="Примечание" value={notes} onChange={e => setNotes(e.target.value)} />
         <div className={s.formFoot}>
+          {onToggleHidden && (
+            <div className={s.mobileFormActions}>
+              <Button size="sm" variant="secondary" onClick={onToggleHidden}>{source.hidden ? 'Показать' : 'Скрыть'}</Button>
+            </div>
+          )}
           <Button onClick={() => onSubmit({ key: source.key, title, kind, defaultCurrency, isLicensed, notes })}>Сохранить</Button>
         </div>
       </div>

@@ -94,7 +94,7 @@ export function DivisionsScreen() {
         {tf.filtered.length === (d.divisions ?? []).length ? `${tf.filtered.length} записей` : `${tf.filtered.length} из ${(d.divisions ?? []).length} записей`}
       </p>
 
-      <div className={s.tableWrapFill}>
+      <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead>
             <tr>
@@ -146,6 +146,25 @@ export function DivisionsScreen() {
         </table>
       </div>
 
+      {/* Узкий экран: названия подразделений/направлений длинные — 3 колонки
+          не влезали (см. заметку выше про 56px), оставлены 2, «Направление»
+          подписью под названием. «Переместить»/«Скрыть-Показать»/«Удалить»
+          переехали в форму (DivisionForm, .mobileFormActions). */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Подразделение</th><th>Руководитель</th></tr></thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.id} className={s.clickableRow} onClick={() => setEditing(row)}>
+                <td>{row.unit}<div className={s.hint}>{row.dir}</div></td>
+                <td>{row.head}</td>
+              </tr>
+            ))}
+            {!sorted.length && <tr><td colSpan={2} className={s.empty}>Подразделения не найдены</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
       {editing && (
         <DivisionForm
           division={editing}
@@ -153,6 +172,11 @@ export function DivisionsScreen() {
           onClose={() => setEditing(null)}
           onSubmit={p => { d.save(p); setEditing(null); }}
           onApplyGroup={p => d.applyAdjacentGroup(p)}
+          onMove={() => { setEditing(null); setMoving(editing); }}
+          onToggleHidden={() => { d.setHidden({ unit: editing.unit, hidden: !editing.is_hidden }); setEditing(null); }}
+          onDelete={isAdmin ? async () => {
+            if (await confirm({ message: `Удалить подразделение «${editing.unit}»?`, danger: true })) { d.remove(editing.unit); setEditing(null); }
+          } : undefined}
         />
       )}
 

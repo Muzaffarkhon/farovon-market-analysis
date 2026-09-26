@@ -30,7 +30,7 @@ export function CompCommitteeScreen() {
       />
 
       <h4 className={s.hint} style={{ marginTop: 'var(--s-4)' }}>Состав комиссии — решает большинством от состава</h4>
-      <div className={s.tableWrap}>
+      <div className={[s.tableWrap, s.hideOnMobile].join(' ')}>
         <table className={s.table}>
           <thead><tr><th>ФИО</th><th>Логин</th><th></th></tr></thead>
           <tbody>
@@ -48,6 +48,30 @@ export function CompCommitteeScreen() {
               </tr>
             ))}
             {!c.members.length && <tr><td colSpan={3} className={s.empty}>Комиссия не назначена</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Узкий экран: ФИО и логин в одной колонке, действие — во второй,
+          без третьей колонки под кнопку (не помещалась бы). */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Участник</th><th></th></tr></thead>
+          <tbody>
+            {c.members.map(m => (
+              <tr key={m.login}>
+                <td>{m.fio}<div className={s.hint}>{m.login}</div></td>
+                <td>
+                  <Button
+                    size="sm" variant="danger"
+                    onClick={async () => { if (await confirm({ message: `Исключить «${m.fio}» из комиссии?`, danger: true })) c.remove(m.login); }}
+                  >
+                    Исключить
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!c.members.length && <tr><td colSpan={2} className={s.empty}>Комиссия не назначена</td></tr>}
           </tbody>
         </table>
       </div>

@@ -25,39 +25,68 @@ export function DatasetsTab() {
   if (d.loading) return <Skeleton lines={4} />;
 
   return (
-    <div className={s.tableWrapFill}>
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <SortTh label="Датасет" sortKey="title" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
-            <SortTh label="Источник" sortKey="source" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
-            <SortTh label="Дата данных" sortKey="dataAsOf" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
-            <SortTh label="Строк" sortKey="rows" activeKey={sortKey} dir={sortDir} onSort={sortBy} numeric />
-            <SortTh label="Загружен" sortKey="uploaded" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map(row => (
-            <tr key={row.id}>
-              <td>{row.title}</td>
-              <td>{row.source_title}</td>
-              <td>{row.data_as_of ?? row.report_date ?? '—'}</td>
-              <td>{row.row_count}</td>
-              <td>{row.uploaded_by} · {row.uploaded_at}</td>
-              <td>
-                <Button
-                  size="sm" variant="danger"
-                  onClick={async () => { if (await confirm({ message: `Удалить датасет «${row.title}» вместе со всеми строками?`, danger: true })) d.remove(row.id); }}
-                >
-                  Удалить
-                </Button>
-              </td>
+    <>
+      <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <SortTh label="Датасет" sortKey="title" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Источник" sortKey="source" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Дата данных" sortKey="dataAsOf" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <SortTh label="Строк" sortKey="rows" activeKey={sortKey} dir={sortDir} onSort={sortBy} numeric />
+              <SortTh label="Загружен" sortKey="uploaded" activeKey={sortKey} dir={sortDir} onSort={sortBy} />
+              <th></th>
             </tr>
-          ))}
-          {!d.datasets?.length && <tr><td colSpan={6} className={s.empty}>Датасетов пока нет</td></tr>}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.id}>
+                <td>{row.title}</td>
+                <td>{row.source_title}</td>
+                <td>{row.data_as_of ?? row.report_date ?? '—'}</td>
+                <td>{row.row_count}</td>
+                <td>{row.uploaded_by} · {row.uploaded_at}</td>
+                <td>
+                  <Button
+                    size="sm" variant="danger"
+                    onClick={async () => { if (await confirm({ message: `Удалить датасет «${row.title}» вместе со всеми строками?`, danger: true })) d.remove(row.id); }}
+                  >
+                    Удалить
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!d.datasets?.length && <tr><td colSpan={6} className={s.empty}>Датасетов пока нет</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Узкий экран: без формы редактирования (датасеты только загружают и
+          удаляют) — данные одной колонкой, кнопка удаления второй. */}
+      <div className={s.tableWrapFill}>
+        <table className={s.tableCompact}>
+          <thead><tr><th>Датасет</th><th></th></tr></thead>
+          <tbody>
+            {sorted.map(row => (
+              <tr key={row.id}>
+                <td>
+                  {row.title}
+                  <div className={s.hint}>{row.source_title} · {row.data_as_of ?? row.report_date ?? '—'} · {row.row_count} строк</div>
+                </td>
+                <td>
+                  <Button
+                    size="sm" variant="danger"
+                    onClick={async () => { if (await confirm({ message: `Удалить датасет «${row.title}» вместе со всеми строками?`, danger: true })) d.remove(row.id); }}
+                  >
+                    Удалить
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {!d.datasets?.length && <tr><td colSpan={2} className={s.empty}>Датасетов пока нет</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

@@ -39,61 +39,110 @@ export function MappingTab({ sources }: { sources: BenchmarkSource[] }) {
 
       <h4 className={s.hint}>Уже сопоставлено</h4>
       {m.mappingsLoading ? <Skeleton lines={3} /> : (
-        <div className={s.tableWrap}>
-          <table className={s.table}>
-            <thead>
-              <tr>
-                <SortTh label="Наша должность" sortKey="our" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
-                <SortTh label="Должность источника" sortKey="source" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
-                <SortTh label="Точность" sortKey="confidence" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappingsSort.sorted.map(row => (
-                <tr key={row.id}>
-                  <td>{row.dict_position_name}</td>
-                  <td>{row.source_label}</td>
-                  <td>{row.confidence}</td>
-                  <td><Button size="sm" variant="danger" onClick={async () => { if (await confirm({ message: 'Удалить сопоставление?', danger: true })) m.remove(row.id); }}>Удалить</Button></td>
+        <>
+          <div className={[s.tableWrap, s.hideOnMobile].join(' ')}>
+            <table className={s.table}>
+              <thead>
+                <tr>
+                  <SortTh label="Наша должность" sortKey="our" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
+                  <SortTh label="Должность источника" sortKey="source" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
+                  <SortTh label="Точность" sortKey="confidence" activeKey={mappingsSort.sortKey} dir={mappingsSort.sortDir} onSort={mappingsSort.sortBy} />
+                  <th></th>
                 </tr>
-              ))}
-              {!m.mappings?.length && <tr><td colSpan={4} className={s.empty}>Сопоставлений ещё нет</td></tr>}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {mappingsSort.sorted.map(row => (
+                  <tr key={row.id}>
+                    <td>{row.dict_position_name}</td>
+                    <td>{row.source_label}</td>
+                    <td>{row.confidence}</td>
+                    <td><Button size="sm" variant="danger" onClick={async () => { if (await confirm({ message: 'Удалить сопоставление?', danger: true })) m.remove(row.id); }}>Удалить</Button></td>
+                  </tr>
+                ))}
+                {!m.mappings?.length && <tr><td colSpan={4} className={s.empty}>Сопоставлений ещё нет</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Узкий экран: пара «наша ↔ источник» и точность — одной колонкой,
+              кнопка удаления — второй, без отдельной колонки на каждое поле. */}
+          <div className={s.tableWrapFill}>
+            <table className={s.tableCompact}>
+              <thead><tr><th>Сопоставление</th><th></th></tr></thead>
+              <tbody>
+                {mappingsSort.sorted.map(row => (
+                  <tr key={row.id}>
+                    <td>
+                      {row.dict_position_name}
+                      <div className={s.hint}>← {row.source_label} · {row.confidence}</div>
+                    </td>
+                    <td><Button size="sm" variant="danger" onClick={async () => { if (await confirm({ message: 'Удалить сопоставление?', danger: true })) m.remove(row.id); }}>Удалить</Button></td>
+                  </tr>
+                ))}
+                {!m.mappings?.length && <tr><td colSpan={2} className={s.empty}>Сопоставлений ещё нет</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <h4 className={s.hint} style={{ marginTop: 'var(--s-4)' }}>Автоподсказки для несопоставленных</h4>
       {m.suggestionsLoading ? <Skeleton lines={3} /> : (
-        <div className={s.tableWrap}>
-          <table className={s.table}>
-            <thead>
-              <tr>
-                <SortTh label="Должность источника" sortKey="source" activeKey={suggestionsSort.sortKey} dir={suggestionsSort.sortDir} onSort={suggestionsSort.sortBy} />
-                <SortTh label="Предполагаемое соответствие" sortKey="suggested" activeKey={suggestionsSort.sortKey} dir={suggestionsSort.sortDir} onSort={suggestionsSort.sortBy} />
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {suggestionsSort.sorted.map(row => (
-                <tr key={row.sourcePosition.id}>
-                  <td>{row.sourcePosition.label}</td>
-                  <td>{row.suggestedDictPosition.name}</td>
-                  <td>
-                    <Button
-                      size="sm"
-                      onClick={() => m.save({ dictPositionId: row.suggestedDictPosition.id, sourcePositionId: row.sourcePosition.id, confidence: 'suggested' })}
-                    >
-                      Подтвердить
-                    </Button>
-                  </td>
+        <>
+          <div className={[s.tableWrap, s.hideOnMobile].join(' ')}>
+            <table className={s.table}>
+              <thead>
+                <tr>
+                  <SortTh label="Должность источника" sortKey="source" activeKey={suggestionsSort.sortKey} dir={suggestionsSort.sortDir} onSort={suggestionsSort.sortBy} />
+                  <SortTh label="Предполагаемое соответствие" sortKey="suggested" activeKey={suggestionsSort.sortKey} dir={suggestionsSort.sortDir} onSort={suggestionsSort.sortBy} />
+                  <th></th>
                 </tr>
-              ))}
-              {!m.suggestions?.length && <tr><td colSpan={3} className={s.empty}>Подсказок нет — все должности сопоставлены или без явного соответствия</td></tr>}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {suggestionsSort.sorted.map(row => (
+                  <tr key={row.sourcePosition.id}>
+                    <td>{row.sourcePosition.label}</td>
+                    <td>{row.suggestedDictPosition.name}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        onClick={() => m.save({ dictPositionId: row.suggestedDictPosition.id, sourcePositionId: row.sourcePosition.id, confidence: 'suggested' })}
+                      >
+                        Подтвердить
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {!m.suggestions?.length && <tr><td colSpan={3} className={s.empty}>Подсказок нет — все должности сопоставлены или без явного соответствия</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={s.tableWrapFill}>
+            <table className={s.tableCompact}>
+              <thead><tr><th>Соответствие</th><th></th></tr></thead>
+              <tbody>
+                {suggestionsSort.sorted.map(row => (
+                  <tr key={row.sourcePosition.id}>
+                    <td>
+                      {row.sourcePosition.label}
+                      <div className={s.hint}>→ {row.suggestedDictPosition.name}</div>
+                    </td>
+                    <td>
+                      <Button
+                        size="sm"
+                        onClick={() => m.save({ dictPositionId: row.suggestedDictPosition.id, sourcePositionId: row.sourcePosition.id, confidence: 'suggested' })}
+                      >
+                        Подтвердить
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {!m.suggestions?.length && <tr><td colSpan={2} className={s.empty}>Подсказок нет — все должности сопоставлены или без явного соответствия</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
