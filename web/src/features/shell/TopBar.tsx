@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { Icon } from '../../design/Icon';
 import { toggleTheme } from '../../design/theme';
 import { useToast } from '../../design/Toast';
 import { useSession, useSessionData } from '../auth/useSession';
@@ -17,6 +18,12 @@ export function TopBar({ title }: { title: string }) {
   const toast = useToast();
   const [menu, setMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Синхронный дублёр state-флага: `refreshing` обновляется асинхронно, и
+  // быстрый повторный клик (или двойной клик) успевал прочитать ещё не
+  // обновлённое значение из замыкания и проскакивал мимо проверки — второй
+  // invalidateQueries запускался параллельно первому, и на выходе оба
+  // «финалли» показывали свой тост «Обновлено» (стопка одинаковых тостов).
+  const refreshingRef = useRef(false);
 
   // invalidateQueries сам по себе не даёт понять, сработал ли клик: пока
   // запросы перезагружаются, крутим иконку (та же анимация, что и у жеста
@@ -24,7 +31,8 @@ export function TopBar({ title }: { title: string }) {
   // коротко подтверждаем тостом. Минимум 400мс — иначе на быстром кэше
   // спин мелькает и не читается как обратная связь.
   const handleRefresh = async () => {
-    if (refreshing) return;
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     setRefreshing(true);
     const started = Date.now();
     try {
@@ -32,6 +40,7 @@ export function TopBar({ title }: { title: string }) {
     } finally {
       const left = 400 - (Date.now() - started);
       if (left > 0) await new Promise(r => setTimeout(r, left));
+      refreshingRef.current = false;
       setRefreshing(false);
       toast.show('Обновлено', 'ok');
     }
@@ -55,14 +64,14 @@ export function TopBar({ title }: { title: string }) {
         <PeriodPicker />
         <span className={s.userLogin}>{user.login}</span>
         <button type="button" className={s.iconBtn} aria-label="Обновить" disabled={refreshing} onClick={() => void handleRefresh()}>
-          <span className={[s.iconGlyph, refreshing ? s.pullSpin : ''].join(' ')} aria-hidden="true">⟳</span>
+          <span className={[s.iconGlyph, refreshing ? s.pullSpin : ''].join(' ')} aria-hidden="true"><Icon name="refresh" size={16} /></span>
         </button>
         <button type="button" className={s.iconBtn} aria-label="Тема" onClick={() => toggleTheme()}>
-          <span className={s.iconGlyph} aria-hidden="true">◐</span>
+          <span className={s.iconGlyph} aria-hidden="true"><Icon name="contrast" size={16} /></span>
         </button>
         <div className={s.more}>
           <button type="button" className={s.iconBtn} aria-label="Ещё" aria-expanded={menu} onClick={() => setMenu(m => !m)}>
-            <span className={s.iconGlyph} aria-hidden="true">⋯</span>
+            <span className={s.iconGlyph} aria-hidden="true"><Icon name="more" size={16} /></span>
           </button>
           {menu && (
             <div className={s.menu} role="menu" onMouseLeave={() => setMenu(false)}>

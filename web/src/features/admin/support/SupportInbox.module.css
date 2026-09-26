@@ -24,7 +24,7 @@
 .msg { max-width: 85%; padding: var(--s-2) var(--s-3); border-radius: var(--r-md); font-size: 14px; white-space: pre-wrap; }
 .msgIn { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); }
 .msgOut { align-self: flex-end; background: var(--accent); color: var(--accent-text); }
-.msgMeta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.msgMeta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
 .replyRow { display: flex; gap: var(--s-2); align-items: flex-end; margin-top: var(--s-3); }
 .replyRow textarea { flex: 1; }

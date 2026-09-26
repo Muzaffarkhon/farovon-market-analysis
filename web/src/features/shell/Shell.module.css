@@ -21,7 +21,7 @@
 .logoMark {
   display: none; flex: none; width: 26px; height: 26px; border-radius: var(--r-sm);
   background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
-  box-shadow: var(--icon-3d-shadow); align-items: center; justify-content: center;
+  box-shadow: var(--shadow); align-items: center; justify-content: center;
 }
 @media (max-width: 767px) {
   .logoMark { display: flex; }
@@ -46,8 +46,7 @@
 .iconBtn:hover .iconGlyph { filter: brightness(1.05); }
 .iconGlyph {
   width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-sm); font-size: 15px; line-height: 1;
-  background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow); color: var(--accent);
+  border-radius: var(--r-sm); background: var(--icon-tile-bg); color: var(--accent);
 }
 .offline { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
 .userLogin { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
@@ -94,8 +93,8 @@
 /* transition — переход в приподнятый кружок (и обратно) плавный, кружок
    не «прыгает» мгновенно с одного раздела на другой. */
 .tabIcon {
-  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 15px;
-  border-radius: var(--r-sm); background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow);
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); background: var(--icon-tile-bg);
   transition: width .18s ease, height .18s ease, margin-top .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
 }
 /* «Сбор данных» — главное действие, по центру и приподнято кружком с
@@ -104,7 +103,7 @@
 .tabItem.tabPrimary .tabIcon {
   width: 44px; height: 44px; margin-top: -18px; border-radius: 999px;
   background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
-  color: #fff; font-size: 20px; box-shadow: var(--icon-3d-shadow), var(--shadow);
+  color: #fff; box-shadow: var(--shadow);
 }
 .tabItem.tabPrimary.tabActive .tabIcon { filter: brightness(1.1); }
 /* Правило "скрыть на ПК" должно стоять в файле ПОСЛЕ базового .tabBar

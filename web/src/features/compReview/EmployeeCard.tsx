@@ -167,27 +167,31 @@ export function EmployeeCard({ e, request, access, actions }: {
         {e.growthPercent != null && ` (${pct(e.growthPercent)})`}
       </div>
 
+      {/* Подпись каждого поля приглушённая, значение — обычным текстом: та
+          же логика, что и в шапке заявки (RequestScreen), иначе строка
+          читается одним ровным блёклым цветом и непонятно, что тут вообще
+          данные, а не второстепенная пометка. */}
       <div className={s.kpiRow}>
-        <span>Последний пересмотр: {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
-        {e.hrBpLogin && <span>HR BP: {e.hrBpLogin}</span>}
-        {e.hireDate && <span>Дата выхода на работу: {new Date(e.hireDate).toLocaleDateString('ru-RU')}</span>}
+        <span><span className={s.metaLabel}>Последний пересмотр:</span> {e.lastReviewDate ? new Date(e.lastReviewDate).toLocaleDateString('ru-RU') : 'ни разу'}</span>
+        {e.hrBpLogin && <span><span className={s.metaLabel}>HR BP:</span> {e.hrBpLogin}</span>}
+        {e.hireDate && <span><span className={s.metaLabel}>Дата выхода на работу:</span> {new Date(e.hireDate).toLocaleDateString('ru-RU')}</span>}
         {(e.probationStartDate || e.probationEndDate) && (
           <span>
-            Стажировка: {e.probationStartDate ? new Date(e.probationStartDate).toLocaleDateString('ru-RU') : '—'}
+            <span className={s.metaLabel}>Стажировка:</span> {e.probationStartDate ? new Date(e.probationStartDate).toLocaleDateString('ru-RU') : '—'}
             {' – '}
             {e.probationEndDate ? new Date(e.probationEndDate).toLocaleDateString('ru-RU') : '—'}
           </span>
         )}
         {!access.restricted && e.gradePayFrom != null && e.gradePayTo != null && (
-          <span>Вилка {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} · положение {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
+          <span><span className={s.metaLabel}>Вилка</span> {fmt.format(e.gradePayFrom)}–{fmt.format(e.gradePayTo)} <span className={s.metaLabel}>· положение</span> {pct(e.vilkaBefore)} → {pct(e.vilkaAfter)}</span>
         )}
         {!access.restricted && e.gradingLevel != null && (
-          <span>Грейд {e.gradingLevel}{e.gradingScore != null ? ` (балл ${e.gradingScore})` : ''}</span>
+          <span><span className={s.metaLabel}>Грейд</span> {e.gradingLevel}{e.gradingScore != null ? ` (балл ${e.gradingScore})` : ''}</span>
         )}
         {!access.restricted && (e.marketMin != null || e.marketMedian != null || e.marketMax != null) && (
           <span>
-            Рынок: {e.marketMin != null ? fmt.format(e.marketMin) : '—'} / {e.marketMedian != null ? fmt.format(e.marketMedian) : '—'} / {e.marketMax != null ? fmt.format(e.marketMax) : '—'}
-            {e.compaRatio != null && ` · compa-ratio ${e.compaRatio}`}
+            <span className={s.metaLabel}>Рынок:</span> {e.marketMin != null ? fmt.format(e.marketMin) : '—'} / {e.marketMedian != null ? fmt.format(e.marketMedian) : '—'} / {e.marketMax != null ? fmt.format(e.marketMax) : '—'}
+            {e.compaRatio != null && <> <span className={s.metaLabel}>· compa-ratio</span> {e.compaRatio}</>}
           </span>
         )}
         {!access.restricted && e.isException && <Badge tone="warn">исключение из правила 6 мес.</Badge>}

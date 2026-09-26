@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router';
+import { Icon, type IconName } from '../../design/Icon';
 import type { NavItem } from './NavItems';
 import s from './Shell.module.css';
 
-const GLYPH: Record<string, string> = { '/': '▤', '/registry': '▦', '/dashboard': '◧', '/admin': '⚙' };
+const ICON: Record<string, IconName> = { '/': 'collect', '/registry': 'grid', '/dashboard': 'dashboard', '/admin': 'settings' };
 // Короче, чем полные подписи в боковой панели (Sidebar.tsx) — под узкий тап.
 const SHORT_LABEL: Record<string, string> = { '/': 'Сбор', '/registry': 'Реестр', '/dashboard': 'Дашборды', '/admin': 'Админка' };
 // Порядок в панели: самый частый раздел («Сбор данных») — приподнятым
@@ -27,12 +28,22 @@ export function TabBar({ items, onOpenMenu }: { items: NavItem[]; onOpenMenu: ()
           // что сейчас активен: переключается вместе с разделом.
           className={({ isActive }) => [s.tabItem, isActive ? s.tabPrimary : '', isActive ? s.tabActive : ''].join(' ')}
         >
-          <span className={s.tabIcon} aria-hidden="true">{GLYPH[i.to] ?? '•'}</span>
-          <span>{SHORT_LABEL[i.to] ?? i.label}</span>
+          {({ isActive }) => (
+            <>
+              {/* Активный «Сбор» — сплошной приподнятый кружок (белая иконка
+                  на градиенте, .tabPrimary .tabIcon) — там градиентная заливка
+                  контура перебивала бы белый цвет, поэтому gradient только у
+                  обычных (неактивных) иконок панели. */}
+              <span className={s.tabIcon} aria-hidden="true">
+                <Icon name={ICON[i.to] ?? 'collect'} gradient={!isActive} size={14} />
+              </span>
+              <span>{SHORT_LABEL[i.to] ?? i.label}</span>
+            </>
+          )}
         </NavLink>
       ))}
       <button type="button" className={s.tabItem} aria-label="Ещё разделы" onClick={onOpenMenu}>
-        <span className={s.tabIcon} aria-hidden="true">☰</span>
+        <span className={s.tabIcon} aria-hidden="true"><Icon name="menu" size={14} /></span>
         <span>Ещё</span>
       </button>
     </nav>

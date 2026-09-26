@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import type { SessionUser } from '../../api/contract';
 import { Badge } from '../../design/Badge';
+import { Icon, type IconName } from '../../design/Icon';
 import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
 import { useSupportUnreadCount } from './support/useSupportUnreadCount';
 import s from './Admin.module.css';
 
-type IconName = 'users' | 'units' | 'book' | 'dict' | 'grades' | 'chart' | 'clock' | 'chat' | 'shield' | 'send' | 'log' | 'money' | 'tools';
 type GroupKey = 'access' | 'structure' | 'method' | 'process';
 type Section = { to: string; title: string; note: string; icon: IconName; group: GroupKey; visible: (u: SessionUser) => boolean };
 
@@ -20,30 +20,6 @@ const GROUP_LABEL: Record<GroupKey, string> = {
   process: 'Процесс сбора'
 };
 const GROUP_ORDER: GroupKey[] = ['access', 'structure', 'method', 'process'];
-
-// Те же SVG-пути, что в старом клиенте (client/app-core.js, ICONS) — для
-// узнаваемости при переходе со старой версии на новую.
-const ICON_PATHS: Record<IconName, string> = {
-  users: '<circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19c.7-3.3 3-5 5.5-5s4.8 1.7 5.5 5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17" cy="8.5" r="2.6" stroke="currentColor" stroke-width="1.9"/><path d="M15.3 19c.5-2.6 1.9-4.3 4.7-4.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
-  units: '<rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="2"/>',
-  book: '<path d="M4 5.5A2.5 2.5 0 016.5 3H12v18H6.5A2.5 2.5 0 014 18.5v-13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M20 5.5A2.5 2.5 0 0017.5 3H12v18h5.5a2.5 2.5 0 002.5-2.5v-13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
-  grades: '<path d="M3.5 20.5h5.5V15H3.5v5.5zM9 20.5h6V9.5H9v11zM15 20.5h5.5V4H15v16.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
-  chart: '<path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  clock: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.9"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
-  chat: '<path d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8A2.5 2.5 0 0117.5 16H10l-4.5 4v-4H6.5A2.5 2.5 0 014 13.5v-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
-  shield: '<path d="M12 3l7 3v6c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6l7-3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 12.2l2 2 3.6-3.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
-  send: '<path d="M4 12l16-8-6 16-2.5-6.5L4 12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
-  log: '<path d="M5 3.5h11l3 3V20.5H5V3.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  money: '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v9M9.5 9.8c0-1.3 1.1-2 2.5-2s2.5.7 2.5 1.8c0 2.4-5 1.2-5 3.6 0 1.1 1.1 1.8 2.5 1.8s2.5-.7 2.5-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  dict: '<circle cx="9" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/><circle cx="15" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/>',
-  tools: '<path d="M14.7 6.3a4 4 0 015.6 5.6l-1 1-5.6-5.6 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.3 7.7L4.5 16.5a2 2 0 000 2.8l.2.2a2 2 0 002.8 0l8.8-8.8" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M5 19l-1.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
-};
-
-function Icon({ name }: { name: IconName }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICON_PATHS[name] }} />
-  );
-}
 
 const SECTIONS: Section[] = [
   { to: '/admin/users', title: 'Пользователи', note: 'Учётные записи, роли, сброс пароля, архив', icon: 'users', group: 'access', visible: u => has(u, 'users:view') },
