@@ -189,6 +189,13 @@ exports.forceDecide = handle(async (req, res) => {
   res.json({ ok: true, request });
 });
 
+exports.resetVote = handle(async (req, res) => {
+  const employeeId = parseInt(req.params.employeeId, 10);
+  const request = await svc.resetVote(employeeId, req.user.login);
+  await audit(req.user.login, 'изменение ЗП: сброс голосования комиссии', `employee #${employeeId}`);
+  res.json({ ok: true, request });
+});
+
 exports.remindVoters = handle(async (req, res) => {
   const employeeId = parseInt(req.params.employeeId, 10);
   const result = await svc.remindVoters(employeeId, req.user.login);

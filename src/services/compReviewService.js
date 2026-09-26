@@ -472,6 +472,26 @@ async function forceDecide(employeeId, decision, actorLogin) {
   return getRequest(row.request_id);
 }
 
+/**
+ * Сброс голосования по сотруднику — та же гарантия доступа, что и у
+ * forceDecide (capability comp:admin, заявка ещё на этапе 'committee'):
+ * удаляет уже поданные голоса и возвращает статус строки в 'active', чтобы
+ * комиссия проголосовала заново. Работает и по уже подведённому итогу
+ * (approved_awaiting_payroll/rejected_committee/committee_meeting) — пока
+ * сама заявка не ушла с этапа комиссии дальше, ошибочное решение можно
+ * переиграть.
+ */
+async function resetVote(employeeId, actorLogin) {
+  const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
+  if (!row) throw new CompReviewError('Сотрудник не найден в заявке');
+  const req = await getRequestRow(row.request_id);
+  requireStatus(req, 'committee', 'голосование комиссии');
+  await run('DELETE FROM comp_committee_votes WHERE employee_row_id = ?', [employeeId]);
+  await run("UPDATE comp_request_employees SET status = 'active', decided_at = NULL WHERE id = ?", [employeeId]);
+  await logActivity(row.request_id, employeeId, actorLogin, 'сбросил голосование комиссии', null);
+  return getRequest(row.request_id, actorLogin);
+}
+
 /** Кто из зафиксированного состава ещё не проголосовал по сотруднику (для C&B/админа и для напоминаний). */
 async function pendingVoters(employeeId) {
   const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
@@ -768,7 +788,7 @@ module.exports = {
   createDraft, updateDraftHeader, addEmployee, updateEmployee, removeEmployee,
   addVariablePay, removeVariablePay, deleteDraft, submitDraft,
   cbSetMarketData, cbReturn, cbForward, hrdApprove, hrdReject,
-  vote, forceDecide, pendingVoters, remindVoters, remindStaleCommitteeVotes, markPayrollEntered,
+  vote, forceDecide, resetVote, pendingVoters, remindVoters, remindStaleCommitteeVotes, markPayrollEntered,
   getRequest, listRequests, canView, addComment,
   createAttachToken, findActiveAttachTokenByChat, claimAttachToken, saveAttachmentFromTelegram,
   listAttachments, getAttachmentForDownload, removeAttachment

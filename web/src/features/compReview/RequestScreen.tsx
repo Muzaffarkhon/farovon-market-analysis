@@ -125,6 +125,7 @@ export function RequestScreen() {
               setMarketData: data => req.setMarketData({ employeeId: e.id, ...data }),
               vote: (vote, c) => req.vote({ employeeId: e.id, vote, comment: c }),
               forceDecide: decision => req.forceDecide({ employeeId: e.id, decision }),
+              resetVote: () => req.resetVote(e.id),
               remindVoters: () => req.remindVoters(e.id),
               markPayrollEntered: data => req.markPayrollEntered({ employeeId: e.id, ...data }),
               addVariablePay: data => req.addVariablePay({ employeeId: e.id, data }),

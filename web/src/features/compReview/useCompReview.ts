@@ -177,6 +177,7 @@ export function useCompRequest(id: number | null) {
 
   const vote = useMut((a: { employeeId: number; vote: 'for' | 'against' | 'meeting'; comment?: string }) => compReviewApi.vote(a.employeeId, a.vote, a.comment), 'Голос учтён');
   const forceDecide = useMut((a: { employeeId: number; decision: 'approved' | 'rejected' }) => compReviewApi.forceDecide(a.employeeId, a.decision), 'Решение принято');
+  const resetVote = useMut((employeeId: number) => compReviewApi.resetVote(employeeId), 'Голосование сброшено');
   const remindVoters = useMut((employeeId: number) => compReviewApi.remindVoters(employeeId), 'Напоминание отправлено');
   const markPayrollEntered = useMut((a: { employeeId: number; comment?: string; effectiveDate?: string }) =>
     compReviewApi.markPayrollEntered(a.employeeId, { comment: a.comment, effectiveDate: a.effectiveDate }), 'Отмечено как внесено в 1С');
@@ -195,7 +196,7 @@ export function useCompRequest(id: number | null) {
     updateHeader: updateHeader.mutate, submit: submit.mutate, submitting: submit.isPending,
     cbReturn: cbReturn.mutate, cbForward: cbForward.mutate, setMarketData: setMarketData.mutate,
     hrdApprove: hrdApprove.mutate, hrdReject: hrdReject.mutate,
-    vote: vote.mutate, voting: vote.isPending, forceDecide: forceDecide.mutate,
+    vote: vote.mutate, voting: vote.isPending, forceDecide: forceDecide.mutate, resetVote: resetVote.mutate,
     remindVoters: remindVoters.mutate, markPayrollEntered: markPayrollEntered.mutate,
     addComment: addComment.mutate, deleteDraft: deleteDraftMutation.mutateAsync
   };

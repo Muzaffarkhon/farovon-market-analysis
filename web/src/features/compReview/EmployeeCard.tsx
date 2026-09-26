@@ -122,6 +122,7 @@ export function EmployeeCard({ e, request, access, actions }: {
     setMarketData: (data: { marketMin?: number; marketMedian?: number; marketMax?: number }) => void;
     vote: (vote: 'for' | 'against' | 'meeting', comment?: string) => void;
     forceDecide: (decision: 'approved' | 'rejected') => void;
+    resetVote: () => void;
     remindVoters: () => void;
     markPayrollEntered: (data: { comment?: string; effectiveDate?: string }) => void;
     addVariablePay: (a: { kind: string; amount: number; amountType: 'sum' | 'percent'; period?: string; isProposed?: boolean }) => void;
@@ -267,6 +268,14 @@ export function EmployeeCard({ e, request, access, actions }: {
               <Button size="sm" variant="secondary" onClick={actions.remindVoters}>Напомнить не проголосовавшим</Button>
               {access.isAdmin && (
                 <>
+                  {votedCount > 0 && (
+                    <Button
+                      size="sm" variant="secondary"
+                      onClick={async () => { if (await confirm({ message: `Сбросить голосование? Уже поданные голоса (${votedCount}) будут удалены, комиссия проголосует заново.`, danger: true })) actions.resetVote(); }}
+                    >
+                      Сбросить голосование
+                    </Button>
+                  )}
                   <Button
                     size="sm" variant="danger"
                     onClick={async () => { if (await confirm({ message: 'Принудительно отклонить, не дожидаясь комиссии?', danger: true })) actions.forceDecide('rejected'); }}
@@ -301,6 +310,12 @@ export function EmployeeCard({ e, request, access, actions }: {
             onClick={async () => { if (await confirm('Одобрить по итогам совещания?')) actions.forceDecide('approved'); }}
           >
             Одобрить
+          </Button>
+          <Button
+            size="sm" variant="secondary"
+            onClick={async () => { if (await confirm({ message: 'Сбросить голосование и вернуть на обычное голосование комиссии вместо совещания?', danger: true })) actions.resetVote(); }}
+          >
+            Сбросить голосование
           </Button>
         </div>
       )}

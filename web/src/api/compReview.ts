@@ -45,6 +45,7 @@ export const compReviewApi = {
     request<CompRequestResponse>(`/comp/employees/${employeeId}/vote`, { vote, comment }),
   forceDecide: (employeeId: number, decision: 'approved' | 'rejected') =>
     request<CompRequestResponse>(`/comp/employees/${employeeId}/force-decide`, { decision }),
+  resetVote: (employeeId: number) => request<CompRequestResponse>(`/comp/employees/${employeeId}/reset-vote`, {}),
   remindVoters: (employeeId: number) => request<CompRemindResponse>(`/comp/employees/${employeeId}/remind`, {}),
   markPayrollEntered: (employeeId: number, data: { comment?: string; effectiveDate?: string }) =>
     request<CompRequestResponse>(`/comp/employees/${employeeId}/payroll-entered`, data),

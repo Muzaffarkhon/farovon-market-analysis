@@ -276,6 +276,7 @@ router.post('/comp/requests/:id/hrd-approve', requireCapability('comp:approve_hr
 router.post('/comp/requests/:id/hrd-reject', requireCapability('comp:approve_hrd'), compReviewController.hrdReject);
 router.post('/comp/employees/:employeeId/vote', compReviewController.vote);
 router.post('/comp/employees/:employeeId/force-decide', requireCapability('comp:admin'), compReviewController.forceDecide);
+router.post('/comp/employees/:employeeId/reset-vote', requireCapability('comp:admin'), compReviewController.resetVote);
 router.post('/comp/employees/:employeeId/remind', requireCapability('comp:review_cb', 'comp:admin'), compReviewController.remindVoters);
 router.post('/comp/employees/:employeeId/payroll-entered', requireCapability('comp:payroll'), compReviewController.markPayrollEntered);
 router.post('/comp/employees/:employeeId/attachments/token', compReviewController.createAttachToken);
