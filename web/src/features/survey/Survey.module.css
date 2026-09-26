@@ -29,7 +29,7 @@
 
 /* Форма компании */
 .form { display: flex; flex-direction: column; gap: var(--s-2); }
-.block { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.block { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
 .blockHead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); width: 100%; min-height: var(--tap); padding: 0 var(--s-4); border: 0; background: transparent; cursor: pointer; font-weight: 600; text-align: left; }
 .blockBody { padding: 0 var(--s-4) var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
@@ -60,7 +60,7 @@
 .progressText { font-size: 14px; color: var(--text-muted); white-space: nowrap; }
 
 /* Карточка должности: кликабельная основная зона + отдельное действие рядом */
-.posCard { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.posCard { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .posMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-2) 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
 .posMain:active { opacity: .7; }
 .posCard .cardTop { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }

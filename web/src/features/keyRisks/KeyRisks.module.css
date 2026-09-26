@@ -7,7 +7,7 @@
 @media (max-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
 
-.dirCard { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; }
+.dirCard { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: inherit; }
 .dirCard:hover { background: var(--surface-2); }
 .dirTitle { font-weight: 600; }
 .dirStats { font-size: 13px; color: var(--text-muted); }
@@ -17,7 +17,7 @@
 .tabActive { color: var(--accent); background: var(--surface-2); }
 
 .screenFill { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.tableWrapFill { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrapFill { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }

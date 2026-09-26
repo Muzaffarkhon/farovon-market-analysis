@@ -8,7 +8,7 @@
 .head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); margin-bottom: var(--s-3); flex-wrap: wrap; }
 
 .list { display: flex; flex-direction: column; gap: var(--s-2); }
-.row { display: flex; flex-direction: column; gap: 4px; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-decoration: none; color: inherit; cursor: pointer; }
+.row { display: flex; flex-direction: column; gap: 4px; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); text-decoration: none; color: inherit; cursor: pointer; }
 .row:hover { background: var(--surface-2); }
 .rowTop { display: flex; justify-content: space-between; gap: var(--s-2); align-items: baseline; flex-wrap: wrap; }
 
@@ -24,7 +24,7 @@
 .searchRow { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); min-height: 32px; padding: 4px 6px; border: 0; background: transparent; text-align: left; cursor: pointer; border-radius: var(--r-sm); font: inherit; width: 100%; }
 .searchRow:hover { background: var(--surface-2); }
 
-.card { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.card { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .cardHead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
 .cardTitle { font-weight: 600; }
 .amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -50,7 +50,7 @@
 .voteAgainst { color: var(--danger); }
 .votePending { color: var(--text-muted); }
 
-.tableWrap { overflow: auto; max-height: calc(100dvh - 260px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; max-height: calc(100dvh - 260px); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }

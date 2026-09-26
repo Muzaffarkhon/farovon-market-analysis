@@ -21,7 +21,7 @@
    совпадало с реальной высотой шапки/фильтров, и низ таблицы плавал. Теперь
    бокс дорастает ровно до низа колонки (.screen выше — тоже flex: 1), как
    панель слева (Sidebar.module.css, height: 100dvh). */
-.tableWrap { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.tableWrap { overflow: auto; flex: 1; min-height: 240px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
 .table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: 13.5px; }
 .table th, .table td { padding: 6px var(--s-3); text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
@@ -35,7 +35,7 @@
 
 /* Карточный список для узких экранов — парный к таблице выше. */
 .cards { display: none; flex-direction: column; gap: var(--s-2); }
-.card { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); text-align: left; cursor: pointer; }
+.card { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--s-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); text-align: left; cursor: pointer; }
 .cardTop { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
 .cardTitle { font-weight: 600; overflow-wrap: anywhere; }
 .cardPay { white-space: nowrap; font-variant-numeric: tabular-nums; }

@@ -1,10 +1,27 @@
 .row { display: grid; grid-template-columns: minmax(0, 200px) 1fr auto; gap: var(--s-3); align-items: center; padding: var(--s-2) 0; border-bottom: 1px solid var(--border); }
 .label { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+/* Полоса-рельс на всю ширину — как в обычном слайдере — даёт контекст даже
+   вырожденной точке (.point): без неё одна точка на белом фоне читалась как
+   случайный пиксель, а не как часть шкалы. */
 .track { position: relative; height: 26px; }
-.line { position: absolute; top: 12px; height: 2px; background: var(--text-muted); border-radius: 1px; }
-.box { position: absolute; top: 4px; height: 18px; background: var(--accent-soft, var(--surface-2)); border: 1.5px solid var(--accent); border-radius: 5px; }
-.median { position: absolute; top: 2px; height: 22px; width: 3px; background: var(--accent); border-radius: 2px; transform: translateX(-1.5px); }
-.point { position: absolute; top: 8px; height: 10px; width: 10px; background: var(--accent); border-radius: 999px; transform: translateX(-5px); }
+.track::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 12px; height: 3px;
+  background: var(--surface-2); border-radius: 999px;
+}
+/* Усы min–max — только там, где реально есть разброс за пределами
+   P25–P75 (шире blur-полосы), иначе тонкая линия торчала по бокам
+   капсулы отдельными хвостиками. */
+.line { position: absolute; top: 12px; height: 3px; background: var(--text-muted); border-radius: 999px; z-index: 1; }
+/* min-width — ключевая правка: раньше при P25≈P75 (частый случай, когда
+   почти все наблюдения на одной зарплате) капсула схлопывалась в 0px и
+   пропадала, а линия min–max вместе с риской медианы образовывали крестик
+   («нарисовано карандашом»). Теперь капсула никогда не тоньше 10px. */
+.box { position: absolute; top: 6px; height: 14px; min-width: 10px; background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1.5px solid var(--accent); border-radius: 999px; z-index: 1; }
+/* Риска медианы — не второй сплошной брусок того же цвета (вместе с .box
+   рисовал крестик), а тонкая белая полоска на самой капсуле: видно, где
+   медиана, но не спорит с обводкой капсулы за внимание. */
+.median { position: absolute; top: 7px; height: 12px; width: 2px; background: var(--surface); border-radius: 1px; transform: translateX(-1px); z-index: 2; }
+.point { position: absolute; top: 8px; height: 10px; width: 10px; background: var(--accent); border: 2px solid var(--surface); border-radius: 999px; transform: translateX(-5px); z-index: 2; box-shadow: 0 0 0 1px var(--accent); }
 .right { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 @media (max-width: 560px) {
