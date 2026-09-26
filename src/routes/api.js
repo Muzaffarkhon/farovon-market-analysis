@@ -281,6 +281,8 @@ router.post('/comp/employees/:employeeId/remind', requireCapability('comp:review
 router.post('/comp/employees/:employeeId/payroll-entered', requireCapability('comp:payroll'), compReviewController.markPayrollEntered);
 router.post('/comp/employees/:employeeId/attachments/token', compReviewController.createAttachToken);
 router.get('/comp/employees/:employeeId/attachments', compReviewController.listAttachments);
+router.post('/comp/requests/:id/attachments/token', compReviewController.createRequestAttachToken);
+router.get('/comp/requests/:id/attachments', compReviewController.listRequestAttachments);
 router.get('/comp/attachments/:attachmentId/download', compReviewController.downloadAttachment);
 router.post('/comp/attachments/:attachmentId/delete', compReviewController.deleteAttachment);
 router.post('/comp/requests/:id/comments', compReviewController.addComment);

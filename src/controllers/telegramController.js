@@ -433,9 +433,12 @@ async function handleAttachStart(chatId, token) {
     await sendTelegramMessage(chatId, 'Ссылка для прикрепления файла устарела. Откройте кнопку «Прикрепить файл» в заявке ещё раз.');
     return;
   }
-  await sendTelegramMessage(chatId,
-    `Пришлите файл(ы) для «${escHtml(claimed.fio)}» (заявка #${claimed.request_id}) — как документ (не фото), ` +
-    `до 10 файлов на сотрудника. Ссылка действует ${ATTACH_TOKEN_TTL_MINUTES} минут.`);
+  const text = claimed.employee_row_id
+    ? `Пришлите файл(ы) для «${escHtml(claimed.fio)}» (заявка #${claimed.request_id}) — как документ (не фото), ` +
+      `до 10 файлов на сотрудника. Ссылка действует ${ATTACH_TOKEN_TTL_MINUTES} минут.`
+    : `Пришлите файл(ы)-основание для заявки #${claimed.request_id} — как документ (не фото), ` +
+      `до 5 файлов на заявку. Ссылка действует ${ATTACH_TOKEN_TTL_MINUTES} минут.`;
+  await sendTelegramMessage(chatId, text);
 }
 const ATTACH_TOKEN_TTL_MINUTES = 15;
 

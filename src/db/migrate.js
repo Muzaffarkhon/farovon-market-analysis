@@ -713,6 +713,7 @@ async function migrate() {
   await createUserScopeTables();
   await cleanupLegacySurveyTestData();
   await createCompReview();
+  await allowRequestLevelAttachments();
 }
 
 /**
@@ -1182,10 +1183,13 @@ async function createCompReview() {
   // chat_id проставляется при /start att_<token>), а сам файл прилетает
   // следующим сообщением-документом и сохраняется сюда как BLOB — до 10 на
   // сотрудника, см. compReviewService.saveAttachmentFromTelegram.
+  // employee_row_id необязателен: NULL — файл-основание всей заявки (кнопка
+  // рядом с полем «Документ-основание»), заполнен — файл конкретного
+  // сотрудника, см. allowRequestLevelAttachments ниже для апгрейда старой базы.
   await run(`CREATE TABLE IF NOT EXISTS comp_attach_tokens (
     token TEXT PRIMARY KEY,
     request_id INTEGER NOT NULL REFERENCES comp_requests(id),
-    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    employee_row_id INTEGER REFERENCES comp_request_employees(id),
     created_by_login TEXT NOT NULL,
     chat_id TEXT,
     expires_at DATETIME NOT NULL,
@@ -1196,7 +1200,7 @@ async function createCompReview() {
   await run(`CREATE TABLE IF NOT EXISTS comp_attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     request_id INTEGER NOT NULL REFERENCES comp_requests(id),
-    employee_row_id INTEGER NOT NULL REFERENCES comp_request_employees(id),
+    employee_row_id INTEGER REFERENCES comp_request_employees(id),
     file_name TEXT,
     mime_type TEXT,
     size_bytes INTEGER,
@@ -1206,6 +1210,53 @@ async function createCompReview() {
   await run('CREATE INDEX IF NOT EXISTS idx_comp_attachments_employee ON comp_attachments(employee_row_id)');
 
   console.log('🔧 Миграция: схема «Пересмотр заработной платы» создана');
+}
+
+/**
+ * Файл-основание заявки («Документ-основание» в шапке) сначала был только
+ * текстовым полем — прикреплять файл через Telegram умели лишь сотрудники
+ * (employee_row_id было NOT NULL). Разрешаем то же самое на уровне всей
+ * заявки: employee_row_id становится необязательным, NULL — файл заявки в
+ * целом, тем же приёмом, что уже используется в comp_activity. SQLite не
+ * умеет снимать NOT NULL на месте — пересобираем обе таблицы; вложений в
+ * проде мало, переносятся все целиком.
+ */
+async function allowRequestLevelAttachments() {
+  const cols = await queryAll('PRAGMA table_info(comp_attachments)');
+  if (!cols.length) return; // таблицы ещё нет — createCompReview выше уже создаёт её с нужной схемой
+  const col = cols.find(c => c.name === 'employee_row_id');
+  if (!col || col.notnull === 0) return; // уже нужной схемы
+
+  await run(`CREATE TABLE comp_attach_tokens_new (
+    token TEXT PRIMARY KEY,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    employee_row_id INTEGER REFERENCES comp_request_employees(id),
+    created_by_login TEXT NOT NULL,
+    chat_id TEXT,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('INSERT INTO comp_attach_tokens_new SELECT * FROM comp_attach_tokens');
+  await run('DROP TABLE comp_attach_tokens');
+  await run('ALTER TABLE comp_attach_tokens_new RENAME TO comp_attach_tokens');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_attach_tokens_chat ON comp_attach_tokens(chat_id, expires_at)');
+
+  await run(`CREATE TABLE comp_attachments_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL REFERENCES comp_requests(id),
+    employee_row_id INTEGER REFERENCES comp_request_employees(id),
+    file_name TEXT,
+    mime_type TEXT,
+    size_bytes INTEGER,
+    data BLOB NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await run('INSERT INTO comp_attachments_new SELECT * FROM comp_attachments');
+  await run('DROP TABLE comp_attachments');
+  await run('ALTER TABLE comp_attachments_new RENAME TO comp_attachments');
+  await run('CREATE INDEX IF NOT EXISTS idx_comp_attachments_employee ON comp_attachments(employee_row_id)');
+
+  console.log('🔧 Миграция: comp_attachments — employee_row_id стал необязательным (файл-основание заявки)');
 }
 
 /**

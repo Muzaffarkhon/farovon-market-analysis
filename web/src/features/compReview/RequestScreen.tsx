@@ -10,9 +10,10 @@ import { Skeleton } from '../../design/Skeleton';
 import { Textarea } from '../../design/Textarea';
 import { useSessionData } from '../auth/useSession';
 import { useScreenTitle } from '../shell/Shell';
+import { AttachmentsSection } from './AttachmentsSection';
 import { EmployeeAddForm } from './EmployeeAddForm';
 import { EmployeeCard } from './EmployeeCard';
-import { useCompAccess, useCompReasons, useCompRequest, useUnitOptions } from './useCompReview';
+import { useCompAccess, useCompReasons, useCompRequest, useRequestAttachments, useUnitOptions } from './useCompReview';
 import type { CompRequestStatus } from '../../api/contract';
 import s from './CompReview.module.css';
 
@@ -34,6 +35,7 @@ export function RequestScreen() {
   const { requestTypes } = useCompReasons();
   const confirm = useConfirm();
   const req = useCompRequest(requestId);
+  const basisAtt = useRequestAttachments(requestId);
   const unitOptions = useUnitOptions();
   const [cbReturnComment, setCbReturnComment] = useState('');
   const [hrdRejectComment, setHrdRejectComment] = useState('');
@@ -104,6 +106,9 @@ export function RequestScreen() {
             {r.unit && <span><span className={s.metaLabel}>Подразделение:</span> {r.unit}</span>}
             {r.effectiveDate && <span><span className={s.metaLabel}>Дата вступления в силу:</span> {r.effectiveDate}</span>}
           </div>
+        )}
+        {!isPayrollOnly && (
+          <AttachmentsSection label="Документ-основание — файлы" max={5} canRemove={isDraft} att={basisAtt} />
         )}
         {canEditDraft ? (
           <Textarea

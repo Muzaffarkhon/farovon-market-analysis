@@ -6,54 +6,16 @@ import { useConfirm } from '../../design/Confirm';
 import { Input } from '../../design/Input';
 import { Select } from '../../design/Select';
 import { useSessionData } from '../auth/useSession';
-import { compReviewApi } from '../../api/compReview';
 import { useCompReasons, useVariablePayKinds, useAttachments } from './useCompReview';
+import { AttachmentsSection } from './AttachmentsSection';
 import s from './CompReview.module.css';
 
 const fmt = new Intl.NumberFormat('ru-RU');
 const pct = (n: number | null) => (n == null ? '—' : `${n > 0 ? '+' : ''}${n}%`);
-const fmtSize = (bytes: number | null) => {
-  if (bytes == null) return '';
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-};
 
-function AttachmentsSection({ employeeId, canRemove }: { employeeId: number; canRemove: boolean }) {
+function EmployeeAttachments({ employeeId, canRemove }: { employeeId: number; canRemove: boolean }) {
   const att = useAttachments(employeeId);
-  return (
-    <div className={s.vpRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--s-1)' }}>
-      <div className={s.hint} style={{ fontWeight: 600 }}>Файлы{att.rows.length ? ` (${att.rows.length}/10)` : ''}</div>
-      {att.rows.map(a => (
-        <div key={a.id} className={s.vpRow}>
-          <a href={compReviewApi.attachmentDownloadUrl(a.id)} target="_blank" rel="noreferrer">{a.fileName}</a>
-          <span className={s.hint}>{fmtSize(a.sizeBytes)}</span>
-          {canRemove && <Button size="sm" variant="ghost" onClick={() => att.remove(a.id)}>Убрать</Button>}
-        </div>
-      ))}
-      {!att.rows.length && <span className={s.hint}>Пока нет прикреплённых файлов</span>}
-      {att.rows.length < 10 && (
-        <Button
-          size="sm" variant="secondary" loading={att.requestingToken}
-          onClick={async () => {
-            // Открываем вкладку синхронно в обработчике клика, иначе браузер
-            // (особенно на телефоне) считает её всплывающим окном без связи
-            // с действием пользователя и молча блокирует — ссылка "не работает".
-            const tab = window.open('', '_blank');
-            try {
-              const r = await att.requestToken();
-              if (tab) tab.location.href = r.deepLink; else window.open(r.deepLink, '_blank');
-            } catch {
-              tab?.close();
-              // тост об ошибке уже показан внутри useAttachments (onError мутации)
-            }
-          }}
-        >
-          📎 Прикрепить через Telegram
-        </Button>
-      )}
-      {att.polling && <span className={s.hint}>Ждём файл из Telegram — появится здесь сам…</span>}
-    </div>
-  );
+  return <AttachmentsSection label="Файлы" max={10} canRemove={canRemove} att={att} />;
 }
 
 const EMP_STATUS_LABEL: Record<CompEmployeeStatus, string> = {
@@ -345,7 +307,7 @@ export function EmployeeCard({ e, request, access, actions }: {
           {e.payrollComment ? ` — ${e.payrollComment}` : ''}
         </div>
       )}
-      <AttachmentsSection employeeId={e.id} canRemove={request.status === 'draft'} />
+      <EmployeeAttachments employeeId={e.id} canRemove={request.status === 'draft'} />
 
       {request.status === 'draft' && actions.remove && (
         <div className={s.cardFoot}>

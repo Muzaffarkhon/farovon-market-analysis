@@ -5,7 +5,8 @@ import { adminApi } from '../../api/admin';
 import { ApiError } from '../../api/client';
 import { useToast } from '../../design/Toast';
 import type {
-  AddEmployeePayload, AddVariablePayPayload, CreateDraftPayload, UpdateHeaderPayload, UpdateEmployeePayload
+  AddEmployeePayload, AddVariablePayPayload, CreateDraftPayload, UpdateHeaderPayload, UpdateEmployeePayload,
+  CompAttachment, CompAttachTokenResponse
 } from '../../api/contract';
 
 /** Названия подразделений для выпадающего списка в шапке заявки (список читает то же право divisions:view, что и справочник в админке). */
@@ -77,18 +78,18 @@ export function useEmployeeSearch(unit?: string) {
  * приходит асинхронно, отдельным сообщением боту, и должен сам появиться
  * в карточке без ручного обновления страницы.
  */
-export function useAttachments(employeeId: number) {
+function useAttachmentsBase(queryKey: unknown[], list: () => Promise<{ rows: CompAttachment[] }>, createToken: () => Promise<CompAttachTokenResponse>) {
   const qc = useQueryClient();
   const onError = useToastError();
   const [polling, setPolling] = useState(false);
   const q = useQuery({
-    queryKey: ['comp-attachments', employeeId],
-    queryFn: () => compReviewApi.attachments(employeeId),
+    queryKey,
+    queryFn: list,
     refetchInterval: polling ? 4000 : false
   });
 
   const requestTokenMutation = useMutation({
-    mutationFn: () => compReviewApi.createAttachToken(employeeId),
+    mutationFn: createToken,
     onSuccess: (r) => {
       setPolling(true);
       setTimeout(() => setPolling(false), r.expiresInMinutes * 60 * 1000);
@@ -98,7 +99,7 @@ export function useAttachments(employeeId: number) {
 
   const removeMutation = useMutation({
     mutationFn: (attachmentId: number) => compReviewApi.deleteAttachment(attachmentId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['comp-attachments', employeeId] }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey }),
     onError: e => onError(e, 'Не удалось удалить файл')
   });
 
@@ -107,6 +108,24 @@ export function useAttachments(employeeId: number) {
     requestToken: requestTokenMutation.mutateAsync, requestingToken: requestTokenMutation.isPending,
     remove: removeMutation.mutate
   };
+}
+
+export function useAttachments(employeeId: number) {
+  return useAttachmentsBase(
+    ['comp-attachments', employeeId],
+    () => compReviewApi.attachments(employeeId),
+    () => compReviewApi.createAttachToken(employeeId)
+  );
+}
+
+/** Файл-основание всей заявки (не сотрудника) — та же кнопка «Прикрепить
+ *  через Telegram», но рядом с полем «Документ-основание» в шапке. */
+export function useRequestAttachments(requestId: number) {
+  return useAttachmentsBase(
+    ['comp-request-attachments', requestId],
+    () => compReviewApi.requestAttachments(requestId),
+    () => compReviewApi.createRequestAttachToken(requestId)
+  );
 }
 
 function useToastError() {

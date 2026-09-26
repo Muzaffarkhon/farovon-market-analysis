@@ -61,6 +61,8 @@ export const compReviewApi = {
 
   attachments: (employeeId: number) => request<CompAttachmentsResponse>(`/comp/employees/${employeeId}/attachments`),
   createAttachToken: (employeeId: number) => request<CompAttachTokenResponse>(`/comp/employees/${employeeId}/attachments/token`, {}),
+  requestAttachments: (requestId: number) => request<CompAttachmentsResponse>(`/comp/requests/${requestId}/attachments`),
+  createRequestAttachToken: (requestId: number) => request<CompAttachTokenResponse>(`/comp/requests/${requestId}/attachments/token`, {}),
   deleteAttachment: (attachmentId: number) => request<OkResponse>(`/comp/attachments/${attachmentId}/delete`, {}),
   attachmentDownloadUrl: (attachmentId: number) => `/api/comp/attachments/${attachmentId}/download`
 };

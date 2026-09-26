@@ -569,7 +569,17 @@ async function markPayrollEntered(employeeId, actorLogin, { comment, effectiveDa
 
 const ATTACH_TOKEN_TTL_MINUTES = 15;
 const MAX_ATTACHMENTS_PER_EMPLOYEE = 10;
+const MAX_ATTACHMENTS_PER_REQUEST = 5; // файл-основание всей заявки — изначально в ТЗ и планировалось «до 5 файлов»
 const MAX_ATTACHMENT_BYTES = 19 * 1024 * 1024; // getFile Bot API сам не отдаёт файлы тяжелее ~20 МБ
+
+/** employee_row_id NULL — файл-основание всей заявки, не сотрудника; `= NULL`
+ *  в SQL никогда не совпадает, поэтому считаем через IS. */
+async function countAttachments(requestId, employeeRowId) {
+  const row = employeeRowId == null
+    ? await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE request_id = ? AND employee_row_id IS NULL', [requestId])
+    : await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE employee_row_id = ?', [employeeRowId]);
+  return Number(row.n);
+}
 
 async function requireEmployeeVisible(employeeId, user, hasCap) {
   const row = await queryOne('SELECT * FROM comp_request_employees WHERE id = ?', [employeeId]);
@@ -585,8 +595,7 @@ async function requireEmployeeVisible(employeeId, user, hasCap) {
  *  в telegramController). */
 async function createAttachToken(employeeId, user, hasCap) {
   const row = await requireEmployeeVisible(employeeId, user, hasCap);
-  const count = await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE employee_row_id = ?', [employeeId]);
-  const current = Number(count.n);
+  const current = await countAttachments(row.request_id, employeeId);
   if (current >= MAX_ATTACHMENTS_PER_EMPLOYEE) {
     throw new CompReviewError(`У сотрудника уже максимум файлов (${MAX_ATTACHMENTS_PER_EMPLOYEE})`);
   }
@@ -604,6 +613,33 @@ async function createAttachToken(employeeId, user, hasCap) {
     deepLink: `https://t.me/${username}?start=att_${token}`,
     expiresInMinutes: ATTACH_TOKEN_TTL_MINUTES,
     remaining: MAX_ATTACHMENTS_PER_EMPLOYEE - current
+  };
+}
+
+/** То же самое, но для файла-основания всей заявки (кнопка рядом с полем
+ *  «Документ-основание» в шапке) — employee_row_id у токена/файла остаётся
+ *  NULL, см. allowRequestLevelAttachments в migrate.js. */
+async function createRequestAttachToken(requestId, user, hasCap) {
+  const req = await getRequestRow(requestId);
+  if (!(await canView(mapRequest(req), user, hasCap))) throw new CompReviewError('Недостаточно прав');
+  const current = await countAttachments(requestId, null);
+  if (current >= MAX_ATTACHMENTS_PER_REQUEST) {
+    throw new CompReviewError(`У заявки уже максимум файлов-оснований (${MAX_ATTACHMENTS_PER_REQUEST})`);
+  }
+
+  const username = await getBotUsername();
+  if (!username) throw new CompReviewError('Telegram-бот не подключён');
+
+  const token = crypto.randomBytes(16).toString('hex');
+  await run(
+    `INSERT INTO comp_attach_tokens (token, request_id, employee_row_id, created_by_login, expires_at)
+     VALUES (?, ?, NULL, ?, datetime('now', '+${ATTACH_TOKEN_TTL_MINUTES} minutes'))`,
+    [token, requestId, user.login]);
+
+  return {
+    deepLink: `https://t.me/${username}?start=att_${token}`,
+    expiresInMinutes: ATTACH_TOKEN_TTL_MINUTES,
+    remaining: MAX_ATTACHMENTS_PER_REQUEST - current
   };
 }
 
@@ -629,10 +665,10 @@ async function claimAttachToken(token, chatId) {
  *  в telegramController (chat уже привязан токеном к employeeRowId/requestId). */
 async function saveAttachmentFromTelegram(tokenRow, doc) {
   const { employee_row_id: employeeRowId, request_id: requestId, created_by_login: actorLogin } = tokenRow;
-  const count = await queryOne('SELECT COUNT(*) AS n FROM comp_attachments WHERE employee_row_id = ?', [employeeRowId]);
-  const current = Number(count.n);
-  if (current >= MAX_ATTACHMENTS_PER_EMPLOYEE) {
-    throw new CompReviewError(`Уже прикреплено максимум файлов (${MAX_ATTACHMENTS_PER_EMPLOYEE})`);
+  const max = employeeRowId == null ? MAX_ATTACHMENTS_PER_REQUEST : MAX_ATTACHMENTS_PER_EMPLOYEE;
+  const current = await countAttachments(requestId, employeeRowId);
+  if (current >= max) {
+    throw new CompReviewError(`Уже прикреплено максимум файлов (${max})`);
   }
   if (doc.file_size && doc.file_size > MAX_ATTACHMENT_BYTES) {
     throw new CompReviewError('Файл слишком большой — Telegram отдаёт ботам файлы не тяжелее ~19 МБ');
@@ -642,10 +678,10 @@ async function saveAttachmentFromTelegram(tokenRow, doc) {
   const fileName = doc.file_name || 'файл';
   await run(
     'INSERT INTO comp_attachments (request_id, employee_row_id, file_name, mime_type, size_bytes, data) VALUES (?, ?, ?, ?, ?, ?)',
-    [requestId, employeeRowId, fileName, doc.mime_type || null, data.length, data]);
-  await logActivity(requestId, employeeRowId, actorLogin, 'прикрепил файл через Telegram', fileName);
+    [requestId, employeeRowId ?? null, fileName, doc.mime_type || null, data.length, data]);
+  await logActivity(requestId, employeeRowId, actorLogin, employeeRowId == null ? 'прикрепил файл-основание через Telegram' : 'прикрепил файл через Telegram', fileName);
 
-  return { fileName, count: current + 1, max: MAX_ATTACHMENTS_PER_EMPLOYEE };
+  return { fileName, count: current + 1, max };
 }
 
 function mapAttachment(a) {
@@ -656,6 +692,14 @@ async function listAttachments(employeeId, user, hasCap) {
   await requireEmployeeVisible(employeeId, user, hasCap);
   const rows = await queryAll(
     'SELECT id, file_name, mime_type, size_bytes, created_at FROM comp_attachments WHERE employee_row_id = ? ORDER BY id', [employeeId]);
+  return rows.map(mapAttachment);
+}
+
+async function listRequestAttachments(requestId, user, hasCap) {
+  const req = await getRequestRow(requestId);
+  if (!(await canView(mapRequest(req), user, hasCap))) throw new CompReviewError('Недостаточно прав');
+  const rows = await queryAll(
+    'SELECT id, file_name, mime_type, size_bytes, created_at FROM comp_attachments WHERE request_id = ? AND employee_row_id IS NULL ORDER BY id', [requestId]);
   return rows.map(mapAttachment);
 }
 
@@ -790,6 +834,6 @@ module.exports = {
   cbSetMarketData, cbReturn, cbForward, hrdApprove, hrdReject,
   vote, forceDecide, resetVote, pendingVoters, remindVoters, remindStaleCommitteeVotes, markPayrollEntered,
   getRequest, listRequests, canView, addComment,
-  createAttachToken, findActiveAttachTokenByChat, claimAttachToken, saveAttachmentFromTelegram,
-  listAttachments, getAttachmentForDownload, removeAttachment
+  createAttachToken, createRequestAttachToken, findActiveAttachTokenByChat, claimAttachToken, saveAttachmentFromTelegram,
+  listAttachments, listRequestAttachments, getAttachmentForDownload, removeAttachment
 };

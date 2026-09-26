@@ -245,6 +245,18 @@ exports.listAttachments = handle(async (req, res) => {
   res.json({ ok: true, rows });
 });
 
+exports.createRequestAttachToken = handle(async (req, res) => {
+  const requestId = parseInt(req.params.id, 10);
+  const result = await svc.createRequestAttachToken(requestId, req.user, hasCapFor(req.user));
+  res.json({ ok: true, ...result });
+});
+
+exports.listRequestAttachments = handle(async (req, res) => {
+  const requestId = parseInt(req.params.id, 10);
+  const rows = await svc.listRequestAttachments(requestId, req.user, hasCapFor(req.user));
+  res.json({ ok: true, rows });
+});
+
 exports.downloadAttachment = handle(async (req, res) => {
   const id = parseInt(req.params.attachmentId, 10);
   const a = await svc.getAttachmentForDownload(id, req.user, hasCapFor(req.user));
