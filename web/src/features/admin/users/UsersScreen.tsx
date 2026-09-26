@@ -112,7 +112,7 @@ export function UsersScreen() {
       )}
 
       {tab === 'active' && (
-        <div className={s.tableWrapFill}>
+        <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
           <table className={s.table}>
             <thead>
               <tr>
@@ -175,8 +175,31 @@ export function UsersScreen() {
         </div>
       )}
 
-      {tab === 'archive' && (
+      {/* Узкий экран: та же таблица, но только 3 самых важных столбца — ФИО,
+          роль и статус. Остальное (телефон, подразделения, telegram,
+          последний вход) и действия (сброс пароля, в архив) — по тапу на
+          строку, внутри формы редактирования (UserForm), а не отдельной
+          версткой карточек — те же данные, один путь показа, не два. */}
+      {tab === 'active' && (
         <div className={s.tableWrapFill}>
+          <table className={s.tableCompact}>
+            <thead><tr><th>ФИО</th><th>Роль</th><th>Статус</th></tr></thead>
+            <tbody>
+              {activeSort.sorted.map(row => (
+                <tr key={row.id} className={[s.clickableRow, row.active ? '' : s.rowInactive].join(' ')} onClick={() => setEditing(row)}>
+                  <td>{row.fio}</td>
+                  <td>{roles?.find(x => x.key === row.role)?.label ?? row.role}</td>
+                  <td>{row.active ? <Badge tone="ok">активен</Badge> : <Badge tone="muted">выключен</Badge>}</td>
+                </tr>
+              ))}
+              {!activeSort.sorted.length && <tr><td colSpan={3} className={s.empty}>{(u.users ?? []).length ? 'Ничего не найдено' : 'Пользователей нет'}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'archive' && (
+        <div className={[s.tableWrapFill, s.hideOnMobile].join(' ')}>
           <table className={s.table}>
             <thead>
               <tr>
@@ -200,6 +223,24 @@ export function UsersScreen() {
         </div>
       )}
 
+      {tab === 'archive' && (
+        <div className={s.tableWrapFill}>
+          <table className={s.tableCompact}>
+            <thead><tr><th>ФИО</th><th>В архиве с</th><th></th></tr></thead>
+            <tbody>
+              {archivedSort.sorted.map(row => (
+                <tr key={row.id}>
+                  <td>{row.fio}</td>
+                  <td>{row.archivedAt}</td>
+                  <td><Button size="sm" variant="secondary" onClick={() => u.restoreUser(row.login)}>Восстановить</Button></td>
+                </tr>
+              ))}
+              {!u.archived?.length && <tr><td colSpan={3} className={s.empty}>Архив пуст</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {formOpen && (
         <UserForm
           editing={editing}
@@ -208,6 +249,12 @@ export function UsersScreen() {
           onClose={() => { setEditing(null); setCreating(false); }}
           onSubmit={p => { u.save(p); setEditing(null); setCreating(false); }}
           submitting={u.saving}
+          onResetPassword={editing ? async () => {
+            if (await confirm(`Сбросить пароль пользователю «${editing.fio}»? Новый пароль придёт ему в Telegram.`)) u.resetPassword(editing.login);
+          } : undefined}
+          onArchive={editing ? async () => {
+            if (await confirm({ message: `Переместить «${editing.fio}» в архив?`, danger: true })) { u.archiveUser(editing.login); setEditing(null); }
+          } : undefined}
         />
       )}
 

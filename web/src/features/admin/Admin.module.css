@@ -16,7 +16,7 @@
 .card:hover { background: var(--surface-2); }
 .cardIcon {
   flex: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-md); background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow); color: var(--accent);
+  border-radius: var(--r-md); background: var(--icon-tile-bg); color: var(--accent);
 }
 .cardTitle { font-weight: 600; margin-bottom: var(--s-1); }
 .cardNote { font-size: 13px; color: var(--text-muted); }
@@ -41,13 +41,38 @@
 .table td.wrapCell { white-space: normal; overflow-wrap: break-word; max-width: 220px; }
 .table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); font-weight: 600; }
 .rowInactive { color: var(--text-muted); }
+.clickableRow { cursor: pointer; }
 
 /* На телефоне таблица всё равно шире экрана и скроллится вбок — но плотнее
    шрифт и отступы уменьшают, сколько нужно листать, чтобы дойти до нужной
-   колонки (например, до кнопки действия в «Пользователях»). */
+   колонки (например, до кнопки действия в «Пользователях»). Экраны, где
+   вместо этого есть карточный список (.cards ниже), сами скрывают обёртку
+   таблицы через .hideOnMobile — здесь только общая доводка тех, у кого
+   карточек ещё нет. */
 @media (max-width: 767px) {
   .table { min-width: 600px; font-size: 12px; }
   .table th, .table td { padding: 6px var(--s-2); }
+  .hideOnMobile { display: none; }
+}
+
+/* Узкий экран — не карточки, а та же таблица, но всего 2-3 самых важных
+   столбца (см. .tableCompact в разметке экрана, напр. UsersScreen.tsx):
+   остальные поля и действия строки открываются по тапу — в форме
+   редактирования (см. .mobileFormActions ниже), а не отдельной колонкой,
+   которая всё равно не поместилась бы на 320-375px. */
+.tableCompact { display: none; }
+@media (max-width: 767px) {
+  .tableCompact { display: table; width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .tableCompact th, .tableCompact td { padding: 10px var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+  .tableCompact tbody tr:active { background: var(--surface-2); }
+}
+
+/* Действия, которые на десктопе живут отдельной колонкой строки таблицы
+   (сброс пароля, в архив) — там для них есть место. На узкой .tableCompact
+   колонки на них не хватает, поэтому здесь же, в форме редактирования. */
+.mobileFormActions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-right: auto; }
+@media (min-width: 768px) {
+  .mobileFormActions { display: none; }
 }
 
 .form { display: flex; flex-direction: column; gap: var(--s-3); flex: 1; min-height: 0; }

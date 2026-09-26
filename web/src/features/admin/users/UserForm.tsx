@@ -11,13 +11,20 @@ import s from '../Admin.module.css';
  * (fio → транслитерация), для правки — логин уже присвоен и передаётся
  * скрыто, только для того, чтобы отличить create от edit на сервере.
  */
-export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submitting }: {
+export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submitting, onResetPassword, onArchive }: {
   editing: AdminUser | null;
   roles: RoleInfo[];
   unitOptions: string[];
   onClose: () => void;
   onSubmit: (p: SaveUserPayload) => void;
   submitting: boolean;
+  /** Только для правки существующего — на узком экране таблица показывает
+      лишь ФИО/роль/статус (UsersScreen.tsx, .tableCompact), эти два действия
+      и не помещаются отдельной колонкой, и не показывались бы вовсе —
+      переехали сюда, на десктопе они по-прежнему остаются в строке таблицы
+      (.formFoot скрывает эти кнопки от 768px, см. Admin.module.css). */
+  onResetPassword?: () => void;
+  onArchive?: () => void;
 }) {
   const [fio, setFio] = useState(editing?.fio ?? '');
   const [role, setRole] = useState<string>(editing?.role ?? 'user');
@@ -38,6 +45,9 @@ export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submi
   return (
     <Sheet open onClose={onClose} title={editing ? editing.fio : 'Новый пользователь'}>
       <div className={s.form}>
+        {editing && (
+          <div className={s.hint}>Telegram: {editing.hasTelegram ? 'есть' : 'нет'} · Последний вход: {editing.lastIn || '—'}</div>
+        )}
         <Input label="ФИО" value={fio} onChange={e => setFio(e.target.value)} />
         <Select
           label="Роль" value={role} onChange={e => setRole(e.target.value)}
@@ -68,6 +78,12 @@ export function UserForm({ editing, roles, unitOptions, onClose, onSubmit, submi
           Активен
         </label>
         <div className={s.formFoot}>
+          {(onResetPassword || onArchive) && (
+            <div className={s.mobileFormActions}>
+              {onResetPassword && <Button size="sm" variant="secondary" onClick={onResetPassword}>Сброс пароля</Button>}
+              {onArchive && <Button size="sm" variant="danger" onClick={onArchive}>В архив</Button>}
+            </div>
+          )}
           <Button
             loading={submitting} disabled={!canSubmit}
             onClick={() => onSubmit({ login: editing?.login, fio: fio.trim(), role, phone, position, units, active })}
