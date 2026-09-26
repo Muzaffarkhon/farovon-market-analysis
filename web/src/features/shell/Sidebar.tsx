@@ -1,23 +1,24 @@
 import { useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
-import { toggleTheme } from '../../design/theme';
+import { Icon, type IconName } from '../../design/Icon';
+import { getTheme, setTheme, type Theme } from '../../design/theme';
 import { useSession, useSessionData } from '../auth/useSession';
 import { useCompWaitingCount } from '../compReview/useCompReview';
 import { groupNavItems, type NavItem } from './NavItems';
 import { PeriodPicker } from './PeriodPicker';
 import s from './Sidebar.module.css';
 
-/** Простые Unicode-глифы — без иконочного шрифта/библиотеки, тем же приёмом,
- * что и «◐» (тема) и «⋯» (ещё) в TopBar. Ключ — путь пункта, не icon-тип из
- * NavItem: «Оценка должностей» и «Риски» делят один тип 'scale', а глиф
- * нужен разный, чтобы отличать их в свёрнутой полосе. */
-const GLYPH: Record<string, string> = {
-  '/': '▤', '/support': '✉', '/registry': '▦', '/dashboard': '◧', '/dashboard/benchmark': '◨',
-  '/coordination': '◍', '/grading': '◔', '/key-risks': '◭', '/comp': '₸',
-  '/access': '⚿', '/admin': '⚙',
-  '/admin/users': '◫', '/admin/divisions': '▥', '/admin/staff': '▧', '/admin/dictionary': '▨',
-  '/admin/grading': '◑', '/admin/benchmark': '◐', '/admin/periods': '◷', '/admin/support': '✎',
-  '/admin/broadcast': '➤', '/admin/audit-log': '☰', '/admin/service': '⚒', '/admin/comp-committee': '◈'
+/** Векторные иконки (design/Icon.tsx), не текстовые Unicode-глифы. Ключ —
+ * путь пункта, не icon-тип из NavItem: «Оценка должностей» и «Риски» делят
+ * один тип 'scale', а иконка нужна разная, чтобы отличать их в свёрнутой
+ * полосе. */
+const ICON: Record<string, IconName> = {
+  '/': 'collect', '/support': 'chat', '/registry': 'grid', '/dashboard': 'dashboard', '/dashboard/benchmark': 'chart',
+  '/coordination': 'coordination', '/grading': 'grades', '/key-risks': 'risk', '/comp': 'money',
+  '/access': 'shield', '/admin': 'settings',
+  '/admin/users': 'users', '/admin/divisions': 'units', '/admin/staff': 'book', '/admin/dictionary': 'dict',
+  '/admin/grading': 'grades', '/admin/benchmark': 'chart', '/admin/periods': 'clock', '/admin/support': 'chat',
+  '/admin/broadcast': 'send', '/admin/audit-log': 'log', '/admin/service': 'tools', '/admin/comp-committee': 'money'
 };
 
 /** ФИО в строке заголовка на телефоне узкое место — «Фамилия Имя» целиком не
@@ -54,6 +55,11 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
   const compWaitingCount = useCompWaitingCount();
   const [width, setWidth] = useState(loadWidth);
   const [dragging, setDragging] = useState(false);
+  // Только для подсветки активного варианта в переключателе темы ниже — сама
+  // тема применяется сразу через data-theme на <html> (design/theme.ts),
+  // этот state лишь отражает, какая из двух иконок сейчас должна быть яркой.
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  function applyTheme(t: Theme) { setTheme(t); setThemeState(t); }
   // React-состояние `dragging` обновляется асинхронно — если читать его же
   // внутри onResizeMove/endResize, самое первое движение сразу после
   // pointerdown может увидеть ещё не обновлённое значение (гонка между
@@ -144,7 +150,25 @@ export function Sidebar({ items, collapsed, open, onNavigate, onCloseMobile, onT
               (Тема/Период/Пароль/Выйти): гамбургер в TabBar.tsx — единственный
               вход в меню на телефоне, дублировать его незачем. */}
           <div className={s.mobileAccount}>
-            <button type="button" className={s.accountItem} onClick={() => toggleTheme()}>Сменить тему</button>
+            <div className={s.themeRow}>
+              <span>Тема</span>
+              <span className={s.themeToggle}>
+                <button
+                  type="button" aria-label="Светлая тема" aria-pressed={theme === 'light'}
+                  className={[s.themeBtn, theme === 'light' ? s.themeBtnActive : ''].join(' ')}
+                  onClick={() => applyTheme('light')}
+                >
+                  <Icon name="sun" size={16} gradient={theme === 'light'} />
+                </button>
+                <button
+                  type="button" aria-label="Тёмная тема" aria-pressed={theme === 'dark'}
+                  className={[s.themeBtn, theme === 'dark' ? s.themeBtnActive : ''].join(' ')}
+                  onClick={() => applyTheme('dark')}
+                >
+                  <Icon name="moon" size={16} gradient={theme === 'dark'} />
+                </button>
+              </span>
+            </div>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/profile'); }}>Профиль</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); navigate('/change-password'); }}>Сменить пароль</button>
             <button type="button" className={s.accountItem} onClick={() => { onCloseMobile(); void logout(); }}>Выйти</button>
@@ -202,7 +226,7 @@ function NavGroupBlock({ group, sidebarCollapsed, onNavigate, compWaitingCount }
             key={i.to} to={i.to} end={i.to === '/'} onClick={onNavigate}
             className={({ isActive }) => [s.link, isActive && !suppressActive ? s.active : ''].join(' ')}
           >
-            <span className={s.icon} aria-hidden="true"><span>{GLYPH[i.to] ?? '•'}</span></span>
+            <span className={s.icon} aria-hidden="true">{ICON[i.to] && <Icon name={ICON[i.to]} size={16} />}</span>
             <span className={s.label}>{i.label}</span>
             {i.to === '/comp' && compWaitingCount > 0 && (
               <span className={s.navBadge}>{compWaitingCount > 99 ? '99+' : compWaitingCount}</span>

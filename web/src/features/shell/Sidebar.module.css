@@ -10,7 +10,10 @@
      должно читаться как настоящее движение, а не мгновенный скачок. */
   transition: width .32s cubic-bezier(.22, .9, .28, 1);
 }
-.sidebar.collapsed { width: 56px; }
+/* 64, не 56 — при 56 плитка иконки (26px) физически не помещалась в
+   оставшееся место (ширина минус padding .nav и .link с обеих сторон),
+   и обрезалась по краю, из-за чего казалось, что часть иконок «пропала». */
+.sidebar.collapsed { width: 64px; }
 /* Во время самого перетаскивания за ручку — короче, чтобда полоса
    заметно «догоняла» курсор с лёгкой инерцией, а не тянулась за ним с
    тем же протяжным таймингом, что и клик по кнопке сворачивания. */
@@ -38,7 +41,7 @@
 .brandMark {
   flex: none; width: 28px; height: 28px; border-radius: var(--r-sm);
   background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, black));
-  box-shadow: var(--icon-3d-shadow); color: #fff;
+  box-shadow: var(--shadow); color: #fff;
   display: flex; align-items: center; justify-content: center;
   border: 0; padding: 0; cursor: pointer;
 }
@@ -91,26 +94,17 @@
 }
 .link:hover { background: var(--surface); }
 .link.active { background: var(--surface); color: var(--text); font-weight: 600; }
-/* Раньше «объём» был только у квадратной подложки (градиент+тень) — сам
-   символ внутри оставался плоской заливкой var(--accent), поэтому эффект
-   читался как «рамка с тенью», а не «выпуклая иконка». Здесь объём
-   переносится на сам глиф: градиентная заливка через background-clip:text
-   (глянцевый металлик, светлее сверху — темнее снизу, как у выпуклой
-   поверхности) + двойной text-shadow, имитирующий фаску — светлый блик
-   снизу-справа (будто ловит свет) и тёмная тень сверху-слева. */
+/* Свёрнуто: без текста-подписи боковой padding кнопки только съедал место
+   у плитки иконки — центрируем иконку и убираем лишние отступы. */
+.collapsed .link { padding: 0; justify-content: center; }
+/* Плоская тонированная плитка (--icon-tile-bg, tokens.css) — тот же
+   стиль, что в шапке (TopBar), нижней панели телефона (TabBar) и
+   карточках админки, а не свой вариант здесь. Сама иконка — настоящий
+   SVG (design/Icon.tsx), не текстовый символ. */
 .icon {
   flex: none; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-sm); font-size: 15px;
-  background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow);
-}
-.icon span {
-  background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 60%, white), var(--accent) 65%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .55), 0 -1px 0 rgba(0, 0, 0, .35);
-  /* text-shadow игнорируется на прозрачном тексте в части браузеров при
-     background-clip:text — filter:drop-shadow работает поверх формы глифа
-     и там, где text-shadow не сработал бы, так что дублируем оба приёма. */
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .5)) drop-shadow(0 -0.5px 0 rgba(0, 0, 0, .3));
+  border-radius: var(--r-sm);
+  background: var(--icon-tile-bg);
 }
 .label { overflow: hidden; text-overflow: ellipsis; }
 .collapsed .label { display: none; }
@@ -152,6 +146,16 @@
   .brand { padding-top: var(--s-2); }
   .backdrop.open { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(0, 0, 0, .4); border: 0; padding: 0; }
   .mobileAccount { display: flex; flex-direction: column; margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--border); }
+  /* Переключатель темы — вместо текстовой кнопки «Сменить тему»: сразу
+     видно текущее состояние (яркая иконка = выбран этот вариант), не только
+     после тапа вслепую. */
+  .themeRow { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap); padding: 0 var(--s-3); }
+  .themeToggle { display: flex; gap: 2px; padding: 2px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+  .themeBtn {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+    border-radius: 999px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer;
+  }
+  .themeBtnActive { background: var(--icon-tile-bg); color: var(--accent); }
   /* Подпись под названием на телефоне — имя и период вместо слогана, та же
      строка (.brandText), не отдельный ряд. */
   .brandSubDesktop { display: none; }
