@@ -62,8 +62,14 @@
    редактирования (см. .mobileFormActions ниже), а не отдельной колонкой,
    которая всё равно не поместилась бы на 320-375px. */
 .tableCompact { display: none; }
+/* Обёртка этой таблицы (.tableWrapFill) сама по себе не скрывается на
+   десктопе — только вложенная <table> через display:none выше. Без этого
+   правила на широком экране остаётся пустая рамка/тень высотой min-height
+   от .tableWrapFill, даже когда внутри нет ни одной видимой строки. */
+.tableWrapFill:has(> .tableCompact) { display: none; }
 @media (max-width: 767px) {
   .tableCompact { display: table; width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .tableWrapFill:has(> .tableCompact) { display: block; }
   .tableCompact th, .tableCompact td { padding: 10px var(--s-3); border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
   .tableCompact tbody tr:active { background: var(--surface-2); }
 }
