@@ -50,7 +50,7 @@ export function AppRoutes() {
         <Route path="dashboard/:tab?" element={<DashboardScreen />} />
         <Route path="coordination" element={<CoordinationScreen />} />
         <Route path="grading/:block?" element={<GradingScreen />} />
-        <Route path="key-risks" element={<KeyRisksScreen />} />
+        <Route path="key-risks/:dir?" element={<KeyRisksScreen />} />
         <Route path="comp" element={<RequestsListScreen />} />
         <Route path="comp/:id" element={<RequestScreen />} />
         <Route path="access" element={<RoleMatrixScreen />} />

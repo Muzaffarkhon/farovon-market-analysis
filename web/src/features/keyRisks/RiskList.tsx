@@ -1,10 +1,13 @@
 import type { KeyRisk } from '../../api/contract';
 import { Badge } from '../../design/Badge';
-import { Button } from '../../design/Button';
 import { useSessionData } from '../auth/useSession';
 import s from './KeyRisks.module.css';
 
-/** Требуют внимания — attention и critical вместе, отсортировано по баллу убыв. (собрано в useKeyRisks). */
+const STATUS_LABEL: Record<KeyRisk['risk_status'], string> = {
+  standard: 'Штатный', attention: 'Зона внимания', critical: 'Критический'
+};
+
+/** Оценённые сотрудники направления — как список должностей в грейдировании: строка на сотрудника, клик открывает анкету заново. */
 export function RiskList({ rows, onEdit, onDelete }: {
   rows: KeyRisk[];
   onEdit: (row: KeyRisk) => void;
@@ -14,26 +17,45 @@ export function RiskList({ rows, onEdit, onDelete }: {
   const canDelete = user.role === 'admin';
 
   return (
-    <div className={s.list}>
-      {rows.map(r => (
-        <div key={r.id} className={s.riskRow}>
-          <div className={s.riskMain}>
-            <div className={s.riskTop}>
-              <b>{r.employee_fio}</b>
-              <Badge tone="warn">
-                <span className={r.risk_status === 'critical' ? s.critical : undefined}>{r.total_risk_score} баллов</span>
-              </Badge>
-            </div>
-            <div className={s.riskMeta}>{r.job_title} · {r.unit}</div>
-            {r.action_plan && <div className={s.riskPlan}>{r.action_plan}</div>}
-          </div>
-          <div className={s.riskActions}>
-            <Button variant="secondary" size="sm" onClick={() => onEdit(r)}>Оценить заново</Button>
-            {canDelete && <Button variant="danger" size="sm" onClick={() => onDelete(r.id)}>Удалить</Button>}
-          </div>
-        </div>
-      ))}
-      {!rows.length && <p className={s.empty}>Никто не требует особого внимания.</p>}
+    <div className={s.tableWrapFill}>
+      <table className={s.table}>
+        <thead>
+          <tr>
+            <th>Сотрудник</th>
+            <th>Должность</th>
+            <th>Подразделение</th>
+            <th className={s.num}>Баллы</th>
+            <th>Статус</th>
+            {canDelete && <th></th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id} onClick={() => onEdit(r)}>
+              <td><b>{r.employee_fio}</b></td>
+              <td>{r.job_title}</td>
+              <td>{r.unit}</td>
+              <td className={s.num}>{r.total_risk_score}</td>
+              <td>
+                <Badge tone={r.risk_status === 'standard' ? 'ok' : 'warn'}>
+                  <span className={r.risk_status === 'critical' ? s.critical : undefined}>{STATUS_LABEL[r.risk_status]}</span>
+                </Badge>
+              </td>
+              {canDelete && (
+                <td>
+                  <button
+                    type="button" className={s.deleteBtn}
+                    onClick={e => { e.stopPropagation(); onDelete(r.id); }}
+                  >
+                    Удалить
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!rows.length && <p className={s.empty}>В направлении пока никто не оценён.</p>}
     </div>
   );
 }

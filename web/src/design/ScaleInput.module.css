@@ -2,7 +2,9 @@
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); font-size: 14px; font-weight: 600; }
 .value { color: var(--text-muted); font-weight: 400; white-space: nowrap; }
 .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s-2); }
-.cell { min-height: var(--tap); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); font-weight: 700; cursor: pointer; color: var(--text-muted); text-transform: uppercase; }
-.cell.active { border-color: var(--accent); background: var(--accent-soft, var(--surface-2)); color: var(--accent); }
+.cell { min-height: var(--tap); display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); cursor: pointer; }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text-muted); }
+.cell.active { border-color: var(--accent); background: var(--accent-soft, var(--surface-2)); }
+.cell.active .dot { border-color: var(--accent); background: var(--accent); }
 .hint { margin: 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--surface-2); font-size: 15px; line-height: 1.5; color: var(--text); }
 .hint i { color: var(--text-muted); font-style: normal; }

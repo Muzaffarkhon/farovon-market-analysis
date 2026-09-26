@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toggleTheme } from '../../design/theme';
+import { useToast } from '../../design/Toast';
 import { useSession, useSessionData } from '../auth/useSession';
 import { PeriodPicker } from './PeriodPicker';
 import { useOnline } from './useOnline';
@@ -13,7 +14,28 @@ export function TopBar({ title }: { title: string }) {
   const navigate = useNavigate();
   const online = useOnline();
   const qc = useQueryClient();
+  const toast = useToast();
   const [menu, setMenu] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // invalidateQueries сам по себе не даёт понять, сработал ли клик: пока
+  // запросы перезагружаются, крутим иконку (та же анимация, что и у жеста
+  // «потянуть вниз» на телефоне — usePullToRefresh.ts), а по готовности
+  // коротко подтверждаем тостом. Минимум 400мс — иначе на быстром кэше
+  // спин мелькает и не читается как обратная связь.
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const started = Date.now();
+    try {
+      await qc.invalidateQueries();
+    } finally {
+      const left = 400 - (Date.now() - started);
+      if (left > 0) await new Promise(r => setTimeout(r, left));
+      setRefreshing(false);
+      toast.show('Обновлено', 'ok');
+    }
+  };
 
   return (
     <header className={s.top}>
@@ -31,8 +53,9 @@ export function TopBar({ title }: { title: string }) {
       <div className={s.right}>
         {!online && <span className={s.offline} role="status">Нет связи</span>}
         <PeriodPicker />
-        <button type="button" className={s.iconBtn} aria-label="Обновить" onClick={() => void qc.invalidateQueries()}>
-          <span className={s.iconGlyph} aria-hidden="true">⟳</span>
+        <span className={s.userLogin}>{user.login}</span>
+        <button type="button" className={s.iconBtn} aria-label="Обновить" disabled={refreshing} onClick={() => void handleRefresh()}>
+          <span className={[s.iconGlyph, refreshing ? s.pullSpin : ''].join(' ')} aria-hidden="true">⟳</span>
         </button>
         <button type="button" className={s.iconBtn} aria-label="Тема" onClick={() => toggleTheme()}>
           <span className={s.iconGlyph} aria-hidden="true">◐</span>

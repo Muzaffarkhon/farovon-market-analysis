@@ -23,9 +23,9 @@ test('кнопка «Отправить оценку» выключена, по�
 test('выбор варианта включает кнопку и передаёт выбранный балл в onSubmit', async () => {
   const onSubmit = vi.fn();
   render(<PositionForm row={position()} criteria={criteria} committeeSize={0} onClose={() => {}} onSubmit={onSubmit} submitting={false} />);
-  // Кнопки подписаны буквами (a…e) в перемешанном порядке — какую ни возьми, это валидный ответ.
-  const letterButtons = screen.getAllByRole('button').filter(b => /^[a-f]$/.test(b.textContent ?? ''));
-  await userEvent.click(letterButtons[0]);
+  // Кнопки — кружки без подписи (aria-label «Вариант N») в перемешанном порядке — какую ни возьми, это валидный ответ.
+  const scaleButtons = screen.getAllByRole('button', { name: /^Вариант \d$/ });
+  await userEvent.click(scaleButtons[0]);
   const btn = screen.getByRole('button', { name: 'Отправить оценку' });
   expect(btn).toBeEnabled();
   await userEvent.click(btn);
@@ -42,8 +42,8 @@ test('без комиссии оценённую должность можно �
   render(<PositionForm row={position({ grade_level: 3, factor_1: 4 })} criteria={criteria} committeeSize={0} onClose={() => {}} onSubmit={() => {}} submitting={false} />);
   const btn = screen.getByRole('button', { name: 'Отправить оценку' });
   expect(btn).toBeDisabled();
-  const letterButtons = screen.getAllByRole('button').filter(b => /^[a-f]$/.test(b.textContent ?? ''));
-  await userEvent.click(letterButtons[0]);
+  const scaleButtons = screen.getAllByRole('button', { name: /^Вариант \d$/ });
+  await userEvent.click(scaleButtons[0]);
   expect(btn).toBeEnabled();
 });
 

@@ -50,6 +50,7 @@
   background: var(--icon-3d-bg); box-shadow: var(--icon-3d-shadow); color: var(--accent);
 }
 .offline { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
+.userLogin { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
 .more { position: relative; }
 .menu { position: absolute; right: 0; top: 100%; min-width: 200px; padding: var(--s-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); display: flex; flex-direction: column; }
 .menuUser { padding: var(--s-2) var(--s-3); font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: var(--s-1); }

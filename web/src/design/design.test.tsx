@@ -103,16 +103,17 @@ test('RankBar показывает процент и подпись, ширин�
 const scaleOptions = ['Первый вариант', 'Второй вариант', 'Третий вариант', 'Четвёртый вариант', 'Пятый вариант'];
 const scaleExamples = ['Уборщик', 'Кассир', 'Мастер', 'Директор направления', 'Генеральный директор'];
 
-test('ScaleInput: кнопки подписаны буквами, не баллом, и каждая ведёт на свой уникальный балл', async () => {
+test('ScaleInput: кнопки — просто кружки без подписи, и каждая ведёт на свой уникальный балл', async () => {
   const onChange = vi.fn();
   render(<ScaleInput label="К1" value={0} onChange={onChange} options={scaleOptions} />);
   const buttons = screen.getAllByRole('button');
-  expect(buttons.map(b => b.textContent)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  expect(buttons).toHaveLength(5);
+  expect(buttons.every(b => !b.textContent)).toBe(true);
   for (const b of buttons) await userEvent.click(b);
   expect(onChange.mock.calls.map(c => c[0]).sort()).toEqual([1, 2, 3, 4, 5]);
 });
 
-test('ScaleInput: повторный клик по уже выбранной букве снимает ответ', async () => {
+test('ScaleInput: повторный клик по уже выбранному варианту снимает ответ', async () => {
   const onChange = vi.fn();
   const { rerender } = render(<ScaleInput label="К1" value={0} onChange={onChange} options={scaleOptions} />);
   const first = screen.getAllByRole('button')[0];

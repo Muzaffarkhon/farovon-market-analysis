@@ -74,7 +74,7 @@ export function PositionForm({
           {criteria.map((c, i) => (
             <ScaleInput
               key={c.code}
-              label={`${c.code}. ${c.title}`}
+              label={c.title}
               value={values[i]}
               onChange={v => setValues(prev => prev.map((x, j) => (j === i ? v : x)))}
               options={c.options}

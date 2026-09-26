@@ -18,25 +18,35 @@ test('не admin не видит кнопку «Удалить»', () => {
   expect(screen.queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument();
 });
 
-test('admin видит и может нажать «Удалить»', async () => {
+test('admin видит и может нажать «Удалить», это не открывает анкету', async () => {
   session = { user: { role: 'admin' } } as unknown as SessionData;
   const onDelete = vi.fn();
-  render(<RiskList rows={[risk()]} onEdit={() => {}} onDelete={onDelete} />);
+  const onEdit = vi.fn();
+  render(<RiskList rows={[risk()]} onEdit={onEdit} onDelete={onDelete} />);
   await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
   expect(onDelete).toHaveBeenCalledWith(1);
+  expect(onEdit).not.toHaveBeenCalled();
 });
 
-test('«Оценить заново» передаёт саму запись', async () => {
+test('клик по строке сотрудника открывает анкету заново с этой записью', async () => {
   session = { user: { role: 'hrbp' } } as unknown as SessionData;
   const onEdit = vi.fn();
   const row = risk();
   render(<RiskList rows={[row]} onEdit={onEdit} onDelete={() => {}} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Оценить заново' }));
+  await userEvent.click(screen.getByText('Иванов Иван'));
   expect(onEdit).toHaveBeenCalledWith(row);
+});
+
+test('критический статус выделен, остальные поля строки видны', () => {
+  session = { user: { role: 'hrbp' } } as unknown as SessionData;
+  render(<RiskList rows={[risk()]} onEdit={() => {}} onDelete={() => {}} />);
+  expect(screen.getByText('Мастер')).toBeInTheDocument();
+  expect(screen.getByText('Цех 1')).toBeInTheDocument();
+  expect(screen.getByText('Критический')).toBeInTheDocument();
 });
 
 test('без записей — сообщение', () => {
   session = { user: { role: 'hrbp' } } as unknown as SessionData;
   render(<RiskList rows={[]} onEdit={() => {}} onDelete={() => {}} />);
-  expect(screen.getByText('Никто не требует особого внимания.')).toBeInTheDocument();
+  expect(screen.getByText('В направлении пока никто не оценён.')).toBeInTheDocument();
 });

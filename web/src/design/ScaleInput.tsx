@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import s from './ScaleInput.module.css';
 
-const LETTERS = ['a', 'b', 'c', 'd', 'e', 'f'];
-
-/** Перетасовка Фишера — Йетса: какой вариант (0-based) окажется под какой буквой. */
+/** Перетасовка Фишера — Йетса: какой вариант (0-based) окажется под какой кнопкой. */
 function shuffledOrder(n: number): number[] {
   const order = Array.from({ length: n }, (_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
@@ -20,9 +18,9 @@ function shuffledOrder(n: number): number[] {
  * Анкета риска эталонов не показывает (у неё их нет) — `examples` тогда
  * просто не передаётся.
  *
- * Кнопки подписаны буквами, а не баллом, и вариант под каждой буквой
- * перемешивается заново при каждом открытии карточки: позиция и подпись
- * ничего не говорят о выставленном балле, поэтому его не выдаёт ни экран
+ * Кнопки — просто кружки, без буквы и без балла, и вариант под каждым
+ * кружком перемешивается заново при каждом открытии карточки: позиция
+ * ничего не говорит о выставленном балле, поэтому его не выдаёт ни экран
  * через плечо, ни фраза «я поставил третий вариант» до подведения итога
  * комиссией.
  */
@@ -34,13 +32,12 @@ export function ScaleInput({ label, value, onChange, options, examples }: {
   examples?: string[];
 }) {
   const [order] = useState(() => shuffledOrder(options.length));
-  const selectedLetter = value > 0 ? LETTERS[order.indexOf(value - 1)] : null;
 
   return (
     <div className={s.field}>
       <div className={s.head}>
         <span className={s.label}>{label}</span>
-        <span className={s.value}>{selectedLetter ? `выбран вариант ${selectedLetter}` : '— не выбрано —'}</span>
+        <span className={s.value}>{value > 0 ? 'оценено' : '— не выбрано —'}</span>
       </div>
       <div className={s.row}>
         {order.map((optIndex, col) => {
@@ -50,9 +47,10 @@ export function ScaleInput({ label, value, onChange, options, examples }: {
               key={optIndex} type="button"
               className={[s.cell, value === score ? s.active : ''].join(' ')}
               aria-pressed={value === score}
+              aria-label={`Вариант ${col + 1}`}
               onClick={() => onChange(value === score ? 0 : score)}
             >
-              {LETTERS[col]}
+              <span className={s.dot} />
             </button>
           );
         })}

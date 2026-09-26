@@ -4,7 +4,7 @@ import { keyRisksApi } from '../../api/keyRisks';
 import type { GradingFactor, KeyRisk } from '../../api/contract';
 import { Button } from '../../design/Button';
 import { Combobox } from '../../design/Combobox';
-import { Select } from '../../design/Select';
+import { ScaleInput } from '../../design/ScaleInput';
 import { Sheet } from '../../design/Sheet';
 import { Textarea } from '../../design/Textarea';
 import { useSessionData } from '../auth/useSession';
@@ -81,12 +81,13 @@ export function RiskForm({ riskFactors, editing, onClose, onSubmit, submitting }
           </p>
         )}
         {riskFactors.map(f => (
-          <Select
+          <ScaleInput
             key={f.code}
-            label={f.title} placeholder="— выберите —"
-            value={answers[FIELDS[riskFactors.indexOf(f)]] || ''}
-            options={f.options.map((opt, i) => ({ value: String(i + 1), label: opt }))}
-            onChange={e => setAnswers(prev => ({ ...prev, [FIELDS[riskFactors.indexOf(f)]]: Number(e.target.value) }))}
+            label={f.title}
+            value={answers[FIELDS[riskFactors.indexOf(f)]] || 0}
+            onChange={v => setAnswers(prev => ({ ...prev, [FIELDS[riskFactors.indexOf(f)]]: v }))}
+            options={f.options}
+            examples={f.examples}
           />
         ))}
         <Textarea

@@ -79,5 +79,5 @@ test('клик по должности открывает анкету', async (
   renderScreen('/grading/office');
   await userEvent.click(await screen.findByText('Бухгалтер'));
   expect(await screen.findByRole('dialog', { name: 'Бухгалтер' })).toBeInTheDocument();
-  expect(screen.getByText(/К1\. Квалификация/)).toBeInTheDocument();
+  expect(screen.getByText('Квалификация')).toBeInTheDocument();
 });

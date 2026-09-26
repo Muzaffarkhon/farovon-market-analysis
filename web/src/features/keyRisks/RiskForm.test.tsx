@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RiskForm } from './RiskForm';
 import * as api from '../../api/keyRisks';
@@ -23,6 +23,13 @@ let unitEmployees: ReturnType<typeof vi.fn>;
 async function pick(label: string, optionName: string | RegExp) {
   await userEvent.click(screen.getByLabelText(label));
   await userEvent.click(await screen.findByRole('option', { name: optionName }));
+}
+
+/** Вопрос риска — ScaleInput (кружки в перемешанном порядке), первый ни к чему не обязывает — важен сам факт ответа. */
+function pickFirstScale(labelText: string) {
+  const label = screen.getByText(labelText);
+  const field = label.parentElement!.parentElement!;
+  return within(field).getAllByRole('button')[0];
 }
 
 function renderForm(props: Partial<Parameters<typeof RiskForm>[0]> = {}) {
@@ -52,14 +59,15 @@ test('отправка передаёт подразделение, сотруд
   renderForm({ onSubmit });
   await pick('Подразделение', 'Цех 1');
   await pick('Сотрудник', 'Иванов Иван');
-  await userEvent.selectOptions(screen.getByLabelText('Незаменимость'), '4');
-  await userEvent.selectOptions(screen.getByLabelText('Срок замены'), '3');
-  await userEvent.selectOptions(screen.getByLabelText('Монополия на знания'), '2');
-  await userEvent.selectOptions(screen.getByLabelText('Финансовый риск'), '5');
+  await userEvent.click(pickFirstScale('Незаменимость'));
+  await userEvent.click(pickFirstScale('Срок замены'));
+  await userEvent.click(pickFirstScale('Монополия на знания'));
+  await userEvent.click(pickFirstScale('Финансовый риск'));
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить оценку' }));
   expect(onSubmit).toHaveBeenCalledWith({
     unit: 'Цех 1', employee_fio: 'Иванов Иван', job_title: 'Мастер',
-    bus_factor: 4, replacement_time: 3, knowledge_monopoly: 2, financial_risk: 5,
+    bus_factor: expect.any(Number), replacement_time: expect.any(Number),
+    knowledge_monopoly: expect.any(Number), financial_risk: expect.any(Number),
     action_plan: ''
   });
 });
@@ -75,9 +83,9 @@ test('сотрудник без должности в справочнике —
   await pick('Подразделение', 'Цех 1');
   await pick('Сотрудник', /Без должности/);
   expect(await screen.findByText(/не указана в справочнике штата/)).toBeInTheDocument();
-  await userEvent.selectOptions(screen.getByLabelText('Незаменимость'), '1');
-  await userEvent.selectOptions(screen.getByLabelText('Срок замены'), '1');
-  await userEvent.selectOptions(screen.getByLabelText('Монополия на знания'), '1');
-  await userEvent.selectOptions(screen.getByLabelText('Финансовый риск'), '1');
+  await userEvent.click(pickFirstScale('Незаменимость'));
+  await userEvent.click(pickFirstScale('Срок замены'));
+  await userEvent.click(pickFirstScale('Монополия на знания'));
+  await userEvent.click(pickFirstScale('Финансовый риск'));
   expect(screen.getByRole('button', { name: 'Сохранить оценку' })).toBeEnabled();
 });
